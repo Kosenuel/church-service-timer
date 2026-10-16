@@ -28,4 +28,6 @@ Saved-state version 5 supports a signed timing anchor so overtime survives pause
 
 The new regression cases cover overtime/recovery/Undo, adjusted allocation, warning eligibility, connection labels, changing/stale confirmations, Custom cancellation and removal, and narrow layouts with enlarged text. Run `flutter test --update-goldens` and review the changed Live screenshots and new `phone-overtime.png` before distribution. Android runtime and physical-display verification remain separate.
 
+Verified on 16 October 2026: Flutter analysis reported no issues, all 122 Flutter tests passed, and the phone Live, phone overtime and tablet Live screenshots were visually reviewed. The debug APK built successfully as `org.kosenuel.cuekeeper`, version `0.5.0` (code 5), targeting API 36 with minimum API 24. Its v2 signature was independently verified and uses the same certificate as 0.4. The 75 standalone timing/import checks also passed. Installation, notification delivery and physical sign testing remain pending.
+
 The compact Templates listing discussed alongside this change is a design preview awaiting approval; it is not included in 0.5.
