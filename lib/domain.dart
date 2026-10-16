@@ -786,7 +786,7 @@ class AppState {
   List<TextLayout> stageCues;
   String pixelShape;
   bool groupTemplates;
-  String churchName, themeId;
+  String churchName, themeId, churchBanner;
   bool keepScreenAwake;
   AppState(
     this.templates,
@@ -797,6 +797,7 @@ class AppState {
     this.pixelShape = 'square',
     this.groupTemplates = false,
     this.churchName = '',
+    this.churchBanner = '',
     this.themeId = 'midnight_lime',
     this.keepScreenAwake = true,
   }) : reports = reports ?? [],
@@ -825,7 +826,7 @@ class AppState {
   );
   factory AppState.fromJson(Json j) {
     require(
-      {1, 2, 3, 4, 5, 6, 7}.contains(j['version']),
+      {1, 2, 3, 4, 5, 6, 7, 8}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -845,6 +846,7 @@ class AppState {
       pixelShape: j['pixelShape'] ?? 'square',
       groupTemplates: j['groupTemplates'] ?? false,
       churchName: churchNameValue(j['churchName'] ?? ''),
+      churchBanner: churchBannerValue(j['churchBanner'] ?? ''),
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
       keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
       reports: (j['reports'] as List? ?? [])
@@ -927,7 +929,7 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 7,
+    'version': 8,
     'templates': templates.map((t) => t.toJson()).toList(),
     'defaults': defaults.toJson(),
     'session': session.toJson(),
@@ -936,6 +938,7 @@ class AppState {
     'pixelShape': pixelShape,
     'groupTemplates': groupTemplates,
     'churchName': churchName,
+    'churchBanner': churchBanner,
     'themeId': themeId,
     'keepScreenAwake': keepScreenAwake,
   };

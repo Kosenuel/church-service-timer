@@ -62,6 +62,19 @@ class MainActivity : FlutterActivity() {
                         } catch (e: Exception) { pending = null; result.error("FONT", e.message, null) }
                     }
                 }
+                "pickChurchBanner" -> {
+                    if (pending != null) result.error("BUSY", "A document picker is already open", null)
+                    else {
+                        pending = result
+                        try {
+                            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                                addCategory(Intent.CATEGORY_OPENABLE)
+                                type = "image/*"
+                                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/jpeg", "image/png", "image/webp"))
+                            }, 45)
+                        } catch (e: Exception) { pending = null; result.error("IMAGE", e.message, null) }
+                    }
+                }
                 "notificationStatus" -> result.success(WarningNotifications.status(this))
                 "enableNotifications" -> {
                     if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -160,7 +173,7 @@ class MainActivity : FlutterActivity() {
     @Deprecated("Activity result bridge for Flutter's method channel")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 41 && requestCode != 42 && requestCode != 43) return
+        if (requestCode != 41 && requestCode != 42 && requestCode != 43 && requestCode != 45) return
         val result = pending ?: return
         val maxBytes = importLimit
         pending = null
@@ -168,6 +181,10 @@ class MainActivity : FlutterActivity() {
         if (resultCode != Activity.RESULT_OK || uri == null) {
             exportContent = null
             result.success(if (requestCode == 43) false else null)
+            return
+        }
+        if (requestCode == 45) {
+            background(result) { ChurchBanner.read(this, uri) }
             return
         }
         if (requestCode == 43) {

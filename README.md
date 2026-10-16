@@ -15,15 +15,15 @@ Offline Android prototype for church production timing and stage cues, with an e
 9. In **Settings → Display settings**, select **Square LEDs** or **Circular LEDs** for all simulator previews. The choice survives restart without changing any glyph or output bit.
 
 10. Open a compact row in **Templates** to see its ordered segments and end screen. Use **Edit template**, **Duplicate**, CSV/JSON exports or confirmed **Delete template** on that detail page. **New** creates a template; **Import CSV / JSON** stays below the list. **List options** can group Services and Rehearsals. Change a template's group in the editor; this does not change timer speed.
-11. Set each template’s end screen in **Templates → select a template → Edit template**. Settings → Display settings holds the default for new templates and the **At Zero** setting shared by every service.
+11. Set each template’s end screen and automatic warning rules in **Templates → select a template → Edit template**. Settings → Display settings holds clearly labelled defaults for new templates and the **At Zero** setting shared by every service.
 
-See the [0.7 Settings, themes and backup guide](docs/FEATURES-0.7.md), [0.6 Templates and alignment guide](docs/FEATURES-0.6.md), [0.5 Live controls guide](docs/FEATURES-0.5.md), the [0.4 feature guide](docs/FEATURES-0.4.md) for reports and template settings, and [Display fonts](docs/DISPLAY-FONTS.md) for font import, rendering and LED shape settings.
+See the [0.8 compact lists and banner guide](docs/FEATURES-0.8.md), [0.7 Settings, themes and backup guide](docs/FEATURES-0.7.md), [0.6 Templates and alignment guide](docs/FEATURES-0.6.md), [0.5 Live controls guide](docs/FEATURES-0.5.md), the [0.4 feature guide](docs/FEATURES-0.4.md) for reports and template settings, and [Display fonts](docs/DISPLAY-FONTS.md) for font import, rendering and LED shape settings.
 
 The app keeps the screen awake while visible by default; turn this off in Settings to use normal automatic screen sleep. Locking or closing it can suspend simulator rendering; reopening reconstructs time. Phone warnings use Android alarms independently, subject to permissions and battery restrictions. A 30-minute absence or uncertain reboot timing holds stage output for review. Continuous physical output remains outside this prototype.
 
 ## Personalize and back up
 
-Open **Settings → Church profile** to enter your church name, or **Appearance** to preview five themes. Save to keep a theme; Cancel/back discards the preview. **Backup & restore** exports saved templates, cues, reports and preferences, and reviews a replacement before restoring. Backups exclude active clocks and imported fonts. **About** shows creator Kosenuel, the installed version, licenses and simulator status. New service reports retain the church name captured when the service was loaded.
+Open **Settings → Church profile** to enter your church name and choose a rectangular 3:1 banner (recommended 1200 × 400 px, up to 5 MB), or **Appearance** to preview five themes. Save to keep a theme; Cancel/back discards the preview. **Backup & restore** exports saved templates, cues, reports and preferences, including the reduced banner, and reviews a replacement before restoring. Backups exclude active clocks and imported fonts. **About** shows creator I-Proton, the installed version, licenses and simulator status. New service reports retain the church name captured when the service was loaded.
 
 ## Build and test
 

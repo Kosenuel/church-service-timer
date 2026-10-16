@@ -38,6 +38,8 @@ For 0.6, compare the arc's horizontal position in Ready, normal, paused, warning
 
 For 0.7, also follow the device checklist in `FEATURES-0.7.md`: new launcher/splash identity, optional church name, five theme previews with save/cancel, About author/version, screen awake off/on, report branding, and confirmed setup backup/restore. A native splash precedes the customizable Flutter opening screen. Upgrade using the existing signing key and package ID; do not clear data.
 
+For 0.8, follow the banner, crop, backup and template-warning checks in `FEATURES-0.8.md`. Reports and Settings use compact lists. Individual report deletion is in the detail page; Display no longer has an Editing selector. A new schema 2 backup includes the reduced church banner and older schema 1 backups remain importable.
+
 On this Windows workspace, the reusable Android environment is at `C:\Users\x1\Documents\Codex\android-toolchain\Activate.ps1`. The Flutter SDK installation and build verification details are recorded in the delivered verification report. Machine-specific SDK locations belong in ignored `android/local.properties`, not source control.
 
 The Windows helper `scripts/Build-Prototype.ps1` runs dependency resolution, analysis, tests, APK build and signature verification, then copies both `Church-Service-Timer-<version>.apk` and `Church-Service-Timer-prototype.apk` to the repository's parent output directory. It also writes `prototype-build.log` and a result JSON file. Use `-Toolchain` to select a different SDK directory.

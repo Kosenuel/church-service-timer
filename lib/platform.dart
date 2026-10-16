@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'domain.dart';
 
 abstract class DevicePort {
+  Future<String?> pickChurchBanner() async => null;
   Future<String> installedVersion() async => appVersion;
   Future<void> setKeepScreenAwake(bool enabled) async {}
   Future<Map<String, dynamic>?> pickBackup() => pickFile();
@@ -29,6 +30,9 @@ abstract class DevicePort {
 
 class AndroidPort extends DevicePort {
   static const channel = MethodChannel('church.timer/device');
+  @override
+  Future<String?> pickChurchBanner() =>
+      channel.invokeMethod<String>('pickChurchBanner');
   @override
   Future<String> installedVersion() async =>
       await channel.invokeMethod<String>('appVersion') ?? appVersion;

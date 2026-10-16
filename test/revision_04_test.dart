@@ -169,7 +169,11 @@ void main() {
       await t.enterText(find.widgetWithText(TextField, 'Display text'), 'AMEN');
       await t.tap(find.widgetWithText(FilledButton, 'Use end screen'));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.text('Save timeline'));
+      await t.scrollUntilVisible(
+        find.text('Save timeline'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       await t.tap(find.text('Save timeline'));
       await t.pumpAndSettle();
       expect(c.state.templates.first.display.end.text, 'AMEN');
@@ -194,7 +198,7 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Reports'));
       await t.pumpAndSettle();
-      expect(find.text('Held for 56m 0s'), findsOneWidget);
+      expect(find.text('56m 0s'), findsOneWidget);
       expect(find.text('Export report CSV'), findsNothing);
       await expectLater(
         find.byType(MaterialApp),
@@ -286,51 +290,45 @@ void main() {
     },
   );
 
-  testWidgets(
-    'At Zero stays global while Display is editing a specific template',
-    (t) async {
-      size(t, const Size(700, 1500));
-      final port = FakePort()..at = epoch;
-      final c = AppController(port);
-      await c.initialize(startTicker: false);
-      await c.act(
-        'load',
-        value: Timeline('Test', const [
-          Segment('Talk', 1),
-        ], DisplaySettings(warnings: [])),
-      );
-      await c.act('start');
-      port.at = at(61);
-      await c.tick();
-      await t.pumpWidget(TimerApp(controller: c));
-      await t.pumpAndSettle();
-      await t.tap(find.text('Settings'));
-      await t.pumpAndSettle();
-      await t.tap(find.text('Display settings'));
-      await t.pumpAndSettle();
-      await t.tap(find.text('Defaults for new templates'));
-      await t.pumpAndSettle();
-      await t.tap(find.text('Template: Sunday Service').last);
-      await t.pumpAndSettle();
-      await t.tap(find.text('Custom text'));
-      await t.pump(const Duration(milliseconds: 300));
-      await t.enterText(find.widgetWithText(TextField, 'Display text'), 'DONE');
-      await t.tap(find.text('Save zero screen'));
-      await t.pumpAndSettle();
-      expect(c.state.defaults.zero!.text, 'DONE');
-      expect(
-        c.state.templates.every((v) => v.display.zero!.text == 'DONE'),
-        true,
-      );
-      expect(c.simulator.delivered!.text, 'DONE');
-      await t.tap(find.text('Use 00:00'));
-      await t.pumpAndSettle();
-      expect(c.state.defaults.zero, isNull);
-      expect(c.simulator.delivered!.text, '00:00');
-      expect(t.takeException(), isNull);
-      await t.pumpWidget(const SizedBox());
-    },
-  );
+  testWidgets('At Zero stays global without a template selector', (t) async {
+    size(t, const Size(700, 1500));
+    final port = FakePort()..at = epoch;
+    final c = AppController(port);
+    await c.initialize(startTicker: false);
+    await c.act(
+      'load',
+      value: Timeline('Test', const [
+        Segment('Talk', 1),
+      ], DisplaySettings(warnings: [])),
+    );
+    await c.act('start');
+    port.at = at(61);
+    await c.tick();
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Settings'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Display settings'));
+    await t.pumpAndSettle();
+    expect(find.text('Editing'), findsNothing);
+    await t.tap(find.text('Custom text'));
+    await t.pump(const Duration(milliseconds: 300));
+    await t.enterText(find.widgetWithText(TextField, 'Display text'), 'DONE');
+    await t.tap(find.text('Save zero screen'));
+    await t.pumpAndSettle();
+    expect(c.state.defaults.zero!.text, 'DONE');
+    expect(
+      c.state.templates.every((v) => v.display.zero!.text == 'DONE'),
+      true,
+    );
+    expect(c.simulator.delivered!.text, 'DONE');
+    await t.tap(find.text('Use 00:00'));
+    await t.pumpAndSettle();
+    expect(c.state.defaults.zero, isNull);
+    expect(c.simulator.delivered!.text, '00:00');
+    expect(t.takeException(), isNull);
+    await t.pumpWidget(const SizedBox());
+  });
 
   testWidgets(
     'Duration chart handles zero, missing durations and narrow display',

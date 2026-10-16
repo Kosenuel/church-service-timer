@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
+import 'church_banner.dart';
 import 'controller.dart';
 import 'domain.dart';
 import 'pixels.dart';
@@ -57,12 +58,7 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> with WidgetsBindingObserver {
   AppController get c => widget.controller;
   int page = 0;
-  String settingsOwner = 'defaults';
   final settingsRefresh = ValueNotifier<int>(0);
-  void selectSettingsOwner(String value) {
-    setState(() => settingsOwner = value);
-    settingsRefresh.value++;
-  }
 
   String reportFilter = 'all', reportView = 'list';
   void selectReportFilter(String value) => setState(() => reportFilter = value);
@@ -291,9 +287,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       if (mounted)
         await showError(c.error ?? 'The template could not be saved.');
       return null;
-    }
-    if (settingsOwner == 'template:${initial.name}' && mounted) {
-      setState(() => settingsOwner = 'template:${result.name}');
     }
     return result;
   }
@@ -931,20 +924,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   Widget displaySettings() {
-    final index = c.state.templates.indexWhere(
-      (t) => 'template:${t.name}' == settingsOwner,
-    );
-    final d = index < 0 ? c.state.defaults : c.state.templates[index].display;
-    Future<void> save(DisplaySettings next) => c
-        .commit((draft, _) {
-          if (index < 0) {
-            draft.defaults = next;
-          } else {
-            final t = draft.templates[index];
-            draft.templates[index] = t.withDisplay(next);
-          }
-        })
-        .then((_) {});
+    final d = c.state.defaults;
+    Future<void> save(DisplaySettings next) async {
+      final ok = await c.commit((draft, _) => draft.defaults = next);
+      if (!ok && mounted)
+        await showError(c.error ?? 'Could not save defaults.');
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -954,34 +940,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 8),
         Text(
-          'At Zero is shared by every service. End screens and warning defaults apply when a service is next loaded.',
+          'At Zero, fonts and LED shape are shared across services. Edit a service’s end screen and warning rules in Templates → Edit template.',
           style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 20),
         sharedZeroSettings(),
         const SizedBox(height: 20),
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          initialValue: index < 0 ? 'defaults' : settingsOwner,
-          decoration: const InputDecoration(labelText: 'Editing'),
-          items: [
-            const DropdownMenuItem(
-              value: 'defaults',
-              child: Text('Defaults for new templates'),
-            ),
-            ...c.state.templates.map(
-              (t) => DropdownMenuItem(
-                value: 'template:${t.name}',
-                child: Text(
-                  'Template: ${t.name}',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ],
-          onChanged: c.busy ? null : (v) => selectSettingsOwner(v!),
+        Text(
+          'Defaults for new templates',
+          style: Theme.of(context).textTheme.titleLarge,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 8),
+        Text(
+          'These end-screen and warning settings are copied when you create a template. Existing templates and loaded services keep their own settings.',
+          style: TextStyle(color: appColors(context).muted),
+        ),
+        const SizedBox(height: 16),
         panel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -996,9 +970,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 8),
               Text(
-                index < 0
-                    ? 'Default for new templates. Existing templates keep their own end screen.'
-                    : 'Saved for this template. A loaded service keeps the end screen it started with.',
+                'Default end screen for new templates.',
                 style: TextStyle(color: appColors(context).muted),
               ),
               const SizedBox(height: 12),
@@ -1028,13 +1000,23 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 16),
+        WarningSettingsPanel(
+          settings: d,
+          onSave: save,
+          busy: c.busy,
+          title: 'Default automatic warnings',
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Shared across all services',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 16),
         panel(
           child: const Text(
             'Stage cues are shared across all services. Edit a cue or add a new one on Live; Send saves every formatting choice.',
           ),
         ),
-        const SizedBox(height: 16),
-        warningSettings(d, save),
         const SizedBox(height: 16),
         timesFontSettings(),
         const SizedBox(height: 16),
@@ -1518,6 +1500,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
   late TextEditingController name;
   late List<Segment> segments;
   late TextLayout endScreen;
+  late List<WarningRule> warnings;
   late String templateType;
   String? error;
   @override
@@ -1526,6 +1509,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
     name = TextEditingController(text: widget.initial.name);
     segments = [...widget.initial.segments];
     endScreen = widget.initial.display.end;
+    warnings = [...widget.initial.display.warnings];
     templateType = widget.initial.type;
   }
 
@@ -1725,6 +1709,15 @@ class _TemplateEditorState extends State<TemplateEditor> {
             ),
           ),
           const SizedBox(height: 24),
+          WarningSettingsPanel(
+            settings: widget.initial.display.withWarnings(warnings),
+            title: 'Automatic warnings · this template',
+            scope:
+                'Changes are saved with Save timeline and apply the next time you load this template. Going back discards them.',
+            onSave: (next) async =>
+                setState(() => warnings = [...next.warnings]),
+          ),
+          const SizedBox(height: 24),
           if (error != null)
             Text(error!, style: TextStyle(color: appColors(context).warning)),
           FilledButton.icon(
@@ -1734,7 +1727,9 @@ class _TemplateEditorState extends State<TemplateEditor> {
                   Timeline(
                     name.text,
                     segments,
-                    widget.initial.display.withEnd(endScreen),
+                    widget.initial.display
+                        .withEnd(endScreen)
+                        .withWarnings(warnings),
                     type: templateType,
                   ).toJson(),
                 );
@@ -1753,7 +1748,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Template edits apply the next time you load this service. End-screen defaults for new templates are available in Settings → Display settings.',
+            'Template edits apply the next time you load this service. End-screen and warning defaults for new templates are available in Settings → Display settings.',
             style: TextStyle(color: appColors(context).muted),
           ),
         ],

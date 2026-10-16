@@ -337,7 +337,43 @@ extension FeatureViews on _HomeState {
   Widget warningSettings(
     DisplaySettings d,
     Future<void> Function(DisplaySettings) save,
-  ) {
+  ) => WarningSettingsPanel(settings: d, onSave: save, busy: c.busy);
+
+  Future<void> exportReport(ServiceReport r, String type) async {
+    try {
+      await c.port.exportFile(
+        'Church-Service-Timer-report-${r.endedWall}.$type',
+        type == 'csv' ? exportReportCsv(r) : exportReportJson(r),
+      );
+    } catch (e) {
+      if (mounted) await showError('Export failed: $e');
+    }
+  }
+}
+
+class WarningSettingsPanel extends StatelessWidget {
+  final DisplaySettings settings;
+  final Future<void> Function(DisplaySettings) onSave;
+  final bool busy;
+  final String title;
+  final String? scope;
+  const WarningSettingsPanel({
+    super.key,
+    required this.settings,
+    required this.onSave,
+    this.busy = false,
+    this.title = 'Automatic warning cues',
+    this.scope,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final d = settings;
+    Widget button(String text, IconData icon, VoidCallback? action) =>
+        OutlinedButton.icon(
+          onPressed: action,
+          icon: Icon(icon, size: 20),
+          label: Text(text),
+        );
     Future<void> edit({int? index}) async {
       final initial = index == null
           ? const WarningRule(
@@ -358,71 +394,81 @@ extension FeatureViews on _HomeState {
               .toSet(),
         ),
       );
-      if (next != null) {
+      if (next != null && context.mounted) {
         final rules = [...d.warnings];
         if (index == null) {
           rules.add(next);
         } else {
           rules[index] = next;
         }
-        await save(d.withWarnings(rules));
+        await onSave(d.withWarnings(rules));
       }
     }
 
-    return panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          label('Automatic warning cues'),
-          const SizedBox(height: 8),
-          Text(
-            'Triggers at the selected time remaining, once per segment. Stage warnings overlay the display for 8 seconds, then restore the cue or timer. Phone notifications follow Android sound and Do Not Disturb settings.',
-            style: TextStyle(color: appColors(context).muted),
-          ),
-          ...d.warnings.asMap().entries.map(
-            (e) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                '${e.value.enabled ? '' : 'Off · '}${formatTime(e.value.seconds * 1000)} · ${e.value.cue.text}',
-              ),
-              subtitle: Text(
-                '${e.value.destination == 'stage' ? 'Operator + stage' : 'Operator only'} · ${displayFontNames[e.value.cue.font]}',
-              ),
-              onTap: c.busy ? null : () => edit(index: e.key),
-              trailing: IconButton(
-                tooltip: 'Edit warning',
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: c.busy ? null : () => edit(index: e.key),
+    return Material(
+      color: appColors(context).surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: appColors(context).border),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title.toUpperCase(),
+              style: TextStyle(
+                color: appColors(context).muted,
+                letterSpacing: 1.6,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          if (d.warnings.isEmpty)
-            button(
-              'Use suggested warnings',
-              Icons.auto_awesome_outlined,
-              c.busy ? null : () => save(d.withWarnings(defaultWarnings)),
+            if (scope != null) ...[
+              const SizedBox(height: 8),
+              Text(scope!, style: TextStyle(color: appColors(context).muted)),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              'Triggers at the selected time remaining, once per segment. Stage warnings overlay the display for 8 seconds, then restore the cue or timer. Phone notifications follow Android sound and Do Not Disturb settings.',
+              style: TextStyle(color: appColors(context).muted),
             ),
-          if (d.warnings.length < 6)
-            button(
-              'Add warning',
-              Icons.notification_add_outlined,
-              c.busy ? null : () => edit(),
+            ...d.warnings.asMap().entries.map(
+              (e) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  '${e.value.enabled ? '' : 'Off · '}${formatTime(e.value.seconds * 1000)} · ${e.value.cue.text}',
+                ),
+                subtitle: Text(
+                  '${e.value.destination == 'stage' ? 'Operator + stage' : 'Operator only'} · ${displayFontNames[e.value.cue.font]}',
+                ),
+                onTap: busy ? null : () => edit(index: e.key),
+                trailing: IconButton(
+                  tooltip: 'Edit warning',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: busy ? null : () => edit(index: e.key),
+                ),
+              ),
             ),
-        ],
+            const SizedBox(height: 8),
+            if (d.warnings.isEmpty)
+              button(
+                'Use suggested warnings',
+                Icons.auto_awesome_outlined,
+                busy ? null : () => onSave(d.withWarnings(defaultWarnings)),
+              ),
+            if (d.warnings.length < 6)
+              button(
+                'Add warning',
+                Icons.notification_add_outlined,
+                busy ? null : () => edit(),
+              ),
+          ],
+        ),
       ),
     );
-  }
-
-  Future<void> exportReport(ServiceReport r, String type) async {
-    try {
-      await c.port.exportFile(
-        'Church-Service-Timer-report-${r.endedWall}.$type',
-        type == 'csv' ? exportReportCsv(r) : exportReportJson(r),
-      );
-    } catch (e) {
-      if (mounted) await showError('Export failed: $e');
-    }
   }
 }
 

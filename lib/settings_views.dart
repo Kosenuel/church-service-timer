@@ -30,27 +30,44 @@ extension SettingsViews on _HomeState {
       String title,
       String subtitle,
       VoidCallback action,
-    ) => Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: panel(
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(icon, color: appColors(context).accent),
-          title: Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(subtitle),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: c.busy ? null : action,
-        ),
+    ) => ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Icon(icon, color: appColors(context).accent, size: 22),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
       ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(fontSize: 13, color: appColors(context).muted),
+      ),
+      trailing: const Icon(Icons.chevron_right, size: 22),
+      onTap: c.busy ? null : action,
+    );
+    Widget group(String name, List<Widget> rows) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        label(name),
+        const SizedBox(height: 10),
+        panel(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
+                rows[i],
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Make it yours.',
+          'Settings',
           style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
@@ -59,83 +76,96 @@ extension SettingsViews on _HomeState {
           style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 20),
-        entry(
-          Icons.church_outlined,
-          'Church profile',
-          c.state.churchName.isEmpty
-              ? 'Add your church name'
-              : c.state.churchName,
-          () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => ChurchProfilePage(controller: c)),
-          ),
-        ),
-        entry(
-          Icons.palette_outlined,
-          'Appearance',
-          paletteFor(c.state.themeId).name,
-          () async {
-            try {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => AppearancePage(controller: c),
-                ),
-              );
-            } finally {
-              if (mounted) c.previewTheme(null);
-            }
-          },
-        ),
-        entry(
-          Icons.display_settings_outlined,
-          'Display settings',
-          'End screens, At Zero, warnings, fonts and LEDs',
-          () => openSettingsDetail('Display settings', displaySettings),
-        ),
-        panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Keep screen awake'),
-                subtitle: const Text(
-                  'Prevent automatic screen sleep while the app is visible. Your phone’s power button still works.',
-                ),
-                value: c.state.keepScreenAwake,
-                onChanged: c.busy
-                    ? null
-                    : (value) =>
-                          c.commit((draft, _) => draft.keepScreenAwake = value),
+        group('Personalization', [
+          entry(
+            Icons.church_outlined,
+            'Church profile',
+            c.state.churchName.isEmpty
+                ? 'Church name and banner'
+                : c.state.churchName,
+            () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ChurchProfilePage(controller: c),
               ),
-              if (c.deviceSettingsError != null) ...[
-                Text(
-                  c.deviceSettingsError!,
-                  style: TextStyle(color: appColors(context).warning),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    await c.syncDeviceSettings();
-                    settingsRefresh.value++;
-                  },
-                  child: const Text('Retry screen setting'),
-                ),
-              ],
-            ],
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        entry(
-          Icons.backup_outlined,
-          'Backup & restore',
-          'Templates, stage cues, reports and preferences',
-          () => openSettingsDetail('Backup & restore', backupSettings),
-        ),
-        entry(
-          Icons.info_outline,
-          'About',
-          '$appName · ${c.appVersion}',
-          () => openSettingsDetail('About', aboutSettings),
-        ),
+          entry(
+            Icons.palette_outlined,
+            'Appearance',
+            paletteFor(c.state.themeId).name,
+            () async {
+              try {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => AppearancePage(controller: c),
+                  ),
+                );
+              } finally {
+                if (mounted) c.previewTheme(null);
+              }
+            },
+          ),
+        ]),
+        group('Service & display', [
+          entry(
+            Icons.display_settings_outlined,
+            'Display settings',
+            'End screens, At Zero, warnings, fonts and LEDs',
+            () => openSettingsDetail('Display settings', displaySettings),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(
+                    'Keep screen awake',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                  ),
+                  subtitle: const Text(
+                    'Prevent sleep while the app is visible.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  value: c.state.keepScreenAwake,
+                  onChanged: c.busy
+                      ? null
+                      : (value) => c.commit(
+                          (draft, _) => draft.keepScreenAwake = value,
+                        ),
+                ),
+                if (c.deviceSettingsError != null) ...[
+                  Text(
+                    c.deviceSettingsError!,
+                    style: TextStyle(color: appColors(context).warning),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await c.syncDeviceSettings();
+                      settingsRefresh.value++;
+                    },
+                    child: const Text('Retry screen setting'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ]),
+        group('Data & app', [
+          entry(
+            Icons.backup_outlined,
+            'Backup & restore',
+            'Templates, stage cues, reports and preferences',
+            () => openSettingsDetail('Backup & restore', backupSettings),
+          ),
+          entry(
+            Icons.info_outline,
+            'About',
+            '$appName · ${c.appVersion}',
+            () => openSettingsDetail('About', aboutSettings),
+          ),
+        ]),
       ],
     );
   }
@@ -236,7 +266,6 @@ extension SettingsViews on _HomeState {
         await showError(c.error ?? 'Could not restore this backup.');
         return;
       }
-      selectSettingsOwner('defaults');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Backup restored. Ready for a new service.'),
@@ -269,7 +298,7 @@ extension SettingsViews on _HomeState {
               ),
             const SizedBox(height: 20),
             const Text(
-              'Created by Kosenuel',
+              'Created by I-Proton',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
@@ -330,6 +359,31 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
   late final TextEditingController name = TextEditingController(
     text: widget.controller.state.churchName,
   );
+  late String banner = widget.controller.state.churchBanner;
+  String? imageError;
+  bool picking = false;
+  Future<void> pickBanner() async {
+    setState(() {
+      picking = true;
+      imageError = null;
+    });
+    try {
+      final value = await widget.controller.port.pickChurchBanner();
+      if (value != null) {
+        await validateBannerPixels(value);
+        if (mounted) setState(() => banner = value);
+      }
+    } catch (_) {
+      if (mounted)
+        setState(
+          () => imageError =
+              'Could not use this image. Choose a JPEG, PNG or WebP up to 5 MB and 40 megapixels.',
+        );
+    } finally {
+      if (mounted) setState(() => picking = false);
+    }
+  }
+
   String? error;
   bool saving = false;
   @override
@@ -350,11 +404,66 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const ChurchTimerMark(size: 72),
+                Semantics(
+                  button: true,
+                  label: 'Choose church banner',
+                  child: InkWell(
+                    key: const ValueKey('choose-church-banner'),
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: saving || picking ? null : pickBanner,
+                    child: ChurchProfileBanner(image: banner),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Recommended: 1200 × 400 px (3:1). JPEG, PNG or WebP, maximum 5 MB and 40 megapixels. Images are cropped from the centre without stretching. Keep important details near the centre.',
+                  style: TextStyle(
+                    color: appColors(context).muted,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  banner.isEmpty
+                      ? 'Built-in banner'
+                      : 'Your banner preview · save below to keep it',
+                  style: TextStyle(
+                    color: appColors(context).muted,
+                    fontSize: 12,
+                  ),
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: saving || picking ? null : pickBanner,
+                      icon: const Icon(Icons.add_photo_alternate_outlined),
+                      label: Text(
+                        picking ? 'Preparing image…' : 'Choose banner',
+                      ),
+                    ),
+                    if (banner.isNotEmpty)
+                      TextButton(
+                        onPressed: saving || picking
+                            ? null
+                            : () => setState(() {
+                                banner = '';
+                                imageError = null;
+                              }),
+                        child: const Text('Use built-in banner'),
+                      ),
+                  ],
+                ),
+                if (imageError != null)
+                  Text(
+                    imageError!,
+                    style: TextStyle(color: appColors(context).warning),
+                  ),
                 const SizedBox(height: 24),
                 TextField(
                   controller: name,
-                  enabled: !saving,
+                  enabled: !saving && !picking,
                   maxLength: 80,
                   textCapitalization: TextCapitalization.words,
                   decoration: InputDecoration(
@@ -370,7 +479,7 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: saving
+                  onPressed: saving || picking
                       ? null
                       : () async {
                           String value;
@@ -384,9 +493,13 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
                             saving = true;
                             error = null;
                           });
-                          final saved = await widget.controller.commit(
-                            (draft, _) => draft.churchName = value,
-                          );
+                          final saved = await widget.controller.commit((
+                            draft,
+                            _,
+                          ) {
+                            draft.churchName = value;
+                            draft.churchBanner = banner;
+                          });
                           if (!mounted) return;
                           if (saved) {
                             Navigator.pop(context);

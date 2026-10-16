@@ -347,15 +347,18 @@ void main() {
       await t.tap(find.text('Reports'));
       await t.pumpAndSettle();
       final record = find.byKey(
-        ValueKey('clear-report-${c.state.reports.last.id}'),
+        ValueKey('open-report-${c.state.reports.last.id}'),
       );
       await t.ensureVisible(record);
       await t.tap(record);
       await t.pumpAndSettle();
+      await t.ensureVisible(find.text('Clear report'));
+      await t.tap(find.text('Clear report'));
+      await t.pumpAndSettle();
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
       expect(c.state.reports.length, 2);
-      await t.tap(record);
+      await t.tap(find.text('Clear report'));
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(FilledButton, 'Clear report'));
       await t.pumpAndSettle();

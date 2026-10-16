@@ -125,12 +125,12 @@ extension ReportViews on _HomeState {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'After the service.',
+          'Reports',
           style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         Text(
-          'Your service history, from the whole picture to each segment. Tap a record to explore its timing.',
+          'Your service history. Tap a record for its full timing breakdown.',
           style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 20),
@@ -174,13 +174,15 @@ extension ReportViews on _HomeState {
           ],
         ),
         const SizedBox(height: 16),
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 12,
           children: [
-            Expanded(
-              child: Text(
-                '${history.length} ${history.length == 1 ? 'record' : 'records'}',
-                style: TextStyle(color: appColors(context).muted),
-              ),
+            Text(
+              '${history.length} ${history.length == 1 ? 'record' : 'records'}',
+              style: TextStyle(color: appColors(context).muted),
             ),
             SegmentedButton<String>(
               segments: const [
@@ -212,84 +214,19 @@ extension ReportViews on _HomeState {
         else if (reportView == 'graph')
           reportGraphs(history)
         else
-          ...history.map(
-            (r) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: reportSurface(
-                context,
-                child: InkWell(
-                  key: ValueKey('open-report-${r.id}'),
-                  onTap: () => openReport(r),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 14, 8, 14),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.event_note_outlined,
-                          color: appColors(context).accent,
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                r.name,
-                                style: const TextStyle(
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${reportMode(r)} · ${reportDate(r.startedWall ?? r.endedWall)}',
-                                style: TextStyle(
-                                  color: appColors(context).muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                r.totalMs == null
-                                    ? 'Duration not recorded'
-                                    : 'Held for ${durationLabel(r.totalMs!)}${r.rehearsal ? ' · simulated' : ''}',
-                              ),
-                              if (r.comparable)
-                                Text(
-                                  varianceLabel(r.totalMs! - r.plannedMs),
-                                  style: TextStyle(
-                                    color: appColors(context).accent,
-                                    fontSize: 12,
-                                  ),
-                                )
-                              else
-                                Text(
-                                  'Partial or uncertain record',
-                                  style: TextStyle(
-                                    color: appColors(context).warning,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          key: ValueKey('clear-report-${r.id}'),
-                          tooltip: 'Clear report',
-                          onPressed: c.busy
-                              ? null
-                              : () => confirmClearReports(record: r),
-                          icon: const Icon(Icons.delete_outline, size: 20),
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          color: appColors(context).muted,
-                        ),
-                      ],
-                    ),
+          reportSurface(
+            context,
+            child: Column(
+              children: [
+                for (var i = 0; i < history.length; i++) ...[
+                  if (i > 0)
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                  ReportListRow(
+                    report: history[i],
+                    onTap: () => openReport(history[i]),
                   ),
-                ),
-              ),
+                ],
+              ],
             ),
           ),
       ],
@@ -445,6 +382,99 @@ extension ReportViews on _HomeState {
           ),
         ),
       ],
+    );
+  }
+}
+
+class ReportListRow extends StatelessWidget {
+  final ServiceReport report;
+  final VoidCallback onTap;
+  const ReportListRow({super.key, required this.report, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final r = report, colors = appColors(context);
+    final variance = r.comparable ? r.totalMs! - r.plannedMs : null;
+    final outcomeColor = variance == null || variance >= 1000
+        ? colors.warning
+        : variance <= -1000
+        ? colors.info
+        : colors.accent;
+    return InkWell(
+      key: ValueKey('open-report-${r.id}'),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    r.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 3,
+                    children: [
+                      Text(
+                        reportDate(r.startedWall ?? r.endedWall),
+                        style: TextStyle(color: colors.muted, fontSize: 13),
+                      ),
+                      Text(
+                        r.totalMs == null
+                            ? 'Duration not recorded'
+                            : '${durationLabel(r.totalMs!)}${r.rehearsal ? ' simulated' : ''}',
+                        style: TextStyle(color: colors.muted, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 5,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        variance == null
+                            ? 'Partial or uncertain record'
+                            : varianceLabel(variance),
+                        style: TextStyle(color: outcomeColor, fontSize: 12),
+                      ),
+                      if (r.rehearsal)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.track,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            reportMode(r),
+                            style: TextStyle(
+                              color: colors.muted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Icon(Icons.chevron_right, color: colors.muted, size: 22),
+          ],
+        ),
+      ),
     );
   }
 }

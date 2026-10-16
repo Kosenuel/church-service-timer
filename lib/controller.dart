@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'domain.dart';
 import 'domain.dart' as branding show appVersion;
 import 'pixels.dart';
+import 'church_banner.dart';
 import 'platform.dart';
 import 'native_fonts.dart';
 import 'warning_notifications.dart';
@@ -201,6 +202,8 @@ class AppController extends ChangeNotifier {
       final previousAwake = state.keepScreenAwake;
       mutation(draft, at);
       draft.churchName = churchNameValue(draft.churchName);
+      if (draft.churchBanner != state.churchBanner)
+        await validateBannerPixels(draft.churchBanner);
       themeIdValue(draft.themeId);
       draft.applySharedZero();
       await NativeDisplayFonts.prepareState(draft);
@@ -280,6 +283,7 @@ class AppController extends ChangeNotifier {
       draft.pixelShape = restored.pixelShape;
       draft.groupTemplates = restored.groupTemplates;
       draft.churchName = restored.churchName;
+      draft.churchBanner = restored.churchBanner;
       draft.themeId = restored.themeId;
       draft.keepScreenAwake = restored.keepScreenAwake;
       draft.session = Session(

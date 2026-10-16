@@ -389,13 +389,6 @@ extension TemplateViews on _HomeState {
                                                     draft.deleteTemplate(t),
                                               );
                                               if (ok) {
-                                                if (mounted &&
-                                                    settingsOwner ==
-                                                        'template:${t.name}') {
-                                                  selectSettingsOwner(
-                                                    'defaults',
-                                                  );
-                                                }
                                                 if (pageContext.mounted)
                                                   Navigator.pop(pageContext);
                                               } else if (mounted) {
