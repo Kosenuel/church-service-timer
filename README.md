@@ -6,11 +6,14 @@ Offline Android prototype for church production timing and stage cues, with an e
 
 1. Install the prototype APK on Android 7.0 (API 24) or newer.
 2. In **Live**, select **Start service → Quick rehearsal**. Loading enters Ready without starting or changing the simulator.
-3. Select **Start first segment** and accept the untested layouts for this session.
+3. Choose live timing or a **Fast rehearsal** speed while Ready. Select **Start first segment** and accept the untested layouts for this session.
 4. Try Pause, Add time, ±2 minutes, Advance and Undo. The last segment remains at zero until you act.
-5. Preview and send a quick cue, or compose bold/italic text. The countdown continues underneath. **Show timer** dismisses the cue without changing pause state.
+5. Preview and send a quick cue, or compose formatted text with **Cuekeeper Matrix**, **Service Serif** or **Clear Sans**. Save named cues with all their formatting in the shared library. The countdown continues underneath. **Show timer** dismisses the cue without changing pause state.
 6. Disconnect the simulator, wait, and reconnect. It receives the current output without replaying missed updates.
-7. End the service to show the configured end screen. Templates and Display settings never mutate the loaded snapshot.
+7. Follow the **Service timing overview** below the timer. End the service to show the configured end screen and save its **Report**, with CSV/JSON export.
+8. Configure automatic warning thresholds and destinations in **Display** before loading the next service. Templates and Display settings never mutate the loaded snapshot.
+
+See the [0.2 feature guide](docs/FEATURES-0.2.md) for warning behavior, rehearsal timing and reporting, and [Display fonts](docs/DISPLAY-FONTS.md) for the saved font assets and licenses.
 
 The app keeps the screen awake while visible. Locking or closing it can suspend rendering; reopening reconstructs elapsed time. A 30-minute absence or uncertain reboot timing holds output for explicit review. A foreground service and continuous physical output are intentionally outside this simulator prototype.
 
@@ -31,8 +34,10 @@ The debug APK uses a development signing identity. Production signing and distri
 
 - `lib/domain.dart`: pure service transitions, timing, snapshots, recovery and template schema.
 - `lib/controller.dart`: atomic save-before-publication, failure/retry behavior and simulator adapter.
-- `lib/pixels.dart`: original bitmap font, formatting and exact 512-bit frames.
+- `lib/service_features.dart`: warning rules, run metrics, reports and formatted cue library models.
+- `lib/pixels.dart`, `matrix_font.dart`, `font_atlas.dart`: named display fonts, formatting and exact 512-bit frames.
 - `lib/main.dart`: responsive dashboard, template editor, import preview and display editor.
+- `lib/feature_views.dart`: timing overview, warning and library editors, rehearsal controls and reports.
 - `lib/platform.dart` and Android `MainActivity.kt`: suspend-aware clock, atomic local storage and document picker.
 - `test/`: deterministic domain, fault injection, rendering and UI checks.
 - `docs/PRD.md`: supplied requirements; historical wording about APK availability is retained as source material.

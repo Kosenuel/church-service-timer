@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+part 'service_features.dart';
+
 typedef Json = Map<String, dynamic>;
 const maxRemainingMs = 5999000;
 const recoveryLimitMs = 30 * 60 * 1000;
@@ -51,7 +53,7 @@ class Stamp {
 }
 
 class TextLayout {
-  final String text, effect, align;
+  final String text, effect, align, font;
   final bool bold, italic;
   final int speed, height;
   const TextLayout(
@@ -62,6 +64,7 @@ class TextLayout {
     this.align = 'center',
     this.speed = 12,
     this.height = 1,
+    this.font = 'cuekeeper_matrix',
   });
   factory TextLayout.fromJson(Json j) {
     keys(j, {
@@ -72,6 +75,7 @@ class TextLayout {
       'align',
       'speed',
       'height',
+      'font',
     }, 'Text layout');
     require(
       j['text'] is String &&
@@ -89,11 +93,13 @@ class TextLayout {
       align: j['align'],
       speed: j['speed'],
       height: j['height'],
+      font: j['font'] ?? 'cuekeeper_matrix',
     );
     s.validate();
     return s;
   }
   void validate() {
+    require(displayFontNames.containsKey(font), 'Unknown display font: $font.');
     require(
       text.trim().isNotEmpty && text.runes.length <= 160,
       'Display text must contain 1–160 characters.',
@@ -120,6 +126,7 @@ class TextLayout {
     'align': align,
     'speed': speed,
     'height': height,
+    'font': font,
   };
 }
 
@@ -127,11 +134,14 @@ class DisplaySettings {
   final TextLayout? zero;
   final TextLayout end;
   final List<TextLayout> cues;
+  final List<WarningRule> warnings;
   DisplaySettings({
     this.zero,
     this.end = const TextLayout('Hallelujah'),
     List<TextLayout>? cues,
-  }) : cues = List.unmodifiable(
+    List<WarningRule>? warnings,
+  }) : warnings = List.unmodifiable(warnings ?? defaultWarnings),
+       cues = List.unmodifiable(
          cues ??
              const [
                TextLayout('WRAP UP'),
@@ -141,7 +151,7 @@ class DisplaySettings {
              ],
        );
   factory DisplaySettings.fromJson(Json j) {
-    keys(j, {'zero', 'end', 'cues'}, 'Display settings');
+    keys(j, {'zero', 'end', 'cues', 'warnings'}, 'Display settings');
     require(
       j.containsKey('zero') && j['end'] is Map && j['cues'] is List,
       'Display settings are incomplete.',
@@ -156,12 +166,18 @@ class DisplaySettings {
           : TextLayout.fromJson(Map<String, dynamic>.from(j['zero'])),
       end: TextLayout.fromJson(Map<String, dynamic>.from(j['end'])),
       cues: c,
+      warnings: readWarnings(j['warnings']),
     );
   }
+  DisplaySettings withCues(List<TextLayout> value) =>
+      DisplaySettings(zero: zero, end: end, cues: value, warnings: warnings);
+  DisplaySettings withWarnings(List<WarningRule> value) =>
+      DisplaySettings(zero: zero, end: end, cues: cues, warnings: value);
   Json toJson() => {
     'zero': zero?.toJson(),
     'end': end.toJson(),
     'cues': cues.map((e) => e.toJson()).toList(),
+    'warnings': warnings.map((e) => e.toJson()).toList(),
   };
 }
 
@@ -189,8 +205,8 @@ class Timeline {
   factory Timeline.fromJson(Json j) {
     keys(j, {'schemaVersion', 'name', 'segments', 'display'}, 'Template');
     require(
-      j['schemaVersion'] is int && j['schemaVersion'] == 1,
-      'Only schemaVersion 1 is supported.',
+      j['schemaVersion'] is int && {1, 2}.contains(j['schemaVersion']),
+      'Supported template schema versions are 1 and 2.',
     );
     require(j['segments'] is List, 'segments must be a list.');
     final entries = j['segments'] as List;
@@ -215,7 +231,7 @@ class Timeline {
   Timeline renamed(String n) =>
       Timeline(nameValue(n, 'Template name'), segments, display);
   Json toJson() => {
-    'schemaVersion': 1,
+    'schemaVersion': 2,
     'name': name,
     'segments': segments.map((s) => s.toJson()).toList(),
     'display': display.toJson(),
@@ -226,21 +242,40 @@ class UndoPoint {
   final int index, remaining;
   final bool paused, modified;
   final Stamp at;
+  final Json? runCheckpoint;
+  final List<int> warningSeen;
+  final int warningCeiling;
   const UndoPoint(
     this.index,
     this.remaining,
     this.paused,
     this.at, {
     this.modified = false,
+    this.runCheckpoint,
+    this.warningSeen = const [],
+    this.warningCeiling = 0,
   });
-  UndoPoint markModified() =>
-      UndoPoint(index, remaining, paused, at, modified: true);
+  UndoPoint markModified() => UndoPoint(
+    index,
+    remaining,
+    paused,
+    at,
+    modified: true,
+    runCheckpoint: runCheckpoint,
+    warningSeen: warningSeen,
+    warningCeiling: warningCeiling,
+  );
   factory UndoPoint.fromJson(Json j) => UndoPoint(
     j['index'],
     j['remaining'],
     j['paused'],
     Stamp.fromJson(Map<String, dynamic>.from(j['at'])),
     modified: j['modified'],
+    runCheckpoint: j['runCheckpoint'] == null
+        ? null
+        : Map<String, dynamic>.from(j['runCheckpoint']),
+    warningSeen: List<int>.from(j['warningSeen'] ?? []),
+    warningCeiling: j['warningCeiling'] ?? 0,
   );
   Json toJson() => {
     'index': index,
@@ -248,6 +283,9 @@ class UndoPoint {
     'paused': paused,
     'at': at.toJson(),
     'modified': modified,
+    'runCheckpoint': runCheckpoint,
+    'warningSeen': warningSeen,
+    'warningCeiling': warningCeiling,
   };
 }
 
@@ -261,6 +299,12 @@ class Session {
   Stamp anchor, checkpoint;
   Stamp? outage;
   Session? prior;
+  int rate, warningCeiling;
+  RunMetrics? run;
+  List<int> warningSeen;
+  String? warningNotice;
+  TextLayout? automaticCue;
+  Stamp? automaticCueAt;
   Session({
     required this.id,
     required this.anchor,
@@ -278,19 +322,27 @@ class Session {
     Stamp? checkpoint,
     this.outage,
     this.prior,
-  }) : checkpoint = checkpoint ?? anchor;
+    this.rate = 1,
+    this.run,
+    List<int>? warningSeen,
+    this.warningCeiling = 0,
+    this.warningNotice,
+    this.automaticCue,
+    this.automaticCueAt,
+  }) : checkpoint = checkpoint ?? anchor,
+       warningSeen = warningSeen ?? [];
   bool get active => phase == 'active';
   int remaining(Stamp now) => phase == 'ready'
       ? baseMs
       : active && !paused
-      ? math.max(0, baseMs - now.since(anchor))
+      ? math.max(0, baseMs - now.since(anchor) * rate)
       : baseMs;
   String formatted(Stamp now) => formatTime(remaining(now));
   int undoRemaining(Stamp now) => undo == null
       ? 0
       : undo!.paused
       ? undo!.remaining
-      : math.max(0, undo!.remaining - now.since(undo!.at));
+      : math.max(0, undo!.remaining - now.since(undo!.at) * rate);
   bool fastUndo(Stamp now) =>
       undo != null &&
       !undo!.modified &&
@@ -301,9 +353,42 @@ class Session {
     if (phase == 'ended') return timeline!.display.end;
     if (!active) return null;
     if (alert != null) return alert;
+    if (hasAutomaticCue(now)) return automaticCue;
     if (remaining(now) == 0 && timeline!.display.zero != null)
       return timeline!.display.zero;
     return TextLayout(formatted(now), effect: 'static', height: 2);
+  }
+
+  bool get rehearsal => rate > 1;
+  bool hasAutomaticCue(Stamp now) =>
+      active &&
+      automaticCue != null &&
+      automaticCueAt != null &&
+      now.sameBoot(automaticCueAt!) &&
+      now.since(automaticCueAt!) < 8000;
+  int get plannedMs =>
+      timeline?.segments.fold<int>(0, (n, s) => n + s.minutes * 60000) ?? 0;
+  int totalElapsed(Stamp now) => run == null
+      ? 0
+      : run!.totalMs + (active ? now.since(run!.anchor) * rate : 0);
+  int currentElapsed(Stamp now) => run == null
+      ? 0
+      : run!.currentMs + (active ? now.since(run!.anchor) * rate : 0);
+  int projectedTotal(Stamp now) =>
+      totalElapsed(now) +
+      (active || phase == 'ready'
+          ? remaining(now) +
+                timeline!.segments
+                    .skip(index + 1)
+                    .fold<int>(0, (n, s) => n + s.minutes * 60000)
+          : 0);
+  void settleMetrics(Stamp now) {
+    if (!active || run == null) return;
+    final elapsed = now.since(run!.anchor) * rate;
+    run!.totalMs += elapsed;
+    run!.currentMs += elapsed;
+    if (paused) run!.pausedMs[index] += elapsed;
+    run!.anchor = now;
   }
 
   String get outputKind => phase == 'ended'
@@ -336,9 +421,29 @@ class Session {
       outage: j['outage'] == null
           ? null
           : Stamp.fromJson(Map<String, dynamic>.from(j['outage'])),
+      rate: j['rate'] ?? 1,
+      run: j['run'] == null
+          ? null
+          : RunMetrics.fromJson(Map<String, dynamic>.from(j['run'])),
+      warningSeen: List<int>.from(j['warningSeen'] ?? []),
+      warningCeiling: j['warningCeiling'] ?? 0,
+      warningNotice: j['warningNotice'],
+      automaticCue: j['automaticCue'] == null
+          ? null
+          : TextLayout.fromJson(Map<String, dynamic>.from(j['automaticCue'])),
+      automaticCueAt: j['automaticCueAt'] == null
+          ? null
+          : Stamp.fromJson(Map<String, dynamic>.from(j['automaticCueAt'])),
       prior: j['prior'] == null
           ? null
           : Session.fromJson(Map<String, dynamic>.from(j['prior'])),
+    );
+    require({1, 5, 10, 30, 60}.contains(s.rate), 'Invalid rehearsal speed.');
+    require(
+      s.run == null ||
+          (s.timeline != null &&
+              s.run!.actualMs.length == s.timeline!.segments.length),
+      'Invalid service metrics.',
     );
     require(
       {'idle', 'ready', 'active', 'ended'}.contains(s.phase),
@@ -385,6 +490,13 @@ class Session {
     'undo': undo?.toJson(),
     'outage': outage?.toJson(),
     'prior': prior?.toJson(),
+    'rate': rate,
+    'run': run?.toJson(),
+    'warningSeen': warningSeen,
+    'warningCeiling': warningCeiling,
+    'warningNotice': warningNotice,
+    'automaticCue': automaticCue?.toJson(),
+    'automaticCueAt': automaticCueAt?.toJson(),
   };
   Session copy() => Session.fromJson(toJson());
 }
@@ -408,6 +520,7 @@ Session transition(
     'The service changed. Review the action again.',
   );
   var s = original.copy();
+  s.settleMetrics(now);
   if (action == 'load') {
     require(
       !s.active && s.phase != 'ready',
@@ -430,9 +543,19 @@ Session transition(
     s.id = '${original.id}-cancelled';
     s.held = true; // Cancelling Ready must never resurrect a prior output job.
     s.prior = null;
+  } else if (action == 'rate') {
+    require(s.phase == 'ready', 'Select rehearsal speed before starting.');
+    require(
+      value is int && {1, 5, 10, 30, 60}.contains(value),
+      'Invalid rehearsal speed.',
+    );
+    s.rate = value as int;
   } else if (action == 'start') {
     require(s.phase == 'ready', 'Load a service first.');
     s.phase = 'active';
+    s.run = RunMetrics.fresh(now, s.timeline!.segments.length);
+    s.warningCeiling = s.baseMs + 1;
+    s.warningSeen = [];
     s.anchor = now;
     s.checkpoint = now;
     s.held = false;
@@ -448,7 +571,10 @@ Session transition(
       s.held = true;
     if (!s.held) s.outage = null;
   } else if (action == 'release' || action == 'releaseTimer') {
-    if (action == 'releaseTimer') s.alert = null;
+    if (action == 'releaseTimer') {
+      s.alert = null;
+      s.automaticCue = null;
+    }
     s.held = false;
     s.disconnected = false;
     s.outage = null;
@@ -468,7 +594,11 @@ Session transition(
           result <= maxRemainingMs,
           'The maximum remaining time is 99:59.',
         );
+        if (s.run != null)
+          s.run!.adjustmentsMs[s.index] +=
+              (math.max(0, result) - s.remaining(now));
         s.baseMs = math.max(0, result);
+        s.warningCeiling = math.max(s.warningCeiling, s.baseMs + 1);
         s.anchor = now;
         s.undo = s.undo?.markModified();
       case 'advance':
@@ -476,13 +606,42 @@ Session transition(
           s.index + 1 < s.timeline!.segments.length,
           'This is the final segment.',
         );
-        s.undo = UndoPoint(s.index, s.remaining(now), s.paused, now);
+        s.undo = UndoPoint(
+          s.index,
+          s.remaining(now),
+          s.paused,
+          now,
+          runCheckpoint: s.run?.toJson(),
+          warningSeen: [...s.warningSeen],
+          warningCeiling: s.warningCeiling,
+        );
+        if (s.run != null) {
+          s.run!.actualMs[s.index] = s.run!.currentMs;
+          s.run!.currentMs = 0;
+        }
         s.index++;
         s.baseMs = s.timeline!.segments[s.index].minutes * 60000;
+        s.warningCeiling = s.baseMs + 1;
+        s.warningSeen = [];
+        s.warningNotice = null;
+        s.automaticCue = null;
         s.anchor = now;
         s.paused = false;
       case 'undo':
         require(s.undo != null, 'There is no advance to undo.');
+        if (s.undo!.runCheckpoint != null) {
+          final priorRun = RunMetrics.fromJson(s.undo!.runCheckpoint!);
+          final elapsed = now.since(s.undo!.at) * s.rate;
+          priorRun.currentMs += elapsed;
+          priorRun.totalMs += elapsed;
+          if (s.undo!.paused) priorRun.pausedMs[s.undo!.index] += elapsed;
+          priorRun.anchor = now;
+          s.run = priorRun;
+        }
+        s.warningSeen = [...s.undo!.warningSeen];
+        s.warningCeiling = s.undo!.warningCeiling;
+        s.warningNotice = null;
+        s.automaticCue = null;
         s.baseMs = s.undoRemaining(now);
         s.index = s.undo!.index;
         s.paused = s.undo!.paused;
@@ -492,12 +651,24 @@ Session transition(
         final cue = value as TextLayout;
         cue.validate();
         s.alert = cue;
+        s.automaticCue = null;
       case 'timer':
         s.alert = null;
+        s.automaticCue = null;
+      case 'warnings':
+        applyWarnings(s, now);
+      case 'dismissWarning':
+        s.warningNotice = null;
       case 'end':
         s.baseMs = s.remaining(now);
         s.anchor = now;
         s.phase = 'ended';
+        if (s.run != null) {
+          s.run!.actualMs[s.index] = s.run!.currentMs;
+          s.run!.endedWall = now.wall;
+        }
+        s.automaticCue = null;
+        s.warningNotice = null;
         s.alert = null;
         s.undo = null;
         s.paused = false;
@@ -512,6 +683,9 @@ Session transition(
 
 Session recover(Session original, Stamp now) {
   final s = original.copy();
+  s.settleMetrics(now);
+  s.automaticCue = null;
+  applyWarnings(s, now, allowStage: false);
   if (!s.active && s.phase != 'ended') return s;
   final trust = now.sameBoot(s.anchor) && now.sameBoot(s.checkpoint);
   if (!trust ||
@@ -530,7 +704,16 @@ class AppState {
   List<Timeline> templates;
   DisplaySettings defaults;
   Session session;
-  AppState(this.templates, this.defaults, this.session);
+  List<ServiceReport> reports;
+  List<SavedCue> savedCues;
+  AppState(
+    this.templates,
+    this.defaults,
+    this.session, {
+    List<ServiceReport>? reports,
+    List<SavedCue>? savedCues,
+  }) : reports = reports ?? [],
+       savedCues = savedCues ?? [];
   factory AppState.fresh(Stamp now) => AppState(
     [
       Timeline('Sunday Service', const [
@@ -549,13 +732,19 @@ class AppState {
     Session(id: 'idle', anchor: now),
   );
   factory AppState.fromJson(Json j) {
-    require(j['version'] == 1, 'Unsupported saved-state version.');
+    require({1, 2}.contains(j['version']), 'Unsupported saved-state version.');
     final a = AppState(
       (j['templates'] as List)
           .map((e) => Timeline.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['defaults'])),
       Session.fromJson(Map<String, dynamic>.from(j['session'])),
+      reports: (j['reports'] as List? ?? [])
+          .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      savedCues: (j['savedCues'] as List? ?? [])
+          .map((e) => SavedCue.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
     );
     require(
       a.templates.map((t) => t.name.toLowerCase()).toSet().length ==
@@ -565,10 +754,12 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 1,
+    'version': 2,
     'templates': templates.map((t) => t.toJson()).toList(),
     'defaults': defaults.toJson(),
     'session': session.toJson(),
+    'reports': reports.map((e) => e.toJson()).toList(),
+    'savedCues': savedCues.map((e) => e.toJson()).toList(),
   };
   AppState copy() => AppState.fromJson(toJson());
   void saveTemplate(Timeline t, {int? replacing}) {
@@ -657,7 +848,7 @@ Timeline importTemplate(
       rethrow;
     } catch (_) {
       throw RuleError(
-        'Invalid JSON structure. Select a version 1 template file.',
+        'Invalid JSON structure. Select a version 1 or 2 template file.',
       );
     }
   }

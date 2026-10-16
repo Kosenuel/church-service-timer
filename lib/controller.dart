@@ -80,6 +80,9 @@ class AppController extends ChangeNotifier {
       if (state.session.timeline != null)
         validateTimelinePixels(state.session.timeline!);
       if (state.session.alert != null) validateLayout(state.session.alert!);
+      for (final cue in state.savedCues) {
+        validateLayout(cue.layout);
+      }
       state.session = recover(state.session, now);
       // Persist recovery holds before the first possible display publication.
       await port.save(jsonEncode(state.toJson()));
@@ -105,6 +108,11 @@ class AppController extends ChangeNotifier {
       now = await port.clock();
       if (!_foreground || _needsRecovery || _disposed) return;
       if (!corrupt) {
+        if (!busy &&
+            retry == null &&
+            dueWarnings(state.session, now).isNotEmpty) {
+          await act('warnings');
+        }
         _publish();
         if (!busy &&
             !storageUncertain &&
@@ -166,6 +174,9 @@ class AppController extends ChangeNotifier {
           value: value,
           expectedRevision: revision,
         );
+        if (action == 'end') {
+          draft.reports.add(ServiceReport.fromSession(draft.session, at));
+        }
       }, revision: revision);
 
   Future<void> checkpoint() async {

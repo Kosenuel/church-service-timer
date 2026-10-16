@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 2,
+  "name": "Styled rehearsal",
+  "segments": [
+    {
+      "name": "Welcome",
+      "minutes": 1
+    },
+    {
+      "name": "Message",
+      "minutes": 2
+    },
+    {
+      "name": "Closing",
+      "minutes": 1
+    }
+  ],
+  "display": {
+    "zero": null,
+    "end": {
+      "text": "Hallelujah",
+      "bold": false,
+      "italic": false,
+      "effect": "scroll",
+      "align": "center",
+      "speed": 12,
+      "height": 2,
+      "font": "service_serif"
+    },
+    "cues": [
+      {
+        "text": "WRAP UP",
+        "bold": true,
+        "italic": true,
+        "effect": "scroll",
+        "align": "center",
+        "speed": 16,
+        "height": 2,
+        "font": "service_serif"
+      },
+      {
+        "text": "TIME'S UP",
+        "bold": false,
+        "italic": false,
+        "effect": "scroll",
+        "align": "center",
+        "speed": 12,
+        "height": 1,
+        "font": "cuekeeper_matrix"
+      },
+      {
+        "text": "MIC LOW",
+        "bold": false,
+        "italic": false,
+        "effect": "scroll",
+        "align": "center",
+        "speed": 12,
+        "height": 1,
+        "font": "clear_sans"
+      },
+      {
+        "text": "NURSERY CALL",
+        "bold": false,
+        "italic": false,
+        "effect": "scroll",
+        "align": "center",
+        "speed": 12,
+        "height": 1,
+        "font": "cuekeeper_matrix"
+      }
+    ],
+    "warnings": [
+      {
+        "enabled": true,
+        "cue": {
+          "text": "WRAP UP",
+          "bold": true,
+          "italic": true,
+          "effect": "scroll",
+          "align": "center",
+          "speed": 16,
+          "height": 2,
+          "font": "service_serif"
+        },
+        "destination": "stage",
+        "seconds": 30
+      },
+      {
+        "enabled": true,
+        "cue": {
+          "text": "TIME'S UP",
+          "bold": false,
+          "italic": false,
+          "effect": "scroll",
+          "align": "center",
+          "speed": 12,
+          "height": 1,
+          "font": "cuekeeper_matrix"
+        },
+        "destination": "operator",
+        "seconds": 0
+      }
+    ]
+  }
+}

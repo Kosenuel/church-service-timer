@@ -1,6 +1,7 @@
 param(
     [string]$Toolchain = 'C:\Users\x1\Documents\Codex\android-toolchain',
     [switch]$BuildOnly,
+    [switch]$UpdateGoldens,
     [switch]$PushAfterBuild
 )
 $ErrorActionPreference = 'Stop'
@@ -40,19 +41,23 @@ try {
     if (-not $BuildOnly) {
         Invoke-Flutter -ToolArgs @('pub', 'get')
         Invoke-Flutter -ToolArgs @('analyze')
-        Invoke-Flutter -ToolArgs @('test', '--update-goldens')
+        if ($UpdateGoldens) { Invoke-Flutter -ToolArgs @('test', '--update-goldens') }
+        else { Invoke-Flutter -ToolArgs @('test') }
     } else { Write-Host 'Build-only mode: existing analysis/test evidence must be checked separately.' }
     Invoke-Flutter -ToolArgs @('build', 'apk', '--debug')
     $apk = Join-Path $repo 'build\app\outputs\flutter-apk\app-debug.apk'
     if (-not (Test-Path -LiteralPath $apk)) { throw 'Build did not produce the expected APK.' }
-    $target = Join-Path $deliverables 'Cuekeeper-prototype.apk'
-    Copy-Item -LiteralPath $apk -Destination $target -Force
     $signatureTool = Join-Path $env:ANDROID_HOME 'build-tools\36.0.0\apksigner.bat'
-    & $signatureTool verify --verbose $target
+    & $signatureTool verify --verbose $apk
     if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed.' }
+    $versionLine = (Select-String -Path 'pubspec.yaml' -Pattern '^version:\s*(\S+)').Matches[0].Groups[1].Value
+    $versionName = $versionLine.Split('+')[0]
+    $target = Join-Path $deliverables "Cuekeeper-$versionName.apk"
+    Copy-Item -LiteralPath $apk -Destination $target -Force
+    Copy-Item -LiteralPath $apk -Destination (Join-Path $deliverables 'Cuekeeper-prototype.apk') -Force
     $result = [ordered]@{
         status='built'; apk=$target; sha256=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
-        completedAt=(Get-Date).ToString('o'); flutter='3.47.7'; tests=$(if ($BuildOnly) { 'Not rerun in this build-only invocation' } else { 'flutter test --update-goldens passed' })
+        completedAt=(Get-Date).ToString('o'); version=$versionLine; flutter='3.47.7'; tests=$(if ($BuildOnly) { 'Not rerun in this build-only invocation' } elseif ($UpdateGoldens) { 'flutter test --update-goldens passed; review updated images' } else { 'flutter test passed' })
         physicalHardware='Not tested; simulator only'; nativeRuntime='Requires installation test on Android'
     }
     $result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $deliverables 'prototype-build-result.json') -Encoding UTF8

@@ -1,6 +1,6 @@
 # Build the Android prototype
 
-Toolchain: Flutter stable 3.47.7 (Dart 3.13.5), JDK 21, Android SDK platform 36 and build tools 36.0.0. Pin the Flutter version when reproducing results; preserve `pubspec.lock`.
+Toolchain: Flutter stable 3.47.7 (Dart 3.13.5), JDK 21, Android SDK platform 36, build tools 36.0.0 and NDK 28.2.13676358. Pin the Flutter version when reproducing results; preserve `pubspec.lock`.
 
 From a normal shell in the repository:
 
@@ -16,5 +16,9 @@ Output: `build/app/outputs/flutter-apk/app-debug.apk`. Install with `adb install
 The native bridge supplies Android `SystemClock.elapsedRealtime()` with `BOOT_COUNT`, uses `AtomicFile` in application-private storage, and accesses selected documents through the system picker. The app requires no account or Internet connection. Debug builds may carry Flutter's tooling Internet permission; no application transport is implemented.
 
 On this Windows workspace, the reusable Android environment is at `C:\Users\x1\Documents\Codex\android-toolchain\Activate.ps1`. The Flutter SDK installation and build verification details are recorded in the delivered verification report. Machine-specific SDK locations belong in ignored `android/local.properties`, not source control.
+
+The Windows helper `scripts/Build-Prototype.ps1` runs dependency resolution, analysis, tests, APK build and signature verification, then copies both `Cuekeeper-<version>.apk` and `Cuekeeper-prototype.apk` to the repository's parent output directory. It also writes `prototype-build.log` and a result JSON file. Use `-Toolchain` to select a different SDK directory.
+
+Run the helper in a normal PowerShell window when the agent sandbox blocks Flutter child processes. The default run compares screenshot baselines. Only use `-UpdateGoldens` when intentionally changing the UI, then review every changed image in `test/goldens/`. `-BuildOnly` skips analysis and tests and requires separate evidence. `-PushAfterBuild` invokes the existing WSL push helper only after the build and signature checks succeed; commit intended source changes first.
 
 If a fresh checkout lacks the Gradle wrapper binary, run `flutter create --platforms android --org org.kosenuel .` using the pinned Flutter version, then inspect its changes before building. The committed native bridge and app identity must remain intact.

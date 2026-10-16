@@ -4,14 +4,14 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 
 ## Implemented
 
-- Separate Live, Templates and Display views; responsive phone/tablet layouts.
+- Separate Live, Templates, Display and Reports views; responsive phone/tablet layouts.
 - Independent loaded-service snapshot; template changes/deletion do not change the run.
 - Ready with explicit first-segment start, cancellation without prior output replay, manual final-segment ending.
 - Suspend-aware Android monotonic clock; elapsed-time calculation instead of callback counting.
 - Pause/resume, custom Add, separate ±120-second adjustments, clamp at zero, 99:59 maximum.
 - Confirmed advance, elapsed-aware one-step undo, 10-second quick-undo window and modification tracking.
-- Four to six saved cues; latest alert wins; timer continues underneath; End clears the alert.
-- Original bitmap font with uppercase/lowercase Latin, digits and common punctuation; explicit rejection of unsupported code points.
+- Four to six template quick cues plus a shared named cue library; all formatting persists. Latest manual alert wins; timer continues underneath; End clears the alert.
+- Cuekeeper Matrix original bitmap font plus Service Serif and Clear Sans pixel fonts; uppercase/lowercase Latin, digits and common punctuation; explicit rejection of unsupported code points.
 - Bold, italic, 7/14-pixel text height, horizontal alignment, scrolling speed and flash preview.
 - New/untested cues require preview and confirmation on each send. No preview confers physical approval.
 - Default/custom zero screen and end screen; defaults and per-template settings have separate ownership.
@@ -21,6 +21,12 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 - Unique service IDs and revisions; stale action confirmations/retries rejected. Simulator delivery is synchronous, so it has no fake wire queue or acknowledgements.
 - Android document picker import/export; bounded UTF-8 reads; CSV/JSON validation, preview, conflict checks and atomic acceptance.
 - Template reordering by touch and complete JSON/segment-only CSV round trips.
+- Service timing overview with elapsed time, projected variance and estimated finish.
+- Configurable automatic warnings with operator-only or temporary simulated-stage output and manual-cue priority.
+- After-service reports with segment actuals, pauses, adjustments and CSV/JSON export.
+- Fast rehearsal at 5×, 10×, 30× or 60×, labelled separately from live timing.
+
+See `FEATURES-0.2.md` for the detailed timing, warning and migration semantics.
 
 ## Explicitly deferred until hardware is available
 

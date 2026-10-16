@@ -2,20 +2,30 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import 'controller.dart';
 import 'domain.dart';
 import 'pixels.dart';
 import 'platform.dart';
 
+part 'feature_views.dart';
+
 const accent = Color(0xffc9f96c);
 const muted = Color(0xff9caaa5);
 
 String styleSummary(TextLayout l) =>
-    '${l.text} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
+    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks([
+      'Service Serif',
+      'Clear Sans',
+    ], await rootBundle.loadString('assets/pixel_fonts/OFL-Liberation.txt'));
+  });
   runApp(TimerApp(controller: AppController(AndroidPort())));
 }
 
@@ -82,6 +92,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   AppController get c => widget.controller;
   int page = 0;
   String settingsOwner = 'defaults';
+  void navigatePage(int value) => setState(() => page = value);
   @override
   void initState() {
     super.initState();
@@ -193,9 +204,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> startFirst() async {
     final s = c.state.session, revision = c.state.session.revision;
+    final stageWarnings = s.timeline!.display.warnings.where((w) => w.enabled && w.destination == 'stage');
+    final warningSummary = stageWarnings.isEmpty ? '' : '\n\nAutomatic stage warnings:\n${stageWarnings.map((w) => '${formatTime(w.seconds * 1000)} — ${styleSummary(w.cue)}').join('\n')}';
     if (await confirm(
       'Start ${s.timeline!.segments.first.name}?',
-      'The countdown, zero-time screen and end screen have not been tested on a physical sign. This session uses the simulator only.\n\n${s.disconnected ? 'The simulator is disconnected. Timing will start, but its output will stay unchanged.\n\n' : ''}Accept these layouts for this service? This does not grant physical approval.',
+      '${s.rehearsal ? 'REHEARSAL: time will run ${s.rate}× faster. Reports will be marked as rehearsal.\n\n' : ''}The countdown, zero-time screen, end screen and configured automatic stage warnings have not been tested on a physical sign. This session uses the simulator only.$warningSummary\n\n${s.disconnected ? 'The simulator is disconnected. Timing will start, but its output will stay unchanged.\n\n' : ''}Accept these layouts for this service? This does not grant physical approval.',
       'Start first segment',
     ))
       await c.act('start', revision: revision);
@@ -309,8 +322,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     String button,
   ) => showDialog<TextLayout>(
     context: context,
-    builder: (_) =>
-        TextComposer(initial: initial, title: title, button: button),
+    builder: (_) => TextComposer(
+      initial: initial,
+      title: title,
+      button: button,
+      onSave: saveCueToLibrary,
+    ),
   );
   Future<void> sendCue(TextLayout layout, {bool custom = false}) async {
     final revision = c.state.session.revision;
@@ -407,7 +424,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Cues:\n${candidate.display.cues.map(styleSummary).join('\n')}\nZero: ${candidate.display.zero == null ? '00:00' : styleSummary(candidate.display.zero!)}\nEnd: ${styleSummary(candidate.display.end)}',
+                      'Cues:\n${candidate.display.cues.map(styleSummary).join('\n')}\nZero: ${candidate.display.zero == null ? '00:00' : styleSummary(candidate.display.zero!)}\nEnd: ${styleSummary(candidate.display.end)}\nWarnings:\n${candidate.display.warnings.isEmpty ? 'None' : candidate.display.warnings.map((w) => '${w.enabled ? 'On' : 'Off'} · ${formatTime(w.seconds * 1000)} · ${w.destination} · ${styleSummary(w.cue)}').join('\n')}',
                     ),
                     const SizedBox(height: 12),
                     ...candidate.segments.map(
@@ -538,7 +555,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             children: [
               Expanded(child: label(t?.name ?? 'Live production')),
               Chip(
-                label: Text(phase),
+                label: Text(s.rehearsal ? '$phase · ${s.rate}×' : phase),
                 avatar: Icon(
                   s.active && !s.paused ? Icons.circle : Icons.circle_outlined,
                   size: 12,
@@ -611,6 +628,26 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               primary: true,
             ),
           if (s.phase == 'ready') ...[
+            DropdownButtonFormField<int>(
+              key: ValueKey('speed-${s.id}'),
+              initialValue: s.rate,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Service mode'),
+              items: [1, 5, 10, 30, 60]
+                  .map(
+                    (rate) => DropdownMenuItem(
+                      value: rate,
+                      child: Text(
+                        rate == 1
+                            ? 'Live timing · 1×'
+                            : 'Fast rehearsal · $rate×',
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: c.busy ? null : (v) => c.act('rate', value: v),
+            ),
+            const SizedBox(height: 12),
             const Text(
               'Timing has not started. The simulator retains its previous output.',
               style: TextStyle(color: muted),
@@ -824,9 +861,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     : null,
               ),
               button(
+                'Saved cue library',
+                Icons.bookmarks_outlined,
+                enabled ? chooseSavedCue : null,
+              ),
+              button(
                 'Show timer',
                 Icons.timer_outlined,
-                enabled && s.alert != null ? () => c.act('timer') : null,
+                enabled && (s.alert != null || s.hasAutomaticCue(c.now))
+                    ? () => c.act('timer')
+                    : null,
                 primary: s.alert != null,
               ),
             ],
@@ -902,6 +946,30 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             displayPanel,
           ],
           const SizedBox(height: 20),
+          if (s.active || s.phase == 'ended') ...[
+            timingOverview(),
+            const SizedBox(height: 16),
+          ],
+          if (s.warningNotice != null) ...[
+            panel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  label('Automatic warning'),
+                  const SizedBox(height: 8),
+                  Text(
+                    s.warningNotice!,
+                    style: const TextStyle(color: Colors.orangeAccent),
+                  ),
+                  TextButton(
+                    onPressed: c.busy ? null : () => c.act('dismissWarning'),
+                    child: const Text('Dismiss warning'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           cuePanel,
           if (t != null) ...[
             const SizedBox(height: 20),
@@ -1074,7 +1142,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       if (next != null) {
         final cues = [...d.cues];
         cues[i] = next;
-        await save(DisplaySettings(zero: d.zero, end: d.end, cues: cues));
+        await save(d.withCues(cues));
       }
     }
 
@@ -1133,7 +1201,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     Icons.timer_outlined,
                     c.busy
                         ? null
-                        : () => save(DisplaySettings(end: d.end, cues: d.cues)),
+                        : () => save(
+                            DisplaySettings(
+                              end: d.end,
+                              cues: d.cues,
+                              warnings: d.warnings,
+                            ),
+                          ),
                   ),
                   button(
                     'Custom text',
@@ -1152,6 +1226,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                   zero: l,
                                   end: d.end,
                                   cues: d.cues,
+                                  warnings: d.warnings,
                                 ),
                               );
                           },
@@ -1183,7 +1258,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                         );
                         if (l != null)
                           await save(
-                            DisplaySettings(zero: d.zero, end: l, cues: d.cues),
+                            DisplaySettings(
+                              zero: d.zero,
+                              end: l,
+                              cues: d.cues,
+                              warnings: d.warnings,
+                            ),
                           );
                       },
               ),
@@ -1202,7 +1282,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   contentPadding: EdgeInsets.zero,
                   title: Text(e.value.text),
                   subtitle: Text(
-                    '${e.value.effect} · ${e.value.bold ? 'bold · ' : ''}${e.value.italic ? 'italic · ' : ''}not tested on sign',
+                    '${styleSummary(e.value)} · not tested on sign',
                   ),
                   onTap: c.busy ? null : () => editCue(e.key),
                   trailing: Row(
@@ -1229,6 +1309,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                         zero: d.zero,
                                         end: d.end,
                                         cues: cues,
+                                        warnings: d.warnings,
                                       ),
                                     );
                                   }
@@ -1258,6 +1339,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 zero: d.zero,
                                 end: d.end,
                                 cues: [...d.cues, l],
+                                warnings: d.warnings,
                               ),
                             );
                         },
@@ -1266,6 +1348,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 16),
+        warningSettings(d, save),
+        const SizedBox(height: 16),
+        cueLibrary(),
+        const SizedBox(height: 16),
         panel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1273,7 +1359,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               label('Prototype display profile'),
               const SizedBox(height: 10),
               const Text(
-                '32 × 16 · monochrome · Pixel Latin v1\nCountdown: 14-pixel height · text: 7 or 14 pixels\nPhysical controller: not configured',
+                '32 × 16 · monochrome\nFonts: Cuekeeper Matrix, Service Serif, Clear Sans\nCountdown: Cuekeeper Matrix · 14-pixel height\nPhysical controller: not configured',
               ),
               const SizedBox(height: 12),
               const Text(
@@ -1282,6 +1368,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 12),
               button('Test on sign — unavailable', Icons.developer_board, null),
+              TextButton(
+                onPressed: () => showLicensePage(
+                  context: context,
+                  applicationName: 'Cuekeeper',
+                ),
+                child: const Text('Font and software licenses'),
+              ),
             ],
           ),
         ),
@@ -1379,7 +1472,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                               ? live()
                               : page == 1
                               ? templates()
-                              : settings(),
+                              : page == 2
+                              ? settings()
+                              : reports(),
                         ),
                       ],
                     ),
@@ -1400,6 +1495,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             label: 'Templates',
           ),
           NavigationDestination(icon: Icon(Icons.tune), label: 'Display'),
+          NavigationDestination(
+            icon: Icon(Icons.assessment_outlined),
+            label: 'Reports',
+          ),
         ],
       ),
     ),
@@ -1409,11 +1508,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 class TextComposer extends StatefulWidget {
   final TextLayout initial;
   final String title, button;
+  final Future<bool> Function(TextLayout)? onSave;
   const TextComposer({
     super.key,
     required this.initial,
     required this.title,
     required this.button,
+    this.onSave,
   });
   @override
   State<TextComposer> createState() => _TextComposerState();
@@ -1422,7 +1523,9 @@ class TextComposer extends StatefulWidget {
 class _TextComposerState extends State<TextComposer> {
   late TextEditingController text;
   late bool bold, italic;
-  late String effect, align;
+  late String effect, align, font;
+  bool saving = false;
+  String? savedMessage;
   late int height, speed;
   final watch = Stopwatch()..start();
   Timer? ticker;
@@ -1437,6 +1540,7 @@ class _TextComposerState extends State<TextComposer> {
     align = l.align;
     height = l.height;
     speed = l.speed;
+    font = l.font;
     ticker = Timer.periodic(const Duration(milliseconds: 80), (_) {
       if (mounted) setState(() {});
     });
@@ -1457,6 +1561,7 @@ class _TextComposerState extends State<TextComposer> {
     align: align,
     height: height,
     speed: speed,
+    font: font,
   );
   @override
   Widget build(BuildContext context) {
@@ -1491,7 +1596,7 @@ class _TextComposerState extends State<TextComposer> {
                 maxLines: 2,
                 decoration: const InputDecoration(
                   labelText: 'Display text',
-                  helperText: '1–160 characters · basic Latin pixel font',
+                  helperText: '1–160 characters · basic Latin and punctuation',
                 ),
                 onChanged: (_) => setState(() {
                   watch.reset();
@@ -1518,6 +1623,30 @@ class _TextComposerState extends State<TextComposer> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: font,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Display font'),
+                items: displayFontNames.entries
+                    .map(
+                      (e) =>
+                          DropdownMenuItem(value: e.key, child: Text(e.value)),
+                    )
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  font = v!;
+                  watch.reset();
+                }),
+              ),
+              if (font == 'service_serif')
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Times-style serif · 14 px shows more detail.',
+                    style: TextStyle(color: muted),
+                  ),
+                ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: effect,
@@ -1582,12 +1711,32 @@ class _TextComposerState extends State<TextComposer> {
         ),
       ),
       actions: [
+        if (savedMessage != null)
+          Text(savedMessage!, style: const TextStyle(color: accent)),
+        if (widget.onSave != null)
+          TextButton.icon(
+            icon: const Icon(Icons.bookmark_add_outlined),
+            label: const Text('Save to cue library'),
+            onPressed: error != null || saving
+                ? null
+                : () async {
+                    setState(() => saving = true);
+                    final saved = await widget.onSave!(layout);
+                    if (mounted)
+                      setState(() {
+                        saving = false;
+                        savedMessage = saved
+                            ? 'Cue and all formatting saved.'
+                            : null;
+                      });
+                  },
+          ),
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: saving ? null : () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: error == null
+          onPressed: error == null && !saving
               ? () => Navigator.pop(context, layout)
               : null,
           child: Text(widget.button),

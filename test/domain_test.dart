@@ -332,7 +332,7 @@ void main() {
           throwsA(isA<RuleError>()),
         );
         j.remove('controllerAddress');
-        j['schemaVersion'] = 2;
+        j['schemaVersion'] = 3;
         expect(() => Timeline.fromJson(j), throwsA(isA<RuleError>()));
         expect(
           () => Timeline.fromJson(
