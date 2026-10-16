@@ -940,7 +940,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 8),
         Text(
-          'At Zero, fonts and LED shape are shared across services. Edit a service’s end screen and warning rules in Templates → Edit template.',
+          'At Zero, fonts and LED shape are shared across services. For a service’s end screen and warning rules, open its template and choose Edit template.',
           style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 20),

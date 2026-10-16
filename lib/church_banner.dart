@@ -25,9 +25,34 @@ Future<void> validateBannerPixels(String value) async {
   }
 }
 
-class ChurchProfileBanner extends StatelessWidget {
+class ChurchProfileBanner extends StatefulWidget {
   final String image;
   const ChurchProfileBanner({super.key, required this.image});
+  @override
+  State<ChurchProfileBanner> createState() => _ChurchProfileBannerState();
+}
+
+class _ChurchProfileBannerState extends State<ChurchProfileBanner> {
+  ImageProvider? picture;
+  void loadPicture() {
+    picture = widget.image.isEmpty
+        ? null
+        : MemoryImage(base64Decode(widget.image));
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    loadPicture();
+  }
+
+  @override
+  void didUpdateWidget(ChurchProfileBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Retain the provider and decoded frame when other profile fields rebuild.
+    if (oldWidget.image != widget.image) loadPicture();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context);
@@ -45,16 +70,16 @@ class ChurchProfileBanner extends StatelessWidget {
       ),
     );
     return Semantics(
-      label: image.isEmpty ? 'Built-in church banner' : 'Your church banner',
+      label: picture == null ? 'Built-in church banner' : 'Your church banner',
       image: true,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
         child: AspectRatio(
           aspectRatio: 3,
-          child: image.isEmpty
+          child: picture == null
               ? fallback()
-              : Image.memory(
-                  base64Decode(image),
+              : Image(
+                  image: picture!,
                   fit: BoxFit.cover,
                   alignment: Alignment.center,
                   gaplessPlayback: true,

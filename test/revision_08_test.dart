@@ -58,13 +58,34 @@ void main() {
     await t.pumpAndSettle();
   }
 
+  Future<void> settleBanner(WidgetTester t) async {
+    await t.pump();
+    final picture = find.descendant(
+      of: find.byType(ChurchProfileBanner),
+      matching: find.byType(Image),
+    );
+    if (picture.evaluate().isNotEmpty) {
+      final image = t.widget<Image>(picture);
+      final context = t.element(picture);
+      await t.runAsync(() => precacheImage(image.image, context));
+    }
+    await t.pumpAndSettle();
+    if (picture.evaluate().isNotEmpty) {
+      final pixels = find.descendant(
+        of: find.byType(ChurchProfileBanner),
+        matching: find.byType(RawImage),
+      );
+      expect(t.widget<RawImage>(pixels).image, isNotNull);
+    }
+  }
+
   Future<void> pick(WidgetTester t) async {
     // Image codecs complete outside the fake widget-test clock.
     await t.runAsync(() async {
       await t.tap(find.byKey(const ValueKey('choose-church-banner')));
       await Future<void>.delayed(const Duration(milliseconds: 150));
     });
-    await t.pumpAndSettle();
+    await settleBanner(t);
   }
 
   Future<void> saveProfile(WidgetTester t) async {
@@ -95,12 +116,18 @@ void main() {
     final edit = find
         .descendant(
           of: find.byType(WarningSettingsPanel),
-          matching: find.byTooltip('Edit warning'),
+          matching: find.byType(ListTile),
         )
         .first;
-    await t.ensureVisible(edit);
-    await t.tap(edit);
+    await t.scrollUntilVisible(
+      edit.hitTestable(),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await t.pumpAndSettle();
+    await t.tap(edit.hitTestable());
+    await t.pumpAndSettle();
+    expect(find.byType(WarningEditor), findsOneWidget);
     await t.enterText(find.widgetWithText(TextField, 'Minutes'), '0');
     await t.enterText(find.widgetWithText(TextField, 'Seconds'), seconds);
     await t.tap(find.text('Save warning'));
@@ -129,6 +156,7 @@ void main() {
       await t.pumpAndSettle();
       await changeWarning(t, '43');
       await t.ensureVisible(find.byType(WarningSettingsPanel));
+      await t.pumpAndSettle();
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/template-warnings-phone.png'),
@@ -227,7 +255,7 @@ void main() {
       await pick(t);
       await t.enterText(find.byType(TextField), 'Grace Chapel');
       t.testTextInput.hide();
-      await t.pumpAndSettle();
+      await settleBanner(t);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/church-profile-custom-phone.png'),
