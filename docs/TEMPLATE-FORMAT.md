@@ -1,6 +1,8 @@
-# Portable template schema v2
+# Portable template schema v3
 
-JSON contains exactly these top-level fields: `schemaVersion` (integer 2 on export), `name`, `segments`, `display`. Versions 1 and 2 are accepted. Unknown fields are rejected, including controller data and approval records.
+JSON contains these top-level fields: `schemaVersion` (integer 3 on export), `name`, `type`, `segments`, `display`. Versions 1, 2 and 3 are accepted. Unknown fields are rejected, including controller data and approval records.
+
+`type` is `service` or `rehearsal`, required for version 3. It controls optional list grouping only; timing speed is chosen when loading a service. Versions 1–2 without a type default to Service, except the legacy starter named exactly `Quick rehearsal`, which becomes Rehearsal. Set the group explicitly in the editor for other old templates. Version 3 JSON requires Cuekeeper 0.6 or newer; older apps report an unsupported version. CSV still carries segments only and imports as Service.
 
 `segments` contains 1–200 objects with `name` and integer `minutes` (1–99). Names are trimmed, 1–80 Unicode code points. Template names are unique without regard to case.
 

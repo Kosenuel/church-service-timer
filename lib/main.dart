@@ -13,6 +13,7 @@ import 'display_connection.dart';
 part 'feature_views.dart';
 part 'report_views.dart';
 part 'live_views.dart';
+part 'template_views.dart';
 
 const accent = Color(0xffc9f96c);
 const muted = Color(0xff9caaa5);
@@ -95,6 +96,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   AppController get c => widget.controller;
   int page = 0;
   String settingsOwner = 'defaults';
+  void selectSettingsOwner(String value) =>
+      setState(() => settingsOwner = value);
   String reportFilter = 'all', reportView = 'list';
   void selectReportFilter(String value) => setState(() => reportFilter = value);
   void selectReportView(String value) => setState(() => reportView = value);
@@ -292,7 +295,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> editTemplate({int? index}) async {
+  Future<Timeline?> editTemplate({int? index}) async {
     final initial = index == null
         ? Timeline('', [], c.state.defaults)
         : c.state.templates[index];
@@ -310,10 +313,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         ),
       ),
     );
-    if (result != null)
-      await c.commit(
-        (draft, _) => draft.saveTemplate(result, replacing: index),
-      );
+    if (result == null) return null;
+    final ok = await c.commit(
+      (draft, _) => draft.saveTemplate(
+        result,
+        replacing: index == null ? null : draft.templateIndex(initial),
+      ),
+    );
+    if (!ok) {
+      if (mounted)
+        await showError(c.error ?? 'The template could not be saved.');
+      return null;
+    }
+    if (settingsOwner == 'template:${initial.name}' && mounted) {
+      setState(() => settingsOwner = 'template:${result.name}');
+    }
+    return result;
   }
 
   Future<void> importFile() async {
@@ -509,6 +524,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         : 'Standing by';
     final timerPanel = panel(
       child: Column(
+        key: const ValueKey('timer-card-content'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -641,16 +657,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              label('Display preview'),
-              DisplayConnectionBadge(connection: c.displayConnection),
-            ],
-          ),
+          DisplayPreviewHeader(connection: c.displayConnection),
           const SizedBox(height: 14),
           LedMatrix(
             pixels: c.simulator.pixels,
@@ -948,110 +955,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     );
   }
 
-  Widget templates() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        'Plan the service.',
-        style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Templates are independent of a loaded or running service.',
-        style: TextStyle(color: muted),
-      ),
-      const SizedBox(height: 20),
-      Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          button(
-            'New timeline',
-            Icons.add,
-            c.busy || c.corrupt ? null : editTemplate,
-            primary: true,
-          ),
-          button(
-            'Import CSV / JSON',
-            Icons.file_open_outlined,
-            c.busy || c.corrupt ? null : importFile,
-          ),
-        ],
-      ),
-      const SizedBox(height: 24),
-      ...c.state.templates.asMap().entries.map(
-        (e) => Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: panel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  e.value.name,
-                  style: const TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '${e.value.segments.length} segments · ${e.value.segments.fold<int>(0, (a, s) => a + s.minutes)} minutes',
-                  style: const TextStyle(color: muted),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  e.value.segments.map((s) => s.name).join(' → '),
-                  style: const TextStyle(color: muted, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    button(
-                      'Edit',
-                      Icons.edit_outlined,
-                      c.busy ? null : () => editTemplate(index: e.key),
-                    ),
-                    button(
-                      'JSON',
-                      Icons.ios_share,
-                      () => export(e.value, 'json'),
-                    ),
-                    button(
-                      'CSV',
-                      Icons.ios_share,
-                      () => export(e.value, 'csv'),
-                    ),
-                    TextButton.icon(
-                      onPressed: c.busy
-                          ? null
-                          : () async {
-                              if (await confirm(
-                                'Delete ${e.value.name}?',
-                                'Delete this saved template? Any loaded service snapshot remains unchanged.',
-                                'Delete template',
-                              )) {
-                                if (settingsOwner == 'template:${e.value.name}')
-                                  setState(() => settingsOwner = 'defaults');
-                                await c.commit(
-                                  (draft, _) => draft.templates.removeAt(e.key),
-                                );
-                              }
-                            },
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Delete'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ],
-  );
-
   Widget settings() {
     final index = c.state.templates.indexWhere(
       (t) => 'template:${t.name}' == settingsOwner,
@@ -1063,7 +966,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             draft.defaults = next;
           } else {
             final t = draft.templates[index];
-            draft.templates[index] = Timeline(t.name, t.segments, next);
+            draft.templates[index] = t.withDisplay(next);
           }
         })
         .then((_) {});
@@ -1594,6 +1497,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
   late TextEditingController name;
   late List<Segment> segments;
   late TextLayout endScreen;
+  late String templateType;
   String? error;
   @override
   void initState() {
@@ -1601,6 +1505,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
     name = TextEditingController(text: widget.initial.name);
     segments = [...widget.initial.segments];
     endScreen = widget.initial.display.end;
+    templateType = widget.initial.type;
   }
 
   @override
@@ -1691,6 +1596,22 @@ class _TemplateEditorState extends State<TemplateEditor> {
           TextField(
             controller: name,
             decoration: const InputDecoration(labelText: 'Template name'),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: templateType,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Template group'),
+            items: const [
+              DropdownMenuItem(value: 'service', child: Text('Service')),
+              DropdownMenuItem(value: 'rehearsal', child: Text('Rehearsal')),
+            ],
+            onChanged: (value) => setState(() => templateType = value!),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Grouping organizes templates. Choose rehearsal speed when starting a service.',
+            style: TextStyle(color: muted, fontSize: 12),
           ),
           const SizedBox(height: 16),
           Text(
@@ -1793,6 +1714,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
                     name.text,
                     segments,
                     widget.initial.display.withEnd(endScreen),
+                    type: templateType,
                   ).toJson(),
                 );
                 require(

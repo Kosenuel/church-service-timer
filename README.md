@@ -14,9 +14,10 @@ Offline Android prototype for church production timing and stage cues, with an e
 8. Open **Automatic warnings · this service** on Live to edit the loaded rules. Warnings use time remaining and overlay the simulator for eight seconds. Enable phone notifications, allow precise warnings where offered, and test notification sound. Android volume/Do Not Disturb still apply.
 9. In Display, select **Square LEDs** or **Circular LEDs** for all simulator previews. The choice survives restart without changing any glyph or output bit.
 
-10. Set each template’s end screen in **Templates → Edit**. Display holds the default for new templates and the **At Zero** setting shared by every service.
+10. Open a compact row in **Templates** to see its ordered segments and end screen. Use **Edit template**, **Duplicate**, CSV/JSON exports or confirmed **Delete template** on that detail page. **New** creates a template; **Import CSV / JSON** stays below the list. **List options** can group Services and Rehearsals. Change a template's group in the editor; this does not change timer speed.
+11. Set each template’s end screen in **Templates → select a template → Edit template**. Display holds the default for new templates and the **At Zero** setting shared by every service.
 
-See the [0.5 Live controls guide](docs/FEATURES-0.5.md), the [0.4 feature guide](docs/FEATURES-0.4.md) for reports and template settings, and [Display fonts](docs/DISPLAY-FONTS.md) for font import, rendering and LED shape settings.
+See the [0.6 Templates and alignment guide](docs/FEATURES-0.6.md), [0.5 Live controls guide](docs/FEATURES-0.5.md), the [0.4 feature guide](docs/FEATURES-0.4.md) for reports and template settings, and [Display fonts](docs/DISPLAY-FONTS.md) for font import, rendering and LED shape settings.
 
 The app keeps the screen awake while visible. Locking or closing it can suspend simulator rendering; reopening reconstructs time. Phone warnings use Android alarms independently, subject to permissions and battery restrictions. A 30-minute absence or uncertain reboot timing holds stage output for review. Continuous physical output remains outside this prototype.
 
@@ -46,6 +47,7 @@ The debug APK uses a development signing identity. Production signing and distri
 - `lib/live_views.dart`: accessible progress arc, responsive Live controls and live confirmation previews.
 - `lib/display_connection.dart`: truthful simulator/physical/disconnected status labels.
 - `lib/report_views.dart`: compact report list, detail pages, charts and bulk export.
+- `lib/template_views.dart`: compact template rows, detail pages, grouping and template actions.
 - `lib/platform.dart` and Android `MainActivity.kt`: suspend-aware clock, atomic local storage and document picker.
 - `test/`: deterministic domain, fault injection, rendering and UI checks.
 - `docs/PRD.md`: supplied requirements; historical wording about APK availability is retained as source material.

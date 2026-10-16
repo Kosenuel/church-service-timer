@@ -17,7 +17,7 @@ The native bridge supplies Android `SystemClock.elapsedRealtime()` with `BOOT_CO
 
 Version 0.3 also requests notification permission and, optionally, precise-alarm access. These prompts are initiated by the operator from Live. A private, non-exported receiver posts scheduled warnings. No boot receiver or foreground sign-output service is installed.
 
-## Installation checks (including 0.5)
+## Installation checks (including 0.6)
 
 1. Upgrade without clearing app data. Confirm existing reports/cues survive and the original Matrix appearance is unchanged apart from the chosen LED cell shape.
 2. Edit a Live cue (including font/style/speed), Send, switch service and restart. Confirm persistence. Cancel a new cue and confirm nothing is added.
@@ -33,6 +33,8 @@ Version 0.3 also requests notification permission and, optionally, precise-alarm
 These runtime checks are not replaced by unit tests or APK compilation. No physical sign is required for them; real controller validation is separate.
 
 For 0.5, also check the arc and allocation after ±2 minutes and Custom removal, warning colours at configured thresholds, and the depleted arc with red overtime. Pause/restart during overtime and verify it survives; adding two minutes at +00:23 should yield 01:37. Next segment must name its destination, and Undo must always confirm the restored state. Disconnect/reconnect the simulator and verify the top banner and preview badge. Use enlarged Android font settings to check the two-row controls and scrollable dialogs. Confirm that At Zero output and the original Matrix font remain unchanged.
+
+For 0.6, compare the arc's horizontal position in Ready, normal, paused, warning, overtime and ended states; it must remain centered in its card. Check the Display preview heading at the left and status badge at the right with normal and enlarged text. Tap compact Templates rows, edit and rename a template, duplicate it, cancel/confirm deletion, and export from the detail page. Confirm the loaded service stays unchanged. Toggle List options → Services & rehearsals, change a template's group in its editor, then restart and check persistence. Check New and Import after deleting all templates.
 
 On this Windows workspace, the reusable Android environment is at `C:\Users\x1\Documents\Codex\android-toolchain\Activate.ps1`. The Flutter SDK installation and build verification details are recorded in the delivered verification report. Machine-specific SDK locations belong in ignored `android/local.properties`, not source control.
 

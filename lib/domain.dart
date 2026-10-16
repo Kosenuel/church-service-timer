@@ -212,15 +212,37 @@ class Segment {
 
 class Timeline {
   final String name;
+  final String type;
   final List<Segment> segments;
   final DisplaySettings display;
-  Timeline(this.name, List<Segment> segments, this.display)
-    : segments = List.unmodifiable(segments);
+  Timeline(
+    this.name,
+    List<Segment> segments,
+    this.display, {
+    this.type = 'service',
+  }) : segments = List.unmodifiable(segments);
   factory Timeline.fromJson(Json j) {
-    keys(j, {'schemaVersion', 'name', 'segments', 'display'}, 'Template');
+    keys(j, {
+      'schemaVersion',
+      'name',
+      'segments',
+      'display',
+      'type',
+    }, 'Template');
     require(
-      j['schemaVersion'] is int && {1, 2}.contains(j['schemaVersion']),
-      'Supported template schema versions are 1 and 2.',
+      j['schemaVersion'] is int && {1, 2, 3}.contains(j['schemaVersion']),
+      'Supported template schema versions are 1, 2 and 3.',
+    );
+    final type =
+        j['type'] ??
+        (j['schemaVersion'] == 3
+            ? null
+            : j['name'] == 'Quick rehearsal'
+            ? 'rehearsal'
+            : 'service');
+    require(
+      {'service', 'rehearsal'}.contains(type),
+      'Template type must be service or rehearsal.',
     );
     require(j['segments'] is List, 'segments must be a list.');
     final entries = j['segments'] as List;
@@ -240,13 +262,17 @@ class Timeline {
       nameValue(j['name'], 'Template name'),
       segs,
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['display'])),
+      type: type as String,
     );
   }
   Timeline renamed(String n) =>
-      Timeline(nameValue(n, 'Template name'), segments, display);
+      Timeline(nameValue(n, 'Template name'), segments, display, type: type);
+  Timeline withDisplay(DisplaySettings value) =>
+      Timeline(name, segments, value, type: type);
   Json toJson() => {
-    'schemaVersion': 2,
+    'schemaVersion': 3,
     'name': name,
+    'type': type,
     'segments': segments.map((s) => s.toJson()).toList(),
     'display': display.toJson(),
   };
@@ -754,6 +780,7 @@ class AppState {
   List<ServiceReport> reports;
   List<TextLayout> stageCues;
   String pixelShape;
+  bool groupTemplates;
   AppState(
     this.templates,
     this.defaults,
@@ -761,6 +788,7 @@ class AppState {
     List<ServiceReport>? reports,
     List<TextLayout>? stageCues,
     this.pixelShape = 'square',
+    this.groupTemplates = false,
   }) : reports = reports ?? [],
        stageCues = stageCues ?? [...defaults.cues];
   factory AppState.fresh(Stamp now) => AppState(
@@ -771,23 +799,32 @@ class AppState {
         Segment('Sermon', 30),
         Segment('Closing', 5),
       ], DisplaySettings()),
-      Timeline('Quick rehearsal', const [
-        Segment('Welcome', 1),
-        Segment('Message', 2),
-        Segment('Closing', 1),
-      ], DisplaySettings()),
+      Timeline(
+        'Quick rehearsal',
+        const [
+          Segment('Welcome', 1),
+          Segment('Message', 2),
+          Segment('Closing', 1),
+        ],
+        DisplaySettings(),
+        type: 'rehearsal',
+      ),
     ],
     DisplaySettings(),
     Session(id: 'idle', anchor: now),
   );
   factory AppState.fromJson(Json j) {
     require(
-      {1, 2, 3, 4, 5}.contains(j['version']),
+      {1, 2, 3, 4, 5, 6}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
       {'square', 'circular'}.contains(j['pixelShape'] ?? 'square'),
       'Invalid simulator LED shape.',
+    );
+    require(
+      j['groupTemplates'] == null || j['groupTemplates'] is bool,
+      'Invalid template grouping preference.',
     );
     final a = AppState(
       (j['templates'] as List)
@@ -796,6 +833,7 @@ class AppState {
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['defaults'])),
       Session.fromJson(Map<String, dynamic>.from(j['session'])),
       pixelShape: j['pixelShape'] ?? 'square',
+      groupTemplates: j['groupTemplates'] ?? false,
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -851,12 +889,11 @@ class AppState {
 
       a.defaults = upgrade(a.defaults);
       a.templates = a.templates
-          .map((t) => Timeline(t.name, t.segments, upgrade(t.display)))
+          .map((t) => t.withDisplay(upgrade(t.display)))
           .toList();
       void upgradeSession(Session s) {
         final t = s.timeline;
-        if (t != null)
-          s.timeline = Timeline(t.name, t.segments, upgrade(t.display));
+        if (t != null) s.timeline = t.withDisplay(upgrade(t.display));
         if (s.prior != null) upgradeSession(s.prior!);
       }
 
@@ -870,20 +907,21 @@ class AppState {
           : d;
       a.defaults = upgradeEnd(a.defaults);
       a.templates = a.templates
-          .map((t) => Timeline(t.name, t.segments, upgradeEnd(t.display)))
+          .map((t) => t.withDisplay(upgradeEnd(t.display)))
           .toList();
     }
     a.applySharedZero();
     return a;
   }
   Json toJson() => {
-    'version': 5,
+    'version': 6,
     'templates': templates.map((t) => t.toJson()).toList(),
     'defaults': defaults.toJson(),
     'session': session.toJson(),
     'reports': reports.map((e) => e.toJson()).toList(),
     'stageCues': stageCues.map((e) => e.toJson()).toList(),
     'pixelShape': pixelShape,
+    'groupTemplates': groupTemplates,
   };
   AppState copy() => AppState.fromJson(toJson());
 
@@ -891,7 +929,7 @@ class AppState {
   /// End screens remain owned by each template / loaded snapshot.
   void applySharedZero() {
     Timeline normalize(Timeline t) =>
-        Timeline(t.name, t.segments, t.display.withZero(defaults.zero));
+        t.withDisplay(t.display.withZero(defaults.zero));
     templates = templates.map(normalize).toList();
     void normalizeSession(Session s) {
       if (s.timeline != null) s.timeline = normalize(s.timeline!);
@@ -923,6 +961,38 @@ class AppState {
       templates[replacing] = t;
     }
   }
+
+  /// Identify the reviewed saved template, never a stale list position.
+  int templateIndex(Timeline expected) {
+    final index = templates.indexWhere((t) => t.name == expected.name);
+    require(
+      index >= 0 &&
+          jsonEncode(templates[index].toJson()) ==
+              jsonEncode(expected.toJson()),
+      'This template changed. Return to Templates and review it again.',
+    );
+    return index;
+  }
+
+  Timeline duplicateTemplate(Timeline expected) {
+    final original = templates[templateIndex(expected)];
+    var count = 1;
+    String candidate;
+    do {
+      final suffix = count == 1 ? ' (copy)' : ' (copy $count)';
+      candidate =
+          '${String.fromCharCodes(original.name.runes.take(80 - suffix.length))}$suffix';
+      count++;
+    } while (templates.any(
+      (t) => t.name.toLowerCase() == candidate.toLowerCase(),
+    ));
+    final copy = Timeline.fromJson(original.toJson()).renamed(candidate);
+    saveTemplate(copy);
+    return copy;
+  }
+
+  void deleteTemplate(Timeline expected) =>
+      templates.removeAt(templateIndex(expected));
 }
 
 String exportJson(Timeline t) =>
@@ -990,12 +1060,12 @@ Timeline importTemplate(
   if (filename.toLowerCase().endsWith('.json')) {
     try {
       final t = Timeline.fromJson(Map<String, dynamic>.from(jsonDecode(raw)));
-      return Timeline(t.name, t.segments, t.display.withZero(defaults.zero));
+      return t.withDisplay(t.display.withZero(defaults.zero));
     } on RuleError {
       rethrow;
     } catch (_) {
       throw RuleError(
-        'Invalid JSON structure. Select a version 1 or 2 template file.',
+        'Invalid JSON structure. Select a version 1, 2 or 3 template file.',
       );
     }
   }

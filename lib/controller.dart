@@ -271,19 +271,11 @@ class AppController extends ChangeNotifier {
           .toList();
       s.undo = UndoPoint.fromJson(u);
     }
-    s.timeline = Timeline(
-      old.name,
-      old.segments,
-      old.display.withWarnings(rules),
-    );
+    s.timeline = old.withDisplay(old.display.withWarnings(rules));
     final i = draft.templates.indexWhere((t) => t.name == old.name);
     if (i >= 0) {
       final t = draft.templates[i];
-      draft.templates[i] = Timeline(
-        t.name,
-        t.segments,
-        t.display.withWarnings(rules),
-      );
+      draft.templates[i] = t.withDisplay(t.display.withWarnings(rules));
     }
     s.revision++;
   });

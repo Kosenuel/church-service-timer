@@ -158,7 +158,10 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Templates'));
       await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(OutlinedButton, 'Edit').first);
+      await t.tap(find.byKey(const ValueKey('template-row:Sunday Service')));
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.text('Edit template'));
+      await t.tap(find.widgetWithText(FilledButton, 'Edit template'));
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('Edit template end screen'));
       await t.tap(find.text('Edit template end screen'));

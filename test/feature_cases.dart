@@ -282,7 +282,7 @@ final featureCases = <String, void Function()>{
         final old = Timeline.fromJson(j);
         equal(old.display.cues.first.font, 'cuekeeper_matrix');
         equal(old.display.warnings.length, 0);
-        equal(old.toJson()['schemaVersion'], 2);
+        equal(old.toJson()['schemaVersion'], 3);
       },
   'Invalid font and duplicate warning thresholds are rejected': () {
     rejects(

@@ -59,90 +59,93 @@ class SegmentGauge extends StatelessWidget {
         final width = math.min(306.0, constraints.maxWidth);
         final outsideLabels =
             MediaQuery.textScalerOf(context).scale(14) > 21 || width < 230;
-        return Semantics(
-          label:
-              '${operatorTimeDescription(balance)}, ${formatTime(session.allocatedMs)} allocated',
-          child: Column(
-            children: [
-              if (outsideLabels) label(labelText),
-              SizedBox(
-                width: width,
-                height: width * 260 / 300,
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: TimerArcPainter(
-                          progress: progress,
-                          color: color,
+        return SizedBox(
+          width: constraints.maxWidth,
+          child: Semantics(
+            label:
+                '${operatorTimeDescription(balance)}, ${formatTime(session.allocatedMs)} allocated',
+            child: Column(
+              children: [
+                if (outsideLabels) label(labelText),
+                SizedBox(
+                  width: width,
+                  height: width * 260 / 300,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: TimerArcPainter(
+                            progress: progress,
+                            color: color,
+                          ),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      top: width * (outsideLabels ? .34 : .22),
-                      left: width * .17,
-                      right: width * .17,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (!outsideLabels) ...[
-                            label(labelText),
-                            const SizedBox(height: 4),
-                          ],
-                          FittedBox(fit: BoxFit.scaleDown, child: number),
-                          if (!outsideLabels) ...[
-                            const SizedBox(height: 10),
-                            label('Allocated time'),
-                            const SizedBox(height: 3),
-                            Text(
-                              formatTime(session.allocatedMs),
-                              key: const ValueKey('allocated-time'),
-                              style: const TextStyle(
-                                fontSize: 19,
-                                fontFeatures: [FontFeature.tabularFigures()],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (outsideLabels)
-                Text(
-                  'Allocated time · ${formatTime(session.allocatedMs)}',
-                  key: const ValueKey('allocated-time'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: muted, fontSize: 14),
-                ),
-              ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 32),
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: notice.isEmpty
-                      ? const SizedBox()
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                      Positioned(
+                        top: width * (outsideLabels ? .34 : .22),
+                        left: width * .17,
+                        right: width * .17,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              size: 17,
-                              color: color,
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                notice,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: color, fontSize: 12),
+                            if (!outsideLabels) ...[
+                              label(labelText),
+                              const SizedBox(height: 4),
+                            ],
+                            FittedBox(fit: BoxFit.scaleDown, child: number),
+                            if (!outsideLabels) ...[
+                              const SizedBox(height: 10),
+                              label('Allocated time'),
+                              const SizedBox(height: 3),
+                              Text(
+                                formatTime(session.allocatedMs),
+                                key: const ValueKey('allocated-time'),
+                                style: const TextStyle(
+                                  fontSize: 19,
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                if (outsideLabels)
+                  Text(
+                    'Allocated time · ${formatTime(session.allocatedMs)}',
+                    key: const ValueKey('allocated-time'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: muted, fontSize: 14),
+                  ),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 32),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: notice.isEmpty
+                        ? const SizedBox()
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                size: 17,
+                                color: color,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  notice,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: color, fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -196,6 +199,35 @@ class TimerArcPainter extends CustomPainter {
   @override
   bool shouldRepaint(TimerArcPainter oldDelegate) =>
       progress != oldDelegate.progress || color != oldDelegate.color;
+}
+
+class DisplayPreviewHeader extends StatelessWidget {
+  final DisplayConnection connection;
+  const DisplayPreviewHeader({super.key, required this.connection});
+  @override
+  Widget build(BuildContext context) => Row(
+    key: const ValueKey('display-preview-header'),
+    children: [
+      const Expanded(
+        child: Text(
+          'DISPLAY PREVIEW',
+          style: TextStyle(
+            color: muted,
+            letterSpacing: 1.6,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      const SizedBox(width: 12),
+      Flexible(
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: DisplayConnectionBadge(connection: connection),
+        ),
+      ),
+    ],
+  );
 }
 
 class DisplayConnectionBadge extends StatelessWidget {
