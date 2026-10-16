@@ -287,7 +287,7 @@ class TimesFont(context: Context) {
             val styles = labels[17] ?: labels[2].orEmpty()
             require(styles.any { it in listOf("regular", "roman", "normal") } &&
                 styles.none { value -> listOf("bold", "italic", "oblique", "light", "black", "medium").any(value::contains) }) {
-                "Choose the regular Times New Roman TTF; bold and italic are applied in Cuekeeper."
+                "Choose the regular Times New Roman TTF; bold and italic are applied in Church Service Timer."
             }
         }
     }

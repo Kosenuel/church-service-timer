@@ -79,9 +79,9 @@ void main() {
       );
       await tester.tap(find.text('Bold'));
       await tester.tap(find.text('Italic'));
-      await tester.tap(find.text('Cuekeeper Matrix'));
+      await tester.tap(find.text('Service Matrix'));
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.text('Cuekeeper Sq-Matrix').last);
+      await tester.tap(find.text('Service Sq-Matrix').last);
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Tall · 14 px'));
       await tester.tap(find.widgetWithText(FilledButton, 'Send'));
@@ -114,7 +114,9 @@ void main() {
       await c.act('start');
       await tester.pumpWidget(TimerApp(controller: c));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Display'));
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Display settings'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('02:00 · 2 MIN LEFT'));
       await tester.pumpAndSettle();

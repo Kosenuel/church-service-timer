@@ -4,14 +4,16 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 
 ## Implemented
 
-- Separate Live, Templates, Display and Reports views; responsive phone/tablet layouts.
+- Church branding, five theme presets with cancelable previews, configurable screen awake, grouped Settings, About with author/version, and validated setup backup/restore. Reports snapshot church identity.
+
+- Separate Live, Templates, Settings and Reports views; responsive phone/tablet layouts.
 - Independent loaded-service snapshot; template changes/deletion do not change the run. Live warning edits explicitly update current rules and the matching saved template. Global At Zero edits explicitly update every template and loaded/prior service snapshot.
 - Ready with explicit first-segment start, cancellation without prior output replay, manual final-segment ending.
 - Suspend-aware Android monotonic clock; elapsed-time calculation instead of callback counting.
 - Confirmed pause/resume, custom Add and ±120-second adjustments; clamp at zero, 99:59 maximum; prominent red End service control.
 - Confirmed advance, elapsed-aware one-step undo, 10-second quick-undo window and modification tracking.
 - Shared Live cues: editing and Send replaces the item persistently across services; New cue and Send appends. All formatting persists; old customized cues migrate.
-- Unchanged Cuekeeper Matrix plus new Cuekeeper Sq-Matrix; genuine Times New Roman Regular TTF import and native rendering. Explicit unsupported-character and missing-font errors.
+- Unchanged Service Matrix plus new Service Sq-Matrix; genuine Times New Roman Regular TTF import and native rendering. Explicit unsupported-character and missing-font errors.
 - Saved square/circular simulator LED appearance, shared by Live and previews without altering output bits.
 - Bold, italic, 7/14-pixel text height, horizontal alignment, scrolling speed and flash preview.
 - New/untested cues require preview and confirmation on each send. No preview confers physical approval.
@@ -28,7 +30,7 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 - After-service reports with segment actuals, pauses, adjustments, compact list/detail pages, filtered comparison charts, individual/bulk CSV/JSON export and confirmed deletion of one/all local records.
 - Fast rehearsal at 5×, 10×, 30× or 60×, labelled separately from live timing.
 
-See `FEATURES-0.4.md` for current changes and migration, and `FEATURES-0.3.md` for font/notification behavior. `FEATURES-0.2.md` is historical.
+See `FEATURES-0.7.md` for current changes and `FEATURES-0.4.md` for reports and migration, and `FEATURES-0.3.md` for font/notification behavior. `FEATURES-0.2.md` is historical.
 
 ## Explicitly deferred until hardware is available
 
@@ -43,7 +45,7 @@ There is no real controller settings page in the prototype, no speculative addre
 
 ## Prototype limitations
 
-- Simulator frames render while the Flutter UI executes. The application keeps the screen awake while visible, but no claim is made that rendering continues while backgrounded or terminated. Reopening calculates the current time from native anchors.
+- Simulator frames render while the Flutter UI executes. The application keeps the screen awake while visible by default (configurable in Settings), but no claim is made that rendering continues while backgrounded or terminated. Reopening calculates the current time from native anchors.
 - Phone alerts obey Android permission, sound, Do Not Disturb and battery rules. Exact alarm permission does not remove sleep quotas. Reboot/force-stop can clear alarms; reopen to reschedule. Android device runtime checks are still required.
 - A disconnected simulator freezes the visible frame, including animation. Real controllers may continue an uploaded animation; that behavior requires observation.
 - The 30-minute absence is measured conservatively from the latest saved activity checkpoint. Wall-clock fallback across reboot is marked uncertain.

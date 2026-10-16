@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
 import 'controller.dart';
 import 'domain.dart';
 import 'pixels.dart';
@@ -14,9 +15,7 @@ part 'feature_views.dart';
 part 'report_views.dart';
 part 'live_views.dart';
 part 'template_views.dart';
-
-const accent = Color(0xffc9f96c);
-const muted = Color(0xff9caaa5);
+part 'settings_views.dart';
 
 String styleSummary(TextLayout l) =>
     '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
@@ -30,58 +29,21 @@ class TimerApp extends StatelessWidget {
   final AppController controller;
   const TimerApp({super.key, required this.controller});
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Cuekeeper',
-    debugShowCheckedModeBanner: false,
-    builder: (context, child) => AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) => LedAppearance(
-        shape: controller.ready ? controller.state.pixelShape : 'square',
-        child: child!,
-      ),
-    ),
-    theme: ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: accent,
-        brightness: Brightness.dark,
-        primary: accent,
-        surface: const Color(0xff131d1a),
-      ),
-      scaffoldBackgroundColor: const Color(0xff0a1210),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xff0a1210),
-        centerTitle: false,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: const Color(0xff0c1512),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.all(16),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: const Size(48, 50),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+  Widget build(BuildContext context) => ValueListenableBuilder<String>(
+    valueListenable: controller.themeSelection,
+    builder: (context, themeId, _) => MaterialApp(
+      title: appName,
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) => AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) => LedAppearance(
+          shape: controller.ready ? controller.state.pixelShape : 'square',
+          child: child!,
         ),
       ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(48, 50),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-      textTheme: const TextTheme(
-        bodyMedium: TextStyle(fontSize: 15, height: 1.45),
-        titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-      ),
+      theme: appTheme(themeId),
+      home: Home(controller: controller),
     ),
-    home: Home(controller: controller),
   );
 }
 
@@ -96,8 +58,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   AppController get c => widget.controller;
   int page = 0;
   String settingsOwner = 'defaults';
-  void selectSettingsOwner(String value) =>
-      setState(() => settingsOwner = value);
+  final settingsRefresh = ValueNotifier<int>(0);
+  void selectSettingsOwner(String value) {
+    setState(() => settingsOwner = value);
+    settingsRefresh.value++;
+  }
+
   String reportFilter = 'all', reportView = 'list';
   void selectReportFilter(String value) => setState(() => reportFilter = value);
   void selectReportView(String value) => setState(() => reportView = value);
@@ -116,6 +82,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    settingsRefresh.dispose();
     c.dispose();
     super.dispose();
   }
@@ -410,7 +377,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     if (error != null)
                       Text(
                         error!,
-                        style: const TextStyle(color: Colors.orangeAccent),
+                        style: TextStyle(color: appColors(context).warning),
                       ),
                   ],
                 ),
@@ -478,18 +445,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     required Widget child,
     EdgeInsets padding = const EdgeInsets.all(20),
   }) => Material(
-    color: const Color(0xff131d1a),
+    color: appColors(context).surface,
     clipBehavior: Clip.antiAlias,
     shape: RoundedRectangleBorder(
-      side: const BorderSide(color: Color(0xff27362f)),
+      side: BorderSide(color: appColors(context).border),
       borderRadius: BorderRadius.circular(20),
     ),
     child: Padding(padding: padding, child: child),
   );
   Widget label(String text) => Text(
     text.toUpperCase(),
-    style: const TextStyle(
-      color: muted,
+    style: TextStyle(
+      color: appColors(context).muted,
       letterSpacing: 1.6,
       fontSize: 11,
       fontWeight: FontWeight.w700,
@@ -535,7 +502,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 avatar: Icon(
                   s.active && !s.paused ? Icons.circle : Icons.circle_outlined,
                   size: 12,
-                  color: accent,
+                  color: appColors(context).accent,
                 ),
               ),
             ],
@@ -555,15 +522,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               s.index + 1 < t.segments.length
                   ? 'NEXT  ${t.segments[s.index + 1].name} · ${t.segments[s.index + 1].minutes} min'
                   : 'FINAL SEGMENT',
-              style: const TextStyle(color: muted),
+              style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 6),
             SegmentGauge(session: s, now: c.now),
           ] else ...[
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Load a timeline, keep the room on time, and send discreet cues to the stage.',
-              style: TextStyle(color: muted),
+              style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 24),
           ],
@@ -595,9 +562,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               onChanged: c.busy ? null : (v) => c.act('rate', value: v),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Timing has not started. The simulator retains its previous output.',
-              style: TextStyle(color: muted),
+              style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -666,7 +633,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           const SizedBox(height: 12),
           Text(
             '32 × 16 · ${c.state.pixelShape == 'square' ? 'Square' : 'Circular'} LEDs',
-            style: const TextStyle(color: muted, fontSize: 12),
+            style: TextStyle(color: appColors(context).muted, fontSize: 12),
           ),
           if (s.held || s.disconnected) ...[
             const SizedBox(height: 8),
@@ -674,22 +641,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               s.disconnected
                   ? 'Output unavailable · showing the last simulated frame'
                   : 'Output held · review before restoring',
-              style: const TextStyle(color: Color(0xffffb4ab)),
+              style: TextStyle(color: appColors(context).error),
             ),
           ],
           const SizedBox(height: 8),
           Text(
             'Intended: ${s.intended(c.now)?.text ?? 'No new output'}',
-            style: const TextStyle(color: muted),
+            style: TextStyle(color: appColors(context).muted),
           ),
           Text(
             'Simulated: ${c.simulator.delivered?.text ?? 'Blank'}',
-            style: const TextStyle(color: muted),
+            style: TextStyle(color: appColors(context).muted),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Simulator only · physical delivery is not enabled.',
-            style: TextStyle(color: muted, fontSize: 12),
+            style: TextStyle(color: appColors(context).muted, fontSize: 12),
           ),
           const SizedBox(height: 12),
           button(
@@ -710,7 +677,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             children: [
               Expanded(child: label('Stage cues')),
               if (s.alert != null)
-                const Icon(Icons.chat_bubble_outline, color: accent, size: 18),
+                Icon(
+                  Icons.chat_bubble_outline,
+                  color: appColors(context).accent,
+                  size: 18,
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -729,7 +700,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 : s.paused
                 ? 'The underlying timer is paused.'
                 : 'The countdown continues underneath this cue.',
-            style: const TextStyle(color: muted, fontSize: 13),
+            style: TextStyle(color: appColors(context).muted, fontSize: 13),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -782,22 +753,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 key: const ValueKey('display-disconnected-banner'),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xff3b2728),
+                  color: appColors(context).surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.wifi_off, color: Color(0xffffb4ab)),
+                    Icon(Icons.wifi_off, color: appColors(context).error),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Display disconnected',
                             style: TextStyle(
-                              color: Color(0xffffb4ab),
+                              color: appColors(context).error,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -822,10 +793,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Review before restoring output',
                       style: TextStyle(
-                        color: Colors.orangeAccent,
+                        color: appColors(context).warning,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
@@ -896,7 +867,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   const SizedBox(height: 8),
                   Text(
                     s.warningNotice!,
-                    style: const TextStyle(color: Colors.orangeAccent),
+                    style: TextStyle(color: appColors(context).warning),
                   ),
                   TextButton(
                     onPressed: c.busy ? null : () => c.act('dismissWarning'),
@@ -926,7 +897,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             child: Text(
                               '${e.key + 1}'.padLeft(2, '0'),
                               style: TextStyle(
-                                color: e.key == s.index ? accent : muted,
+                                color: e.key == s.index
+                                    ? appColors(context).accent
+                                    : appColors(context).muted,
                               ),
                             ),
                           ),
@@ -934,13 +907,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             child: Text(
                               e.value.name,
                               style: TextStyle(
-                                color: e.key == s.index ? accent : Colors.white,
+                                color: e.key == s.index
+                                    ? appColors(context).accent
+                                    : appColors(context).text,
                               ),
                             ),
                           ),
                           Text(
                             '${e.value.minutes} min',
-                            style: const TextStyle(color: muted),
+                            style: TextStyle(color: appColors(context).muted),
                           ),
                         ],
                       ),
@@ -955,7 +930,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     );
   }
 
-  Widget settings() {
+  Widget displaySettings() {
     final index = c.state.templates.indexWhere(
       (t) => 'template:${t.name}' == settingsOwner,
     );
@@ -978,9 +953,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'At Zero is shared by every service. End screens and warning defaults apply when a service is next loaded.',
-          style: TextStyle(color: muted),
+          style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 20),
         sharedZeroSettings(),
@@ -1004,7 +979,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               ),
             ),
           ],
-          onChanged: c.busy ? null : (v) => setState(() => settingsOwner = v!),
+          onChanged: c.busy ? null : (v) => selectSettingsOwner(v!),
         ),
         const SizedBox(height: 20),
         panel(
@@ -1015,13 +990,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               const SizedBox(height: 8),
               Text(d.end.text, style: const TextStyle(fontSize: 24)),
               const SizedBox(height: 8),
-              Text(styleSummary(d.end), style: const TextStyle(color: muted)),
+              Text(
+                styleSummary(d.end),
+                style: TextStyle(color: appColors(context).muted),
+              ),
               const SizedBox(height: 8),
               Text(
                 index < 0
                     ? 'Default for new templates. Existing templates keep their own end screen.'
                     : 'Saved for this template. A loaded service keeps the end screen it started with.',
-                style: const TextStyle(color: muted),
+                style: TextStyle(color: appColors(context).muted),
               ),
               const SizedBox(height: 12),
               button(
@@ -1069,20 +1047,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               label('Prototype display profile'),
               const SizedBox(height: 10),
               const Text(
-                '32 × 16 · monochrome\nFonts: Cuekeeper Matrix, Cuekeeper Sq-Matrix, imported Times New Roman\nCountdown: Cuekeeper Matrix · 14-pixel height\nPhysical controller: not configured',
+                '32 × 16 · monochrome\nFonts: Service Matrix, Service Sq-Matrix, imported Times New Roman\nCountdown: Service Matrix · 14-pixel height\nPhysical controller: not configured',
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'The simulator is a visual testing tool. It cannot grant physical-layout approval or measure Wi-Fi/sign latency. Physical Test on Sign is unavailable until a verified adapter is added.',
-                style: TextStyle(color: muted),
+                style: TextStyle(color: appColors(context).muted),
               ),
               const SizedBox(height: 12),
               button('Test on sign — unavailable', Icons.developer_board, null),
               TextButton(
-                onPressed: () => showLicensePage(
-                  context: context,
-                  applicationName: 'Cuekeeper',
-                ),
+                onPressed: () =>
+                    showLicensePage(context: context, applicationName: appName),
                 child: const Text('Font and software licenses'),
               ),
             ],
@@ -1097,46 +1073,80 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     animation: c,
     builder: (context, _) => Scaffold(
       appBar: AppBar(
-        title: const Row(
+        toolbarHeight: math.max(
+          76,
+          MediaQuery.textScalerOf(context).scale(18) * 2.4 +
+              ((c.ready ? c.state.churchName : c.loadingChurchName).isNotEmpty
+                  ? MediaQuery.textScalerOf(context).scale(12) * 1.3
+                  : 0) +
+              8,
+        ),
+        title: Row(
           children: [
-            Icon(Icons.graphic_eq, color: accent),
-            SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                'cuekeeper',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -.5,
-                ),
+            const ChurchTimerMark(),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    appName,
+                    maxLines: 2,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  if ((c.ready ? c.state.churchName : c.loadingChurchName)
+                      .isNotEmpty)
+                    Tooltip(
+                      message: c.ready
+                          ? c.state.churchName
+                          : c.loadingChurchName,
+                      child: Text(
+                        c.ready ? c.state.churchName : c.loadingChurchName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: appColors(context).muted,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xff39533c)),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                'PROTOTYPE',
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 10,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: !c.ready
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const ChurchTimerMark(size: 84),
+                    const SizedBox(height: 20),
+                    const Text(
+                      appName,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (c.loadingChurchName.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          c.loadingChurchName,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    const SizedBox(height: 24),
+                    const CircularProgressIndicator(),
+                  ],
+                ),
+              ),
+            )
           : SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
@@ -1155,8 +1165,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 children: [
                                   Text(
                                     c.error!,
-                                    style: const TextStyle(
-                                      color: Colors.orangeAccent,
+                                    style: TextStyle(
+                                      color: appColors(context).warning,
                                     ),
                                   ),
                                   const SizedBox(height: 8),
@@ -1190,7 +1200,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                               : page == 1
                               ? templates()
                               : page == 2
-                              ? settings()
+                              ? settingsHub()
                               : reports(),
                         ),
                       ],
@@ -1211,7 +1221,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             icon: Icon(Icons.view_timeline_outlined),
             label: 'Templates',
           ),
-          NavigationDestination(icon: Icon(Icons.tune), label: 'Display'),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            label: 'Settings',
+          ),
           NavigationDestination(
             icon: Icon(Icons.assessment_outlined),
             label: 'Reports',
@@ -1319,9 +1332,12 @@ class _TextComposerState extends State<TextComposer> {
                     : List.filled(512, false),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'NOT TESTED ON SIGN · simulator preview',
-                style: TextStyle(color: Colors.orangeAccent, fontSize: 11),
+                style: TextStyle(
+                  color: appColors(context).warning,
+                  fontSize: 11,
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -1375,11 +1391,11 @@ class _TextComposerState extends State<TextComposer> {
                 }),
               ),
               if (font == 'times_new_roman')
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 8),
                   child: Text(
                     'Genuine imported font · 14 px recommended. Compact text has fewer serif details.',
-                    style: TextStyle(color: muted),
+                    style: TextStyle(color: appColors(context).muted),
                   ),
                 ),
               const SizedBox(height: 12),
@@ -1431,7 +1447,10 @@ class _TextComposerState extends State<TextComposer> {
                 if (error == null)
                   Text(
                     'One complete message pass: approximately ${(math.max(0, textWidth(layout)) / speed).toStringAsFixed(1)} seconds.',
-                    style: const TextStyle(color: muted, fontSize: 12),
+                    style: TextStyle(
+                      color: appColors(context).muted,
+                      fontSize: 12,
+                    ),
                   ),
               ],
               if (error != null)
@@ -1439,7 +1458,7 @@ class _TextComposerState extends State<TextComposer> {
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     error,
-                    style: const TextStyle(color: Colors.orangeAccent),
+                    style: TextStyle(color: appColors(context).warning),
                   ),
                 ),
             ],
@@ -1462,7 +1481,9 @@ class _TextComposerState extends State<TextComposer> {
                   },
             icon: const Icon(Icons.delete_outline),
             label: const Text('Delete cue'),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            style: TextButton.styleFrom(
+              foregroundColor: appColors(context).error,
+            ),
           ),
         TextButton(
           onPressed: deleting ? null : () => Navigator.pop(context),
@@ -1545,7 +1566,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
               if (issue != null)
                 Text(
                   issue!,
-                  style: const TextStyle(color: Colors.orangeAccent),
+                  style: TextStyle(color: appColors(context).warning),
                 ),
             ],
           ),
@@ -1609,19 +1630,19 @@ class _TemplateEditorState extends State<TemplateEditor> {
             onChanged: (value) => setState(() => templateType = value!),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Grouping organizes templates. Choose rehearsal speed when starting a service.',
-            style: TextStyle(color: muted, fontSize: 12),
+            style: TextStyle(color: appColors(context).muted, fontSize: 12),
           ),
           const SizedBox(height: 16),
           Text(
             '${segments.length} segments · ${segments.fold<int>(0, (a, s) => a + s.minutes)} minutes',
-            style: const TextStyle(color: muted),
+            style: TextStyle(color: appColors(context).muted),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Hold a row to drag it into a new position.',
-            style: TextStyle(color: muted, fontSize: 12),
+            style: TextStyle(color: appColors(context).muted, fontSize: 12),
           ),
           const SizedBox(height: 12),
           ReorderableListView.builder(
@@ -1695,9 +1716,9 @@ class _TemplateEditorState extends State<TemplateEditor> {
                       ),
                     ],
                   ),
-                  const Text(
-                    'Saved with this template. At Zero is shared across all services and can be changed in Display.',
-                    style: TextStyle(color: muted),
+                  Text(
+                    'Saved with this template. At Zero is shared across all services and can be changed in Settings → Display settings.',
+                    style: TextStyle(color: appColors(context).muted),
                   ),
                 ],
               ),
@@ -1705,7 +1726,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
           ),
           const SizedBox(height: 24),
           if (error != null)
-            Text(error!, style: const TextStyle(color: Colors.orangeAccent)),
+            Text(error!, style: TextStyle(color: appColors(context).warning)),
           FilledButton.icon(
             onPressed: () {
               try {
@@ -1731,9 +1752,9 @@ class _TemplateEditorState extends State<TemplateEditor> {
             label: const Text('Save timeline'),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Template edits apply the next time you load this service. End-screen defaults for new templates are available in Display.',
-            style: TextStyle(color: muted),
+          Text(
+            'Template edits apply the next time you load this service. End-screen defaults for new templates are available in Settings → Display settings.',
+            style: TextStyle(color: appColors(context).muted),
           ),
         ],
       ),

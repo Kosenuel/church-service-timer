@@ -1,8 +1,8 @@
 part of 'domain.dart';
 
 const displayFontNames = {
-  'cuekeeper_matrix': 'Cuekeeper Matrix',
-  'cuekeeper_sq_matrix': 'Cuekeeper Sq-Matrix',
+  'cuekeeper_matrix': 'Service Matrix',
+  'cuekeeper_sq_matrix': 'Service Sq-Matrix',
   'times_new_roman': 'Times New Roman',
 };
 
@@ -204,6 +204,7 @@ class ReportRow {
 
 class ServiceReport {
   final String id, name;
+  final String churchName;
   final int? startedWall, totalMs;
   final int endedWall, rate;
   final bool uncertain;
@@ -216,8 +217,9 @@ class ServiceReport {
     this.totalMs,
     this.rate,
     this.uncertain,
-    List<ReportRow> rows,
-  ) : rows = List.unmodifiable(rows);
+    List<ReportRow> rows, {
+    this.churchName = '',
+  }) : rows = List.unmodifiable(rows);
   factory ServiceReport.fromSession(Session s, Stamp now) {
     require(s.phase == 'ended', 'Reports are finalized when a service ends.');
     return ServiceReport(
@@ -241,6 +243,7 @@ class ServiceReport {
             ),
           )
           .toList(),
+      churchName: s.churchName,
     );
   }
   bool get rehearsal => rate > 1;
@@ -263,10 +266,12 @@ class ServiceReport {
     (j['rows'] as List)
         .map((e) => ReportRow.fromJson(Map<String, dynamic>.from(e)))
         .toList(),
+    churchName: churchNameValue(j['churchName'] ?? ''),
   );
   Json toJson() => {
     'id': id,
     'name': name,
+    'churchName': churchName,
     'startedWall': startedWall,
     'endedWall': endedWall,
     'totalMs': totalMs,
@@ -278,8 +283,8 @@ class ServiceReport {
 
 String exportReportJson(ServiceReport r) =>
     const JsonEncoder.withIndent('  ').convert({
-      'type': 'cuekeeper-service-report',
-      'schemaVersion': 1,
+      'type': 'church-service-timer-report',
+      'schemaVersion': 2,
       ...r.toJson(),
     });
 
@@ -304,8 +309,8 @@ class ReportSummary {
 
 String exportReportsJson(List<ServiceReport> records) =>
     const JsonEncoder.withIndent('  ').convert({
-      'type': 'cuekeeper-service-reports',
-      'schemaVersion': 1,
+      'type': 'church-service-timer-reports',
+      'schemaVersion': 2,
       'recordCount': records.length,
       'reports': records.map((r) => r.toJson()).toList(),
     });
@@ -321,7 +326,7 @@ String exportReportsCsv(List<ServiceReport> records) {
       ? ''
       : DateTime.fromMillisecondsSinceEpoch(n, isUtc: true).toIso8601String();
   final lines = <String>[
-    'Service ID,Service,Mode,Speed,Started UTC,Ended UTC,Timing uncertain,Service planned seconds,Service actual seconds,Segment number,Segment,Planned seconds,Actual seconds,Variance seconds,Paused seconds,Adjustment seconds,Status',
+    'Service ID,Service,Mode,Speed,Started UTC,Ended UTC,Timing uncertain,Service planned seconds,Service actual seconds,Segment number,Segment,Planned seconds,Actual seconds,Variance seconds,Paused seconds,Adjustment seconds,Status,Church',
   ];
   for (final r in records) {
     final metadata = [
@@ -347,6 +352,7 @@ String exportReportsCsv(List<ServiceReport> records) {
           '',
           '',
           'No segment records',
+          reportCsvText(r.churchName),
         ].join(','),
       );
     for (var i = 0; i < r.rows.length; i++) {
@@ -362,6 +368,7 @@ String exportReportsCsv(List<ServiceReport> records) {
           seconds(row.pausedMs),
           seconds(row.adjustmentMs),
           row.actualMs == null ? 'Not recorded' : 'Recorded',
+          reportCsvText(r.churchName),
         ].join(','),
       );
     }
@@ -376,7 +383,7 @@ String exportReportCsv(ServiceReport r) {
 
   String seconds(int? n) => n == null ? '' : (n / 1000).toStringAsFixed(3);
   final header =
-      'Service,Mode,Speed,Started,Ended,Timing uncertain,Segment,Planned seconds,Actual seconds,Variance seconds,Paused seconds,Adjustment seconds,Status';
+      'Service,Mode,Speed,Started,Ended,Timing uncertain,Segment,Planned seconds,Actual seconds,Variance seconds,Paused seconds,Adjustment seconds,Status,Church';
   final metadata = [
     textCell(r.name),
     r.rehearsal ? 'Rehearsal' : 'Live',
@@ -387,7 +394,7 @@ String exportReportCsv(ServiceReport r) {
     DateTime.fromMillisecondsSinceEpoch(r.endedWall).toIso8601String(),
     '${r.uncertain}',
   ];
-  return '$header\r\n${r.rows.map((row) => [...metadata, textCell(row.name), seconds(row.plannedMs), seconds(row.actualMs), seconds(row.actualMs == null ? null : row.actualMs! - row.plannedMs), seconds(row.pausedMs), seconds(row.adjustmentMs), row.actualMs == null ? 'Not recorded' : 'Recorded'].join(',')).join('\r\n')}\r\n';
+  return '$header\r\n${r.rows.map((row) => [...metadata, textCell(row.name), seconds(row.plannedMs), seconds(row.actualMs), seconds(row.actualMs == null ? null : row.actualMs! - row.plannedMs), seconds(row.pausedMs), seconds(row.adjustmentMs), row.actualMs == null ? 'Not recorded' : 'Recorded', textCell(r.churchName)].join(',')).join('\r\n')}\r\n';
 }
 
 String durationLabel(int ms) {

@@ -37,13 +37,20 @@ extension TemplateViews on _HomeState {
                           const SizedBox(height: 3),
                           Text(
                             templateSummary(values[i]),
-                            style: const TextStyle(color: muted, fontSize: 13),
+                            style: TextStyle(
+                              color: appColors(context).muted,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Icon(Icons.chevron_right, color: muted, size: 22),
+                    Icon(
+                      Icons.chevron_right,
+                      color: appColors(context).muted,
+                      size: 22,
+                    ),
                   ],
                 ),
               ),
@@ -68,7 +75,10 @@ extension TemplateViews on _HomeState {
                   const SizedBox(height: 4),
                   Text(
                     '${items.length} saved ${items.length == 1 ? 'template' : 'templates'}',
-                    style: const TextStyle(color: muted, fontSize: 13),
+                    style: TextStyle(
+                      color: appColors(context).muted,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -107,17 +117,20 @@ extension TemplateViews on _HomeState {
                 child: const Text('Services & rehearsals'),
               ),
             ],
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'List options',
-                    style: TextStyle(color: muted, fontSize: 12),
+                    style: TextStyle(
+                      color: appColors(context).muted,
+                      fontSize: 12,
+                    ),
                   ),
                   SizedBox(width: 6),
-                  Icon(Icons.tune, size: 18, color: muted),
+                  Icon(Icons.tune, size: 18, color: appColors(context).muted),
                 ],
               ),
             ),
@@ -192,7 +205,9 @@ extension TemplateViews on _HomeState {
                                   const SizedBox(height: 6),
                                   Text(
                                     '${t.type == 'rehearsal' ? 'Rehearsal' : 'Service'} · ${templateSummary(t)}',
-                                    style: const TextStyle(color: muted),
+                                    style: TextStyle(
+                                      color: appColors(context).muted,
+                                    ),
                                   ),
                                   const SizedBox(height: 24),
                                   label('Segments'),
@@ -222,8 +237,10 @@ extension TemplateViews on _HomeState {
                                                   width: 28,
                                                   child: Text(
                                                     '${i + 1}',
-                                                    style: const TextStyle(
-                                                      color: muted,
+                                                    style: TextStyle(
+                                                      color: appColors(
+                                                        context,
+                                                      ).muted,
                                                     ),
                                                   ),
                                                 ),
@@ -235,8 +252,10 @@ extension TemplateViews on _HomeState {
                                                 const SizedBox(width: 12),
                                                 Text(
                                                   '${t.segments[i].minutes} min',
-                                                  style: const TextStyle(
-                                                    color: muted,
+                                                  style: TextStyle(
+                                                    color: appColors(
+                                                      context,
+                                                    ).muted,
                                                   ),
                                                 ),
                                               ],
@@ -261,16 +280,16 @@ extension TemplateViews on _HomeState {
                                         const SizedBox(height: 6),
                                         Text(
                                           styleSummary(t.display.end),
-                                          style: const TextStyle(
-                                            color: muted,
+                                          style: TextStyle(
+                                            color: appColors(context).muted,
                                             fontSize: 13,
                                           ),
                                         ),
                                         const SizedBox(height: 12),
                                         Text(
                                           '${t.display.warnings.where((w) => w.enabled).length} automatic warnings enabled',
-                                          style: const TextStyle(
-                                            color: muted,
+                                          style: TextStyle(
+                                            color: appColors(context).muted,
                                             fontSize: 13,
                                           ),
                                         ),
@@ -352,9 +371,9 @@ extension TemplateViews on _HomeState {
                                     alignment: Alignment.centerLeft,
                                     child: TextButton.icon(
                                       style: TextButton.styleFrom(
-                                        foregroundColor: const Color(
-                                          0xffffb4ab,
-                                        ),
+                                        foregroundColor: appColors(
+                                          context,
+                                        ).error,
                                       ),
                                       onPressed: disabled
                                           ? null
@@ -391,10 +410,10 @@ extension TemplateViews on _HomeState {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  const Text(
+                                  Text(
                                     'Edits apply the next time you load this template. Your current service stays unchanged.',
                                     style: TextStyle(
-                                      color: muted,
+                                      color: appColors(context).muted,
                                       fontSize: 13,
                                     ),
                                   ),

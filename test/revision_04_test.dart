@@ -304,7 +304,9 @@ void main() {
       await c.tick();
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.text('Display'));
+      await t.tap(find.text('Settings'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Display settings'));
       await t.pumpAndSettle();
       await t.tap(find.text('Defaults for new templates'));
       await t.pumpAndSettle();

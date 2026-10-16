@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 part 'service_features.dart';
+part 'app_settings.dart';
 
 typedef Json = Map<String, dynamic>;
 const maxRemainingMs = 5999000;
@@ -331,6 +332,7 @@ class UndoPoint {
 
 class Session {
   String id, phase;
+  String churchName;
   int revision, index, baseMs;
   bool paused, held, disconnected, uncertain;
   Timeline? timeline;
@@ -348,6 +350,7 @@ class Session {
   Session({
     required this.id,
     required this.anchor,
+    this.churchName = '',
     this.phase = 'idle',
     this.revision = 0,
     this.index = 0,
@@ -470,6 +473,7 @@ class Session {
   factory Session.fromJson(Json j) {
     final s = Session(
       id: j['id'],
+      churchName: churchNameValue(j['churchName'] ?? ''),
       phase: j['phase'],
       revision: j['revision'],
       index: j['index'],
@@ -546,6 +550,7 @@ class Session {
   }
   Json toJson() => {
     'id': id,
+    'churchName': churchName,
     'phase': phase,
     'revision': revision,
     'index': index,
@@ -781,6 +786,8 @@ class AppState {
   List<TextLayout> stageCues;
   String pixelShape;
   bool groupTemplates;
+  String churchName, themeId;
+  bool keepScreenAwake;
   AppState(
     this.templates,
     this.defaults,
@@ -789,6 +796,9 @@ class AppState {
     List<TextLayout>? stageCues,
     this.pixelShape = 'square',
     this.groupTemplates = false,
+    this.churchName = '',
+    this.themeId = 'midnight_lime',
+    this.keepScreenAwake = true,
   }) : reports = reports ?? [],
        stageCues = stageCues ?? [...defaults.cues];
   factory AppState.fresh(Stamp now) => AppState(
@@ -815,7 +825,7 @@ class AppState {
   );
   factory AppState.fromJson(Json j) {
     require(
-      {1, 2, 3, 4, 5, 6}.contains(j['version']),
+      {1, 2, 3, 4, 5, 6, 7}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -834,6 +844,9 @@ class AppState {
       Session.fromJson(Map<String, dynamic>.from(j['session'])),
       pixelShape: j['pixelShape'] ?? 'square',
       groupTemplates: j['groupTemplates'] ?? false,
+      churchName: churchNameValue(j['churchName'] ?? ''),
+      themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
+      keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -914,7 +927,7 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 6,
+    'version': 7,
     'templates': templates.map((t) => t.toJson()).toList(),
     'defaults': defaults.toJson(),
     'session': session.toJson(),
@@ -922,6 +935,9 @@ class AppState {
     'stageCues': stageCues.map((e) => e.toJson()).toList(),
     'pixelShape': pixelShape,
     'groupTemplates': groupTemplates,
+    'churchName': churchName,
+    'themeId': themeId,
+    'keepScreenAwake': keepScreenAwake,
   };
   AppState copy() => AppState.fromJson(toJson());
 

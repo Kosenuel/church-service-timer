@@ -52,9 +52,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed.' }
     $versionLine = (Select-String -Path 'pubspec.yaml' -Pattern '^version:\s*(\S+)').Matches[0].Groups[1].Value
     $versionName = $versionLine.Split('+')[0]
-    $target = Join-Path $deliverables "Cuekeeper-$versionName.apk"
+    $target = Join-Path $deliverables "Church-Service-Timer-$versionName.apk"
     Copy-Item -LiteralPath $apk -Destination $target -Force
-    Copy-Item -LiteralPath $apk -Destination (Join-Path $deliverables 'Cuekeeper-prototype.apk') -Force
+    Copy-Item -LiteralPath $apk -Destination (Join-Path $deliverables 'Church-Service-Timer-prototype.apk') -Force
     $result = [ordered]@{
         status='built'; apk=$target; sha256=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
         completedAt=(Get-Date).ToString('o'); version=$versionLine; flutter='3.47.7'; tests=$(if ($BuildOnly) { 'Not rerun in this build-only invocation' } elseif ($UpdateGoldens) { 'flutter test --update-goldens passed; review updated images' } else { 'flutter test passed' })

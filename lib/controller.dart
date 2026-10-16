@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'domain.dart';
+import 'domain.dart' as branding show appVersion;
 import 'pixels.dart';
 import 'platform.dart';
 import 'native_fonts.dart';
@@ -16,6 +17,14 @@ class Simulator {
   String owner = '', signature = '';
   int revision = -1, deliveredAt = 0;
   List<bool> pixels = List.filled(512, false);
+  void clear() {
+    delivered = null;
+    owner = signature = '';
+    revision = -1;
+    deliveredAt = 0;
+    pixels = List.filled(512, false);
+  }
+
   void update(Session s, Stamp now) {
     if (s.disconnected || s.held) return;
     final desired = s.intended(now);
@@ -50,6 +59,27 @@ class AppController extends ChangeNotifier {
   Completer<void>? _writeDone;
   String? error;
   String? notificationError;
+  String? deviceSettingsError;
+  String loadingChurchName = '';
+  String appVersion = branding.appVersion;
+  final themeSelection = ValueNotifier<String>('midnight_lime');
+  String? _previewTheme;
+  void previewTheme(String? id) {
+    _previewTheme = id;
+    themeSelection.value = id ?? (ready ? state.themeId : 'midnight_lime');
+  }
+
+  Future<void> syncDeviceSettings() async {
+    themeSelection.value = _previewTheme ?? state.themeId;
+    try {
+      await port.setKeepScreenAwake(state.keepScreenAwake);
+      deviceSettingsError = null;
+    } catch (e) {
+      deviceSettingsError =
+          'Screen-awake preference is saved but could not be applied: $e';
+    }
+  }
+
   Json notificationState = {'enabled': false, 'exact': false, 'sound': false};
   Future<bool> Function()? retry;
   Timer? _timer;
@@ -83,6 +113,9 @@ class AppController extends ChangeNotifier {
       state = data == null
           ? AppState.fresh(now)
           : AppState.fromJson(Map<String, dynamic>.from(jsonDecode(data)));
+      loadingChurchName = state.churchName;
+      themeSelection.value = state.themeId;
+      notifyListeners();
       await NativeDisplayFonts.initialize(port);
       await NativeDisplayFonts.prepareState(state);
       for (final t in state.templates) {
@@ -106,6 +139,12 @@ class AppController extends ChangeNotifier {
       error = 'Saved state could not be recovered. Output is held. $e';
     }
     ready = true;
+    try {
+      appVersion = await port.installedVersion();
+    } catch (_) {
+      /* Source build fallback. */
+    }
+    await syncDeviceSettings();
     if (_foreground && _needsRecovery) await resume();
     _publish();
     notifyListeners();
@@ -159,11 +198,18 @@ class AppController extends ChangeNotifier {
       );
       final draft = state.copy();
       final previous = state.session;
+      final previousAwake = state.keepScreenAwake;
       mutation(draft, at);
+      draft.churchName = churchNameValue(draft.churchName);
+      themeIdValue(draft.themeId);
       draft.applySharedZero();
       await NativeDisplayFonts.prepareState(draft);
       await port.save(jsonEncode(draft.toJson()));
       state = draft;
+      if (state.session.phase == 'idle' && state.session.id != previous.id)
+        simulator.clear();
+      themeSelection.value = _previewTheme ?? state.themeId;
+      if (previousAwake != state.keepScreenAwake) await syncDeviceSettings();
       await syncPhoneWarnings(previous: previous);
       error = null;
       retry = null;
@@ -193,10 +239,61 @@ class AppController extends ChangeNotifier {
           value: value,
           expectedRevision: revision,
         );
+        if (action == 'load') draft.session.churchName = draft.churchName;
         if (action == 'end') {
           draft.reports.add(ServiceReport.fromSession(draft.session, at));
         }
       }, revision: revision);
+
+  Future<bool> restoreBackup(AppState restored) async {
+    try {
+      await NativeDisplayFonts.prepareState(restored);
+    } catch (e) {
+      error = 'Backup not restored: $e';
+      notifyListeners();
+      return false;
+    }
+    final saved = await commit((draft, at) {
+      require(
+        !draft.session.active && draft.session.phase != 'ready',
+        'End or cancel the loaded service before restoring a backup.',
+      );
+      for (final t in restored.templates) {
+        validateTimelinePixels(t);
+      }
+      for (final cue in restored.stageCues) {
+        validateLayout(cue);
+      }
+      validateLayout(restored.defaults.end);
+      for (final cue in restored.defaults.cues) {
+        validateLayout(cue);
+      }
+      for (final warning in restored.defaults.warnings) {
+        validateLayout(warning.cue);
+      }
+      if (restored.defaults.zero != null)
+        validateLayout(restored.defaults.zero!);
+      draft.templates = restored.templates;
+      draft.defaults = restored.defaults;
+      draft.reports = restored.reports;
+      draft.stageCues = restored.stageCues;
+      draft.pixelShape = restored.pixelShape;
+      draft.groupTemplates = restored.groupTemplates;
+      draft.churchName = restored.churchName;
+      draft.themeId = restored.themeId;
+      draft.keepScreenAwake = restored.keepScreenAwake;
+      draft.session = Session(
+        id: 'restored-${at.wall}',
+        anchor: at,
+        revision: draft.session.revision + 1,
+      );
+    });
+    if (saved) {
+      simulator.clear();
+      notifyListeners();
+    }
+    return saved;
+  }
 
   Future<void> reloadFonts() async {
     corrupt = false;
@@ -413,6 +510,8 @@ class AppController extends ChangeNotifier {
       final fresh = AppState.fresh(at);
       await port.save(jsonEncode(fresh.toJson()));
       state = fresh;
+      simulator.clear();
+      await syncDeviceSettings();
       await syncPhoneWarnings();
       corrupt = false;
       error = null;
@@ -430,6 +529,7 @@ class AppController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _timer?.cancel();
+    themeSelection.dispose();
     super.dispose();
   }
 }

@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'domain.dart';
 
 abstract class DevicePort {
+  Future<String> installedVersion() async => appVersion;
+  Future<void> setKeepScreenAwake(bool enabled) async {}
+  Future<Map<String, dynamic>?> pickBackup() => pickFile();
   Future<bool> hasTimesFont() async => false;
   Future<bool> importTimesFont() async => false;
   Future<Json> rasterizeTimes(TextLayout layout) async =>
@@ -26,6 +29,20 @@ abstract class DevicePort {
 
 class AndroidPort extends DevicePort {
   static const channel = MethodChannel('church.timer/device');
+  @override
+  Future<String> installedVersion() async =>
+      await channel.invokeMethod<String>('appVersion') ?? appVersion;
+  @override
+  Future<void> setKeepScreenAwake(bool enabled) =>
+      channel.invokeMethod<void>('keepScreenAwake', enabled);
+  @override
+  Future<Map<String, dynamic>?> pickBackup() async {
+    final result = await channel.invokeMethod<Map>('pick', {
+      'maxBytes': backupLimitBytes,
+    });
+    return result == null ? null : Map<String, dynamic>.from(result);
+  }
+
   @override
   Future<bool> hasTimesFont() async =>
       await channel.invokeMethod<bool>('hasTimesFont') ?? false;

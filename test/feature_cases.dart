@@ -231,7 +231,7 @@ final featureCases = <String, void Function()>{
     equal(restored.rows.map((r) => r.actualMs).toList(), [30000, null]);
     equal(
       jsonDecode(exportReportJson(restored))['type'],
-      'cuekeeper-service-report',
+      'church-service-timer-report',
     );
     equal(exportReportCsv(restored).contains('Not recorded'), true);
   },

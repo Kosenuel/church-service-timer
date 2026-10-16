@@ -108,7 +108,7 @@ object WarningNotifications {
 
     fun test(c: Context) {
         check(status(c)["enabled"] == true) { "Enable phone notifications first." }
-        post(c, "Cuekeeper test warning", "Notification sound follows your phone volume, channel sound and Do Not Disturb settings.")
+        post(c, "Church Service Timer test warning", "Notification sound follows your phone volume, channel sound and Do Not Disturb settings.")
     }
 }
 

@@ -17,9 +17,9 @@ extension FeatureViews on _HomeState {
           style: const TextStyle(fontSize: 24),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Shared across every service, including the one currently loaded. A manual cue or automatic warning keeps priority.',
-          style: TextStyle(color: muted),
+          style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -80,9 +80,9 @@ extension FeatureViews on _HomeState {
                 },
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'Saved for this device. Applies to Live and all cue previews; fonts and the 32 × 16 pixel data stay the same.',
-          style: TextStyle(color: muted),
+          style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 12),
         LedMatrix(
@@ -92,9 +92,9 @@ extension FeatureViews on _HomeState {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Cuekeeper Sq-Matrix · compact preview',
-          style: TextStyle(color: muted),
+        Text(
+          'Service Sq-Matrix · compact preview',
+          style: TextStyle(color: appColors(context).muted),
         ),
       ],
     ),
@@ -127,12 +127,12 @@ extension FeatureViews on _HomeState {
                       ? 'Phone notifications and sound enabled'
                       : 'Phone notifications enabled · channel sound is off')
                 : 'Phone notifications are off',
-            style: const TextStyle(color: muted),
+            style: TextStyle(color: appColors(context).muted),
           ),
           if (c.notificationError != null)
             Text(
               c.notificationError!,
-              style: const TextStyle(color: Colors.orangeAccent),
+              style: TextStyle(color: appColors(context).warning),
             ),
           Wrap(
             spacing: 8,
@@ -177,9 +177,9 @@ extension FeatureViews on _HomeState {
             ],
           ),
           if (c.notificationState['exact'] != true)
-            const Text(
+            Text(
               'Without precise alarm access, Android may delay warnings while the phone sleeps.',
-              style: TextStyle(color: muted, fontSize: 12),
+              style: TextStyle(color: appColors(context).muted, fontSize: 12),
             ),
         ],
       ),
@@ -216,14 +216,14 @@ extension FeatureViews on _HomeState {
                 },
         ),
         if (c.state.session.active)
-          const Text(
+          Text(
             'End the current service before changing the installed font.',
-            style: TextStyle(color: muted),
+            style: TextStyle(color: appColors(context).muted),
           ),
         const SizedBox(height: 8),
-        const Text(
-          'Cuekeeper Matrix is built in and unchanged. Retired Service Serif and Clear Sans selections use Cuekeeper Matrix.',
-          style: TextStyle(color: muted),
+        Text(
+          'Service Matrix is built in and unchanged. Retired Service Serif and Clear Sans selections use Service Matrix.',
+          style: TextStyle(color: appColors(context).muted),
         ),
       ],
     ),
@@ -289,8 +289,8 @@ extension FeatureViews on _HomeState {
               style: TextStyle(
                 fontSize: 24,
                 color: projected > s.plannedMs + 999
-                    ? Colors.orangeAccent
-                    : accent,
+                    ? appColors(context).warning
+                    : appColors(context).accent,
               ),
             ),
             const SizedBox(height: 10),
@@ -315,12 +315,12 @@ extension FeatureViews on _HomeState {
               s.rehearsal
                   ? 'Durations are simulated at ${s.rate}×; finish time is real clock time. Advances remain manual.'
                   : 'Includes pauses and time spent at zero. Assumes remaining segments use their planned duration.',
-              style: const TextStyle(color: muted, fontSize: 12),
+              style: TextStyle(color: appColors(context).muted, fontSize: 12),
             ),
             if (s.uncertain)
-              const Text(
+              Text(
                 'Timing is uncertain after recovery.',
-                style: TextStyle(color: Colors.orangeAccent),
+                style: TextStyle(color: appColors(context).warning),
               ),
           ],
           if (s.phase == 'ended')
@@ -375,9 +375,9 @@ extension FeatureViews on _HomeState {
         children: [
           label('Automatic warning cues'),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Triggers at the selected time remaining, once per segment. Stage warnings overlay the display for 8 seconds, then restore the cue or timer. Phone notifications follow Android sound and Do Not Disturb settings.',
-            style: TextStyle(color: muted),
+            style: TextStyle(color: appColors(context).muted),
           ),
           ...d.warnings.asMap().entries.map(
             (e) => ListTile(
@@ -417,7 +417,7 @@ extension FeatureViews on _HomeState {
   Future<void> exportReport(ServiceReport r, String type) async {
     try {
       await c.port.exportFile(
-        'Cuekeeper-report-${r.endedWall}.$type',
+        'Church-Service-Timer-report-${r.endedWall}.$type',
         type == 'csv' ? exportReportCsv(r) : exportReportJson(r),
       );
     } catch (e) {
@@ -534,12 +534,12 @@ class _WarningEditorState extends State<WarningEditor> {
               label: const Text('Edit warning text'),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Stage cues last 8 real seconds, including in fast rehearsal. Long scrolling messages may need shorter text or a faster speed.',
-              style: TextStyle(color: muted),
+              style: TextStyle(color: appColors(context).muted),
             ),
             if (error != null)
-              Text(error!, style: const TextStyle(color: Colors.orangeAccent)),
+              Text(error!, style: TextStyle(color: appColors(context).warning)),
           ],
         ),
       ),

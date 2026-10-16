@@ -18,7 +18,7 @@ int textWidth(TextLayout l) {
       raster != null,
       NativeDisplayFonts.available
           ? 'Preparing Times New Roman preview…'
-          : 'Import a licensed Times New Roman Regular .ttf in Display first.',
+          : 'Import a licensed Times New Roman Regular .ttf in Settings → Display settings first.',
     );
     return raster!.width;
   }

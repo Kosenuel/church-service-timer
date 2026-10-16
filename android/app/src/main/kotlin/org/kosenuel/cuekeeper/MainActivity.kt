@@ -25,6 +25,7 @@ class MainActivity : FlutterActivity() {
     private val io = Executors.newSingleThreadExecutor()
     private var pending: MethodChannel.Result? = null
     private var exportContent: String? = null
+    private var importLimit = 1048576
     private var notificationRequest: MethodChannel.Result? = null
     private val timesFont by lazy { TimesFont(this) }
     private val stateFile get() = AtomicFile(File(filesDir, "service-state.json"))
@@ -35,6 +36,16 @@ class MainActivity : FlutterActivity() {
         WarningNotifications.ensureChannel(this)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "church.timer/device").setMethodCallHandler { call, result ->
             when (call.method) {
+                "appVersion" -> {
+                    val info = packageManager.getPackageInfo(packageName, 0)
+                    val code = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+                    result.success("${info.versionName} ($code)")
+                }
+                "keepScreenAwake" -> {
+                    if (call.arguments == true) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    result.success(null)
+                }
                 "hasTimesFont" -> background(result) { timesFont.available() }
                 "rasterizeTimes" -> background(result) {
                     timesFont.rasterize(call.argument<String>("text") ?: "", (call.argument<Int>("height") ?: 2) * 7,
@@ -109,6 +120,7 @@ class MainActivity : FlutterActivity() {
                     if (pending != null) result.error("BUSY", "A document picker is already open", null)
                     else {
                         pending = result
+                        importLimit = if (call.argument<Int>("maxBytes") == 16 * 1024 * 1024) 16 * 1024 * 1024 else 1048576
                         try {
                             startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -150,6 +162,7 @@ class MainActivity : FlutterActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != 41 && requestCode != 42 && requestCode != 43) return
         val result = pending ?: return
+        val maxBytes = importLimit
         pending = null
         val uri = data?.data
         if (resultCode != Activity.RESULT_OK || uri == null) {
@@ -188,7 +201,7 @@ class MainActivity : FlutterActivity() {
                     val ni = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                     val si = cursor.getColumnIndex(OpenableColumns.SIZE)
                     if (ni >= 0) name = cursor.getString(ni)
-                    if (si >= 0 && !cursor.isNull(si) && cursor.getLong(si) > 1048576L) error("Import exceeds 1 MiB")
+                    if (si >= 0 && !cursor.isNull(si) && cursor.getLong(si) > maxBytes.toLong()) error("Import exceeds ${maxBytes / 1048576} MiB")
                 }
             }
             if (!name.endsWith(".csv", true) && !name.endsWith(".json", true)) error("Choose CSV or JSON. Export Excel as CSV first.")
@@ -199,7 +212,7 @@ class MainActivity : FlutterActivity() {
                 while (true) {
                     val count = input.read(buffer)
                     if (count < 0) break
-                    if (bytes.size() + count > 1048576) error("Import exceeds 1 MiB")
+                    if (bytes.size() + count > maxBytes) error("Import exceeds ${maxBytes / 1048576} MiB")
                     bytes.write(buffer, 0, count)
                 }
             }

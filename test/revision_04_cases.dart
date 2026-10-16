@@ -173,7 +173,7 @@ final revision04Cases = <String, void Function()>{
       () {
         final records = reportFixtures();
         final j = jsonDecode(exportReportsJson(records));
-        equal(j['type'], 'cuekeeper-service-reports');
+        equal(j['type'], 'church-service-timer-reports');
         equal(j['recordCount'], 3);
         equal(j['reports'], records.map((r) => r.toJson()).toList());
         equal(jsonDecode(exportReportsJson([]))['reports'], []);
@@ -195,7 +195,7 @@ final revision04Cases = <String, void Function()>{
         );
         final rows = parseCsv(exportReportsCsv([r]));
         equal(rows.length, 3);
-        equal(rows.every((r) => r.length == 17), true);
+        equal(rows.every((r) => r.length == 18), true);
         equal(rows[1][1], "'=SUM(1,2)");
         equal(rows[1][4], '');
         equal(
@@ -219,8 +219,9 @@ final revision04Cases = <String, void Function()>{
     ];
     final rows = parseCsv(exportReportsCsv(records));
     equal(rows.length, 9);
-    equal(rows.map((r) => r.length).toSet().toList(), [17]);
-    equal(rows.last.last, 'No segment records');
+    equal(rows.map((r) => r.length).toSet().toList(), [18]);
+    equal(rows.last[16], 'No segment records');
+    equal(rows.last.last, '');
     equal(rows.skip(1).map((r) => r[0]).toSet().length, 4);
   },
   'Report summary excludes partial and uncertain records from outcome comparisons':

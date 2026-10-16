@@ -17,18 +17,18 @@ The native bridge supplies Android `SystemClock.elapsedRealtime()` with `BOOT_CO
 
 Version 0.3 also requests notification permission and, optionally, precise-alarm access. These prompts are initiated by the operator from Live. A private, non-exported receiver posts scheduled warnings. No boot receiver or foreground sign-output service is installed.
 
-## Installation checks (including 0.6)
+## Installation checks (including 0.7)
 
 1. Upgrade without clearing app data. Confirm existing reports/cues survive and the original Matrix appearance is unchanged apart from the chosen LED cell shape.
 2. Edit a Live cue (including font/style/speed), Send, switch service and restart. Confirm persistence. Cancel a new cue and confirm nothing is added.
-3. Switch square/circular LEDs in Display; check Live and a composer, then restart. Try Sq-Matrix at both heights. Import a licensed Times New Roman Regular TTF and inspect ascenders/descenders, bold/italic and scrolling. Invalid font imports must preserve the previous font.
+3. Switch square/circular LEDs in Settings → Display settings; check Live and a composer, then restart. Try Sq-Matrix at both heights. Import a licensed Times New Roman Regular TTF and inspect ascenders/descenders, bold/italic and scrolling. Invalid font imports must preserve the previous font.
 4. Enable notifications, use Test notification sound, and grant precise alarms if offered. Confirm sound with the device's normal volume and channel settings.
 5. Run Quick rehearsal with short future warning thresholds. Keep a manual cue visible: a due stage warning must replace it for eight seconds and then restore it. Compare with operator-only. Confirm countdown thresholds use remaining time.
 6. Repeat with the phone locked; check notification timing/sound, then return to Live. Exercise pause/resume, time adjustment, advance and End to confirm obsolete alarms do not fire. Check denied notification/exact-alarm permissions and document any device-specific delay.
 7. Cancel and confirm timer actions and report clearing. Export a report first, clear its local record, and confirm the export remains available.
 
 8. Confirm the new Reports list, detail pages and Graph view. Export all records in CSV and JSON while a filter is active; both exports must include the complete saved history. Cancel and confirm cue deletion.
-9. Edit one template’s end screen and confirm another template remains unchanged. Change At Zero in Display while a service is at zero and verify it applies immediately unless a cue/warning or output hold has priority. Restart and verify both settings persist.
+9. Edit one template’s end screen and confirm another template remains unchanged. Change At Zero in Settings → Display settings while a service is at zero and verify it applies immediately unless a cue/warning or output hold has priority. Restart and verify both settings persist.
 
 These runtime checks are not replaced by unit tests or APK compilation. No physical sign is required for them; real controller validation is separate.
 
@@ -36,9 +36,11 @@ For 0.5, also check the arc and allocation after ±2 minutes and Custom removal,
 
 For 0.6, compare the arc's horizontal position in Ready, normal, paused, warning, overtime and ended states; it must remain centered in its card. Check the Display preview heading at the left and status badge at the right with normal and enlarged text. Tap compact Templates rows, edit and rename a template, duplicate it, cancel/confirm deletion, and export from the detail page. Confirm the loaded service stays unchanged. Toggle List options → Services & rehearsals, change a template's group in its editor, then restart and check persistence. Check New and Import after deleting all templates.
 
+For 0.7, also follow the device checklist in `FEATURES-0.7.md`: new launcher/splash identity, optional church name, five theme previews with save/cancel, About author/version, screen awake off/on, report branding, and confirmed setup backup/restore. A native splash precedes the customizable Flutter opening screen. Upgrade using the existing signing key and package ID; do not clear data.
+
 On this Windows workspace, the reusable Android environment is at `C:\Users\x1\Documents\Codex\android-toolchain\Activate.ps1`. The Flutter SDK installation and build verification details are recorded in the delivered verification report. Machine-specific SDK locations belong in ignored `android/local.properties`, not source control.
 
-The Windows helper `scripts/Build-Prototype.ps1` runs dependency resolution, analysis, tests, APK build and signature verification, then copies both `Cuekeeper-<version>.apk` and `Cuekeeper-prototype.apk` to the repository's parent output directory. It also writes `prototype-build.log` and a result JSON file. Use `-Toolchain` to select a different SDK directory.
+The Windows helper `scripts/Build-Prototype.ps1` runs dependency resolution, analysis, tests, APK build and signature verification, then copies both `Church-Service-Timer-<version>.apk` and `Church-Service-Timer-prototype.apk` to the repository's parent output directory. It also writes `prototype-build.log` and a result JSON file. Use `-Toolchain` to select a different SDK directory.
 
 Run the helper in a normal PowerShell window when the agent sandbox blocks Flutter child processes. The default run compares screenshot baselines. Only use `-UpdateGoldens` when intentionally changing the UI, then review every changed image in `test/goldens/`. `-BuildOnly` skips analysis and tests and requires separate evidence. `-PushAfterBuild` invokes the existing WSL push helper only after the build and signature checks succeed; commit intended source changes first.
 

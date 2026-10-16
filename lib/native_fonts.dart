@@ -47,7 +47,7 @@ class NativeDisplayFonts {
     l.validate();
     require(
       available && _port != null,
-      'Import a licensed Times New Roman Regular .ttf in Display first.',
+      'Import a licensed Times New Roman Regular .ttf in Settings → Display settings first.',
     );
     final k = key(l);
     if (_cache.containsKey(k)) return;

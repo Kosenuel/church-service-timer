@@ -1,4 +1,4 @@
-# Cuekeeper — Church Service Timer
+# Church Service Timer
 
 Offline Android prototype for church production timing and stage cues, with an exact 32 × 16 monochrome pixel simulator. No Huidu controller is contacted. Hardware compatibility and physical latency remain unverified.
 
@@ -8,18 +8,22 @@ Offline Android prototype for church production timing and stage cues, with an e
 2. In **Live**, select **Start service → Quick rehearsal**. Loading enters Ready without starting or changing the simulator.
 3. Choose live timing or a **Fast rehearsal** speed while Ready. Select **Start first segment** and accept the untested layouts for this session.
 4. Use the progress arc, **Remaining / Overtime** clock and **Allocated time** to track the current segment. Try Pause, Custom (add/remove minutes and seconds), ±2 minutes, Next segment and Undo. Every action requires confirmation; adjustments preview their effect while time continues. Stage output retains the shared At Zero setting until you act.
-5. Tap a Stage cue to edit it, then **Send** to persist its text and all formatting across every service. **New cue → Send** adds another item; **Delete cue** in an existing cue editor removes it after confirmation. Choose unchanged **Cuekeeper Matrix**, new **Cuekeeper Sq-Matrix**, or imported **Times New Roman**. The countdown continues underneath; **Show timer** dismisses the cue without changing pause state.
+5. Tap a Stage cue to edit it, then **Send** to persist its text and all formatting across every service. **New cue → Send** adds another item; **Delete cue** in an existing cue editor removes it after confirmation. Choose unchanged **Service Matrix**, new **Service Sq-Matrix**, or imported **Times New Roman**. The countdown continues underneath; **Show timer** dismisses the cue without changing pause state.
 6. Disconnect the simulator, wait, and reconnect. A banner appears above Live and the display badge changes from **Simulator** to **Disconnected**. The last simulated frame stays marked stale. Reconnection clears the banner and receives current output without replaying missed updates. **Display connected** is reserved for a future physical adapter.
 7. Follow the **Service timing overview**. The prominent red **End service** button shows the end screen and saves its **Report**, with clickable service records, a detailed segment breakdown, a Graph view, individual/bulk CSV/JSON export and confirmed clearing of one/all records.
 8. Open **Automatic warnings · this service** on Live to edit the loaded rules. Warnings use time remaining and overlay the simulator for eight seconds. Enable phone notifications, allow precise warnings where offered, and test notification sound. Android volume/Do Not Disturb still apply.
-9. In Display, select **Square LEDs** or **Circular LEDs** for all simulator previews. The choice survives restart without changing any glyph or output bit.
+9. In **Settings → Display settings**, select **Square LEDs** or **Circular LEDs** for all simulator previews. The choice survives restart without changing any glyph or output bit.
 
 10. Open a compact row in **Templates** to see its ordered segments and end screen. Use **Edit template**, **Duplicate**, CSV/JSON exports or confirmed **Delete template** on that detail page. **New** creates a template; **Import CSV / JSON** stays below the list. **List options** can group Services and Rehearsals. Change a template's group in the editor; this does not change timer speed.
-11. Set each template’s end screen in **Templates → select a template → Edit template**. Display holds the default for new templates and the **At Zero** setting shared by every service.
+11. Set each template’s end screen in **Templates → select a template → Edit template**. Settings → Display settings holds the default for new templates and the **At Zero** setting shared by every service.
 
-See the [0.6 Templates and alignment guide](docs/FEATURES-0.6.md), [0.5 Live controls guide](docs/FEATURES-0.5.md), the [0.4 feature guide](docs/FEATURES-0.4.md) for reports and template settings, and [Display fonts](docs/DISPLAY-FONTS.md) for font import, rendering and LED shape settings.
+See the [0.7 Settings, themes and backup guide](docs/FEATURES-0.7.md), [0.6 Templates and alignment guide](docs/FEATURES-0.6.md), [0.5 Live controls guide](docs/FEATURES-0.5.md), the [0.4 feature guide](docs/FEATURES-0.4.md) for reports and template settings, and [Display fonts](docs/DISPLAY-FONTS.md) for font import, rendering and LED shape settings.
 
-The app keeps the screen awake while visible. Locking or closing it can suspend simulator rendering; reopening reconstructs time. Phone warnings use Android alarms independently, subject to permissions and battery restrictions. A 30-minute absence or uncertain reboot timing holds stage output for review. Continuous physical output remains outside this prototype.
+The app keeps the screen awake while visible by default; turn this off in Settings to use normal automatic screen sleep. Locking or closing it can suspend simulator rendering; reopening reconstructs time. Phone warnings use Android alarms independently, subject to permissions and battery restrictions. A 30-minute absence or uncertain reboot timing holds stage output for review. Continuous physical output remains outside this prototype.
+
+## Personalize and back up
+
+Open **Settings → Church profile** to enter your church name, or **Appearance** to preview five themes. Save to keep a theme; Cancel/back discards the preview. **Backup & restore** exports saved templates, cues, reports and preferences, and reviews a replacement before restoring. Backups exclude active clocks and imported fonts. **About** shows creator Kosenuel, the installed version, licenses and simulator status. New service reports retain the church name captured when the service was loaded.
 
 ## Build and test
 
@@ -36,6 +40,9 @@ The debug APK uses a development signing identity. Production signing and distri
 
 ## Project layout
 
+- `lib/app_settings.dart`: church preferences, state migration helpers and portable backup validation.
+- `lib/app_theme.dart`: five interface palettes, semantic colors and church/clock brand mark.
+- `lib/settings_views.dart`: Settings hub, profile, appearance preview, backup and About pages.
 - `lib/domain.dart`: pure service transitions, timing, snapshots, recovery and template schema.
 - `lib/controller.dart`: atomic save-before-publication, failure/retry behavior and simulator adapter.
 - `lib/service_features.dart`: warning rules, run metrics and reports.

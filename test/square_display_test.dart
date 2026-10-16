@@ -80,7 +80,9 @@ void main() {
       final before = [...c.simulator.pixels];
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.text('Display'));
+      await t.tap(find.text('Settings'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Display settings'));
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('Circular LEDs'));
       await t.tap(find.text('Circular LEDs'));
@@ -91,6 +93,8 @@ void main() {
         LedAppearance.of(t.element(find.byType(LedMatrix).first)),
         'circular',
       );
+      await t.pageBack();
+      await t.pumpAndSettle();
       await t.tap(find.text('Live'));
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('New cue'));
@@ -169,25 +173,25 @@ void main() {
             child: Column(
               children: [
                 sample(
-                  'Original Cuekeeper Matrix · square LEDs · 7 px',
+                  'Original Service Matrix · square LEDs · 7 px',
                   'cuekeeper_matrix',
                   'square',
                   'Amen',
                 ),
                 sample(
-                  'Cuekeeper Sq-Matrix · square LEDs · 7 px',
+                  'Service Sq-Matrix · square LEDs · 7 px',
                   'cuekeeper_sq_matrix',
                   'square',
                   'Amen',
                 ),
                 sample(
-                  'Cuekeeper Sq-Matrix · circular LEDs · 7 px',
+                  'Service Sq-Matrix · circular LEDs · 7 px',
                   'cuekeeper_sq_matrix',
                   'circular',
                   'Amen',
                 ),
                 sample(
-                  'Cuekeeper Sq-Matrix · square LEDs · 14 px',
+                  'Service Sq-Matrix · square LEDs · 14 px',
                   'cuekeeper_sq_matrix',
                   'square',
                   'GO',

@@ -16,10 +16,10 @@ class SegmentGauge extends StatelessWidget {
     final warning = session.nearWarning(now);
     final expired = session.active && balance <= 0;
     final color = expired
-        ? const Color(0xffffb4ab)
+        ? appColors(context).error
         : warning
-        ? const Color(0xfff3ba61)
-        : accent;
+        ? appColors(context).warning
+        : appColors(context).accent;
     final progress = (session.remaining(now) / math.max(1, session.allocatedMs))
         .clamp(0.0, 1.0);
     final labelText = balance < 0 ? 'Overtime' : 'Remaining';
@@ -35,7 +35,11 @@ class SegmentGauge extends StatelessWidget {
     Widget label(String value) => Text(
       value.toUpperCase(),
       textAlign: TextAlign.center,
-      style: const TextStyle(fontSize: 11, letterSpacing: 1.1, color: muted),
+      style: TextStyle(
+        fontSize: 11,
+        letterSpacing: 1.1,
+        color: appColors(context).muted,
+      ),
     );
     final number = Text(
       operatorTime(balance),
@@ -49,8 +53,8 @@ class SegmentGauge extends StatelessWidget {
         color: expired
             ? color
             : warning
-            ? const Color(0xffffdca2)
-            : Colors.white,
+            ? appColors(context).warning
+            : appColors(context).text,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
@@ -77,6 +81,8 @@ class SegmentGauge extends StatelessWidget {
                           painter: TimerArcPainter(
                             progress: progress,
                             color: color,
+                            track: appColors(context).track,
+                            ticks: appColors(context).muted,
                           ),
                         ),
                       ),
@@ -116,7 +122,10 @@ class SegmentGauge extends StatelessWidget {
                     'Allocated time · ${formatTime(session.allocatedMs)}',
                     key: const ValueKey('allocated-time'),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: muted, fontSize: 14),
+                    style: TextStyle(
+                      color: appColors(context).muted,
+                      fontSize: 14,
+                    ),
                   ),
                 ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 32),
@@ -155,8 +164,13 @@ class SegmentGauge extends StatelessWidget {
 
 class TimerArcPainter extends CustomPainter {
   final double progress;
-  final Color color;
-  const TimerArcPainter({required this.progress, required this.color});
+  final Color color, track, ticks;
+  const TimerArcPainter({
+    required this.progress,
+    required this.color,
+    this.track = const Color(0xff2b3a30),
+    this.ticks = const Color(0xff829080),
+  });
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.width / 300;
@@ -171,7 +185,7 @@ class TimerArcPainter extends CustomPainter {
       math.pi * .75,
       math.pi * 1.5,
       false,
-      paint..color = const Color(0xff2b3a30),
+      paint..color = track,
     );
     if (progress > 0)
       canvas.drawArc(
@@ -190,7 +204,7 @@ class TimerArcPainter extends CustomPainter {
         point(major ? 88 : 92),
         point(98),
         Paint()
-          ..color = major ? const Color(0xff829080) : const Color(0xff5b6f5e)
+          ..color = major ? ticks : ticks.withValues(alpha: .65)
           ..strokeWidth = major ? 1.6 : 1.3,
       );
     }
@@ -198,7 +212,10 @@ class TimerArcPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(TimerArcPainter oldDelegate) =>
-      progress != oldDelegate.progress || color != oldDelegate.color;
+      progress != oldDelegate.progress ||
+      color != oldDelegate.color ||
+      track != oldDelegate.track ||
+      ticks != oldDelegate.ticks;
 }
 
 class DisplayPreviewHeader extends StatelessWidget {
@@ -208,11 +225,11 @@ class DisplayPreviewHeader extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     key: const ValueKey('display-preview-header'),
     children: [
-      const Expanded(
+      Expanded(
         child: Text(
           'DISPLAY PREVIEW',
           style: TextStyle(
-            color: muted,
+            color: appColors(context).muted,
             letterSpacing: 1.6,
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -236,10 +253,10 @@ class DisplayConnectionBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = connection == DisplayConnection.disconnected
-        ? const Color(0xffffb4ab)
+        ? appColors(context).error
         : connection == DisplayConnection.connected
-        ? accent
-        : const Color(0xffb9c8d4);
+        ? appColors(context).accent
+        : appColors(context).muted;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
@@ -339,13 +356,15 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
             operatorTime(ms),
             style: TextStyle(
               fontSize: 24,
-              color: result ? accent : Colors.white,
+              color: result
+                  ? appColors(context).accent
+                  : appColors(context).text,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
           Text(
             '${ms < 0 ? 'Overtime' : 'Remaining'} $title',
-            style: const TextStyle(color: muted, fontSize: 12),
+            style: TextStyle(color: appColors(context).muted, fontSize: 12),
           ),
         ],
       );
@@ -363,7 +382,7 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (custom) ...[
-                  Text(name, style: const TextStyle(color: muted)),
+                  Text(name, style: TextStyle(color: appColors(context).muted)),
                   const SizedBox(height: 16),
                   Wrap(
                     spacing: 8,
@@ -412,7 +431,7 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
                 if (error == null) ...[
                   Text(
                     'Allocated time: ${formatTime(s.allocatedMs)} → ${formatTime(s.allocatedMs + applied)}',
-                    style: const TextStyle(color: muted),
+                    style: TextStyle(color: appColors(context).muted),
                   ),
                   const SizedBox(height: 16),
                   LayoutBuilder(
@@ -452,11 +471,17 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
                     s.paused
                         ? 'The timer remains paused.'
                         : 'The timer keeps running. Values refresh until you confirm.',
-                    style: const TextStyle(color: muted, fontSize: 12),
+                    style: TextStyle(
+                      color: appColors(context).muted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
                 if (error != null)
-                  Text(error, style: const TextStyle(color: Color(0xffffb4ab))),
+                  Text(
+                    error,
+                    style: TextStyle(color: appColors(context).error),
+                  ),
               ],
             ),
           ),

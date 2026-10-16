@@ -22,35 +22,42 @@ String reportDate(int wall) {
 String reportMode(ServiceReport r) =>
     r.rehearsal ? 'Rehearsal ${r.rate}×' : 'Live';
 
-Widget reportSurface({required Widget child}) => Material(
-  color: const Color(0xff131d1a),
+Widget reportSurface(BuildContext context, {required Widget child}) => Material(
+  color: appColors(context).surface,
   shape: RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(18),
-    side: const BorderSide(color: Color(0xff2a3932)),
+    side: BorderSide(color: appColors(context).border),
   ),
   clipBehavior: Clip.antiAlias,
   child: child,
 );
 
-Widget reportMetric(String label, String value, {Color color = accent}) =>
-    SizedBox(
-      width: 160,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: muted, fontSize: 12)),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+Widget reportMetric(
+  BuildContext context,
+  String label,
+  String value, {
+  Color? color,
+}) => SizedBox(
+  width: 160,
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: TextStyle(color: appColors(context).muted, fontSize: 12),
       ),
-    );
+      const SizedBox(height: 6),
+      Text(
+        value,
+        style: TextStyle(
+          color: color ?? appColors(context).accent,
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ],
+  ),
+);
 
 extension ReportViews on _HomeState {
   Future<void> exportAllReports() async {
@@ -82,7 +89,7 @@ extension ReportViews on _HomeState {
     if (format == null || !mounted) return;
     try {
       await c.port.exportFile(
-        'Cuekeeper-all-reports-${c.now.wall}.$format',
+        'Church-Service-Timer-all-reports-${c.now.wall}.$format',
         format == 'csv'
             ? exportReportsCsv(records)
             : exportReportsJson(records),
@@ -122,9 +129,9 @@ extension ReportViews on _HomeState {
           style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Your service history, from the whole picture to each segment. Tap a record to explore its timing.',
-          style: TextStyle(color: muted),
+          style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 20),
         Wrap(
@@ -172,7 +179,7 @@ extension ReportViews on _HomeState {
             Expanded(
               child: Text(
                 '${history.length} ${history.length == 1 ? 'record' : 'records'}',
-                style: const TextStyle(color: muted),
+                style: TextStyle(color: appColors(context).muted),
               ),
             ),
             SegmentedButton<String>(
@@ -209,6 +216,7 @@ extension ReportViews on _HomeState {
             (r) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: reportSurface(
+                context,
                 child: InkWell(
                   key: ValueKey('open-report-${r.id}'),
                   onTap: () => openReport(r),
@@ -216,7 +224,10 @@ extension ReportViews on _HomeState {
                     padding: const EdgeInsets.fromLTRB(18, 14, 8, 14),
                     child: Row(
                       children: [
-                        const Icon(Icons.event_note_outlined, color: accent),
+                        Icon(
+                          Icons.event_note_outlined,
+                          color: appColors(context).accent,
+                        ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -232,8 +243,8 @@ extension ReportViews on _HomeState {
                               const SizedBox(height: 4),
                               Text(
                                 '${reportMode(r)} · ${reportDate(r.startedWall ?? r.endedWall)}',
-                                style: const TextStyle(
-                                  color: muted,
+                                style: TextStyle(
+                                  color: appColors(context).muted,
                                   fontSize: 12,
                                 ),
                               ),
@@ -246,16 +257,16 @@ extension ReportViews on _HomeState {
                               if (r.comparable)
                                 Text(
                                   varianceLabel(r.totalMs! - r.plannedMs),
-                                  style: const TextStyle(
-                                    color: accent,
+                                  style: TextStyle(
+                                    color: appColors(context).accent,
                                     fontSize: 12,
                                   ),
                                 )
                               else
-                                const Text(
+                                Text(
                                   'Partial or uncertain record',
                                   style: TextStyle(
-                                    color: Colors.orangeAccent,
+                                    color: appColors(context).warning,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -270,7 +281,10 @@ extension ReportViews on _HomeState {
                               : () => confirmClearReports(record: r),
                           icon: const Icon(Icons.delete_outline, size: 20),
                         ),
-                        const Icon(Icons.chevron_right, color: muted),
+                        Icon(
+                          Icons.chevron_right,
+                          color: appColors(context).muted,
+                        ),
                       ],
                     ),
                   ),
@@ -300,14 +314,16 @@ extension ReportViews on _HomeState {
                 spacing: 20,
                 runSpacing: 18,
                 children: [
-                  reportMetric('SERVICES', '${records.length}'),
+                  reportMetric(context, 'SERVICES', '${records.length}'),
                   reportMetric(
+                    context,
                     'RECORDED TIME',
                     summary.timedCount == 0
                         ? '—'
                         : durationLabel(summary.recordedMs),
                   ),
                   reportMetric(
+                    context,
                     'AVERAGE VARIANCE',
                     summary.averageVarianceMs == null
                         ? '—'
@@ -318,7 +334,7 @@ extension ReportViews on _HomeState {
               const SizedBox(height: 16),
               Text(
                 '$comparable complete, reliable ${comparable == 1 ? 'record' : 'records'} used for variance and outcomes. ${records.length - comparable} partial or uncertain.',
-                style: const TextStyle(color: muted, fontSize: 12),
+                style: TextStyle(color: appColors(context).muted, fontSize: 12),
               ),
               if (records.any((r) => r.rehearsal)) ...[
                 const SizedBox(height: 8),
@@ -326,8 +342,8 @@ extension ReportViews on _HomeState {
                   records.any((r) => !r.rehearsal)
                       ? 'This view combines live and simulated rehearsal durations. Use the filters to compare each separately.'
                       : 'Rehearsal durations use simulated service time, not real clock time.',
-                  style: const TextStyle(
-                    color: Colors.orangeAccent,
+                  style: TextStyle(
+                    color: appColors(context).warning,
                     fontSize: 12,
                   ),
                 ),
@@ -352,17 +368,17 @@ extension ReportViews on _HomeState {
                         if (summary.ahead > 0)
                           Expanded(
                             flex: summary.ahead,
-                            child: Container(color: const Color(0xff7bcfe8)),
+                            child: Container(color: appColors(context).info),
                           ),
                         if (summary.onTime > 0)
                           Expanded(
                             flex: summary.onTime,
-                            child: Container(color: accent),
+                            child: Container(color: appColors(context).accent),
                           ),
                         if (summary.behind > 0)
                           Expanded(
                             flex: summary.behind,
-                            child: Container(color: Colors.orangeAccent),
+                            child: Container(color: appColors(context).warning),
                           ),
                       ],
                     ),
@@ -375,24 +391,24 @@ extension ReportViews on _HomeState {
                 children: [
                   Text(
                     'Ahead · ${summary.ahead}',
-                    style: const TextStyle(color: Color(0xff7bcfe8)),
+                    style: TextStyle(color: appColors(context).info),
                   ),
                   Text(
                     'On time · ${summary.onTime}',
-                    style: const TextStyle(color: accent),
+                    style: TextStyle(color: appColors(context).accent),
                   ),
                   Text(
                     'Behind · ${summary.behind}',
-                    style: const TextStyle(color: Colors.orangeAccent),
+                    style: TextStyle(color: appColors(context).warning),
                   ),
                 ],
               ),
               if (comparable == 0)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 8),
                   child: Text(
                     'Complete a service with recorded timing to see its outcome.',
-                    style: TextStyle(color: muted),
+                    style: TextStyle(color: appColors(context).muted),
                   ),
                 ),
             ],
@@ -405,9 +421,9 @@ extension ReportViews on _HomeState {
             children: [
               label('Planned vs actual · oldest first'),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'All filtered records on one scale. Tap a service for its segment breakdown.',
-                style: TextStyle(color: muted),
+                style: TextStyle(color: appColors(context).muted),
               ),
               const SizedBox(height: 16),
               DurationChart(
@@ -468,7 +484,7 @@ class DurationChart extends StatelessWidget {
             width: 46,
             child: Text(
               label,
-              style: const TextStyle(color: muted, fontSize: 11),
+              style: TextStyle(color: appColors(context).muted, fontSize: 11),
             ),
           ),
           Expanded(
@@ -481,7 +497,7 @@ class DurationChart extends StatelessWidget {
                   value: (value ?? 0) / scale,
                   minHeight: 11,
                   color: color,
-                  backgroundColor: const Color(0xff23312a),
+                  backgroundColor: appColors(context).track,
                 ),
               ),
             ),
@@ -493,7 +509,7 @@ class DurationChart extends StatelessWidget {
               value == null ? 'Not recorded' : durationLabel(value),
               textAlign: TextAlign.right,
               style: TextStyle(
-                color: value == null ? muted : color,
+                color: value == null ? appColors(context).muted : color,
                 fontSize: 11,
               ),
             ),
@@ -506,7 +522,7 @@ class DurationChart extends StatelessWidget {
       children: [
         Text(
           'Bar scale  0 — ${durationLabel(scale)}',
-          style: const TextStyle(color: muted, fontSize: 11),
+          style: TextStyle(color: appColors(context).muted, fontSize: 11),
         ),
         const SizedBox(height: 8),
         for (var i = 0; i < entries.length; i++)
@@ -524,20 +540,25 @@ class DurationChart extends StatelessWidget {
                   ),
                   Text(
                     entries[i].subtitle,
-                    style: const TextStyle(color: muted, fontSize: 11),
+                    style: TextStyle(
+                      color: appColors(context).muted,
+                      fontSize: 11,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  bar('Plan', entries[i].planned, muted),
+                  bar('Plan', entries[i].planned, appColors(context).muted),
                   bar(
                     'Actual',
                     entries[i].actual,
-                    entries[i].uncertain ? Colors.orangeAccent : accent,
+                    entries[i].uncertain
+                        ? appColors(context).warning
+                        : appColors(context).accent,
                   ),
                   if (entries[i].uncertain)
-                    const Text(
+                    Text(
                       'Partial or uncertain timing',
                       style: TextStyle(
-                        color: Colors.orangeAccent,
+                        color: appColors(context).warning,
                         fontSize: 11,
                       ),
                     ),
@@ -579,6 +600,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   Widget block(Widget child) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
     child: reportSurface(
+      context,
       child: Padding(padding: const EdgeInsets.all(20), child: child),
     ),
   );
@@ -601,6 +623,13 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (r.churchName.isNotEmpty) ...[
+                            Text(
+                              r.churchName,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 10),
+                          ],
                           Chip(
                             avatar: Icon(
                               r.rehearsal
@@ -619,7 +648,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                           const SizedBox(height: 8),
                           Text(
                             reportDate(r.startedWall ?? r.endedWall),
-                            style: const TextStyle(color: muted),
+                            style: TextStyle(color: appColors(context).muted),
                           ),
                           const SizedBox(height: 20),
                           Wrap(
@@ -627,26 +656,34 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                             runSpacing: 18,
                             children: [
                               reportMetric(
+                                context,
                                 'PLANNED',
                                 durationLabel(r.plannedMs),
                               ),
                               reportMetric(
+                                context,
                                 'ACTUAL',
                                 r.totalMs == null
                                     ? 'Not recorded'
                                     : durationLabel(r.totalMs!),
                               ),
                               reportMetric(
+                                context,
                                 'VARIANCE',
                                 r.totalMs == null
                                     ? '—'
                                     : varianceLabel(r.totalMs! - r.plannedMs),
                                 color: r.comparable
-                                    ? accent
-                                    : Colors.orangeAccent,
+                                    ? appColors(context).accent
+                                    : appColors(context).warning,
                               ),
-                              reportMetric('PAUSED', durationLabel(r.pausedMs)),
                               reportMetric(
+                                context,
+                                'PAUSED',
+                                durationLabel(r.pausedMs),
+                              ),
+                              reportMetric(
+                                context,
                                 'TIME ADJUSTMENTS',
                                 '${r.adjustmentMs > 0
                                     ? '+'
@@ -659,22 +696,29 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                           const SizedBox(height: 20),
                           Text(
                             'Started: ${r.startedWall == null ? 'not recorded' : reportDate(r.startedWall!)}\nEnded: ${reportDate(r.endedWall)}',
-                            style: const TextStyle(color: muted, fontSize: 12),
+                            style: TextStyle(
+                              color: appColors(context).muted,
+                              fontSize: 12,
+                            ),
                           ),
                           if (!r.comparable)
-                            const Padding(
+                            Padding(
                               padding: EdgeInsets.only(top: 12),
                               child: Text(
                                 'Partial or uncertain timing. The service may have ended before all segments ran, or timing could not be recovered. Review the breakdown before comparing this record.',
-                                style: TextStyle(color: Colors.orangeAccent),
+                                style: TextStyle(
+                                  color: appColors(context).warning,
+                                ),
                               ),
                             ),
                           if (r.rehearsal)
-                            const Padding(
+                            Padding(
                               padding: EdgeInsets.only(top: 12),
                               child: Text(
                                 'Rehearsal durations are simulated time. Dates show real local clock time.',
-                                style: TextStyle(color: muted),
+                                style: TextStyle(
+                                  color: appColors(context).muted,
+                                ),
                               ),
                             ),
                         ],
@@ -763,12 +807,14 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                                   : e.value.adjustmentMs < 0
                                   ? '−'
                                   : ''}${durationLabel(e.value.adjustmentMs)}',
-                              style: const TextStyle(color: muted),
+                              style: TextStyle(color: appColors(context).muted),
                             ),
                             if (e.value.actualMs == null)
-                              const Text(
+                              Text(
                                 'This segment has no recorded duration.',
-                                style: TextStyle(color: Colors.orangeAccent),
+                                style: TextStyle(
+                                  color: appColors(context).warning,
+                                ),
                               ),
                           ],
                         ),

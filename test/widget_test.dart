@@ -107,7 +107,9 @@ void main() {
     await c.act('start');
     await tester.pumpWidget(TimerApp(controller: c));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Display'));
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Display settings'));
     await tester.pumpAndSettle();
     expect(find.text('Defaults for new templates'), findsOneWidget);
     expect(tester.takeException(), isNull);
