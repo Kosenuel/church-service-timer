@@ -57,51 +57,49 @@ void main() {
   );
 
   testWidgets(
-    'Saving a stage cue preserves chosen font, bold, italic and size after restart',
+    'Sending an edited Live cue saves formatting across services and restart',
     (tester) async {
-      size(tester, const Size(500, 1100));
+      size(tester, const Size(700, 1500));
       final port = FakePort()..at = epoch;
       final c = AppController(port);
       await c.initialize(startTicker: false);
+      await c.act('load', value: c.state.templates.last);
+      await c.act('start');
       await tester.pumpWidget(TimerApp(controller: c));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Display'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Create saved cue'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Create saved cue'));
+      expect(find.text('Saved cue library'), findsNothing);
+      await tester.ensureVisible(
+        find.widgetWithText(OutlinedButton, 'WRAP UP'),
+      );
+      await tester.tap(find.widgetWithText(OutlinedButton, 'WRAP UP'));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.enterText(
         find.widgetWithText(TextField, 'Display text'),
-        'WRAP UP',
+        'FINISH NOW',
       );
       await tester.tap(find.text('Bold'));
       await tester.tap(find.text('Italic'));
-      await tester.tap(find.text('Tall · 14 px'));
-      await tester.ensureVisible(find.text('Cuekeeper Matrix'));
-      await tester.pump(const Duration(milliseconds: 200));
       await tester.tap(find.text('Cuekeeper Matrix'));
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.text('Service Serif').last);
+      await tester.tap(find.text('Cuekeeper Sq-Matrix').last);
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.text('Name and save'));
+      await tester.tap(find.text('Tall · 14 px'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Send'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Save formatted cue'));
-      await tester.pumpAndSettle();
-      final cue = c.state.savedCues.single;
-      expect(cue.layout.font, 'service_serif');
-      expect(cue.layout.bold, true);
-      expect(cue.layout.italic, true);
-      expect(cue.layout.height, 2);
-      expect(tester.takeException(), isNull);
+      final saved = c.state.stageCues.first;
+      expect(saved.text, 'FINISH NOW');
+      expect(saved.bold && saved.italic, true);
+      expect(saved.height, 2);
+      expect(saved.font, 'cuekeeper_sq_matrix');
+      expect(c.state.session.alert!.toJson(), saved.toJson());
+      await c.act('end');
+      await c.act('load', value: c.state.templates.first);
+      expect(c.state.stageCues.first.toJson(), saved.toJson());
       await tester.pumpWidget(const SizedBox());
-      final restored = AppController(port);
-      await restored.initialize(startTicker: false);
-      expect(
-        restored.state.savedCues.single.layout.toJson(),
-        cue.layout.toJson(),
-      );
-      restored.dispose();
+      final restarted = AppController(port);
+      await restarted.initialize(startTicker: false);
+      expect(restarted.state.stageCues.first.toJson(), saved.toJson());
+      restarted.dispose();
     },
   );
 
@@ -122,16 +120,16 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('02:00 · 2 MIN LEFT'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Operator screen only'));
+      await tester.tap(find.text('Operator + simulated stage'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Operator + simulated stage').last);
+      await tester.tap(find.text('Operator + phone notification').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save warning'));
       await tester.pumpAndSettle();
-      expect(c.state.defaults.warnings.first.destination, 'stage');
+      expect(c.state.defaults.warnings.first.destination, 'operator');
       expect(
         c.state.session.timeline!.display.warnings.first.destination,
-        'operator',
+        'stage',
       );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

@@ -25,7 +25,7 @@
       "align": "center",
       "speed": 12,
       "height": 2,
-      "font": "service_serif"
+      "font": "cuekeeper_matrix"
     },
     "cues": [
       {
@@ -36,7 +36,7 @@
         "align": "center",
         "speed": 16,
         "height": 2,
-        "font": "service_serif"
+        "font": "cuekeeper_matrix"
       },
       {
         "text": "TIME'S UP",
@@ -56,7 +56,7 @@
         "align": "center",
         "speed": 12,
         "height": 1,
-        "font": "clear_sans"
+        "font": "cuekeeper_matrix"
       },
       {
         "text": "NURSERY CALL",
@@ -80,7 +80,7 @@
           "align": "center",
           "speed": 16,
           "height": 2,
-          "font": "service_serif"
+          "font": "cuekeeper_matrix"
         },
         "destination": "stage",
         "seconds": 30

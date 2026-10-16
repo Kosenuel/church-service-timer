@@ -1,27 +1,33 @@
-# Display font assets
+# Display fonts and LED shapes
 
-| Name | Stable ID | Source |
+| Name | Stable ID | Availability |
 |---|---|---|
-| Cuekeeper Matrix | `cuekeeper_matrix` | Original Cuekeeper pixel glyphs, preserved unchanged |
-| Service Serif | `service_serif` | Pixel derivatives of Liberation Serif 2.1.5 |
-| Clear Sans | `clear_sans` | Pixel derivatives of Liberation Sans 2.1.5 |
+| Cuekeeper Matrix | `cuekeeper_matrix` | Original built-in font, unchanged |
+| Cuekeeper Sq-Matrix | `cuekeeper_sq_matrix` | New built-in companion for square cells |
+| Times New Roman | `times_new_roman` | Import a properly licensed Regular TTF in Display |
 
-Cuekeeper Matrix is saved in `assets/pixel_fonts/cuekeeper_matrix.json` and `lib/matrix_font.dart`. The JSON includes its name, version and seven-row glyph maps. Its bold and italic transformations and 14-pixel vertical scaling preserve the prototype's original rendering. Countdown digits always use this font.
+Choose a font in any text composer. **Display → Simulator LED shape** switches between square and circular cells for Live and dialog previews. This device preference survives restart. Shape changes do not alter glyphs, formatting, timing or the 512-bit output frame. The default is square. Physical LED geometry remains unverified until the sign arrives.
 
-The alternatives are saved in `assets/pixel_fonts/alternate_fonts.json` and generated `lib/font_atlas.dart`. Each has separate regular, bold, italic and bold italic maps at seven and fourteen rows. Validation and rendering use the same maps, so preview width and clipping rules match. All fonts cover the same explicit 80-glyph set; unsupported characters are rejected rather than substituted.
+## Cuekeeper fonts
 
-Service Serif is a Times-style alternative, not Microsoft's Times New Roman. No Windows font files are redistributed. The alternatives derive from the official [Liberation Fonts project](https://github.com/liberationfonts/liberation-fonts), release [2.1.5](https://github.com/liberationfonts/liberation-fonts/releases/tag/2.1.5), under the SIL Open Font License. The full copyright and license notice is in `assets/pixel_fonts/OFL-Liberation.txt` and is available through the app's font and software licenses screen. Derivative display fonts have new names.
+Cuekeeper Matrix remains in `assets/pixel_fonts/cuekeeper_matrix.json` and `lib/matrix_font.dart`. Its 80 glyphs, bold/italic behavior and seven-/fourteen-row rendering are preserved. Countdown digits continue to use this font.
 
-## Regenerate the alternatives
+Cuekeeper Sq-Matrix is saved separately in `assets/pixel_fonts/cuekeeper_sq_matrix.json` and `lib/square_matrix_font.dart`. Its condensed letters, straight terminals, rectangular digits and simpler punctuation suit square cells. Compact mode uses seven rows; tall mode doubles both axes with integer pixels for balanced strokes. Tall Sq-Matrix is consequently wider than tall original Matrix; use scrolling for longer text. Both sizes support bold, italic, alignment, speed, scroll and flash, using the same 80-character repertoire.
 
-Download and extract the official [2.1.5 TTF archive](https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz). Its SHA-256 is `7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0`.
+The Dart Sq-Matrix table mirrors the JSON source; a test verifies they match. Edit both together. The original Matrix files must remain unchanged.
 
-With Python and Pillow 12.3.0, run from the repository:
+## Times New Roman
 
-```sh
-python scripts/build-font-atlas.py --source /path/to/liberation-fonts-ttf-2.1.5
-dart format lib/font_atlas.dart
-flutter test
-```
+In **Display → Import Times New Roman font**, select a Regular `.ttf` licensed for use on this Android device. The picker copies it into private app storage after bounded metadata checks and successful rasterization. It rejects other families, renamed unrelated files, bold/italic source faces, font collections, variable fonts and files over 4 MiB. A rejected replacement preserves the previous working import. Import/replacement is disabled during an active service.
 
-The generator preserves a common baseline, trims horizontal blank columns and converts scaled grayscale glyphs into one-bit maps with a fixed threshold. It does not alter Cuekeeper Matrix. Seven-pixel serifs inevitably lose detail; fourteen pixels is recommended for the serif face. Physical display tests are still required before claiming readability at a given distance.
+Whole strings render using Android Paint/Canvas at integer sizes, antialiasing off and actual ink bounds. Text fits seven or fourteen rows without resampling. Bold and italic use native synthetic styling; italic overhang is included. Fourteen rows is recommended for the serif face. Raster results are cached locally; text and formatting remain portable, font bytes do not.
+
+Missing Times New Roman is reported explicitly; no substitute is used. If restored data requires a missing font, output is held and saved data is preserved: import the font again to recover it. Service Serif and Clear Sans are removed. Existing selections of those retired fonts migrate to Cuekeeper Matrix while retaining other formatting.
+
+## LedArt-Lite evidence
+
+The supplied base APK SHA-256 was `4f36553aac8a221726e4d9e20a232133f4547d9fb53c87658677e6c3ac95f6ae`. Its complete font inventory did not include Times New Roman. Static inspection found a private downloaded font library, native Typeface loading, antialiasing disabled, synthetic bold/italic when needed, and fitting based on actual raster ink bounds. Cuekeeper independently implements that general native approach. The exact Times font on the user's phone and pixel-identical output were not established. No vendor code or font was copied.
+
+Microsoft's [font redistribution FAQ](https://learn.microsoft.com/en-us/typography/fonts/font-faq) does not grant app redistribution rights for Windows fonts, including converted bitmap fonts. The [Times New Roman family page](https://learn.microsoft.com/en-us/typography/font-list/times-new-roman) links to licensing information. This APK/repository contains no Times font bytes or proprietary bitmap atlas; a bundled edition would require redistribution rights.
+
+Actual Android rendering and distant physical readability still need device/sign checks. Tests with fake rasters verify application behavior, not the appearance of a genuine imported face.

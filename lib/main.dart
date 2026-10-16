@@ -2,13 +2,12 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 
 import 'controller.dart';
 import 'domain.dart';
 import 'pixels.dart';
 import 'platform.dart';
+import 'native_fonts.dart';
 
 part 'feature_views.dart';
 
@@ -20,12 +19,6 @@ String styleSummary(TextLayout l) =>
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  LicenseRegistry.addLicense(() async* {
-    yield LicenseEntryWithLineBreaks([
-      'Service Serif',
-      'Clear Sans',
-    ], await rootBundle.loadString('assets/pixel_fonts/OFL-Liberation.txt'));
-  });
   runApp(TimerApp(controller: AppController(AndroidPort())));
 }
 
@@ -36,6 +29,13 @@ class TimerApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'Cuekeeper',
     debugShowCheckedModeBanner: false,
+    builder: (context, child) => AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) => LedAppearance(
+        shape: controller.ready ? controller.state.pixelShape : 'square',
+        child: child!,
+      ),
+    ),
     theme: ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -204,8 +204,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> startFirst() async {
     final s = c.state.session, revision = c.state.session.revision;
-    final stageWarnings = s.timeline!.display.warnings.where((w) => w.enabled && w.destination == 'stage');
-    final warningSummary = stageWarnings.isEmpty ? '' : '\n\nAutomatic stage warnings:\n${stageWarnings.map((w) => '${formatTime(w.seconds * 1000)} — ${styleSummary(w.cue)}').join('\n')}';
+    final stageWarnings = s.timeline!.display.warnings.where(
+      (w) => w.enabled && w.destination == 'stage',
+    );
+    final warningSummary = stageWarnings.isEmpty
+        ? ''
+        : '\n\nAutomatic stage warnings:\n${stageWarnings.map((w) => '${formatTime(w.seconds * 1000)} — ${styleSummary(w.cue)}').join('\n')}';
     if (await confirm(
       'Start ${s.timeline!.segments.first.name}?',
       '${s.rehearsal ? 'REHEARSAL: time will run ${s.rate}× faster. Reports will be marked as rehearsal.\n\n' : ''}The countdown, zero-time screen, end screen and configured automatic stage warnings have not been tested on a physical sign. This session uses the simulator only.$warningSummary\n\n${s.disconnected ? 'The simulator is disconnected. Timing will start, but its output will stay unchanged.\n\n' : ''}Accept these layouts for this service? This does not grant physical approval.',
@@ -243,7 +247,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final mins = TextEditingController(text: '0'),
         secs = TextEditingController(text: '30');
     String? error;
-    final delta = await showDialog<int>(
+    final route = DialogRoute<int>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
@@ -302,17 +306,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 }
                 Navigator.pop(ctx, m * 60 + s);
               },
-              child: const Text('Add time'),
+              child: const Text('Confirm add time'),
             ),
           ],
         ),
       ),
     );
-    // Controllers are reclaimed after the dialog route has finished animating.
-    Future<void>.delayed(const Duration(seconds: 1), () {
-      mins.dispose();
-      secs.dispose();
-    });
+    final delta = await Navigator.of(context, rootNavigator: true).push(route);
+    await route.completed;
+    mins.dispose();
+    secs.dispose();
     if (delta != null) await c.act('adjust', value: delta, revision: revision);
   }
 
@@ -322,21 +325,19 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     String button,
   ) => showDialog<TextLayout>(
     context: context,
-    builder: (_) => TextComposer(
-      initial: initial,
-      title: title,
-      button: button,
-      onSave: saveCueToLibrary,
-    ),
+    builder: (_) =>
+        TextComposer(initial: initial, title: title, button: button),
   );
-  Future<void> sendCue(TextLayout layout, {bool custom = false}) async {
+  Future<void> sendCue(TextLayout layout, {int? cueIndex}) async {
     final revision = c.state.session.revision;
     final result = await compose(
       layout,
-      custom ? 'Compose a cue' : 'Preview cue',
-      custom ? 'Send untested text' : 'Send untested cue',
+      cueIndex == null ? 'New stage cue' : 'Edit stage cue',
+      'Send',
     );
-    if (result != null) await c.act('cue', value: result, revision: revision);
+    if (result != null) {
+      await c.sendAndSaveCue(result, index: cueIndex, revision: revision);
+    }
   }
 
   Future<void> editTemplate({int? index}) async {
@@ -371,6 +372,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         file['name'] as String,
         c.state.defaults,
       );
+      for (final l in [
+        ...candidate.display.cues,
+        ...candidate.display.warnings.map((w) => w.cue),
+        candidate.display.end,
+        if (candidate.display.zero != null) candidate.display.zero!,
+      ]) {
+        await NativeDisplayFonts.prepare(l);
+      }
       validateTimelinePixels(candidate);
       final name = TextEditingController(text: candidate.name);
       String? error;
@@ -470,7 +479,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       );
       Future<void>.delayed(const Duration(seconds: 1), name.dispose);
       if (accepted != null)
-        await c.commit((draft, _) => draft.saveTemplate(accepted));
+        await c.commit((draft, _) {
+          draft.saveTemplate(accepted);
+          draft.addStageCues(accepted.display.cues);
+        });
     } catch (e) {
       if (mounted) await showError(e.toString());
     }
@@ -679,19 +691,19 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 button(
                   s.paused ? 'Resume' : 'Pause',
                   s.paused ? Icons.play_arrow : Icons.pause,
-                  enabled ? () => c.act('pause') : null,
+                  enabled ? confirmPause : null,
                   primary: true,
                 ),
                 button('Add time', Icons.add, enabled ? addTime : null),
                 button(
                   '−2 min',
                   Icons.remove,
-                  enabled ? () => c.act('adjust', value: -120) : null,
+                  enabled ? () => confirmAdjustment(-120) : null,
                 ),
                 button(
                   '+2 min',
                   Icons.add,
-                  enabled ? () => c.act('adjust', value: 120) : null,
+                  enabled ? () => confirmAdjustment(120) : null,
                 ),
               ],
             ),
@@ -721,7 +733,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
               ),
             const SizedBox(height: 16),
-            TextButton.icon(
+            FilledButton.icon(
+              key: const ValueKey('end-service'),
               onPressed: enabled
                   ? () async {
                       final rev = s.revision;
@@ -735,8 +748,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   : null,
               icon: const Icon(Icons.stop_circle_outlined),
               label: const Text('End service'),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xfff6aa9d),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xffa73238),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 54),
+                textStyle: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -820,7 +839,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 12),
           Text(
-            s.alert == null
+            s.hasAutomaticCue(c.now)
+                ? 'Warning on display: ${s.automaticCue!.text}'
+                : s.alert == null
                 ? 'The right words, at the right moment.'
                 : 'On display: ${s.alert!.text}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
@@ -828,7 +849,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           const SizedBox(height: 8),
           Text(
             s.alert == null
-                ? 'Preview a cue before sending. All layouts are untested on a physical sign.'
+                ? 'Tap a cue to edit it. Send saves its text and formatting for every service.'
                 : s.paused
                 ? 'The underlying timer is paused.'
                 : 'The countdown continues underneath this cue.',
@@ -838,12 +859,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: (t?.display.cues ?? c.state.defaults.cues)
+            children: c.state.stageCues
+                .asMap()
+                .entries
                 .map(
-                  (l) => button(
-                    l.text,
+                  (e) => button(
+                    e.value.text,
                     Icons.chat_bubble_outline,
-                    enabled ? () => sendCue(l) : null,
+                    enabled ? () => sendCue(e.value, cueIndex: e.key) : null,
                   ),
                 )
                 .toList(),
@@ -854,16 +877,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             runSpacing: 10,
             children: [
               button(
-                'Compose text',
+                'New cue',
                 Icons.edit_outlined,
-                enabled
-                    ? () => sendCue(const TextLayout(''), custom: true)
-                    : null,
-              ),
-              button(
-                'Saved cue library',
-                Icons.bookmarks_outlined,
-                enabled ? chooseSavedCue : null,
+                enabled ? () => sendCue(const TextLayout('')) : null,
               ),
               button(
                 'Show timer',
@@ -949,6 +965,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           if (s.active || s.phase == 'ended') ...[
             timingOverview(),
             const SizedBox(height: 16),
+          ],
+          if (s.timeline != null && (s.active || s.phase == 'ready')) ...[
+            const SizedBox(height: 16),
+            liveWarnings(),
           ],
           if (s.warningNotice != null) ...[
             panel(
@@ -1137,15 +1157,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           }
         })
         .then((_) {});
-    Future<void> editCue(int i) async {
-      final next = await compose(d.cues[i], 'Edit quick cue', 'Save cue');
-      if (next != null) {
-        final cues = [...d.cues];
-        cues[i] = next;
-        await save(d.withCues(cues));
-      }
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1272,85 +1283,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 16),
         panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              label('Quick cues · ${d.cues.length} of 6'),
-              const SizedBox(height: 8),
-              ...d.cues.asMap().entries.map(
-                (e) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(e.value.text),
-                  subtitle: Text(
-                    '${styleSummary(e.value)} · not tested on sign',
-                  ),
-                  onTap: c.busy ? null : () => editCue(e.key),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        onPressed: c.busy ? null : () => editCue(e.key),
-                        tooltip: 'Edit cue',
-                        icon: const Icon(Icons.edit_outlined),
-                      ),
-                      if (d.cues.length > 4)
-                        IconButton(
-                          onPressed: c.busy
-                              ? null
-                              : () async {
-                                  if (await confirm(
-                                    'Remove cue?',
-                                    'Remove “${e.value.text}” from these settings?',
-                                    'Remove',
-                                  )) {
-                                    final cues = [...d.cues]..removeAt(e.key);
-                                    await save(
-                                      DisplaySettings(
-                                        zero: d.zero,
-                                        end: d.end,
-                                        cues: cues,
-                                        warnings: d.warnings,
-                                      ),
-                                    );
-                                  }
-                                },
-                          tooltip: 'Remove cue',
-                          icon: const Icon(Icons.remove_circle_outline),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              if (d.cues.length < 6)
-                button(
-                  'Add cue',
-                  Icons.add,
-                  c.busy
-                      ? null
-                      : () async {
-                          final l = await compose(
-                            const TextLayout(''),
-                            'New quick cue',
-                            'Save cue',
-                          );
-                          if (l != null)
-                            await save(
-                              DisplaySettings(
-                                zero: d.zero,
-                                end: d.end,
-                                cues: [...d.cues, l],
-                                warnings: d.warnings,
-                              ),
-                            );
-                        },
-                ),
-            ],
+          child: const Text(
+            'Stage cues are shared across all services. Edit a cue or add a new one on Live; Send saves every formatting choice.',
           ),
         ),
         const SizedBox(height: 16),
         warningSettings(d, save),
         const SizedBox(height: 16),
-        cueLibrary(),
+        timesFontSettings(),
+        const SizedBox(height: 16),
+        ledShapeSettings(),
         const SizedBox(height: 16),
         panel(
           child: Column(
@@ -1359,7 +1301,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               label('Prototype display profile'),
               const SizedBox(height: 10),
               const Text(
-                '32 × 16 · monochrome\nFonts: Cuekeeper Matrix, Service Serif, Clear Sans\nCountdown: Cuekeeper Matrix · 14-pixel height\nPhysical controller: not configured',
+                '32 × 16 · monochrome\nFonts: Cuekeeper Matrix, Cuekeeper Sq-Matrix, imported Times New Roman\nCountdown: Cuekeeper Matrix · 14-pixel height\nPhysical controller: not configured',
               ),
               const SizedBox(height: 12),
               const Text(
@@ -1508,13 +1450,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 class TextComposer extends StatefulWidget {
   final TextLayout initial;
   final String title, button;
-  final Future<bool> Function(TextLayout)? onSave;
   const TextComposer({
     super.key,
     required this.initial,
     required this.title,
     required this.button,
-    this.onSave,
   });
   @override
   State<TextComposer> createState() => _TextComposerState();
@@ -1524,8 +1464,7 @@ class _TextComposerState extends State<TextComposer> {
   late TextEditingController text;
   late bool bold, italic;
   late String effect, align, font;
-  bool saving = false;
-  String? savedMessage;
+  String? fontRequest, fontError;
   late int height, speed;
   final watch = Stopwatch()..start();
   Timer? ticker;
@@ -1565,12 +1504,28 @@ class _TextComposerState extends State<TextComposer> {
   );
   @override
   Widget build(BuildContext context) {
+    final request = layout;
+    if (request.font == 'times_new_roman' &&
+        NativeDisplayFonts.key(request) != fontRequest) {
+      fontRequest = NativeDisplayFonts.key(request);
+      fontError = null;
+      final requestedKey = fontRequest;
+      NativeDisplayFonts.prepare(request)
+          .then((_) {
+            if (mounted && fontRequest == requestedKey) setState(() {});
+          })
+          .catchError((Object e) {
+            if (mounted && fontRequest == requestedKey)
+              setState(() => fontError = '$e');
+          });
+    }
     String? error;
     try {
       validateLayout(layout);
     } catch (e) {
       error = e.toString();
     }
+    if (font == 'times_new_roman' && fontError != null) error = fontError;
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
@@ -1636,14 +1591,16 @@ class _TextComposerState extends State<TextComposer> {
                     .toList(),
                 onChanged: (v) => setState(() {
                   font = v!;
+                  fontRequest = null;
+                  if (font == 'times_new_roman') height = 2;
                   watch.reset();
                 }),
               ),
-              if (font == 'service_serif')
+              if (font == 'times_new_roman')
                 const Padding(
                   padding: EdgeInsets.only(top: 8),
                   child: Text(
-                    'Times-style serif · 14 px shows more detail.',
+                    'Genuine imported font · 14 px recommended. Compact text has fewer serif details.',
                     style: TextStyle(color: muted),
                   ),
                 ),
@@ -1693,10 +1650,11 @@ class _TextComposerState extends State<TextComposer> {
                   divisions: 20,
                   onChanged: (v) => setState(() => speed = v.round()),
                 ),
-                Text(
-                  'One complete message pass: approximately ${(math.max(0, textWidth(layout)) / speed).toStringAsFixed(1)} seconds.',
-                  style: const TextStyle(color: muted, fontSize: 12),
-                ),
+                if (error == null)
+                  Text(
+                    'One complete message pass: approximately ${(math.max(0, textWidth(layout)) / speed).toStringAsFixed(1)} seconds.',
+                    style: const TextStyle(color: muted, fontSize: 12),
+                  ),
               ],
               if (error != null)
                 Padding(
@@ -1711,32 +1669,12 @@ class _TextComposerState extends State<TextComposer> {
         ),
       ),
       actions: [
-        if (savedMessage != null)
-          Text(savedMessage!, style: const TextStyle(color: accent)),
-        if (widget.onSave != null)
-          TextButton.icon(
-            icon: const Icon(Icons.bookmark_add_outlined),
-            label: const Text('Save to cue library'),
-            onPressed: error != null || saving
-                ? null
-                : () async {
-                    setState(() => saving = true);
-                    final saved = await widget.onSave!(layout);
-                    if (mounted)
-                      setState(() {
-                        saving = false;
-                        savedMessage = saved
-                            ? 'Cue and all formatting saved.'
-                            : null;
-                      });
-                  },
-          ),
         TextButton(
-          onPressed: saving ? null : () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: error == null && !saving
+          onPressed: error == null
               ? () => Navigator.pop(context, layout)
               : null,
           child: Text(widget.button),

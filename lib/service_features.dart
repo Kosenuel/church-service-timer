@@ -2,8 +2,8 @@ part of 'domain.dart';
 
 const displayFontNames = {
   'cuekeeper_matrix': 'Cuekeeper Matrix',
-  'service_serif': 'Service Serif',
-  'clear_sans': 'Clear Sans',
+  'cuekeeper_sq_matrix': 'Cuekeeper Sq-Matrix',
+  'times_new_roman': 'Times New Roman',
 };
 
 class WarningRule {
@@ -43,9 +43,9 @@ class WarningRule {
 }
 
 const defaultWarnings = [
-  WarningRule(120, TextLayout('2 MIN LEFT')),
-  WarningRule(30, TextLayout('WRAP UP', bold: true)),
-  WarningRule(0, TextLayout("TIME'S UP", bold: true)),
+  WarningRule(120, TextLayout('2 MIN LEFT'), destination: 'stage'),
+  WarningRule(30, TextLayout('WRAP UP', bold: true), destination: 'stage'),
+  WarningRule(0, TextLayout("TIME'S UP", bold: true), destination: 'stage'),
 ];
 
 List<WarningRule> readWarnings(dynamic value) {
@@ -91,8 +91,7 @@ void applyWarnings(Session s, Stamp now, {bool allowStage = true}) {
     ),
   );
   final rule = s.timeline!.display.warnings[due.first];
-  final canDisplay =
-      allowStage && !s.held && !s.disconnected && s.alert == null;
+  final canDisplay = allowStage && !s.held && !s.disconnected;
   s.warningNotice =
       '${rule.cue.text} · ${rule.seconds == 0 ? 'Time complete' : '${formatTime(rule.seconds * 1000)} remaining'}';
   if (rule.destination == 'stage') {
@@ -102,7 +101,7 @@ void applyWarnings(Session s, Stamp now, {bool allowStage = true}) {
       s.warningNotice = '${s.warningNotice} · stage cue for 8 seconds';
     } else {
       s.warningNotice =
-          '${s.warningNotice} · stage cue skipped (manual cue, held output, or recovery)';
+          '${s.warningNotice} · stage cue skipped (disconnected, held output, or recovery)';
     }
   }
 }

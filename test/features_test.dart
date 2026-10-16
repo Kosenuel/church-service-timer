@@ -74,53 +74,27 @@ void main() {
     },
   );
 
-  test('Font atlas renders distinct shapes at both sizes with every style', () {
-    for (final font in displayFontNames.keys) {
-      for (final height in [1, 2]) {
-        for (final bold in [false, true]) {
-          for (final italic in [false, true]) {
-            final l = TextLayout(
-              'Ag',
-              font: font,
-              height: height,
-              bold: bold,
-              italic: italic,
-            );
-            validateLayout(l);
-            final pixels = renderPixels(l, 0);
-            expect(pixels.length, 512);
-            expect(pixels.any((p) => p), true);
-            expect(
-              pixels,
-              renderPixels(
-                TextLayout.fromJson(jsonDecode(jsonEncode(l.toJson()))),
-                0,
-              ),
-            );
-          }
+  test('Cuekeeper Matrix preserves every original style and size', () {
+    for (final height in [1, 2]) {
+      for (final bold in [false, true]) {
+        for (final italic in [false, true]) {
+          final layout = TextLayout(
+            'Ag',
+            height: height,
+            bold: bold,
+            italic: italic,
+          );
+          validateLayout(layout);
+          expect(renderPixels(layout, 0).length, 512);
+          expect(
+            renderPixels(layout, 0),
+            renderPixels(
+              TextLayout.fromJson(jsonDecode(jsonEncode(layout.toJson()))),
+              0,
+            ),
+          );
         }
       }
     }
-    final matrix = renderPixels(const TextLayout('Ag', height: 2), 0);
-    final serif = renderPixels(
-      const TextLayout('Ag', height: 2, font: 'service_serif'),
-      0,
-    );
-    final sans = renderPixels(
-      const TextLayout('Ag', height: 2, font: 'clear_sans'),
-      0,
-    );
-    expect(matrix, isNot(serif));
-    expect(serif, isNot(sans));
-    expect(
-      () => validateLayout(
-        const TextLayout(
-          'HELLO WORLD',
-          font: 'service_serif',
-          effect: 'static',
-        ),
-      ),
-      throwsA(isA<RuleError>()),
-    );
   });
 }

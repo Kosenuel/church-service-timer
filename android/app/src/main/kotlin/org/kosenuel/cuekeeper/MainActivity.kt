@@ -1,6 +1,10 @@
 package org.kosenuel.cuekeeper
 
 import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.content.Intent
 import android.os.SystemClock
 import android.provider.OpenableColumns
@@ -21,13 +25,59 @@ class MainActivity : FlutterActivity() {
     private val io = Executors.newSingleThreadExecutor()
     private var pending: MethodChannel.Result? = null
     private var exportContent: String? = null
+    private var notificationRequest: MethodChannel.Result? = null
+    private val timesFont by lazy { TimesFont(this) }
     private val stateFile get() = AtomicFile(File(filesDir, "service-state.json"))
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        WarningNotifications.ensureChannel(this)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "church.timer/device").setMethodCallHandler { call, result ->
             when (call.method) {
+                "hasTimesFont" -> background(result) { timesFont.available() }
+                "rasterizeTimes" -> background(result) {
+                    timesFont.rasterize(call.argument<String>("text") ?: "", (call.argument<Int>("height") ?: 2) * 7,
+                        call.argument<Boolean>("bold") ?: false, call.argument<Boolean>("italic") ?: false)
+                }
+                "importTimesFont" -> {
+                    if (pending != null) result.error("BUSY", "A document picker is already open", null)
+                    else {
+                        pending = result
+                        try {
+                            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                                addCategory(Intent.CATEGORY_OPENABLE); type = "*/*"
+                            }, 43)
+                        } catch (e: Exception) { pending = null; result.error("FONT", e.message, null) }
+                    }
+                }
+                "notificationStatus" -> result.success(WarningNotifications.status(this))
+                "enableNotifications" -> {
+                    if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                        if (notificationRequest != null) result.error("BUSY", "Notification permission request already open", null)
+                        else {
+                            notificationRequest = result
+                            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 44)
+                        }
+                    } else result.success(null)
+                }
+                "notificationSettings" -> {
+                    if (Build.VERSION.SDK_INT >= 26) startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+                    else startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+                    result.success(null)
+                }
+                "exactWarnings" -> {
+                    if (Build.VERSION.SDK_INT >= 31) startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")))
+                    result.success(null)
+                }
+                "syncWarnings" -> {
+                    try { WarningNotifications.sync(this, call.arguments as Map<*, *>); result.success(null) }
+                    catch (e: Exception) { result.error("NOTIFICATION", e.message, null) }
+                }
+                "testNotification" -> {
+                    try { WarningNotifications.test(this); result.success(null) }
+                    catch (e: Exception) { result.error("NOTIFICATION", e.message, null) }
+                }
                 "clock" -> result.success(mapOf(
                     "mono" to SystemClock.elapsedRealtime(),
                     "wall" to System.currentTimeMillis(),
@@ -98,13 +148,29 @@ class MainActivity : FlutterActivity() {
     @Deprecated("Activity result bridge for Flutter's method channel")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 41 && requestCode != 42) return
+        if (requestCode != 41 && requestCode != 42 && requestCode != 43) return
         val result = pending ?: return
         pending = null
         val uri = data?.data
         if (resultCode != Activity.RESULT_OK || uri == null) {
             exportContent = null
-            result.success(null)
+            result.success(if (requestCode == 43) false else null)
+            return
+        }
+        if (requestCode == 43) {
+            background(result) {
+                val bytes = ByteArrayOutputStream()
+                (contentResolver.openInputStream(uri) ?: error("Cannot open selected font")).use { input ->
+                    val buffer = ByteArray(8192)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        if (bytes.size() + count > 4 * 1024 * 1024) error("Font exceeds 4 MiB")
+                        bytes.write(buffer, 0, count)
+                    }
+                }
+                timesFont.install(bytes.toByteArray())
+            }
             return
         }
         if (requestCode == 42) {
@@ -139,6 +205,14 @@ class MainActivity : FlutterActivity() {
             }
             val decoder = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT)
             mapOf("name" to name, "content" to decoder.decode(ByteBuffer.wrap(bytes.toByteArray())).toString())
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 44) {
+            notificationRequest?.success(null)
+            notificationRequest = null
         }
     }
 }

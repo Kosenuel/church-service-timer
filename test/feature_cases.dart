@@ -115,7 +115,9 @@ final featureCases = <String, void Function()>{
     equal(s.held, true);
   },
   'Operator warnings never replace the countdown': () {
-    var s = service();
+    var s = service(
+      warnings: [const WarningRule(120, TextLayout('2 MIN LEFT'))],
+    );
     equal(dueWarnings(s, at(59)), []);
     s = transition(s, 'warnings', at(60));
     equal(s.warningSeen, [0]);
@@ -151,19 +153,21 @@ final featureCases = <String, void Function()>{
     final s = service(firstMinutes: 1);
     equal(dueWarnings(s, at(31)), [1]);
   },
-  'Automatic warnings never replace manual cues or replay on dismissal': () {
-    var s = service(
-      warnings: [
-        const WarningRule(120, TextLayout('AUTO'), destination: 'stage'),
-      ],
-    );
-    s = transition(s, 'cue', at(50), value: const TextLayout('MANUAL'));
-    s = transition(s, 'warnings', at(60));
-    equal(s.intended(at(60))!.text, 'MANUAL');
-    s = transition(s, 'timer', at(61));
-    equal(s.intended(at(61))!.text, '01:59');
-    equal(dueWarnings(s, at(62)), []);
-  },
+  'Automatic warning overlays a manual cue and restores it after eight seconds':
+      () {
+        var s = service(
+          warnings: [
+            const WarningRule(120, TextLayout('AUTO'), destination: 'stage'),
+          ],
+        );
+        s = transition(s, 'cue', at(50), value: const TextLayout('MANUAL'));
+        s = transition(s, 'warnings', at(60));
+        equal(s.intended(at(60))!.text, 'AUTO');
+        equal(s.intended(at(68))!.text, 'MANUAL');
+        s = transition(s, 'timer', at(61));
+        equal(s.intended(at(61))!.text, '01:59');
+        equal(dueWarnings(s, at(62)), []);
+      },
   'Manual cue supersedes and permanently clears an automatic overlay': () {
     var s = service(
       warnings: [
@@ -240,10 +244,10 @@ final featureCases = <String, void Function()>{
       align: 'right',
       speed: 23,
       effect: 'scroll',
-      font: 'service_serif',
+      font: 'times_new_roman',
     );
     final state = AppState.fresh(epoch);
-    state.savedCues.add(const SavedCue('Urgent wrap', layout));
+    state.stageCues.add(layout);
     state.templates[0] = Timeline(
       'Styled',
       const [Segment('Talk', 5)],
@@ -255,7 +259,7 @@ final featureCases = <String, void Function()>{
     final loaded = AppState.fromJson(
       jsonDecode(jsonEncode(state.toJson())) as Json,
     );
-    equal(loaded.savedCues.single.layout.toJson(), layout.toJson());
+    equal(loaded.stageCues.last.toJson(), layout.toJson());
     final template = importTemplate(
       exportJson(state.templates.first),
       'styled.json',
@@ -305,7 +309,7 @@ final featureCases = <String, void Function()>{
       warnings: [
         const WarningRule(
           20,
-          TextLayout('STOP', font: 'clear_sans'),
+          TextLayout('STOP', font: 'times_new_roman'),
           destination: 'stage',
         ),
       ],

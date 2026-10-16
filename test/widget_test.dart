@@ -84,6 +84,7 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/tablet-live.png'),
       );
+      await tester.ensureVisible(find.text('Show timer'));
       await tester.tap(find.text('Show timer'));
       await tester.pumpAndSettle();
       expect(c.state.session.alert, isNull);
@@ -110,6 +111,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Defaults for new templates'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text('Edit end screen'));
     await tester.tap(find.text('Edit end screen'));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(find.byType(TextField).first, 'Amen');

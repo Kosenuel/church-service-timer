@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'domain.dart';
 import 'pixels.dart';
 import 'platform.dart';
+import 'native_fonts.dart';
+import 'warning_notifications.dart';
 
 /// The simulator is an output adapter, not a fake Huidu protocol implementation.
 class Simulator {
@@ -46,6 +48,8 @@ class AppController extends ChangeNotifier {
   int _resumeRequest = 0;
   Completer<void>? _writeDone;
   String? error;
+  String? notificationError;
+  Json notificationState = {'enabled': false, 'exact': false, 'sound': false};
   Future<bool> Function()? retry;
   Timer? _timer;
   AppController(this.port);
@@ -74,18 +78,22 @@ class AppController extends ChangeNotifier {
       state = data == null
           ? AppState.fresh(now)
           : AppState.fromJson(Map<String, dynamic>.from(jsonDecode(data)));
+      await NativeDisplayFonts.initialize(port);
+      await NativeDisplayFonts.prepareState(state);
       for (final t in state.templates) {
         validateTimelinePixels(t);
       }
       if (state.session.timeline != null)
         validateTimelinePixels(state.session.timeline!);
       if (state.session.alert != null) validateLayout(state.session.alert!);
-      for (final cue in state.savedCues) {
-        validateLayout(cue.layout);
+      for (final cue in state.stageCues) {
+        validateLayout(cue);
       }
+      final previous = state.session;
       state.session = recover(state.session, now);
       // Persist recovery holds before the first possible display publication.
       await port.save(jsonEncode(state.toJson()));
+      await syncPhoneWarnings(previous: previous);
     } catch (e) {
       state = AppState.fresh(now);
       state.session.held = true;
@@ -145,9 +153,12 @@ class AppController extends ChangeNotifier {
         'The service changed. Review this action again.',
       );
       final draft = state.copy();
+      final previous = state.session;
       mutation(draft, at);
+      await NativeDisplayFonts.prepareState(draft);
       await port.save(jsonEncode(draft.toJson()));
       state = draft;
+      await syncPhoneWarnings(previous: previous);
       error = null;
       retry = null;
       _retryIsCheckpoint = false;
@@ -157,7 +168,9 @@ class AppController extends ChangeNotifier {
     } catch (e) {
       error = 'Action was not saved: $e';
       _retryIsCheckpoint = false;
-      retry = () => commit(mutation, revision: baseRevision);
+      retry = e is RuleError
+          ? null
+          : () => commit(mutation, revision: baseRevision);
       return false;
     } finally {
       _finishWrite();
@@ -178,6 +191,121 @@ class AppController extends ChangeNotifier {
           draft.reports.add(ServiceReport.fromSession(draft.session, at));
         }
       }, revision: revision);
+
+  Future<void> reloadFonts() async {
+    corrupt = false;
+    error = null;
+    await initialize(startTicker: false);
+  }
+
+  Future<void> syncPhoneWarnings({Session? previous}) async {
+    try {
+      final s = state.session;
+      final newlySeen =
+          previous != null &&
+              previous.id == s.id &&
+              previous.index == s.index &&
+              s.warningNotice != null &&
+              s.warningNotice != previous.warningNotice
+          ? s.warningSeen.toSet().difference(previous.warningSeen.toSet())
+          : <int>{};
+      await port.syncWarnings(
+        warningNotificationPlan(s, now, newlySeen: newlySeen),
+      );
+      notificationState = await port.notificationStatus();
+      notificationError = null;
+    } catch (e) {
+      notificationError = 'Phone warnings could not be scheduled: $e';
+    }
+  }
+
+  Future<void> enablePhoneWarnings() async {
+    try {
+      await port.enableNotifications();
+      await syncPhoneWarnings();
+    } catch (e) {
+      notificationError = 'Could not enable notifications: $e';
+    }
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<bool> setLiveWarnings(List<WarningRule> rules) => commit((draft, at) {
+    final s = draft.session;
+    require(
+      s.timeline != null && (s.active || s.phase == 'ready'),
+      'Load a service first.',
+    );
+    final old = s.timeline!;
+    final consumed = s.warningSeen
+        .map((i) => old.display.warnings[i].seconds)
+        .toSet();
+    s.warningSeen = rules
+        .asMap()
+        .entries
+        .where(
+          (e) =>
+              consumed.contains(e.value.seconds) ||
+              (s.active && e.value.seconds * 1000 > s.remaining(at)),
+        )
+        .map((e) => e.key)
+        .toList();
+    s.automaticCue = null;
+    s.warningNotice = null;
+    // The previous segment's warning indexes refer to the old rule set.
+    if (s.undo != null) {
+      final u = s.undo!.toJson();
+      final thresholds = s.undo!.warningSeen
+          .map((i) => old.display.warnings[i].seconds)
+          .toSet();
+      u['warningSeen'] = rules
+          .asMap()
+          .entries
+          .where((e) => thresholds.contains(e.value.seconds))
+          .map((e) => e.key)
+          .toList();
+      s.undo = UndoPoint.fromJson(u);
+    }
+    s.timeline = Timeline(
+      old.name,
+      old.segments,
+      old.display.withWarnings(rules),
+    );
+    final i = draft.templates.indexWhere((t) => t.name == old.name);
+    if (i >= 0) {
+      final t = draft.templates[i];
+      draft.templates[i] = Timeline(
+        t.name,
+        t.segments,
+        t.display.withWarnings(rules),
+      );
+    }
+    s.revision++;
+  });
+
+  Future<bool> sendAndSaveCue(TextLayout layout, {int? index, int? revision}) =>
+      commit((draft, at) {
+        validateLayout(layout);
+        if (index != null) {
+          require(
+            index >= 0 && index < draft.stageCues.length,
+            'This cue no longer exists.',
+          );
+          draft.stageCues[index] = layout;
+        } else {
+          draft.stageCues.add(layout);
+        }
+        draft.session = transition(
+          draft.session,
+          'cue',
+          at,
+          value: layout,
+          expectedRevision: revision,
+        );
+      }, revision: revision);
+
+  Future<bool> clearReports(Set<String> ids) => commit((draft, _) {
+    draft.reports.removeWhere((r) => ids.contains(r.id));
+  });
 
   Future<void> checkpoint() async {
     if (busy || corrupt || !ready) return;
@@ -234,6 +362,7 @@ class AppController extends ChangeNotifier {
       now = await port.clock();
       final draft = state.copy();
       draft.session = recover(draft.session, now);
+      final previous = state.session;
       if (storageUncertain) {
         draft.session.held = true;
         draft.session.uncertain = true;
@@ -241,6 +370,7 @@ class AppController extends ChangeNotifier {
       draft.session.checkpoint = now;
       await port.save(jsonEncode(draft.toJson()));
       state = draft;
+      await syncPhoneWarnings(previous: previous);
       storageUncertain = false;
       error = null;
       retry = null;
@@ -268,6 +398,7 @@ class AppController extends ChangeNotifier {
       final fresh = AppState.fresh(at);
       await port.save(jsonEncode(fresh.toJson()));
       state = fresh;
+      await syncPhoneWarnings();
       corrupt = false;
       error = null;
       retry = null;

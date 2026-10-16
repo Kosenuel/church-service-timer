@@ -6,6 +6,222 @@ String clockLabel(int wall) {
 }
 
 extension FeatureViews on _HomeState {
+  Widget ledShapeSettings() => panel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        label('Simulator LED shape'),
+        const SizedBox(height: 12),
+        SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(
+              value: 'square',
+              label: Text('Square LEDs'),
+              icon: Icon(Icons.square),
+            ),
+            ButtonSegment(
+              value: 'circular',
+              label: Text('Circular LEDs'),
+              icon: Icon(Icons.circle),
+            ),
+          ],
+          selected: {c.state.pixelShape},
+          onSelectionChanged: c.busy || c.corrupt
+              ? null
+              : (values) async {
+                  await c.commit((draft, _) {
+                    draft.pixelShape = values.single;
+                  });
+                },
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Saved for this device. Applies to Live and all cue previews; fonts and the 32 × 16 pixel data stay the same.',
+          style: TextStyle(color: muted),
+        ),
+        const SizedBox(height: 12),
+        LedMatrix(
+          pixels: renderPixels(
+            const TextLayout('Aa 12', font: 'cuekeeper_sq_matrix'),
+            0,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Cuekeeper Sq-Matrix · compact preview',
+          style: TextStyle(color: muted),
+        ),
+      ],
+    ),
+  );
+
+  Widget liveWarnings() {
+    final d = c.state.session.timeline!.display;
+    final count = d.warnings
+        .where((w) => w.enabled && w.destination == 'stage')
+        .length;
+    return panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Automatic warnings · this service'),
+            subtitle: Text(
+              '$count stage warnings · thresholds use time remaining',
+            ),
+            children: [
+              warningSettings(d, (next) async {
+                await c.setLiveWarnings(next.warnings);
+              }),
+            ],
+          ),
+          Text(
+            c.notificationState['enabled'] == true
+                ? (c.notificationState['sound'] == true
+                      ? 'Phone notifications and sound enabled'
+                      : 'Phone notifications enabled · channel sound is off')
+                : 'Phone notifications are off',
+            style: const TextStyle(color: muted),
+          ),
+          if (c.notificationError != null)
+            Text(
+              c.notificationError!,
+              style: const TextStyle(color: Colors.orangeAccent),
+            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (c.notificationState['enabled'] != true)
+                button(
+                  'Enable phone notifications',
+                  Icons.notifications_active_outlined,
+                  c.enablePhoneWarnings,
+                ),
+              button(
+                'Notification settings',
+                Icons.settings_outlined,
+                () async {
+                  try {
+                    await c.port.openNotificationSettings();
+                  } catch (e) {
+                    if (mounted) await showError('$e');
+                  }
+                },
+              ),
+              button(
+                'Test notification sound',
+                Icons.volume_up_outlined,
+                () async {
+                  try {
+                    await c.port.testNotification();
+                  } catch (e) {
+                    if (mounted) await showError('$e');
+                  }
+                },
+              ),
+              if (c.notificationState['exact'] != true)
+                button('Allow precise warnings', Icons.alarm, () async {
+                  try {
+                    await c.port.requestExactWarnings();
+                  } catch (e) {
+                    if (mounted) await showError('$e');
+                  }
+                }),
+            ],
+          ),
+          if (c.notificationState['exact'] != true)
+            const Text(
+              'Without precise alarm access, Android may delay warnings while the phone sleeps.',
+              style: TextStyle(color: muted, fontSize: 12),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget timesFontSettings() => panel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        label('Times New Roman'),
+        const SizedBox(height: 8),
+        Text(
+          NativeDisplayFonts.available
+              ? 'Times New Roman is installed on this device.'
+              : 'Import a Times New Roman Regular .ttf licensed for use on this device. The app does not bundle or substitute this font.',
+        ),
+        const SizedBox(height: 12),
+        button(
+          NativeDisplayFonts.available
+              ? 'Replace Times New Roman font'
+              : 'Import Times New Roman font',
+          Icons.font_download_outlined,
+          c.busy || c.state.session.active
+              ? null
+              : () async {
+                  try {
+                    if (await c.port.importTimesFont()) {
+                      await c.reloadFonts();
+                    }
+                  } catch (e) {
+                    if (mounted) await showError('Font import failed: $e');
+                  }
+                },
+        ),
+        if (c.state.session.active)
+          const Text(
+            'End the current service before changing the installed font.',
+            style: TextStyle(color: muted),
+          ),
+        const SizedBox(height: 8),
+        const Text(
+          'Cuekeeper Matrix is built in and unchanged. Retired Service Serif and Clear Sans selections use Cuekeeper Matrix.',
+          style: TextStyle(color: muted),
+        ),
+      ],
+    ),
+  );
+
+  Future<void> confirmPause() async {
+    final s = c.state.session;
+    final paused = s.paused, revision = s.revision;
+    if (await confirm(
+      paused ? 'Resume countdown?' : 'Pause countdown?',
+      paused
+          ? 'Resume timing ${s.timeline!.segments[s.index].name} from its paused value.'
+          : 'Pause ${s.timeline!.segments[s.index].name} when you confirm. Any stage cue stays visible. Service elapsed time continues to count the pause.',
+      paused ? 'Confirm resume' : 'Confirm pause',
+    ))
+      await c.act('pause', revision: revision);
+  }
+
+  Future<void> confirmAdjustment(int seconds) async {
+    final s = c.state.session, revision = c.state.session.revision;
+    if (await confirm(
+      seconds > 0 ? 'Add 2 minutes?' : 'Remove 2 minutes?',
+      '${seconds > 0 ? 'Add 2 minutes to' : 'Remove up to 2 minutes from'} ${s.timeline!.segments[s.index].name}. The change uses the remaining time when you confirm. The countdown cannot go below zero or above 99:59.',
+      seconds > 0 ? 'Confirm +2 min' : 'Confirm −2 min',
+    ))
+      await c.act('adjust', value: seconds, revision: revision);
+  }
+
+  Future<void> confirmClearReports({ServiceReport? record}) async {
+    final ids = record == null
+        ? c.state.reports.map((r) => r.id).toSet()
+        : {record.id};
+    if (ids.isEmpty) return;
+    if (await confirm(
+      record == null ? 'Clear all reports?' : 'Clear this report?',
+      record == null
+          ? 'Delete all ${ids.length} currently saved report records from this device? Exported files and the current service are unaffected. This cannot be undone.'
+          : 'Delete the report for “${record.name}” (${DateTime.fromMillisecondsSinceEpoch(record.endedWall).toLocal()})? Exported files and the current service are unaffected. This cannot be undone.',
+      record == null ? 'Clear all reports' : 'Clear report',
+    ))
+      await c.clearReports(ids);
+  }
+
   Widget timingOverview() {
     final s = c.state.session;
     final projected = s.projectedTotal(c.now);
@@ -76,216 +292,17 @@ extension FeatureViews on _HomeState {
     );
   }
 
-  Future<bool> saveCueToLibrary(TextLayout layout) async {
-    final name = TextEditingController(text: layout.text);
-    String? error;
-    bool saving = false;
-    final route = DialogRoute<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, update) => AlertDialog(
-          title: const Text('Save formatted cue'),
-          content: SizedBox(
-            width: 430,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Cue name'),
-                ),
-                const SizedBox(height: 12),
-                Text(styleSummary(layout)),
-                const SizedBox(height: 8),
-                const Text(
-                  'Saves text, font, size, bold, italic, alignment, effect and speed. Available in every service.',
-                ),
-                if (error != null)
-                  Text(
-                    error!,
-                    style: const TextStyle(color: Colors.orangeAccent),
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: saving ? null : () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      try {
-                        final n = nameValue(name.text, 'Cue name');
-                        require(
-                          !c.state.savedCues.any(
-                            (e) => e.name.toLowerCase() == n.toLowerCase(),
-                          ),
-                          'That cue name already exists. Use another name or edit it in Display.',
-                        );
-                        validateLayout(layout);
-                        update(() {
-                          saving = true;
-                          error = null;
-                        });
-                        final success = await c.commit((draft, _) {
-                          require(
-                            !draft.savedCues.any(
-                              (e) => e.name.toLowerCase() == n.toLowerCase(),
-                            ),
-                            'Cue name already exists.',
-                          );
-                          draft.savedCues.add(
-                            SavedCue(n, TextLayout.fromJson(layout.toJson())),
-                          );
-                        });
-                        if (!ctx.mounted) return;
-                        if (success) {
-                          Navigator.pop(ctx, true);
-                        } else {
-                          update(() {
-                            saving = false;
-                            error = c.error;
-                          });
-                        }
-                      } catch (e) {
-                        update(() {
-                          error = '$e';
-                          saving = false;
-                        });
-                      }
-                    },
-              child: const Text('Save formatted cue'),
-            ),
-          ],
-        ),
-      ),
-    );
-    final result = await Navigator.of(context, rootNavigator: true).push(route);
-    // The text field remains mounted during the dialog's exit animation.
-    await route.completed;
-    name.dispose();
-    return result ?? false;
-  }
-
-  Future<void> chooseSavedCue() async {
-    final picked = await showDialog<SavedCue>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Saved cue library'),
-        content: SizedBox(
-          width: 460,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (c.state.savedCues.isEmpty)
-                  const Text(
-                    'Compose text, choose its formatting, then use Save to cue library.',
-                  ),
-                ...c.state.savedCues.map(
-                  (cue) => ListTile(
-                    title: Text(cue.name),
-                    subtitle: Text(styleSummary(cue.layout)),
-                    onTap: () => Navigator.pop(ctx, cue),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-    if (picked != null && mounted) await sendCue(picked.layout);
-  }
-
-  Widget cueLibrary() => panel(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        label('Saved cue library · all services'),
-        const SizedBox(height: 8),
-        const Text(
-          'Each cue keeps its full formatting. Editing the library does not change a cue already on display.',
-          style: TextStyle(color: muted),
-        ),
-        ...c.state.savedCues.map(
-          (cue) => ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(cue.name),
-            subtitle: Text(styleSummary(cue.layout)),
-            onTap: c.busy
-                ? null
-                : () async {
-                    final next = await compose(
-                      cue.layout,
-                      'Edit saved cue',
-                      'Save changes',
-                    );
-                    if (next != null)
-                      await c.commit((draft, _) {
-                        final index = draft.savedCues.indexWhere(
-                          (e) => e.name == cue.name,
-                        );
-                        require(index >= 0, 'This cue was removed.');
-                        draft.savedCues[index] = SavedCue(cue.name, next);
-                      });
-                  },
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete saved cue',
-              onPressed: c.busy
-                  ? null
-                  : () async {
-                      if (await confirm(
-                        'Delete saved cue?',
-                        'Remove “${cue.name}” from the library?',
-                        'Delete',
-                      )) {
-                        await c.commit(
-                          (draft, _) => draft.savedCues.removeWhere(
-                            (e) => e.name == cue.name,
-                          ),
-                        );
-                      }
-                    },
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        button(
-          'Create saved cue',
-          Icons.bookmark_add_outlined,
-          c.busy
-              ? null
-              : () async {
-                  final next = await compose(
-                    const TextLayout(''),
-                    'Create saved cue',
-                    'Name and save',
-                  );
-                  if (next != null && mounted) await saveCueToLibrary(next);
-                },
-        ),
-      ],
-    ),
-  );
-
   Widget warningSettings(
     DisplaySettings d,
     Future<void> Function(DisplaySettings) save,
   ) {
     Future<void> edit({int? index}) async {
       final initial = index == null
-          ? const WarningRule(60, TextLayout('1 MIN LEFT'))
+          ? const WarningRule(
+              60,
+              TextLayout('1 MIN LEFT'),
+              destination: 'stage',
+            )
           : d.warnings[index];
       final next = await showDialog<WarningRule>(
         context: context,
@@ -317,7 +334,7 @@ extension FeatureViews on _HomeState {
           label('Automatic warning cues'),
           const SizedBox(height: 8),
           const Text(
-            'Once per threshold per segment. Stage warnings appear for 8 seconds; manual cues take priority. Missed warnings are never queued.',
+            'Triggers at the selected time remaining, once per segment. Stage warnings overlay the display for 8 seconds, then restore the cue or timer. Phone notifications follow Android sound and Do Not Disturb settings.',
             style: TextStyle(color: muted),
           ),
           ...d.warnings.asMap().entries.map(
@@ -370,6 +387,18 @@ extension FeatureViews on _HomeState {
           style: TextStyle(color: muted),
         ),
         const SizedBox(height: 20),
+        if (history.isNotEmpty) ...[
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              key: const ValueKey('clear-all-reports'),
+              onPressed: c.busy ? null : () => confirmClearReports(),
+              icon: const Icon(Icons.delete_sweep_outlined),
+              label: const Text('Clear all reports'),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         if (history.isEmpty)
           panel(
             child: const Text(
@@ -470,6 +499,14 @@ extension FeatureViews on _HomeState {
                         Icons.code,
                         () => exportReport(r, 'json'),
                       ),
+                      OutlinedButton.icon(
+                        key: ValueKey('clear-report-${r.id}'),
+                        onPressed: c.busy
+                            ? null
+                            : () => confirmClearReports(record: r),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Clear report'),
+                      ),
                     ],
                   ),
                 ],
@@ -544,7 +581,7 @@ class _WarningEditorState extends State<WarningEditor> {
               value: enabled,
               onChanged: (v) => setState(() => enabled = v),
             ),
-            const Text('Trigger when the countdown reaches:'),
+            const Text('Trigger when this much time remains:'),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -573,7 +610,7 @@ class _WarningEditorState extends State<WarningEditor> {
               items: const [
                 DropdownMenuItem(
                   value: 'operator',
-                  child: Text('Operator screen only'),
+                  child: Text('Operator + phone notification'),
                 ),
                 DropdownMenuItem(
                   value: 'stage',

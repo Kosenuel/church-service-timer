@@ -93,7 +93,10 @@ class TextLayout {
       align: j['align'],
       speed: j['speed'],
       height: j['height'],
-      font: j['font'] ?? 'cuekeeper_matrix',
+      // Retired 0.2 fonts migrate to the preserved original face.
+      font: {'service_serif', 'clear_sans'}.contains(j['font'])
+          ? 'cuekeeper_matrix'
+          : j['font'] ?? 'cuekeeper_matrix',
     );
     s.validate();
     return s;
@@ -352,8 +355,8 @@ class Session {
   TextLayout? intended(Stamp now) {
     if (phase == 'ended') return timeline!.display.end;
     if (!active) return null;
-    if (alert != null) return alert;
     if (hasAutomaticCue(now)) return automaticCue;
+    if (alert != null) return alert;
     if (remaining(now) == 0 && timeline!.display.zero != null)
       return timeline!.display.zero;
     return TextLayout(formatted(now), effect: 'static', height: 2);
@@ -705,15 +708,17 @@ class AppState {
   DisplaySettings defaults;
   Session session;
   List<ServiceReport> reports;
-  List<SavedCue> savedCues;
+  List<TextLayout> stageCues;
+  String pixelShape;
   AppState(
     this.templates,
     this.defaults,
     this.session, {
     List<ServiceReport>? reports,
-    List<SavedCue>? savedCues,
+    List<TextLayout>? stageCues,
+    this.pixelShape = 'square',
   }) : reports = reports ?? [],
-       savedCues = savedCues ?? [];
+       stageCues = stageCues ?? [...defaults.cues];
   factory AppState.fresh(Stamp now) => AppState(
     [
       Timeline('Sunday Service', const [
@@ -732,36 +737,106 @@ class AppState {
     Session(id: 'idle', anchor: now),
   );
   factory AppState.fromJson(Json j) {
-    require({1, 2}.contains(j['version']), 'Unsupported saved-state version.');
+    require(
+      {1, 2, 3}.contains(j['version']),
+      'Unsupported saved-state version.',
+    );
+    require(
+      {'square', 'circular'}.contains(j['pixelShape'] ?? 'square'),
+      'Invalid simulator LED shape.',
+    );
     final a = AppState(
       (j['templates'] as List)
           .map((e) => Timeline.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['defaults'])),
       Session.fromJson(Map<String, dynamic>.from(j['session'])),
+      pixelShape: j['pixelShape'] ?? 'square',
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
-      savedCues: (j['savedCues'] as List? ?? [])
-          .map((e) => SavedCue.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
+      stageCues: j['stageCues'] == null
+          ? null
+          : (j['stageCues'] as List)
+                .map((e) => TextLayout.fromJson(Map<String, dynamic>.from(e)))
+                .toList(),
     );
     require(
       a.templates.map((t) => t.name.toLowerCase()).toSet().length ==
           a.templates.length,
       'Saved templates contain duplicate names.',
     );
+    if (j['stageCues'] == null) {
+      // Keep customized cues from every old location, including the old library.
+      a.stageCues = [];
+      a.addStageCues([
+        ...?a.session.timeline?.display.cues,
+        ...a.defaults.cues,
+        ...a.templates.expand((t) => t.display.cues),
+        ...(j['savedCues'] as List? ?? []).map(
+          (e) => TextLayout.fromJson(Map<String, dynamic>.from(e['layout'])),
+        ),
+      ]);
+    }
+    if (j['version'] != 3) {
+      DisplaySettings upgrade(DisplaySettings d) {
+        final oldSuggested =
+            d.warnings.length == 3 &&
+            d.warnings.every(
+              (w) =>
+                  w.destination == 'operator' &&
+                  defaultWarnings.any(
+                    (v) => v.seconds == w.seconds && v.cue.text == w.cue.text,
+                  ),
+            );
+        return oldSuggested
+            ? d.withWarnings(
+                d.warnings
+                    .map(
+                      (w) => WarningRule(
+                        w.seconds,
+                        w.cue,
+                        enabled: w.enabled,
+                        destination: 'stage',
+                      ),
+                    )
+                    .toList(),
+              )
+            : d;
+      }
+
+      a.defaults = upgrade(a.defaults);
+      a.templates = a.templates
+          .map((t) => Timeline(t.name, t.segments, upgrade(t.display)))
+          .toList();
+      void upgradeSession(Session s) {
+        final t = s.timeline;
+        if (t != null)
+          s.timeline = Timeline(t.name, t.segments, upgrade(t.display));
+        if (s.prior != null) upgradeSession(s.prior!);
+      }
+
+      upgradeSession(a.session);
+    }
     return a;
   }
   Json toJson() => {
-    'version': 2,
+    'version': 3,
     'templates': templates.map((t) => t.toJson()).toList(),
     'defaults': defaults.toJson(),
     'session': session.toJson(),
     'reports': reports.map((e) => e.toJson()).toList(),
-    'savedCues': savedCues.map((e) => e.toJson()).toList(),
+    'stageCues': stageCues.map((e) => e.toJson()).toList(),
+    'pixelShape': pixelShape,
   };
   AppState copy() => AppState.fromJson(toJson());
+  void addStageCues(Iterable<TextLayout> layouts) {
+    final seen = stageCues.map((l) => jsonEncode(l.toJson())).toSet();
+    for (final layout in layouts) {
+      if (seen.add(jsonEncode(layout.toJson()))) stageCues.add(layout);
+    }
+  }
+
   void saveTemplate(Timeline t, {int? replacing}) {
     require(
       !templates.asMap().entries.any(

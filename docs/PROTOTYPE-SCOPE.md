@@ -5,13 +5,14 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 ## Implemented
 
 - Separate Live, Templates, Display and Reports views; responsive phone/tablet layouts.
-- Independent loaded-service snapshot; template changes/deletion do not change the run.
+- Independent loaded-service snapshot; template changes/deletion do not change the run. Live warning edits explicitly update current rules and the matching saved template.
 - Ready with explicit first-segment start, cancellation without prior output replay, manual final-segment ending.
 - Suspend-aware Android monotonic clock; elapsed-time calculation instead of callback counting.
-- Pause/resume, custom Add, separate ±120-second adjustments, clamp at zero, 99:59 maximum.
+- Confirmed pause/resume, custom Add and ±120-second adjustments; clamp at zero, 99:59 maximum; prominent red End service control.
 - Confirmed advance, elapsed-aware one-step undo, 10-second quick-undo window and modification tracking.
-- Four to six template quick cues plus a shared named cue library; all formatting persists. Latest manual alert wins; timer continues underneath; End clears the alert.
-- Cuekeeper Matrix original bitmap font plus Service Serif and Clear Sans pixel fonts; uppercase/lowercase Latin, digits and common punctuation; explicit rejection of unsupported code points.
+- Shared Live cues: editing and Send replaces the item persistently across services; New cue and Send appends. All formatting persists; old customized cues migrate.
+- Unchanged Cuekeeper Matrix plus new Cuekeeper Sq-Matrix; genuine Times New Roman Regular TTF import and native rendering. Explicit unsupported-character and missing-font errors.
+- Saved square/circular simulator LED appearance, shared by Live and previews without altering output bits.
 - Bold, italic, 7/14-pixel text height, horizontal alignment, scrolling speed and flash preview.
 - New/untested cues require preview and confirmation on each send. No preview confers physical approval.
 - Default/custom zero screen and end screen; defaults and per-template settings have separate ownership.
@@ -22,11 +23,12 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 - Android document picker import/export; bounded UTF-8 reads; CSV/JSON validation, preview, conflict checks and atomic acceptance.
 - Template reordering by touch and complete JSON/segment-only CSV round trips.
 - Service timing overview with elapsed time, projected variance and estimated finish.
-- Configurable automatic warnings with operator-only or temporary simulated-stage output and manual-cue priority.
-- After-service reports with segment actuals, pauses, adjustments and CSV/JSON export.
+- Configurable warnings with operator-only or temporary simulated-stage output. Due stage warnings briefly overlay manual cues, then restore them; a new manual cue takes over immediately.
+- Android phone notifications with default notification sound, permission/settings controls and monotonic alarm scheduling independent of Flutter frame callbacks.
+- After-service reports with segment actuals, pauses, adjustments, CSV/JSON export and confirmed deletion of one/all local records.
 - Fast rehearsal at 5×, 10×, 30× or 60×, labelled separately from live timing.
 
-See `FEATURES-0.2.md` for the detailed timing, warning and migration semantics.
+See `FEATURES-0.3.md` for current behavior and migration semantics; `FEATURES-0.2.md` is historical.
 
 ## Explicitly deferred until hardware is available
 
@@ -42,6 +44,7 @@ There is no real controller settings page in the prototype, no speculative addre
 ## Prototype limitations
 
 - Simulator frames render while the Flutter UI executes. The application keeps the screen awake while visible, but no claim is made that rendering continues while backgrounded or terminated. Reopening calculates the current time from native anchors.
+- Phone alerts obey Android permission, sound, Do Not Disturb and battery rules. Exact alarm permission does not remove sleep quotas. Reboot/force-stop can clear alarms; reopen to reschedule. Android device runtime checks are still required.
 - A disconnected simulator freezes the visible frame, including animation. Real controllers may continue an uploaded animation; that behavior requires observation.
 - The 30-minute absence is measured conservatively from the latest saved activity checkpoint. Wall-clock fallback across reboot is marked uncertain.
 - The simulator's visual color is lime; it does not claim that a physical monochrome panel can change color.

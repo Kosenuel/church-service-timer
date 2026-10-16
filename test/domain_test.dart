@@ -26,7 +26,7 @@ Session loaded() => transition(
 );
 Session running() => transition(loaded(), 'start', start);
 
-class FakePort implements DevicePort {
+class FakePort extends DevicePort {
   Stamp at = start;
   String? data;
   bool fail = false;

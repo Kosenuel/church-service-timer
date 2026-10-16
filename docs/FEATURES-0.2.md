@@ -1,3 +1,7 @@
+# Historical release guide
+
+This describes version 0.2. See [0.3](FEATURES-0.3.md) for current shared cues, fonts, warning priority/phone notifications, confirmations and report clearing.
+
 # Cuekeeper 0.2: timing, warnings, reports and fonts
 
 ## Rehearse a service

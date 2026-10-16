@@ -4,27 +4,37 @@ import 'package:flutter/material.dart';
 
 import 'domain.dart';
 import 'matrix_font.dart';
-import 'font_atlas.dart';
+import 'square_matrix_font.dart';
+import 'native_fonts.dart';
 export 'matrix_font.dart' show glyphs;
 
-Map<String, String> layoutGlyphs(TextLayout l) => l.font == 'cuekeeper_matrix'
-    ? glyphs
-    : fontAtlas['${l.font}_${l.height}_${(l.bold ? 1 : 0) + (l.italic ? 2 : 0)}']!;
+Map<String, String> layoutGlyphs(TextLayout l) =>
+    l.font == 'cuekeeper_sq_matrix' ? squareGlyphs : glyphs;
 
 int textWidth(TextLayout l) {
+  if (l.font == 'times_new_roman') {
+    final raster = NativeDisplayFonts.cached(l);
+    require(
+      raster != null,
+      NativeDisplayFonts.available
+          ? 'Preparing Times New Roman preview…'
+          : 'Import a licensed Times New Roman Regular .ttf in Display first.',
+    );
+    return raster!.width;
+  }
   final table = layoutGlyphs(l);
-  final matrix = l.font == 'cuekeeper_matrix';
+  final scaleX = l.font == 'cuekeeper_sq_matrix' ? l.height : 1;
   return l.text
           .split('')
           .fold<int>(
             -1,
             (w, c) =>
                 w +
-                (table[c]?.split('/').first.length ?? 5) +
+                (table[c]?.split('/').first.length ?? 5) * scaleX +
                 1 +
-                (matrix && l.bold ? 1 : 0),
+                (l.bold ? 1 : 0),
           ) +
-      (matrix && l.italic ? 2 : 0);
+      (l.italic ? 2 : 0);
 }
 
 void validateLayout(TextLayout layout) {
@@ -58,9 +68,34 @@ List<bool> renderPixels(TextLayout? layout, int elapsedMs) {
   if (layout == null) return pixels;
   if (layout.effect == 'flash' && (elapsedMs ~/ 500).isOdd) return pixels;
   final width = textWidth(layout);
-  final matrix = layout.font == 'cuekeeper_matrix';
+  if (layout.font == 'times_new_roman') {
+    final raster = NativeDisplayFonts.cached(layout)!;
+    final scrolling = layout.effect == 'scroll' && width > 32;
+    final start = scrolling
+        ? -((elapsedMs * layout.speed ~/ 1000) % (width + 6))
+        : layout.align == 'left'
+        ? 0
+        : layout.align == 'right'
+        ? 32 - width
+        : (32 - width) ~/ 2;
+    final top = (16 - raster.height) ~/ 2;
+    void draw(int left) {
+      for (var y = 0; y < raster.height; y++) {
+        for (var x = 0; x < width; x++) {
+          final px = left + x;
+          if (px >= 0 && px < 32 && raster.rows[y][x] == '1')
+            pixels[(top + y) * 32 + px] = true;
+        }
+      }
+    }
+
+    draw(start);
+    if (scrolling) draw(start + width + 6);
+    return pixels;
+  }
+  final scaleX = layout.font == 'cuekeeper_sq_matrix' ? layout.height : 1;
   final table = layoutGlyphs(layout);
-  final rowScale = matrix ? layout.height : 1;
+  final rowScale = layout.height;
   int start;
   if (layout.effect == 'scroll' && width > 32) {
     // Begin visibly at x=0, then scroll through a 6-pixel inter-message gap.
@@ -78,25 +113,39 @@ List<bool> renderPixels(TextLayout? layout, int elapsedMs) {
     for (final char in layout.text.split('')) {
       final rows = table[char]!.split('/');
       for (var y = 0; y < rows.length; y++) {
-        final skew = matrix && layout.italic ? (6 - y) ~/ 3 : 0;
+        final skew = layout.italic ? (6 - y) ~/ 3 : 0;
         for (var col = 0; col < rows[y].length; col++) {
           if (rows[y][col] != '1') continue;
-          for (var bold = 0; bold <= (matrix && layout.bold ? 1 : 0); bold++) {
+          for (var bold = 0; bold <= (layout.bold ? 1 : 0); bold++) {
             for (var sy = 0; sy < rowScale; sy++) {
-              final px = x + col + skew + bold, py = top + y * rowScale + sy;
-              if (px >= 0 && px < 32 && py >= 0 && py < 16)
-                pixels[py * 32 + px] = true;
+              for (var sx = 0; sx < scaleX; sx++) {
+                final px = x + col * scaleX + sx + skew + bold,
+                    py = top + y * rowScale + sy;
+                if (px >= 0 && px < 32 && py >= 0 && py < 16)
+                  pixels[py * 32 + px] = true;
+              }
             }
           }
         }
       }
-      x += rows.first.length + 1 + (matrix && layout.bold ? 1 : 0);
+      x += rows.first.length * scaleX + 1 + (layout.bold ? 1 : 0);
     }
   }
 
   drawAt(start);
   if (layout.effect == 'scroll' && width > 32) drawAt(start + width + 6);
   return pixels;
+}
+
+/// Above the Navigator, so dialogs and the Live view use the same preference.
+class LedAppearance extends InheritedWidget {
+  final String shape;
+  const LedAppearance({super.key, required this.shape, required super.child});
+  static String of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<LedAppearance>()?.shape ??
+      'square';
+  @override
+  bool updateShouldNotify(LedAppearance old) => shape != old.shape;
 }
 
 class LedMatrix extends StatelessWidget {
@@ -108,7 +157,9 @@ class LedMatrix extends StatelessWidget {
     label: '32 by 16 monochrome LED simulator${stale ? ', output held' : ''}',
     child: AspectRatio(
       aspectRatio: 2,
-      child: CustomPaint(painter: _MatrixPainter(pixels, stale)),
+      child: CustomPaint(
+        painter: _MatrixPainter(pixels, stale, LedAppearance.of(context)),
+      ),
     ),
   );
 }
@@ -116,7 +167,8 @@ class LedMatrix extends StatelessWidget {
 class _MatrixPainter extends CustomPainter {
   final List<bool> pixels;
   final bool stale;
-  _MatrixPainter(this.pixels, this.stale);
+  final String shape;
+  _MatrixPainter(this.pixels, this.stale, this.shape);
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRRect(
@@ -129,11 +181,24 @@ class _MatrixPainter extends CustomPainter {
       ..color = stale ? const Color(0xffb79558) : const Color(0xffc9f96c);
     for (var y = 0; y < 16; y++) {
       for (var x = 0; x < 32; x++) {
-        canvas.drawCircle(
-          Offset((x + .5) * pitch, (y + .5) * pitch),
-          pitch * .32,
-          pixels[y * 32 + x] ? on : off,
-        );
+        final paint = pixels[y * 32 + x] ? on : off;
+        if (shape == 'circular') {
+          canvas.drawCircle(
+            Offset((x + .5) * pitch, (y + .5) * pitch),
+            pitch * .32,
+            paint,
+          );
+        } else {
+          canvas.drawRect(
+            Rect.fromLTWH(
+              (x + .18) * pitch,
+              (y + .18) * pitch,
+              pitch * .64,
+              pitch * .64,
+            ),
+            paint,
+          );
+        }
       }
     }
   }
