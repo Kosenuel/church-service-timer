@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "name": "Imported rehearsal",
+  "segments": [
+    {
+      "name": "Welcome",
+      "minutes": 1
+    },
+    {
+      "name": "Message",
+      "minutes": 2
+    },
+    {
+      "name": "Closing",
+      "minutes": 1
+    }
+  ],
+  "display": {
+    "zero": null,
+    "end": {
+      "text": "Hallelujah",
+      "bold": false,
+      "italic": false,
+      "effect": "scroll",
+      "align": "center",
+      "speed": 12,
+      "height": 1
+    },
+    "cues": [
+      {
+        "text": "WRAP UP",
+        "bold": false,
+        "italic": false,
+        "effect": "scroll",
+        "align": "center",
+        "speed": 12,
+        "height": 1
+      },
+      {
+        "text": "TIME'S UP",
+        "bold": false,
+        "italic": false,
+        "effect": "scroll",
+        "align": "center",
+        "speed": 12,
+        "height": 1
+      },
+      {
+        "text": "MIC LOW",
+        "bold": false,
+        "italic": false,
+        "effect": "scroll",
+        "align": "center",
+        "speed": 12,
+        "height": 1
+      },
+      {
+        "text": "NURSERY CALL",
+        "bold": false,
+        "italic": false,
+        "effect": "scroll",
+        "align": "center",
+        "speed": 12,
+        "height": 1
+      }
+    ]
+  }
+}
