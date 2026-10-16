@@ -8,6 +8,7 @@ import 'pixels.dart';
 import 'platform.dart';
 import 'native_fonts.dart';
 import 'warning_notifications.dart';
+import 'display_connection.dart';
 
 /// The simulator is an output adapter, not a fake Huidu protocol implementation.
 class Simulator {
@@ -53,6 +54,10 @@ class AppController extends ChangeNotifier {
   Future<bool> Function()? retry;
   Timer? _timer;
   AppController(this.port);
+  DisplayConnection get displayConnection => DisplayConnection.fromAdapter(
+    simulated: true, // The only implemented output adapter is Simulator.
+    connected: !state.session.disconnected,
+  );
   void _beginWrite() {
     busy = true;
     _writeDone = Completer<void>();

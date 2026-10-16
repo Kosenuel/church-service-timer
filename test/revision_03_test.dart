@@ -275,7 +275,7 @@ void main() {
   }
 
   testWidgets(
-    'Pause, resume, fixed adjustments and Add time require confirmation',
+    'Pause, resume, fixed adjustments and Custom require confirmation',
     (t) async {
       size(t);
       final c = AppController(FakePort()..at = epoch);
@@ -319,7 +319,7 @@ void main() {
         );
       }
       final before = c.state.session.remaining(c.now);
-      await t.tap(find.text('Add time'));
+      await t.tap(find.text('Custom'));
       await t.pumpAndSettle();
       expect(c.state.session.remaining(c.now), before);
       await t.tap(find.text('Confirm add time'));

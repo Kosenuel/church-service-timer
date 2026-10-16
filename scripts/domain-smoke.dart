@@ -84,8 +84,11 @@ void main() {
     () => transition(s, 'advance', at(3)),
     'No advance past final segment',
   );
-  s = transition(running(), 'adjust', at(900), value: 30);
-  check(s.formatted(at(910)) == '00:20', 'Add after zero runs');
+  s = transition(running(), 'adjust', at(900), value: 330);
+  check(
+    s.formatted(at(910)) == '00:20',
+    'Added allocation covers overtime then runs',
+  );
   s = transition(s, 'adjust', at(910), value: -120);
   check(s.remaining(at(910)) == 0, 'Subtract clamps zero');
   s = transition(s, 'adjust', at(910), value: 5999);

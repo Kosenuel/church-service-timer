@@ -346,17 +346,48 @@ class Session {
   }) : checkpoint = checkpoint ?? anchor,
        warningSeen = warningSeen ?? [];
   bool get active => phase == 'active';
-  int remaining(Stamp now) => phase == 'ready'
-      ? baseMs
-      : active && !paused
-      ? math.max(0, baseMs - now.since(anchor) * rate)
-      : baseMs;
+
+  /// Signed operator clock. Stage output continues to obey the shared At Zero
+  /// setting; a negative balance never changes the 32 × 16 countdown format.
+  int balance(Stamp now) =>
+      active && !paused ? baseMs - now.since(anchor) * rate : baseMs;
+  int remaining(Stamp now) => math.max(0, balance(now));
+  int overtime(Stamp now) => math.max(0, -balance(now));
+  int get allocatedMs => timeline == null
+      ? 0
+      : math.max(
+          0,
+          timeline!.segments[index].minutes * 60000 +
+              (run?.adjustmentsMs[index] ?? 0),
+        );
+  int get undoAllocatedMs => undo == null || timeline == null
+      ? 0
+      : math.max(
+          0,
+          timeline!.segments[undo!.index].minutes * 60000 +
+              (undo!.runCheckpoint == null
+                  ? 0
+                  : RunMetrics.fromJson(
+                      undo!.runCheckpoint!,
+                    ).adjustmentsMs[undo!.index]),
+        );
+  bool nearWarning(Stamp now) =>
+      active &&
+      remaining(now) > 0 &&
+      timeline!.display.warnings.any(
+        (w) =>
+            w.enabled &&
+            w.seconds > 0 &&
+            w.seconds * 1000 < warningCeiling &&
+            remaining(now) <= w.seconds * 1000,
+      );
   String formatted(Stamp now) => formatTime(remaining(now));
-  int undoRemaining(Stamp now) => undo == null
+  int undoBalance(Stamp now) => undo == null
       ? 0
       : undo!.paused
       ? undo!.remaining
-      : math.max(0, undo!.remaining - now.since(undo!.at) * rate);
+      : undo!.remaining - now.since(undo!.at) * rate;
+  int undoRemaining(Stamp now) => math.max(0, undoBalance(now));
   bool fastUndo(Stamp now) =>
       undo != null &&
       !undo!.modified &&
@@ -464,7 +495,7 @@ class Session {
       'Invalid saved service phase.',
     );
     require(
-      s.revision >= 0 && s.baseMs >= 0 && s.baseMs <= maxRemainingMs,
+      s.revision >= 0 && s.baseMs <= maxRemainingMs,
       'Invalid saved timing state.',
     );
     require(
@@ -597,21 +628,23 @@ Session transition(
     require(s.active, 'Start the first segment to use live controls.');
     switch (action) {
       case 'pause':
-        s.baseMs = s.remaining(now);
+        s.baseMs = s.balance(now);
         s.anchor = now;
         s.paused = !s.paused;
         s.undo = s.undo?.markModified();
       case 'adjust':
         final delta = value as int;
-        final result = s.remaining(now) + delta * 1000;
+        // Removal stops at zero. Added allocation first covers existing overtime.
+        final applied = delta < 0
+            ? math.max(-s.remaining(now), delta * 1000)
+            : delta * 1000;
+        final result = s.balance(now) + applied;
         require(
           result <= maxRemainingMs,
           'The maximum remaining time is 99:59.',
         );
-        if (s.run != null)
-          s.run!.adjustmentsMs[s.index] +=
-              (math.max(0, result) - s.remaining(now));
-        s.baseMs = math.max(0, result);
+        if (s.run != null) s.run!.adjustmentsMs[s.index] += applied;
+        s.baseMs = result;
         s.warningCeiling = math.max(s.warningCeiling, s.baseMs + 1);
         s.anchor = now;
         s.undo = s.undo?.markModified();
@@ -622,7 +655,7 @@ Session transition(
         );
         s.undo = UndoPoint(
           s.index,
-          s.remaining(now),
+          s.balance(now),
           s.paused,
           now,
           runCheckpoint: s.run?.toJson(),
@@ -656,7 +689,7 @@ Session transition(
         s.warningCeiling = s.undo!.warningCeiling;
         s.warningNotice = null;
         s.automaticCue = null;
-        s.baseMs = s.undoRemaining(now);
+        s.baseMs = s.undoBalance(now);
         s.index = s.undo!.index;
         s.paused = s.undo!.paused;
         s.anchor = now;
@@ -674,7 +707,7 @@ Session transition(
       case 'dismissWarning':
         s.warningNotice = null;
       case 'end':
-        s.baseMs = s.remaining(now);
+        s.baseMs = s.balance(now);
         s.anchor = now;
         s.phase = 'ended';
         if (s.run != null) {
@@ -707,7 +740,7 @@ Session recover(Session original, Stamp now) {
       (s.outage != null && now.since(s.outage!) >= recoveryLimitMs))
     s.held = true;
   if (!trust) {
-    s.baseMs = s.remaining(now);
+    s.baseMs = s.balance(now);
     s.anchor = now;
     s.uncertain = true;
   }
@@ -749,7 +782,7 @@ class AppState {
   );
   factory AppState.fromJson(Json j) {
     require(
-      {1, 2, 3, 4}.contains(j['version']),
+      {1, 2, 3, 4, 5}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -844,7 +877,7 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 4,
+    'version': 5,
     'templates': templates.map((t) => t.toJson()).toList(),
     'defaults': defaults.toJson(),
     'session': session.toJson(),

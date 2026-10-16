@@ -7,16 +7,16 @@ Offline Android prototype for church production timing and stage cues, with an e
 1. Install the prototype APK on Android 7.0 (API 24) or newer.
 2. In **Live**, select **Start service → Quick rehearsal**. Loading enters Ready without starting or changing the simulator.
 3. Choose live timing or a **Fast rehearsal** speed while Ready. Select **Start first segment** and accept the untested layouts for this session.
-4. Try Pause, Add time, ±2 minutes, Advance and Undo. Timer changes require confirmation. The last segment remains at zero until you act.
+4. Use the progress arc, **Remaining / Overtime** clock and **Allocated time** to track the current segment. Try Pause, Custom (add/remove minutes and seconds), ±2 minutes, Next segment and Undo. Every action requires confirmation; adjustments preview their effect while time continues. Stage output retains the shared At Zero setting until you act.
 5. Tap a Stage cue to edit it, then **Send** to persist its text and all formatting across every service. **New cue → Send** adds another item; **Delete cue** in an existing cue editor removes it after confirmation. Choose unchanged **Cuekeeper Matrix**, new **Cuekeeper Sq-Matrix**, or imported **Times New Roman**. The countdown continues underneath; **Show timer** dismisses the cue without changing pause state.
-6. Disconnect the simulator, wait, and reconnect. It receives the current output without replaying missed updates.
+6. Disconnect the simulator, wait, and reconnect. A banner appears above Live and the display badge changes from **Simulator** to **Disconnected**. The last simulated frame stays marked stale. Reconnection clears the banner and receives current output without replaying missed updates. **Display connected** is reserved for a future physical adapter.
 7. Follow the **Service timing overview**. The prominent red **End service** button shows the end screen and saves its **Report**, with clickable service records, a detailed segment breakdown, a Graph view, individual/bulk CSV/JSON export and confirmed clearing of one/all records.
 8. Open **Automatic warnings · this service** on Live to edit the loaded rules. Warnings use time remaining and overlay the simulator for eight seconds. Enable phone notifications, allow precise warnings where offered, and test notification sound. Android volume/Do Not Disturb still apply.
 9. In Display, select **Square LEDs** or **Circular LEDs** for all simulator previews. The choice survives restart without changing any glyph or output bit.
 
 10. Set each template’s end screen in **Templates → Edit**. Display holds the default for new templates and the **At Zero** setting shared by every service.
 
-See the [0.4 feature guide](docs/FEATURES-0.4.md) for behavior and migration, and [Display fonts](docs/DISPLAY-FONTS.md) for font import, rendering and LED shape settings.
+See the [0.5 Live controls guide](docs/FEATURES-0.5.md), the [0.4 feature guide](docs/FEATURES-0.4.md) for reports and template settings, and [Display fonts](docs/DISPLAY-FONTS.md) for font import, rendering and LED shape settings.
 
 The app keeps the screen awake while visible. Locking or closing it can suspend simulator rendering; reopening reconstructs time. Phone warnings use Android alarms independently, subject to permissions and battery restrictions. A 30-minute absence or uncertain reboot timing holds stage output for review. Continuous physical output remains outside this prototype.
 
@@ -43,6 +43,8 @@ The debug APK uses a development signing identity. Production signing and distri
 - `lib/warning_notifications.dart` and Android `WarningNotifications.kt`: monotonic phone warning deadlines and notification delivery.
 - `lib/main.dart`: responsive dashboard, template editor, import preview and display editor.
 - `lib/feature_views.dart`: timing overview, warnings, font/shape settings, rehearsal controls and shared At Zero settings.
+- `lib/live_views.dart`: accessible progress arc, responsive Live controls and live confirmation previews.
+- `lib/display_connection.dart`: truthful simulator/physical/disconnected status labels.
 - `lib/report_views.dart`: compact report list, detail pages, charts and bulk export.
 - `lib/platform.dart` and Android `MainActivity.kt`: suspend-aware clock, atomic local storage and document picker.
 - `test/`: deterministic domain, fault injection, rendering and UI checks.

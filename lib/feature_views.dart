@@ -232,24 +232,16 @@ extension FeatureViews on _HomeState {
   Future<void> confirmPause() async {
     final s = c.state.session;
     final paused = s.paused, revision = s.revision;
-    if (await confirm(
-      paused ? 'Resume countdown?' : 'Pause countdown?',
-      paused
-          ? 'Resume timing ${s.timeline!.segments[s.index].name} from its paused value.'
-          : 'Pause ${s.timeline!.segments[s.index].name} when you confirm. Any stage cue stays visible. Service elapsed time continues to count the pause.',
-      paused ? 'Confirm resume' : 'Confirm pause',
+    if (await confirmTimer(
+      revision: revision,
+      title:
+          '${paused ? 'Resume' : 'Pause'} ${s.timeline!.segments[s.index].name}?',
+      action: paused ? 'Confirm resume' : 'Confirm pause',
+      content: () => Text(
+        '${paused ? 'Continue from' : 'Hold the timer at'} ${operatorTimeDescription(c.state.session.balance(c.now))}.${paused ? '' : ' It stays paused until you resume.'}\n\nAny stage cue stays visible. Service elapsed time includes pauses.',
+      ),
     ))
       await c.act('pause', revision: revision);
-  }
-
-  Future<void> confirmAdjustment(int seconds) async {
-    final s = c.state.session, revision = c.state.session.revision;
-    if (await confirm(
-      seconds > 0 ? 'Add 2 minutes?' : 'Remove 2 minutes?',
-      '${seconds > 0 ? 'Add 2 minutes to' : 'Remove up to 2 minutes from'} ${s.timeline!.segments[s.index].name}. The change uses the remaining time when you confirm. The countdown cannot go below zero or above 99:59.',
-      seconds > 0 ? 'Confirm +2 min' : 'Confirm −2 min',
-    ))
-      await c.act('adjust', value: seconds, revision: revision);
   }
 
   Future<bool> confirmClearReports({ServiceReport? record}) async {

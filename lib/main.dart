@@ -8,9 +8,11 @@ import 'domain.dart';
 import 'pixels.dart';
 import 'platform.dart';
 import 'native_fonts.dart';
+import 'display_connection.dart';
 
 part 'feature_views.dart';
 part 'report_views.dart';
+part 'live_views.dart';
 
 const accent = Color(0xffc9f96c);
 const muted = Color(0xff9caaa5);
@@ -225,10 +227,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<void> advance() async {
     final s = c.state.session, revision = c.state.session.revision;
     final next = s.timeline!.segments[s.index + 1];
-    if (await confirm(
-      'Advance to ${next.name}?',
-      'Start ${next.minutes} minutes. The current timer continues until you confirm.${s.alert != null ? '\n\nThe alert “${s.alert!.text}” will remain visible.' : ''}',
-      'Start ${next.name}',
+    if (await confirmTimer(
+      revision: revision,
+      title: 'Start ${next.name}?',
+      action: 'Start ${next.name}',
+      content: () => Text(
+        'Finish ${s.timeline!.segments[s.index].name} and start ${next.name} · ${next.minutes} min. The current timer continues until you confirm.${c.state.session.alert != null ? '\n\nThe active stage cue will remain visible.' : ''}',
+      ),
     ))
       await c.act('advance', revision: revision);
   }
@@ -236,91 +241,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<void> undo() async {
     final s = c.state.session, revision = c.state.session.revision;
     if (s.undo == null) return;
-    if (!s.fastUndo(c.now) &&
-        !await confirm(
-          'Undo advance?',
-          'Restore ${s.timeline!.segments[s.undo!.index].name} at approximately ${formatTime(s.undoRemaining(c.now))}${s.undo!.paused ? ' (paused)' : ' (running)'}. The value is recalculated when you confirm.\n\nDiscard changes made to the current segment. The active alert remains.${s.uncertain ? '\nTiming is uncertain after recovery.' : ''}',
-          'Restore previous segment',
-        ))
-      return;
-    await c.act('undo', revision: revision);
-  }
-
-  Future<void> addTime() async {
-    final revision = c.state.session.revision;
-    final mins = TextEditingController(text: '0'),
-        secs = TextEditingController(text: '30');
-    String? error;
-    final route = DialogRoute<int>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, update) => AlertDialog(
-          title: const Text('Add time'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: mins,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Minutes'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: secs,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Seconds (0–59)',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (error != null)
-                Text(
-                  error!,
-                  style: const TextStyle(color: Colors.orangeAccent),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final m = int.tryParse(mins.text), s = int.tryParse(secs.text);
-                if (m == null ||
-                    s == null ||
-                    m < 0 ||
-                    s < 0 ||
-                    s > 59 ||
-                    m * 60 + s <= 0 ||
-                    m * 60 + s > 5999) {
-                  update(
-                    () => error =
-                        'Enter a positive duration; seconds must be 0–59 and total at most 99:59.',
-                  );
-                  return;
-                }
-                Navigator.pop(ctx, m * 60 + s);
-              },
-              child: const Text('Confirm add time'),
-            ),
-          ],
-        ),
+    if (await confirmTimer(
+      revision: revision,
+      title: 'Undo segment change?',
+      action: 'Restore previous segment',
+      content: () => Text(
+        'Return to ${s.timeline!.segments[s.undo!.index].name} with ${operatorTimeDescription(s.undoBalance(c.now))} of ${formatTime(s.undoAllocatedMs)} allocated. ${s.undo!.paused ? 'Its timer will remain paused.' : 'Its timer will resume, accounting for time since the segment change.'}\n\nChanges made to ${s.timeline!.segments[s.index].name} will be discarded. The active stage cue stays visible.${s.uncertain ? '\nTiming is uncertain after recovery.' : ''}',
       ),
-    );
-    final delta = await Navigator.of(context, rootNavigator: true).push(route);
-    await route.completed;
-    mins.dispose();
-    secs.dispose();
-    if (delta != null) await c.act('adjust', value: delta, revision: revision);
+    ))
+      await c.act('undo', revision: revision);
   }
 
   Future<TextLayout?> compose(
@@ -571,13 +500,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Widget live() {
     final s = c.state.session, t = s.timeline;
     final enabled = s.active && !c.busy && !c.corrupt;
-    final ms = s.remaining(c.now);
     final phase = s.phase == 'active'
-        ? (s.paused
-              ? 'Paused'
-              : ms == 0
-              ? 'Time complete'
-              : 'Live')
+        ? (s.paused ? 'Paused' : 'Live')
         : s.phase == 'ready'
         ? 'Ready'
         : s.phase == 'ended'
@@ -618,36 +542,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               style: const TextStyle(color: muted),
             ),
             const SizedBox(height: 6),
-            Center(
-              child: FittedBox(
-                child: Text(
-                  s.formatted(c.now),
-                  style: TextStyle(
-                    fontSize: 86,
-                    fontWeight: FontWeight.w300,
-                    height: 1.3,
-                    letterSpacing: -3,
-                    color: ms == 0 && s.active
-                        ? Colors.orangeAccent
-                        : Colors.white,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ),
-            ),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(5),
-              child: LinearProgressIndicator(
-                value: (ms / (t.segments[s.index].minutes * 60000)).clamp(
-                  0.0,
-                  1.0,
-                ),
-                minHeight: 4,
-                color: accent,
-                backgroundColor: const Color(0xff2c3a31),
-              ),
-            ),
-            const SizedBox(height: 20),
+            SegmentGauge(session: s, now: c.now),
           ] else ...[
             const SizedBox(height: 18),
             const Text(
@@ -708,64 +603,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ),
           ],
           if (s.active) ...[
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                button(
-                  s.paused ? 'Resume' : 'Pause',
-                  s.paused ? Icons.play_arrow : Icons.pause,
-                  enabled ? confirmPause : null,
-                  primary: true,
-                ),
-                button('Add time', Icons.add, enabled ? addTime : null),
-                button(
-                  '−2 min',
-                  Icons.remove,
-                  enabled ? () => confirmAdjustment(-120) : null,
-                ),
-                button(
-                  '+2 min',
-                  Icons.add,
-                  enabled ? () => confirmAdjustment(120) : null,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                button(
-                  'Advance…',
-                  Icons.skip_next,
-                  enabled && s.index + 1 < t!.segments.length ? advance : null,
-                ),
-                button(
-                  'Undo advance',
-                  Icons.undo,
-                  enabled && s.undo != null ? undo : null,
-                ),
-              ],
-            ),
-            if (s.undo != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Undo restores ${t!.segments[s.undo!.index].name}${s.fastUndo(c.now) ? ' · one tap available' : ' · confirmation required'}',
-                  style: const TextStyle(color: muted, fontSize: 12),
-                ),
-              ),
+            liveControls(enabled),
             const SizedBox(height: 16),
             FilledButton.icon(
               key: const ValueKey('end-service'),
               onPressed: enabled
                   ? () async {
                       final rev = s.revision;
-                      if (await confirm(
-                        'End this service?',
-                        'Stop timing, clear the active cue, and show “${t!.display.end.text}”.',
-                        'End service',
+                      if (await confirmTimer(
+                        revision: rev,
+                        title: 'End ${t!.name}?',
+                        action: 'End service',
+                        content: () => Text(
+                          'Finish this service, save its report, clear the active cue and show “${t.display.end.text}”.',
+                        ),
                       ))
                         await c.act('end', revision: rev);
                     }
@@ -790,13 +641,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
             children: [
-              Expanded(child: label('Stage display')),
-              const Text(
-                '32 × 16',
-                style: TextStyle(color: muted, fontSize: 12),
-              ),
+              label('Display preview'),
+              DisplayConnectionBadge(connection: c.displayConnection),
             ],
           ),
           const SizedBox(height: 14),
@@ -804,27 +656,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             pixels: c.simulator.pixels,
             stale: s.held || s.disconnected,
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Icon(
-                s.held || s.disconnected ? Icons.link_off : Icons.monitor,
-                color: s.held || s.disconnected ? Colors.orangeAccent : accent,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  s.disconnected
-                      ? 'Simulator disconnected'
-                      : s.held
-                      ? 'Simulator output held'
-                      : 'Simulator connected',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
+          const SizedBox(height: 12),
+          Text(
+            '32 × 16 · ${c.state.pixelShape == 'square' ? 'Square' : 'Circular'} LEDs',
+            style: const TextStyle(color: muted, fontSize: 12),
           ),
+          if (s.held || s.disconnected) ...[
+            const SizedBox(height: 8),
+            Text(
+              s.disconnected
+                  ? 'Output unavailable · showing the last simulated frame'
+                  : 'Output held · review before restoring',
+              style: const TextStyle(color: Color(0xffffb4ab)),
+            ),
+          ],
           const SizedBox(height: 8),
           Text(
             'Intended: ${s.intended(c.now)?.text ?? 'No new output'}',
@@ -836,7 +681,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Preview only · no physical sign connected\nPhysical delivery and readability are unverified.',
+            'Simulator only · physical delivery is not enabled.',
             style: TextStyle(color: muted, fontSize: 12),
           ),
           const SizedBox(height: 12),
@@ -922,6 +767,47 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       builder: (context, constraints) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (c.displayConnection == DisplayConnection.disconnected &&
+              (s.active || s.phase == 'ended'))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Container(
+                key: const ValueKey('display-disconnected-banner'),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xff3b2728),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.wifi_off, color: Color(0xffffb4ab)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Display disconnected',
+                            style: TextStyle(
+                              color: Color(0xffffb4ab),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Simulator output is paused. ${s.active
+                                ? s.paused
+                                      ? 'The timer is paused.'
+                                      : 'Timing continues.'
+                                : 'The service has ended.'}',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (s.held && (s.active || s.phase == 'ended'))
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
@@ -1312,9 +1198,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           children: [
             Icon(Icons.graphic_eq, color: accent),
             SizedBox(width: 10),
-            Text(
-              'cuekeeper',
-              style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: -.5),
+            Flexible(
+              child: Text(
+                'cuekeeper',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -.5,
+                ),
+              ),
             ),
           ],
         ),

@@ -17,7 +17,7 @@ The native bridge supplies Android `SystemClock.elapsedRealtime()` with `BOOT_CO
 
 Version 0.3 also requests notification permission and, optionally, precise-alarm access. These prompts are initiated by the operator from Live. A private, non-exported receiver posts scheduled warnings. No boot receiver or foreground sign-output service is installed.
 
-## Installation checks (including 0.4)
+## Installation checks (including 0.5)
 
 1. Upgrade without clearing app data. Confirm existing reports/cues survive and the original Matrix appearance is unchanged apart from the chosen LED cell shape.
 2. Edit a Live cue (including font/style/speed), Send, switch service and restart. Confirm persistence. Cancel a new cue and confirm nothing is added.
@@ -31,6 +31,8 @@ Version 0.3 also requests notification permission and, optionally, precise-alarm
 9. Edit one template’s end screen and confirm another template remains unchanged. Change At Zero in Display while a service is at zero and verify it applies immediately unless a cue/warning or output hold has priority. Restart and verify both settings persist.
 
 These runtime checks are not replaced by unit tests or APK compilation. No physical sign is required for them; real controller validation is separate.
+
+For 0.5, also check the arc and allocation after ±2 minutes and Custom removal, warning colours at configured thresholds, and the depleted arc with red overtime. Pause/restart during overtime and verify it survives; adding two minutes at +00:23 should yield 01:37. Next segment must name its destination, and Undo must always confirm the restored state. Disconnect/reconnect the simulator and verify the top banner and preview badge. Use enlarged Android font settings to check the two-row controls and scrollable dialogs. Confirm that At Zero output and the original Matrix font remain unchanged.
 
 On this Windows workspace, the reusable Android environment is at `C:\Users\x1\Documents\Codex\android-toolchain\Activate.ps1`. The Flutter SDK installation and build verification details are recorded in the delivered verification report. Machine-specific SDK locations belong in ignored `android/local.properties`, not source control.
 

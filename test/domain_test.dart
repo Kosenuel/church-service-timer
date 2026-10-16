@@ -121,8 +121,8 @@ void main() {
         );
       },
     );
-    test('Adding after expiry resumes unless explicitly paused', () {
-      var s = transition(running(), 'adjust', after(900), value: 30);
+    test('Added allocation covers overtime then resumes unless paused', () {
+      var s = transition(running(), 'adjust', after(900), value: 330);
       expect(s.formatted(after(910)), '00:20');
       s = transition(s, 'pause', after(910));
       s = transition(s, 'adjust', after(920), value: 30);
