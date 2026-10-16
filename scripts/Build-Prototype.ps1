@@ -1,5 +1,7 @@
 param(
-    [string]$Toolchain = 'C:\Users\x1\Documents\Codex\android-toolchain'
+    [string]$Toolchain = 'C:\Users\x1\Documents\Codex\android-toolchain',
+    [switch]$BuildOnly,
+    [switch]$PushAfterBuild
 )
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
@@ -35,9 +37,11 @@ try {
     $flutterPath = $flutterSdk.Replace('\', '/')
     "sdk.dir=$sdkPath`nflutter.sdk=$flutterPath`n" | Set-Content -LiteralPath 'android\local.properties' -Encoding ASCII
     Invoke-Flutter -ToolArgs @('--version')
-    Invoke-Flutter -ToolArgs @('pub', 'get')
-    Invoke-Flutter -ToolArgs @('analyze')
-    Invoke-Flutter -ToolArgs @('test', '--update-goldens')
+    if (-not $BuildOnly) {
+        Invoke-Flutter -ToolArgs @('pub', 'get')
+        Invoke-Flutter -ToolArgs @('analyze')
+        Invoke-Flutter -ToolArgs @('test', '--update-goldens')
+    } else { Write-Host 'Build-only mode: existing analysis/test evidence must be checked separately.' }
     Invoke-Flutter -ToolArgs @('build', 'apk', '--debug')
     $apk = Join-Path $repo 'build\app\outputs\flutter-apk\app-debug.apk'
     if (-not (Test-Path -LiteralPath $apk)) { throw 'Build did not produce the expected APK.' }
@@ -48,13 +52,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed.' }
     $result = [ordered]@{
         status='built'; apk=$target; sha256=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
-        completedAt=(Get-Date).ToString('o'); flutter='3.47.7'; tests='flutter test --update-goldens passed'
+        completedAt=(Get-Date).ToString('o'); flutter='3.47.7'; tests=$(if ($BuildOnly) { 'Not rerun in this build-only invocation' } else { 'flutter test --update-goldens passed' })
         physicalHardware='Not tested; simulator only'; nativeRuntime='Requires installation test on Android'
     }
     $result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $deliverables 'prototype-build-result.json') -Encoding UTF8
     Write-Host "APK ready: $target"
-    Write-Host 'Return to Codex so the rendered UI, build result and source commit can be reviewed before pushing.'
+    Write-Host 'Return to Codex for APK verification and the final build report.'
 } finally {
     Pop-Location
     Stop-Transcript | Out-Null
 }
+if ($PushAfterBuild) { & (Join-Path $PSScriptRoot 'Push-With-Wsl.ps1') }
