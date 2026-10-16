@@ -17,13 +17,15 @@ Offline Android prototype for church production timing and stage cues, with an e
 10. Open a compact row in **Templates** to see its ordered segments and end screen. Use **Edit template**, **Duplicate**, CSV/JSON exports or confirmed **Delete template** on that detail page. **New** creates a template; **Import CSV / JSON** stays below the list. **List options** can group Services and Rehearsals. Change a template's group in the editor; this does not change timer speed.
 11. Set each template’s end screen and automatic warning rules in **Templates → select a template → Edit template**. Settings → Display settings holds clearly labelled defaults for new templates and the **At Zero** setting shared by every service.
 
-See the [0.8 compact lists and banner guide](docs/FEATURES-0.8.md), [0.7 Settings, themes and backup guide](docs/FEATURES-0.7.md), [0.6 Templates and alignment guide](docs/FEATURES-0.6.md), [0.5 Live controls guide](docs/FEATURES-0.5.md), the [0.4 feature guide](docs/FEATURES-0.4.md) for reports and template settings, and [Display fonts](docs/DISPLAY-FONTS.md) for font import, rendering and LED shape settings.
+See the [0.9 Feedback Center guide](docs/FEATURES-0.9.md), [0.8 compact lists and banner guide](docs/FEATURES-0.8.md), [0.7 Settings, themes and backup guide](docs/FEATURES-0.7.md), [0.6 Templates and alignment guide](docs/FEATURES-0.6.md), [0.5 Live controls guide](docs/FEATURES-0.5.md), the [0.4 feature guide](docs/FEATURES-0.4.md) for reports and template settings, and [Display fonts](docs/DISPLAY-FONTS.md) for font import, rendering and LED shape settings.
 
 The app keeps the screen awake while visible by default; turn this off in Settings to use normal automatic screen sleep. Locking or closing it can suspend simulator rendering; reopening reconstructs time. Phone warnings use Android alarms independently, subject to permissions and battery restrictions. A 30-minute absence or uncertain reboot timing holds stage output for review. Continuous physical output remains outside this prototype.
 
 ## Personalize and back up
 
 Open **Settings → Church profile** to enter your church name and choose a rectangular 3:1 banner (recommended 1200 × 400 px, up to 5 MB), or **Appearance** to preview five themes. Save to keep a theme; Cancel/back discards the preview. **Backup & restore** exports saved templates, cues, reports and preferences, including the reduced banner, and reviews a replacement before restoring. Backups exclude active clocks and imported fonts. **About** shows creator I-Proton, the installed version, licenses and simulator status. New service reports retain the church name captured when the service was loaded.
+
+**Settings → Feedback Center** collects a title, message and contact, then opens an email draft addressed to **kosenuel@gmail.com**, including the installed app version. Review and tap Send in the phone's email app. **Copy feedback** is available if no email app can open. The form retains its text while this page remains open; it is not saved across closing the page or restarting the app. Feedback delivery depends on the email app and its connection.
 
 ## Build and test
 
@@ -43,6 +45,7 @@ The debug APK uses a development signing identity. Production signing and distri
 - `lib/app_settings.dart`: church preferences, state migration helpers and portable backup validation.
 - `lib/app_theme.dart`: five interface palettes, semantic colors and church/clock brand mark.
 - `lib/settings_views.dart`: Settings hub, profile, appearance preview, backup and About pages.
+- `lib/feedback_page.dart`, `feedback_message.dart` and Android `FeedbackEmail.kt`: validated feedback form, fixed-recipient email composition and copy fallback.
 - `lib/domain.dart`: pure service transitions, timing, snapshots, recovery and template schema.
 - `lib/controller.dart`: atomic save-before-publication, failure/retry behavior and simulator adapter.
 - `lib/service_features.dart`: warning rules, run metrics and reports.

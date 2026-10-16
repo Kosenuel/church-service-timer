@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'domain.dart';
 
 abstract class DevicePort {
+  Future<bool> composeFeedback(String subject, String body) async => false;
   Future<String?> pickChurchBanner() async => null;
   Future<String> installedVersion() async => appVersion;
   Future<void> setKeepScreenAwake(bool enabled) async {}
@@ -30,6 +31,13 @@ abstract class DevicePort {
 
 class AndroidPort extends DevicePort {
   static const channel = MethodChannel('church.timer/device');
+  @override
+  Future<bool> composeFeedback(String subject, String body) async =>
+      await channel.invokeMethod<bool>('composeFeedback', {
+        'subject': subject,
+        'body': body,
+      }) ??
+      false;
   @override
   Future<String?> pickChurchBanner() =>
       channel.invokeMethod<String>('pickChurchBanner');

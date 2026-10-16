@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.os.SystemClock
 import android.provider.OpenableColumns
 import android.provider.Settings
@@ -36,6 +37,20 @@ class MainActivity : FlutterActivity() {
         WarningNotifications.ensureChannel(this)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "church.timer/device").setMethodCallHandler { call, result ->
             when (call.method) {
+                "composeFeedback" -> {
+                    try {
+                        val subject = call.argument<String>("subject") ?: ""
+                        val body = call.argument<String>("body") ?: ""
+                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse(FeedbackEmail.uri(subject, body)))
+                        intent.putExtra(Intent.EXTRA_EMAIL, arrayOf(FeedbackEmail.RECIPIENT))
+                        intent.putExtra(Intent.EXTRA_SUBJECT, subject)
+                        intent.putExtra(Intent.EXTRA_TEXT, body)
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (_: ActivityNotFoundException) {
+                        result.success(false)
+                    } catch (e: Exception) { result.error("EMAIL", e.message, null) }
+                }
                 "appVersion" -> {
                     val info = packageManager.getPackageInfo(packageName, 0)
                     val code = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()

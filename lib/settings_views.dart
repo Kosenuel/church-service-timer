@@ -160,6 +160,16 @@ extension SettingsViews on _HomeState {
             () => openSettingsDetail('Backup & restore', backupSettings),
           ),
           entry(
+            Icons.feedback_outlined,
+            'Feedback Center',
+            'Share a complaint or suggestion by email',
+            () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => FeedbackCenterPage(controller: c),
+              ),
+            ),
+          ),
+          entry(
             Icons.info_outline,
             'About',
             '$appName · ${c.appVersion}',

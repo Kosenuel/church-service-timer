@@ -5,6 +5,7 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 ## Implemented
 
 - Church branding, five theme presets with cancelable previews, configurable screen awake, grouped Settings, About with author/version, and validated setup backup/restore. Reports snapshot church identity.
+- Feedback Center collects title, message and contact, includes the installed version, and opens a draft to kosenuel@gmail.com in the phone's email app. Copy fallback and confirmed draft clearing are available. The operator reviews and sends from the email app; there is no background delivery or receipt tracking.
 
 - Separate Live, Templates, Settings and Reports views; responsive phone/tablet layouts.
 - Independent loaded-service snapshot; template changes/deletion do not change the run. Live warning edits explicitly update current rules and the matching saved template. Global At Zero edits explicitly update every template and loaded/prior service snapshot.
@@ -30,7 +31,7 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 - After-service reports with segment actuals, pauses, adjustments, compact list/detail pages, filtered comparison charts, individual/bulk CSV/JSON export and confirmed deletion of one/all local records.
 - Fast rehearsal at 5×, 10×, 30× or 60×, labelled separately from live timing.
 
-See `FEATURES-0.7.md` for current changes and `FEATURES-0.4.md` for reports and migration, and `FEATURES-0.3.md` for font/notification behavior. `FEATURES-0.2.md` is historical.
+See `FEATURES-0.9.md` for Feedback Center, `FEATURES-0.8.md` for compact lists and banners, `FEATURES-0.7.md` for themes and backup, `FEATURES-0.4.md` for reports and migration, and `FEATURES-0.3.md` for font/notification behavior. `FEATURES-0.2.md` is historical.
 
 ## Explicitly deferred until hardware is available
 

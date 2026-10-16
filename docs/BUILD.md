@@ -40,6 +40,8 @@ For 0.7, also follow the device checklist in `FEATURES-0.7.md`: new launcher/spl
 
 For 0.8, follow the banner, crop, backup and template-warning checks in `FEATURES-0.8.md`. Reports and Settings use compact lists. Individual report deletion is in the detail page; Display no longer has an Editing selector. A new schema 2 backup includes the reduced church banner and older schema 1 backups remain importable.
 
+For 0.9, open Settings → Feedback Center, enter a title, message and contact, and open the email app. Check the recipient, subject, line breaks, accented text and version in the draft; return without sending and confirm the form text remains. Try Copy feedback and cancel/confirm Clear draft. Also test on a device with no mail handler and with enlarged text. Opening a composer is not proof of delivery. See `FEATURES-0.9.md` for limits and behavior.
+
 On this Windows workspace, the reusable Android environment is at `C:\Users\x1\Documents\Codex\android-toolchain\Activate.ps1`. The Flutter SDK installation and build verification details are recorded in the delivered verification report. Machine-specific SDK locations belong in ignored `android/local.properties`, not source control.
 
 The Windows helper `scripts/Build-Prototype.ps1` runs dependency resolution, analysis, tests, APK build and signature verification, then copies both `Church-Service-Timer-<version>.apk` and `Church-Service-Timer-prototype.apk` to the repository's parent output directory. It also writes `prototype-build.log` and a result JSON file. Use `-Toolchain` to select a different SDK directory.
