@@ -245,6 +245,13 @@ class ServiceReport {
   }
   bool get rehearsal => rate > 1;
   int get plannedMs => rows.fold(0, (n, row) => n + row.plannedMs);
+  int get pausedMs => rows.fold(0, (n, row) => n + row.pausedMs);
+  int get adjustmentMs => rows.fold(0, (n, row) => n + row.adjustmentMs);
+  bool get comparable =>
+      !uncertain &&
+      totalMs != null &&
+      rows.isNotEmpty &&
+      rows.every((r) => r.actualMs != null);
   factory ServiceReport.fromJson(Json j) => ServiceReport(
     j['id'],
     j['name'],
@@ -276,10 +283,95 @@ String exportReportJson(ServiceReport r) =>
       ...r.toJson(),
     });
 
+class ReportSummary {
+  final List<ServiceReport> records;
+  ReportSummary(Iterable<ServiceReport> records)
+    : records = List.unmodifiable(records);
+  Iterable<ServiceReport> get comparable => records.where((r) => r.comparable);
+  int get timedCount => records.where((r) => r.totalMs != null).length;
+  int get recordedMs => records.fold(0, (n, r) => n + (r.totalMs ?? 0));
+  int? get averageVarianceMs => comparable.isEmpty
+      ? null
+      : (comparable.fold<int>(0, (n, r) => n + r.totalMs! - r.plannedMs) /
+                comparable.length)
+            .round();
+  int get ahead =>
+      comparable.where((r) => r.totalMs! - r.plannedMs <= -1000).length;
+  int get behind =>
+      comparable.where((r) => r.totalMs! - r.plannedMs >= 1000).length;
+  int get onTime => comparable.length - ahead - behind;
+}
+
+String exportReportsJson(List<ServiceReport> records) =>
+    const JsonEncoder.withIndent('  ').convert({
+      'type': 'cuekeeper-service-reports',
+      'schemaVersion': 1,
+      'recordCount': records.length,
+      'reports': records.map((r) => r.toJson()).toList(),
+    });
+
+String reportCsvText(String s) {
+  final safe = RegExp(r'^\s*[=+@\-]').hasMatch(s) ? "'$s" : s;
+  return '"${safe.replaceAll('"', '""')}"';
+}
+
+String exportReportsCsv(List<ServiceReport> records) {
+  String seconds(int? n) => n == null ? '' : (n / 1000).toStringAsFixed(3);
+  String utc(int? n) => n == null
+      ? ''
+      : DateTime.fromMillisecondsSinceEpoch(n, isUtc: true).toIso8601String();
+  final lines = <String>[
+    'Service ID,Service,Mode,Speed,Started UTC,Ended UTC,Timing uncertain,Service planned seconds,Service actual seconds,Segment number,Segment,Planned seconds,Actual seconds,Variance seconds,Paused seconds,Adjustment seconds,Status',
+  ];
+  for (final r in records) {
+    final metadata = [
+      reportCsvText(r.id),
+      reportCsvText(r.name),
+      r.rehearsal ? 'Rehearsal' : 'Live',
+      '${r.rate}',
+      utc(r.startedWall),
+      utc(r.endedWall),
+      '${r.uncertain}',
+      seconds(r.plannedMs),
+      seconds(r.totalMs),
+    ];
+    if (r.rows.isEmpty)
+      lines.add(
+        [
+          ...metadata,
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          'No segment records',
+        ].join(','),
+      );
+    for (var i = 0; i < r.rows.length; i++) {
+      final row = r.rows[i];
+      lines.add(
+        [
+          ...metadata,
+          '${i + 1}',
+          reportCsvText(row.name),
+          seconds(row.plannedMs),
+          seconds(row.actualMs),
+          seconds(row.actualMs == null ? null : row.actualMs! - row.plannedMs),
+          seconds(row.pausedMs),
+          seconds(row.adjustmentMs),
+          row.actualMs == null ? 'Not recorded' : 'Recorded',
+        ].join(','),
+      );
+    }
+  }
+  return '${lines.join('\r\n')}\r\n';
+}
+
 String exportReportCsv(ServiceReport r) {
   String textCell(String s) {
-    final safe = RegExp(r'^[=+@\-]').hasMatch(s) ? "'$s" : s;
-    return '"${safe.replaceAll('"', '""')}"';
+    return reportCsvText(s);
   }
 
   String seconds(int? n) => n == null ? '' : (n / 1000).toStringAsFixed(3);

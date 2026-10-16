@@ -10,6 +10,7 @@ import 'platform.dart';
 import 'native_fonts.dart';
 
 part 'feature_views.dart';
+part 'report_views.dart';
 
 const accent = Color(0xffc9f96c);
 const muted = Color(0xff9caaa5);
@@ -92,6 +93,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   AppController get c => widget.controller;
   int page = 0;
   String settingsOwner = 'defaults';
+  String reportFilter = 'all', reportView = 'list';
+  void selectReportFilter(String value) => setState(() => reportFilter = value);
+  void selectReportView(String value) => setState(() => reportView = value);
   void navigatePage(int value) => setState(() => page = value);
   @override
   void initState() {
@@ -322,11 +326,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<TextLayout?> compose(
     TextLayout initial,
     String title,
-    String button,
-  ) => showDialog<TextLayout>(
+    String button, {
+    Future<bool> Function()? onDelete,
+  }) => showDialog<TextLayout>(
     context: context,
-    builder: (_) =>
-        TextComposer(initial: initial, title: title, button: button),
+    builder: (_) => TextComposer(
+      initial: initial,
+      title: title,
+      button: button,
+      onDelete: onDelete,
+    ),
   );
   Future<void> sendCue(TextLayout layout, {int? cueIndex}) async {
     final revision = c.state.session.revision;
@@ -334,6 +343,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       layout,
       cueIndex == null ? 'New stage cue' : 'Edit stage cue',
       'Send',
+      onDelete: cueIndex == null
+          ? null
+          : () async {
+              if (!await confirm(
+                'Delete this saved cue?',
+                'Remove “${layout.text}” from the cues shared across all services? A cue already showing on stage stays visible until replaced or dismissed.',
+                'Delete cue',
+              ))
+                return false;
+              final ok = await c.deleteStageCue(cueIndex, layout);
+              if (!ok && mounted)
+                await showError(c.error ?? 'The cue could not be deleted.');
+              return ok;
+            },
     );
     if (result != null) {
       await c.sendAndSaveCue(result, index: cueIndex, revision: revision);
@@ -348,6 +371,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       MaterialPageRoute(
         builder: (_) => TemplateEditor(
           initial: initial,
+          defaultEnd: c.state.defaults.end,
           existingNames: c.state.templates
               .asMap()
               .entries
@@ -967,8 +991,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             const SizedBox(height: 16),
           ],
           if (s.timeline != null && (s.active || s.phase == 'ready')) ...[
-            const SizedBox(height: 16),
             liveWarnings(),
+            const SizedBox(height: 16),
           ],
           if (s.warningNotice != null) ...[
             panel(
@@ -1166,9 +1190,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Display settings affect future services. The current snapshot stays unchanged.',
+          'At Zero is shared by every service. End screens and warning defaults apply when a service is next loaded.',
           style: TextStyle(color: muted),
         ),
+        const SizedBox(height: 20),
+        sharedZeroSettings(),
         const SizedBox(height: 20),
         DropdownButtonFormField<String>(
           isExpanded: true,
@@ -1196,65 +1222,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              label('At zero'),
-              const SizedBox(height: 8),
-              Text(
-                d.zero?.text ?? '00:00',
-                style: const TextStyle(fontSize: 24),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  button(
-                    'Use 00:00',
-                    Icons.timer_outlined,
-                    c.busy
-                        ? null
-                        : () => save(
-                            DisplaySettings(
-                              end: d.end,
-                              cues: d.cues,
-                              warnings: d.warnings,
-                            ),
-                          ),
-                  ),
-                  button(
-                    'Custom text',
-                    Icons.edit_outlined,
-                    c.busy
-                        ? null
-                        : () async {
-                            final l = await compose(
-                              d.zero ?? const TextLayout("TIME'S UP"),
-                              'Zero-time screen',
-                              'Save zero screen',
-                            );
-                            if (l != null)
-                              await save(
-                                DisplaySettings(
-                                  zero: l,
-                                  end: d.end,
-                                  cues: d.cues,
-                                  warnings: d.warnings,
-                                ),
-                              );
-                          },
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
               label('When the service ends'),
               const SizedBox(height: 8),
               Text(d.end.text, style: const TextStyle(fontSize: 24)),
+              const SizedBox(height: 8),
+              Text(styleSummary(d.end), style: const TextStyle(color: muted)),
+              const SizedBox(height: 8),
+              Text(
+                index < 0
+                    ? 'Default for new templates. Existing templates keep their own end screen.'
+                    : 'Saved for this template. A loaded service keeps the end screen it started with.',
+                style: const TextStyle(color: muted),
+              ),
               const SizedBox(height: 12),
               button(
                 'Edit end screen',
@@ -1450,11 +1429,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 class TextComposer extends StatefulWidget {
   final TextLayout initial;
   final String title, button;
+  final Future<bool> Function()? onDelete;
   const TextComposer({
     super.key,
     required this.initial,
     required this.title,
     required this.button,
+    this.onDelete,
   });
   @override
   State<TextComposer> createState() => _TextComposerState();
@@ -1463,6 +1444,7 @@ class TextComposer extends StatefulWidget {
 class _TextComposerState extends State<TextComposer> {
   late TextEditingController text;
   late bool bold, italic;
+  bool deleting = false;
   late String effect, align, font;
   String? fontRequest, fontError;
   late int height, speed;
@@ -1669,12 +1651,29 @@ class _TextComposerState extends State<TextComposer> {
         ),
       ),
       actions: [
+        if (widget.onDelete != null)
+          TextButton.icon(
+            onPressed: deleting
+                ? null
+                : () async {
+                    setState(() => deleting = true);
+                    try {
+                      final removed = await widget.onDelete!();
+                      if (removed && context.mounted) Navigator.pop(context);
+                    } finally {
+                      if (mounted) setState(() => deleting = false);
+                    }
+                  },
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Delete cue'),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+          ),
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: deleting ? null : () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: error == null
+          onPressed: error == null && !deleting
               ? () => Navigator.pop(context, layout)
               : null,
           child: Text(widget.button),
@@ -1687,10 +1686,12 @@ class _TextComposerState extends State<TextComposer> {
 class TemplateEditor extends StatefulWidget {
   final Timeline initial;
   final Set<String> existingNames;
+  final TextLayout defaultEnd;
   const TemplateEditor({
     super.key,
     required this.initial,
     required this.existingNames,
+    this.defaultEnd = defaultEndScreen,
   });
   @override
   State<TemplateEditor> createState() => _TemplateEditorState();
@@ -1699,12 +1700,14 @@ class TemplateEditor extends StatefulWidget {
 class _TemplateEditorState extends State<TemplateEditor> {
   late TextEditingController name;
   late List<Segment> segments;
+  late TextLayout endScreen;
   String? error;
   @override
   void initState() {
     super.initState();
     name = TextEditingController(text: widget.initial.name);
     segments = [...widget.initial.segments];
+    endScreen = widget.initial.display.end;
   }
 
   @override
@@ -1836,6 +1839,57 @@ class _TemplateEditorState extends State<TemplateEditor> {
             label: const Text('Add segment'),
           ),
           const SizedBox(height: 24),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'End screen · this template',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  LedMatrix(pixels: renderPixels(endScreen, 0)),
+                  const SizedBox(height: 12),
+                  Text(styleSummary(endScreen)),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Edit template end screen'),
+                        onPressed: () async {
+                          final next = await showDialog<TextLayout>(
+                            context: context,
+                            builder: (_) => TextComposer(
+                              initial: endScreen,
+                              title: 'Template end screen',
+                              button: 'Use end screen',
+                            ),
+                          );
+                          if (next != null && mounted)
+                            setState(() => endScreen = next);
+                        },
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            setState(() => endScreen = widget.defaultEnd),
+                        child: const Text('Use current default'),
+                      ),
+                    ],
+                  ),
+                  const Text(
+                    'Saved with this template. At Zero is shared across all services and can be changed in Display.',
+                    style: TextStyle(color: muted),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
           if (error != null)
             Text(error!, style: const TextStyle(color: Colors.orangeAccent)),
           FilledButton.icon(
@@ -1845,7 +1899,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
                   Timeline(
                     name.text,
                     segments,
-                    widget.initial.display,
+                    widget.initial.display.withEnd(endScreen),
                   ).toJson(),
                 );
                 require(
@@ -1863,7 +1917,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Cue and screen styles can be changed in Display after saving. Changes never alter a loaded service.',
+            'Template edits apply the next time you load this service. End-screen defaults for new templates are available in Display.',
             style: TextStyle(color: muted),
           ),
         ],

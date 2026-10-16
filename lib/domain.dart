@@ -133,6 +133,13 @@ class TextLayout {
   };
 }
 
+const defaultEndScreen = TextLayout(
+  'Hallelujah',
+  bold: true,
+  italic: true,
+  height: 2,
+);
+
 class DisplaySettings {
   final TextLayout? zero;
   final TextLayout end;
@@ -140,7 +147,7 @@ class DisplaySettings {
   final List<WarningRule> warnings;
   DisplaySettings({
     this.zero,
-    this.end = const TextLayout('Hallelujah'),
+    this.end = defaultEndScreen,
     List<TextLayout>? cues,
     List<WarningRule>? warnings,
   }) : warnings = List.unmodifiable(warnings ?? defaultWarnings),
@@ -176,6 +183,10 @@ class DisplaySettings {
       DisplaySettings(zero: zero, end: end, cues: value, warnings: warnings);
   DisplaySettings withWarnings(List<WarningRule> value) =>
       DisplaySettings(zero: zero, end: end, cues: cues, warnings: value);
+  DisplaySettings withZero(TextLayout? value) =>
+      DisplaySettings(zero: value, end: end, cues: cues, warnings: warnings);
+  DisplaySettings withEnd(TextLayout value) =>
+      DisplaySettings(zero: zero, end: value, cues: cues, warnings: warnings);
   Json toJson() => {
     'zero': zero?.toJson(),
     'end': end.toJson(),
@@ -738,7 +749,7 @@ class AppState {
   );
   factory AppState.fromJson(Json j) {
     require(
-      {1, 2, 3}.contains(j['version']),
+      {1, 2, 3, 4}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -778,7 +789,7 @@ class AppState {
         ),
       ]);
     }
-    if (j['version'] != 3) {
+    if ((j['version'] as int) < 3) {
       DisplaySettings upgrade(DisplaySettings d) {
         final oldSuggested =
             d.warnings.length == 3 &&
@@ -818,10 +829,22 @@ class AppState {
 
       upgradeSession(a.session);
     }
+    if ((j['version'] as int) < 4) {
+      DisplaySettings upgradeEnd(DisplaySettings d) =>
+          jsonEncode(d.end.toJson()) ==
+              jsonEncode(const TextLayout('Hallelujah').toJson())
+          ? d.withEnd(defaultEndScreen)
+          : d;
+      a.defaults = upgradeEnd(a.defaults);
+      a.templates = a.templates
+          .map((t) => Timeline(t.name, t.segments, upgradeEnd(t.display)))
+          .toList();
+    }
+    a.applySharedZero();
     return a;
   }
   Json toJson() => {
-    'version': 3,
+    'version': 4,
     'templates': templates.map((t) => t.toJson()).toList(),
     'defaults': defaults.toJson(),
     'session': session.toJson(),
@@ -830,6 +853,21 @@ class AppState {
     'pixelShape': pixelShape,
   };
   AppState copy() => AppState.fromJson(toJson());
+
+  /// The default At Zero is authoritative, including for a loaded service.
+  /// End screens remain owned by each template / loaded snapshot.
+  void applySharedZero() {
+    Timeline normalize(Timeline t) =>
+        Timeline(t.name, t.segments, t.display.withZero(defaults.zero));
+    templates = templates.map(normalize).toList();
+    void normalizeSession(Session s) {
+      if (s.timeline != null) s.timeline = normalize(s.timeline!);
+      if (s.prior != null) normalizeSession(s.prior!);
+    }
+
+    normalizeSession(session);
+  }
+
   void addStageCues(Iterable<TextLayout> layouts) {
     final seen = stageCues.map((l) => jsonEncode(l.toJson())).toSet();
     for (final layout in layouts) {
@@ -918,7 +956,8 @@ Timeline importTemplate(
   final raw = content.startsWith('\uFEFF') ? content.substring(1) : content;
   if (filename.toLowerCase().endsWith('.json')) {
     try {
-      return Timeline.fromJson(Map<String, dynamic>.from(jsonDecode(raw)));
+      final t = Timeline.fromJson(Map<String, dynamic>.from(jsonDecode(raw)));
+      return Timeline(t.name, t.segments, t.display.withZero(defaults.zero));
     } on RuleError {
       rethrow;
     } catch (_) {

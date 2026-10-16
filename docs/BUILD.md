@@ -17,7 +17,7 @@ The native bridge supplies Android `SystemClock.elapsedRealtime()` with `BOOT_CO
 
 Version 0.3 also requests notification permission and, optionally, precise-alarm access. These prompts are initiated by the operator from Live. A private, non-exported receiver posts scheduled warnings. No boot receiver or foreground sign-output service is installed.
 
-## Installation checks for 0.3
+## Installation checks (including 0.4)
 
 1. Upgrade without clearing app data. Confirm existing reports/cues survive and the original Matrix appearance is unchanged apart from the chosen LED cell shape.
 2. Edit a Live cue (including font/style/speed), Send, switch service and restart. Confirm persistence. Cancel a new cue and confirm nothing is added.
@@ -26,6 +26,9 @@ Version 0.3 also requests notification permission and, optionally, precise-alarm
 5. Run Quick rehearsal with short future warning thresholds. Keep a manual cue visible: a due stage warning must replace it for eight seconds and then restore it. Compare with operator-only. Confirm countdown thresholds use remaining time.
 6. Repeat with the phone locked; check notification timing/sound, then return to Live. Exercise pause/resume, time adjustment, advance and End to confirm obsolete alarms do not fire. Check denied notification/exact-alarm permissions and document any device-specific delay.
 7. Cancel and confirm timer actions and report clearing. Export a report first, clear its local record, and confirm the export remains available.
+
+8. Confirm the new Reports list, detail pages and Graph view. Export all records in CSV and JSON while a filter is active; both exports must include the complete saved history. Cancel and confirm cue deletion.
+9. Edit one template’s end screen and confirm another template remains unchanged. Change At Zero in Display while a service is at zero and verify it applies immediately unless a cue/warning or output hold has priority. Restart and verify both settings persist.
 
 These runtime checks are not replaced by unit tests or APK compilation. No physical sign is required for them; real controller validation is separate.
 

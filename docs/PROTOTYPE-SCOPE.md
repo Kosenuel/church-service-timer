@@ -5,7 +5,7 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 ## Implemented
 
 - Separate Live, Templates, Display and Reports views; responsive phone/tablet layouts.
-- Independent loaded-service snapshot; template changes/deletion do not change the run. Live warning edits explicitly update current rules and the matching saved template.
+- Independent loaded-service snapshot; template changes/deletion do not change the run. Live warning edits explicitly update current rules and the matching saved template. Global At Zero edits explicitly update every template and loaded/prior service snapshot.
 - Ready with explicit first-segment start, cancellation without prior output replay, manual final-segment ending.
 - Suspend-aware Android monotonic clock; elapsed-time calculation instead of callback counting.
 - Confirmed pause/resume, custom Add and ±120-second adjustments; clamp at zero, 99:59 maximum; prominent red End service control.
@@ -15,7 +15,7 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 - Saved square/circular simulator LED appearance, shared by Live and previews without altering output bits.
 - Bold, italic, 7/14-pixel text height, horizontal alignment, scrolling speed and flash preview.
 - New/untested cues require preview and confirmation on each send. No preview confers physical approval.
-- Default/custom zero screen and end screen; defaults and per-template settings have separate ownership.
+- Shared global At Zero and per-template end screens editable in the template editor; new templates copy the Display end default.
 - Atomic local persistence before logical publication; failure feedback/retry; corrupt state blocks output until explicit reset.
 - Running, paused, Ready, ended, alert and undo restoration; conservative 30-minute output hold and uncertainty on reboot.
 - Exact 512-pixel simulator; disconnected output freezes while authoritative time continues; reconnect applies current state only.
@@ -25,10 +25,10 @@ This build implements a simulator-first subset of the supplied PRD. It is suitab
 - Service timing overview with elapsed time, projected variance and estimated finish.
 - Configurable warnings with operator-only or temporary simulated-stage output. Due stage warnings briefly overlay manual cues, then restore them; a new manual cue takes over immediately.
 - Android phone notifications with default notification sound, permission/settings controls and monotonic alarm scheduling independent of Flutter frame callbacks.
-- After-service reports with segment actuals, pauses, adjustments, CSV/JSON export and confirmed deletion of one/all local records.
+- After-service reports with segment actuals, pauses, adjustments, compact list/detail pages, filtered comparison charts, individual/bulk CSV/JSON export and confirmed deletion of one/all local records.
 - Fast rehearsal at 5×, 10×, 30× or 60×, labelled separately from live timing.
 
-See `FEATURES-0.3.md` for current behavior and migration semantics; `FEATURES-0.2.md` is historical.
+See `FEATURES-0.4.md` for current changes and migration, and `FEATURES-0.3.md` for font/notification behavior. `FEATURES-0.2.md` is historical.
 
 ## Explicitly deferred until hardware is available
 

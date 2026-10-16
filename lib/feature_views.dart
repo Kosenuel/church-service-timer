@@ -6,6 +6,51 @@ String clockLabel(int wall) {
 }
 
 extension FeatureViews on _HomeState {
+  Widget sharedZeroSettings() => panel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        label('At zero · all services'),
+        const SizedBox(height: 8),
+        Text(
+          c.state.defaults.zero?.text ?? '00:00',
+          style: const TextStyle(fontSize: 24),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Shared across every service, including the one currently loaded. A manual cue or automatic warning keeps priority.',
+          style: TextStyle(color: muted),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            button(
+              'Use 00:00',
+              Icons.timer_outlined,
+              c.busy ? null : () => c.setSharedZero(null),
+            ),
+            button(
+              'Custom text',
+              Icons.edit_outlined,
+              c.busy
+                  ? null
+                  : () async {
+                      final next = await compose(
+                        c.state.defaults.zero ?? const TextLayout("TIME'S UP"),
+                        'Zero-time screen · all services',
+                        'Save zero screen',
+                      );
+                      if (next != null) await c.setSharedZero(next);
+                    },
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
   Widget ledShapeSettings() => panel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,19 +252,24 @@ extension FeatureViews on _HomeState {
       await c.act('adjust', value: seconds, revision: revision);
   }
 
-  Future<void> confirmClearReports({ServiceReport? record}) async {
+  Future<bool> confirmClearReports({ServiceReport? record}) async {
     final ids = record == null
         ? c.state.reports.map((r) => r.id).toSet()
         : {record.id};
-    if (ids.isEmpty) return;
+    if (ids.isEmpty) return false;
     if (await confirm(
       record == null ? 'Clear all reports?' : 'Clear this report?',
       record == null
           ? 'Delete all ${ids.length} currently saved report records from this device? Exported files and the current service are unaffected. This cannot be undone.'
           : 'Delete the report for “${record.name}” (${DateTime.fromMillisecondsSinceEpoch(record.endedWall).toLocal()})? Exported files and the current service are unaffected. This cannot be undone.',
       record == null ? 'Clear all reports' : 'Clear report',
-    ))
-      await c.clearReports(ids);
+    )) {
+      final ok = await c.clearReports(ids);
+      if (!ok && mounted)
+        await showError(c.error ?? 'The report could not be cleared.');
+      return ok;
+    }
+    return false;
   }
 
   Widget timingOverview() {
@@ -369,152 +419,6 @@ extension FeatureViews on _HomeState {
             ),
         ],
       ),
-    );
-  }
-
-  Widget reports() {
-    final history = c.state.reports.reversed.toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'After the service.',
-          style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Planned and actual durations, including pauses and time at zero. Reports are saved locally when you end a service.',
-          style: TextStyle(color: muted),
-        ),
-        const SizedBox(height: 20),
-        if (history.isNotEmpty) ...[
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton.icon(
-              key: const ValueKey('clear-all-reports'),
-              onPressed: c.busy ? null : () => confirmClearReports(),
-              icon: const Icon(Icons.delete_sweep_outlined),
-              label: const Text('Clear all reports'),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        if (history.isEmpty)
-          panel(
-            child: const Text(
-              'No completed services yet. End a live service or fast rehearsal to create a report.',
-            ),
-          ),
-        ...history.map(
-          (r) => Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          r.name,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Chip(
-                        label: Text(
-                          r.rehearsal ? 'Rehearsal ${r.rate}×' : 'Live',
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    DateTime.fromMillisecondsSinceEpoch(
-                      r.endedWall,
-                    ).toLocal().toString().split('.').first,
-                    style: const TextStyle(color: muted),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Planned ${durationLabel(r.plannedMs)} · Actual ${r.totalMs == null ? 'not recorded' : durationLabel(r.totalMs!)}',
-                  ),
-                  if (r.totalMs != null)
-                    Text(
-                      varianceLabel(r.totalMs! - r.plannedMs),
-                      style: const TextStyle(color: accent),
-                    ),
-                  if (r.uncertain)
-                    const Text(
-                      'Incomplete or uncertain timing; review before using these figures.',
-                      style: TextStyle(color: Colors.orangeAccent),
-                    ),
-                  const SizedBox(height: 12),
-                  ...r.rows.map(
-                    (row) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 7),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            row.name,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            'Plan ${durationLabel(row.plannedMs)} · Actual ${row.actualMs == null ? 'not recorded' : durationLabel(row.actualMs!)}',
-                            style: const TextStyle(color: muted),
-                          ),
-                          if (row.actualMs != null)
-                            Text(
-                              '${varianceLabel(row.actualMs! - row.plannedMs)} · paused ${durationLabel(row.pausedMs)}${row.adjustmentMs == 0 ? '' : ' · adjusted ${row.adjustmentMs > 0 ? '+' : '−'}${durationLabel(row.adjustmentMs)}'}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: muted,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (r.rehearsal)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        'Rehearsal durations are simulated time.',
-                        style: TextStyle(color: muted),
-                      ),
-                    ),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      button(
-                        'Export report CSV',
-                        Icons.download_outlined,
-                        () => exportReport(r, 'csv'),
-                      ),
-                      button(
-                        'Export report JSON',
-                        Icons.code,
-                        () => exportReport(r, 'json'),
-                      ),
-                      OutlinedButton.icon(
-                        key: ValueKey('clear-report-${r.id}'),
-                        onPressed: c.busy
-                            ? null
-                            : () => confirmClearReports(record: r),
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Clear report'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 

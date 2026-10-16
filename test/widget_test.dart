@@ -63,7 +63,7 @@ void main() {
   testWidgets(
     'Tablet active dashboard lays out and keeps alert over countdown',
     (tester) async {
-      tester.view.physicalSize = const Size(1200, 1100);
+      tester.view.physicalSize = const Size(1200, 1500);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);

@@ -6,6 +6,8 @@ JSON contains exactly these top-level fields: `schemaVersion` (integer 2 on expo
 
 `display` contains `zero` (null means 00:00, otherwise a text layout), `end` (a text layout), `cues` (4–6 legacy template layouts), and `warnings` (0–6 rules). Missing warnings migrate to an empty list. In 0.3, accepted imported cues merge into the shared Live list, preserving unique text/style combinations. Template exports retain their legacy `cues` field, not the current shared list. The shared Live cues, LED shape preference, imported font file and reports are local data outside this interchange format.
 
+In 0.4, `end` belongs to the template and is editable in its timeline editor. New templates copy the current default (initially bold, italic, tall `Hallelujah`, centered scrolling at 12 pixels/second in Cuekeeper Matrix). `zero` remains in exported JSON for compatibility, but import ignores its value and uses the receiving device’s shared At Zero setting. At Zero applies to saved templates and loaded services.
+
 Every text layout contains all fields:
 
 | Field | Values |

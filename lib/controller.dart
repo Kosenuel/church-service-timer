@@ -155,6 +155,7 @@ class AppController extends ChangeNotifier {
       final draft = state.copy();
       final previous = state.session;
       mutation(draft, at);
+      draft.applySharedZero();
       await NativeDisplayFonts.prepareState(draft);
       await port.save(jsonEncode(draft.toJson()));
       state = draft;
@@ -306,6 +307,23 @@ class AppController extends ChangeNotifier {
   Future<bool> clearReports(Set<String> ids) => commit((draft, _) {
     draft.reports.removeWhere((r) => ids.contains(r.id));
   });
+
+  Future<bool> setSharedZero(TextLayout? layout) => commit((draft, _) {
+    if (layout != null) validateLayout(layout);
+    draft.defaults = draft.defaults.withZero(layout);
+  });
+
+  Future<bool> deleteStageCue(int index, TextLayout expected) =>
+      commit((draft, _) {
+        require(
+          index >= 0 &&
+              index < draft.stageCues.length &&
+              jsonEncode(draft.stageCues[index].toJson()) ==
+                  jsonEncode(expected.toJson()),
+          'This cue changed. Open it again before deleting.',
+        );
+        draft.stageCues.removeAt(index);
+      });
 
   Future<void> checkpoint() async {
     if (busy || corrupt || !ready) return;
