@@ -159,6 +159,7 @@ void main() {
     );
     await t.pumpWidget(
       MaterialApp(
+        debugShowCheckedModeBanner: false,
         theme: ThemeData.dark().copyWith(
           textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Roboto'),
         ),

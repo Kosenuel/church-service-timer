@@ -752,7 +752,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 backgroundColor: const Color(0xffa73238),
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 54),
-                textStyle: const TextStyle(
+                textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
