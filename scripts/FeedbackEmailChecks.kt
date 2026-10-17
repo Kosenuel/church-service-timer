@@ -5,7 +5,7 @@ fun main() {
     val subject = "Timer & mode + Réponse?"
     val body = "Contact: operator@example.com\nMessage: a+b &bcc=other@example.com #tag 🙏"
     val uri = FeedbackEmail.uri(subject, body)
-    check(uri.startsWith("mailto:kosenuel@gmail.com?"))
+    check(uri.startsWith("mailto:immanuelproton@gmail.com?"))
     val pairs = uri.substringAfter('?').split('&').associate { val p = it.split('=', limit = 2); p[0] to URLDecoder.decode(p[1], "UTF-8") }
     check(pairs == mapOf("subject" to subject, "body" to body))
     check(!uri.contains('+') && !uri.contains('\n') && !uri.contains('#'))

@@ -244,10 +244,13 @@ final featureCases = <String, void Function()>{
       align: 'right',
       speed: 23,
       effect: 'scroll',
-      font: 'times_new_roman',
+      font: 'tinos',
     );
     final state = AppState.fresh(epoch);
     state.stageCues.add(layout);
+    state.defaults = state.defaults.withWarnings([
+      const WarningRule(0, layout, destination: 'stage'),
+    ]);
     state.templates[0] = Timeline(
       'Styled',
       const [Segment('Talk', 5)],
@@ -282,7 +285,7 @@ final featureCases = <String, void Function()>{
         final old = Timeline.fromJson(j);
         equal(old.display.cues.first.font, 'cuekeeper_matrix');
         equal(old.display.warnings.length, 0);
-        equal(old.toJson()['schemaVersion'], 3);
+        equal(old.toJson()['schemaVersion'], 4);
       },
   'Invalid font and duplicate warning thresholds are rejected': () {
     rejects(
@@ -309,7 +312,7 @@ final featureCases = <String, void Function()>{
       warnings: [
         const WarningRule(
           20,
-          TextLayout('STOP', font: 'times_new_roman'),
+          TextLayout('STOP', font: 'tinos'),
           destination: 'stage',
         ),
       ],

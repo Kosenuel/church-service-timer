@@ -32,6 +32,7 @@ void main() {
   Future<AppController> setup(FakePort port) async {
     final c = AppController(port);
     await c.initialize(startTicker: false);
+    await c.setSharedWarnings([]);
     await c.act(
       'load',
       value: Timeline('Sunday Service', const [

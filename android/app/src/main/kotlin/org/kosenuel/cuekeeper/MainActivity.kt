@@ -28,7 +28,7 @@ class MainActivity : FlutterActivity() {
     private var exportContent: String? = null
     private var importLimit = 1048576
     private var notificationRequest: MethodChannel.Result? = null
-    private val timesFont by lazy { TimesFont(this) }
+    private val bundledFonts by lazy { BundledFonts(this) }
     private val stateFile get() = AtomicFile(File(filesDir, "service-state.json"))
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -61,21 +61,10 @@ class MainActivity : FlutterActivity() {
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     result.success(null)
                 }
-                "hasTimesFont" -> background(result) { timesFont.available() }
-                "rasterizeTimes" -> background(result) {
-                    timesFont.rasterize(call.argument<String>("text") ?: "", (call.argument<Int>("height") ?: 2) * 7,
+                "hasTinosFont" -> background(result) { bundledFonts.available() }
+                "rasterizeTinos" -> background(result) {
+                    bundledFonts.rasterize(call.argument<String>("text") ?: "", (call.argument<Int>("height") ?: 2) * 7,
                         call.argument<Boolean>("bold") ?: false, call.argument<Boolean>("italic") ?: false)
-                }
-                "importTimesFont" -> {
-                    if (pending != null) result.error("BUSY", "A document picker is already open", null)
-                    else {
-                        pending = result
-                        try {
-                            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE); type = "*/*"
-                            }, 43)
-                        } catch (e: Exception) { pending = null; result.error("FONT", e.message, null) }
-                    }
                 }
                 "pickChurchBanner" -> {
                     if (pending != null) result.error("BUSY", "A document picker is already open", null)
@@ -188,34 +177,18 @@ class MainActivity : FlutterActivity() {
     @Deprecated("Activity result bridge for Flutter's method channel")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 41 && requestCode != 42 && requestCode != 43 && requestCode != 45) return
+        if (requestCode != 41 && requestCode != 42 && requestCode != 45) return
         val result = pending ?: return
         val maxBytes = importLimit
         pending = null
         val uri = data?.data
         if (resultCode != Activity.RESULT_OK || uri == null) {
             exportContent = null
-            result.success(if (requestCode == 43) false else null)
+            result.success(null)
             return
         }
         if (requestCode == 45) {
             background(result) { ChurchBanner.read(this, uri) }
-            return
-        }
-        if (requestCode == 43) {
-            background(result) {
-                val bytes = ByteArrayOutputStream()
-                (contentResolver.openInputStream(uri) ?: error("Cannot open selected font")).use { input ->
-                    val buffer = ByteArray(8192)
-                    while (true) {
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        if (bytes.size() + count > 4 * 1024 * 1024) error("Font exceeds 4 MiB")
-                        bytes.write(buffer, 0, count)
-                    }
-                }
-                timesFont.install(bytes.toByteArray())
-            }
             return
         }
         if (requestCode == 42) {

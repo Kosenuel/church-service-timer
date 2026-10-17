@@ -97,6 +97,8 @@ class TextLayout {
       // Retired 0.2 fonts migrate to the preserved original face.
       font: {'service_serif', 'clear_sans'}.contains(j['font'])
           ? 'cuekeeper_matrix'
+          : j['font'] == 'times_new_roman'
+          ? 'tinos'
           : j['font'] ?? 'cuekeeper_matrix',
     );
     s.validate();
@@ -158,7 +160,6 @@ class DisplaySettings {
                TextLayout('WRAP UP'),
                TextLayout("TIME'S UP"),
                TextLayout('MIC LOW'),
-               TextLayout('NURSERY CALL'),
              ],
        );
   factory DisplaySettings.fromJson(Json j) {
@@ -170,7 +171,7 @@ class DisplaySettings {
     final c = (j['cues'] as List)
         .map((e) => TextLayout.fromJson(Map<String, dynamic>.from(e)))
         .toList();
-    require(c.length >= 4 && c.length <= 6, 'Configure 4–6 quick cues.');
+    require(c.length <= 6, 'Configure at most 6 template cues.');
     return DisplaySettings(
       zero: j['zero'] == null
           ? null
@@ -197,18 +198,46 @@ class DisplaySettings {
 }
 
 class Segment {
-  final String name;
+  final String name, speaker, notes;
   final int minutes;
-  const Segment(this.name, this.minutes);
+  const Segment(this.name, this.minutes, {this.speaker = '', this.notes = ''});
   factory Segment.fromJson(Json j) {
-    keys(j, {'name', 'minutes'}, 'Segment');
+    keys(j, {'name', 'minutes', 'speaker', 'notes'}, 'Segment');
     require(
       j['minutes'] is int && j['minutes'] >= 1 && j['minutes'] <= 99,
       'Segment duration must be an integer from 1 to 99 minutes.',
     );
-    return Segment(nameValue(j['name'], 'Segment name'), j['minutes']);
+    String optional(
+      dynamic value,
+      int limit,
+      String label, {
+      bool multiline = false,
+    }) {
+      require(value == null || value is String, '$label must be text.');
+      final text = ((value ?? '') as String).replaceAll('\r\n', '\n').trim();
+      require(
+        text.runes.length <= limit &&
+            !RegExp(
+              multiline ? r'[\x00-\x08\x0b-\x1f\x7f]' : r'[\x00-\x1f\x7f]',
+            ).hasMatch(text),
+        '$label must contain at most $limit characters without control characters.',
+      );
+      return text;
+    }
+
+    return Segment(
+      nameValue(j['name'], 'Segment name'),
+      j['minutes'],
+      speaker: optional(j['speaker'], 80, 'Speaker'),
+      notes: optional(j['notes'], 1000, 'Private notes', multiline: true),
+    );
   }
-  Json toJson() => {'name': name, 'minutes': minutes};
+  Json toJson() => {
+    'name': name,
+    'minutes': minutes,
+    if (speaker.isNotEmpty) 'speaker': speaker,
+    if (notes.isNotEmpty) 'notes': notes,
+  };
 }
 
 class Timeline {
@@ -231,12 +260,12 @@ class Timeline {
       'type',
     }, 'Template');
     require(
-      j['schemaVersion'] is int && {1, 2, 3}.contains(j['schemaVersion']),
-      'Supported template schema versions are 1, 2 and 3.',
+      j['schemaVersion'] is int && {1, 2, 3, 4}.contains(j['schemaVersion']),
+      'Supported template schema versions are 1–4.',
     );
     final type =
         j['type'] ??
-        (j['schemaVersion'] == 3
+        (j['schemaVersion'] >= 3
             ? null
             : j['name'] == 'Quick rehearsal'
             ? 'rehearsal'
@@ -271,7 +300,7 @@ class Timeline {
   Timeline withDisplay(DisplaySettings value) =>
       Timeline(name, segments, value, type: type);
   Json toJson() => {
-    'schemaVersion': 3,
+    'schemaVersion': 4,
     'name': name,
     'type': type,
     'segments': segments.map((s) => s.toJson()).toList(),
@@ -334,7 +363,7 @@ class Session {
   String id, phase;
   String churchName;
   int revision, index, baseMs;
-  bool paused, held, disconnected, uncertain;
+  bool paused, held, disconnected, uncertain, outputBlank;
   Timeline? timeline;
   TextLayout? alert;
   UndoPoint? undo;
@@ -359,6 +388,7 @@ class Session {
     this.held = false,
     this.disconnected = false,
     this.uncertain = false,
+    this.outputBlank = false,
     this.timeline,
     this.alert,
     this.undo,
@@ -424,6 +454,7 @@ class Session {
       now.sameBoot(undo!.at) &&
       now.since(undo!.at) <= 10000;
   TextLayout? intended(Stamp now) {
+    if (outputBlank) return null;
     if (phase == 'ended') return timeline!.display.end;
     if (!active) return null;
     if (hasAutomaticCue(now)) return automaticCue;
@@ -465,7 +496,9 @@ class Session {
     run!.anchor = now;
   }
 
-  String get outputKind => phase == 'ended'
+  String get outputKind => outputBlank
+      ? 'Blank'
+      : phase == 'ended'
       ? 'End screen'
       : alert != null
       ? 'Alert'
@@ -482,6 +515,7 @@ class Session {
       held: j['held'],
       disconnected: j['disconnected'],
       uncertain: j['uncertain'],
+      outputBlank: j['outputBlank'] ?? false,
       anchor: Stamp.fromJson(Map<String, dynamic>.from(j['anchor'])),
       checkpoint: Stamp.fromJson(Map<String, dynamic>.from(j['checkpoint'])),
       timeline: j['timeline'] == null
@@ -559,6 +593,7 @@ class Session {
     'held': held,
     'disconnected': disconnected,
     'uncertain': uncertain,
+    'outputBlank': outputBlank,
     'anchor': anchor.toJson(),
     'checkpoint': checkpoint.toJson(),
     'timeline': timeline?.toJson(),
@@ -648,6 +683,7 @@ Session transition(
     if (!s.held) s.outage = null;
   } else if (action == 'release' || action == 'releaseTimer') {
     if (action == 'releaseTimer') {
+      s.outputBlank = false;
       s.alert = null;
       s.automaticCue = null;
     }
@@ -725,12 +761,17 @@ Session transition(
         s.paused = s.undo!.paused;
         s.anchor = now;
         s.undo = null;
+      case 'blank':
+        s.outputBlank = true;
+        s.automaticCue = null;
       case 'cue':
+        s.outputBlank = false;
         final cue = value as TextLayout;
         cue.validate();
         s.alert = cue;
         s.automaticCue = null;
       case 'timer':
+        s.outputBlank = false;
         s.alert = null;
         s.automaticCue = null;
       case 'warnings':
@@ -738,6 +779,7 @@ Session transition(
       case 'dismissWarning':
         s.warningNotice = null;
       case 'end':
+        s.outputBlank = false;
         s.baseMs = s.balance(now);
         s.anchor = now;
         s.phase = 'ended';
@@ -795,7 +837,7 @@ class AppState {
     List<ServiceReport>? reports,
     List<TextLayout>? stageCues,
     this.pixelShape = 'square',
-    this.groupTemplates = false,
+    this.groupTemplates = true,
     this.churchName = '',
     this.churchBanner = '',
     this.themeId = 'midnight_lime',
@@ -824,9 +866,9 @@ class AppState {
     DisplaySettings(),
     Session(id: 'idle', anchor: now),
   );
-  factory AppState.fromJson(Json j) {
+  factory AppState.fromJson(Json j, {Stamp? now}) {
     require(
-      {1, 2, 3, 4, 5, 6, 7, 8}.contains(j['version']),
+      {1, 2, 3, 4, 5, 6, 7, 8, 9}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -844,7 +886,9 @@ class AppState {
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['defaults'])),
       Session.fromJson(Map<String, dynamic>.from(j['session'])),
       pixelShape: j['pixelShape'] ?? 'square',
-      groupTemplates: j['groupTemplates'] ?? false,
+      groupTemplates: (j['version'] as int) < 9
+          ? true
+          : j['groupTemplates'] ?? true,
       churchName: churchNameValue(j['churchName'] ?? ''),
       churchBanner: churchBannerValue(j['churchBanner'] ?? ''),
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
@@ -925,11 +969,28 @@ class AppState {
           .map((t) => t.withDisplay(upgradeEnd(t.display)))
           .toList();
     }
+    if ((j['version'] as int) < 9) {
+      // Upgrade once: retain the most recently added WRAP UP style and retire
+      // the requested stock cue. Later explicit user-created cues are retained.
+      var keptWrap = false;
+      a.stageCues = a.stageCues.reversed
+          .where((cue) {
+            final name = cue.text.trim().toUpperCase();
+            if (name == 'NURSERY CALL') return false;
+            if (name != 'WRAP UP') return true;
+            if (keptWrap) return false;
+            return keptWrap = true;
+          })
+          .toList()
+          .reversed
+          .toList();
+    }
     a.applySharedZero();
+    a.applySharedWarnings(now);
     return a;
   }
   Json toJson() => {
-    'version': 8,
+    'version': 9,
     'templates': templates.map((t) => t.toJson()).toList(),
     'defaults': defaults.toJson(),
     'session': session.toJson(),
@@ -965,7 +1026,57 @@ class AppState {
     }
   }
 
+  /// Settings owns warning rules. Re-map consumed thresholds rather than
+  /// indexes so editing/reordering cannot replay an old warning after undo.
+  void applySharedWarnings([Stamp? now]) {
+    final rules = defaults.warnings;
+    Timeline normalize(Timeline t) =>
+        t.withDisplay(t.display.withWarnings(rules));
+    templates = templates.map(normalize).toList();
+    void apply(Session s) {
+      final old = s.timeline?.display.warnings;
+      if (old != null &&
+          jsonEncode(old.map((w) => w.toJson()).toList()) !=
+              jsonEncode(rules.map((w) => w.toJson()).toList())) {
+        final at = now ?? s.checkpoint;
+        List<int> remap(List<int> indexes, int? remaining) {
+          final consumed = indexes
+              .where((i) => i >= 0 && i < old.length)
+              .map((i) => old[i].seconds)
+              .toSet();
+          return rules
+              .asMap()
+              .entries
+              .where(
+                (e) =>
+                    consumed.contains(e.value.seconds) ||
+                    (remaining != null && e.value.seconds * 1000 >= remaining),
+              )
+              .map((e) => e.key)
+              .toList();
+        }
+
+        s.warningSeen = remap(s.warningSeen, s.active ? s.remaining(at) : null);
+        if (s.undo != null) {
+          final u = s.undo!.toJson();
+          u['warningSeen'] = remap(s.undo!.warningSeen, s.undoRemaining(at));
+          s.undo = UndoPoint.fromJson(u);
+        }
+        s.automaticCue = null;
+        s.automaticCueAt = null;
+        s.warningNotice = null;
+        s.timeline = normalize(s.timeline!);
+      }
+      if (s.prior != null) apply(s.prior!);
+    }
+
+    apply(session);
+  }
+
   void saveTemplate(Timeline t, {int? replacing}) {
+    t = t.withDisplay(
+      t.display.withZero(defaults.zero).withWarnings(defaults.warnings),
+    );
     require(
       !templates.asMap().entries.any(
         (e) =>
@@ -1079,7 +1190,9 @@ Timeline importTemplate(
   if (filename.toLowerCase().endsWith('.json')) {
     try {
       final t = Timeline.fromJson(Map<String, dynamic>.from(jsonDecode(raw)));
-      return t.withDisplay(t.display.withZero(defaults.zero));
+      return t.withDisplay(
+        t.display.withZero(defaults.zero).withWarnings(defaults.warnings),
+      );
     } on RuleError {
       rethrow;
     } catch (_) {

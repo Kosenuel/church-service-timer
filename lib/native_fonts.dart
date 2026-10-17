@@ -24,7 +24,7 @@ class TextRaster {
   }
 }
 
-/// Only user-imported font data is rasterized; no replacement face is substituted.
+/// Bundled Tinos faces are rasterized on Android; Matrix fonts use their original bitmaps.
 class NativeDisplayFonts {
   static bool available = false;
   static DevicePort? _port;
@@ -38,23 +38,23 @@ class NativeDisplayFonts {
     _port = port;
     _cache.clear();
     _pending.clear();
-    available = await port.hasTimesFont();
+    available = await port.hasTinosFont();
   }
 
   static TextRaster? cached(TextLayout l) => _cache[key(l)];
   static Future<void> prepare(TextLayout l) async {
-    if (l.font != 'times_new_roman') return;
+    if (l.font != 'tinos') return;
     l.validate();
     require(
       available && _port != null,
-      'Import a licensed Times New Roman Regular .ttf in Settings → Display settings first.',
+      'Bundled Tinos could not be loaded. Restart or reinstall the complete APK.',
     );
     final k = key(l);
     if (_cache.containsKey(k)) return;
     final generation = _generation;
     await (_pending[k] ??= () async {
       try {
-        final data = await _port!.rasterizeTimes(l);
+        final data = await _port!.rasterizeTinos(l);
         final raster = TextRaster.fromJson(data);
         require(
           raster.height <= l.height * 7,

@@ -73,10 +73,10 @@ final revision09Cases = <String, void Function()>{
       contact: 'operator@example.com',
       version: appVersion,
     );
-    equal(feedbackRecipient, 'kosenuel@gmail.com');
+    equal(feedbackRecipient, 'immanuelproton@gmail.com');
     equal(
       f.copyText,
-      'To: kosenuel@gmail.com\nSubject: Church Service Timer feedback: Pause\n\nTitle: Pause\n\nMessage:\nPlease improve pause.\n\nContact: operator@example.com\n\nApp: Church Service Timer\nVersion: $appVersion',
+      'To: immanuelproton@gmail.com\nSubject: Church Service Timer feedback: Pause\n\nTitle: Pause\n\nMessage:\nPlease improve pause.\n\nContact: operator@example.com\n\nApp: Church Service Timer\nVersion: $appVersion',
     );
   },
 };

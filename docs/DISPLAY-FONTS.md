@@ -1,33 +1,23 @@
-# Display fonts and LED shapes
+# Display fonts
 
 | Name | Stable ID | Availability |
 |---|---|---|
-| Service Matrix | `cuekeeper_matrix` | Original built-in font, unchanged |
-| Service Sq-Matrix | `cuekeeper_sq_matrix` | New built-in companion for square cells |
-| Times New Roman | `times_new_roman` | Import a properly licensed Regular TTF in Settings → Display settings |
+| Service Matrix | `cuekeeper_matrix` | Original bitmap font, unchanged |
+| Service Sq-Matrix | `cuekeeper_sq_matrix` | Original square-pixel bitmap font, unchanged |
+| Tinos | `tinos` | Four bundled Android faces; no import required |
 
-Choose a font in any text composer. **Settings → Display settings → Simulator LED shape** switches between square and circular cells for Live and dialog previews. This device preference survives restart. Shape changes do not alter glyphs, formatting, timing or the 512-bit output frame. The default is square. Physical LED geometry remains unverified until the sign arrives.
+Both Matrix glyph tables, JSON font assets, scaling, weight and italic behavior are unchanged. Countdown digits continue to use Service Matrix at 14 pixels. Square/circular LED appearance changes only cell painting, not the 512-bit display frame.
 
-## Built-in fonts
+## Bundled Tinos
 
-Service Matrix remains in `assets/pixel_fonts/cuekeeper_matrix.json` and `lib/matrix_font.dart`. Its 80 glyphs, bold/italic behavior and seven-/fourteen-row rendering are preserved. Countdown digits continue to use this font.
+Regular, Bold, Italic and Bold Italic version 1.340 ship unchanged in `android/app/src/main/assets/display_fonts/tinos`. The `sources.json` manifest records official Google Fonts URLs and SHA-256 hashes. `OFL.txt` contains the Tinos project copyright and SIL Open Font License 1.1; the same license is registered in About → Open-source licenses.
 
-Service Sq-Matrix is saved separately in `assets/pixel_fonts/cuekeeper_sq_matrix.json` and `lib/square_matrix_font.dart`. Its condensed letters, straight terminals, rectangular digits and simpler punctuation suit square cells. Compact mode uses seven rows; tall mode doubles both axes with integer pixels for balanced strokes. Tall Sq-Matrix is consequently wider than tall original Matrix; use scrolling for longer text. Both sizes support bold, italic, alignment, speed, scroll and flash, using the same 80-character repertoire.
+Android `BundledFonts.kt` loads the appropriate face from APK assets. It draws the whole string using Android Canvas with antialiasing and subpixel rendering off, fitting actual ink to 7 or 14 rows. It preserves advances and italic overhang rather than resizing a rendered image. The Dart side caches style-specific rasters, clips/aligns them into 32 × 16 and scrolls long text. Bold and italic use their real bundled faces, without synthetic bold/skew. Static and flashing text must fit within 32 pixels.
 
-The Dart Sq-Matrix table mirrors the JSON source; a test verifies they match. Edit both together. The original Matrix glyph data and renderer must remain unchanged. Version 0.7 changes only the visible names; stable IDs and asset paths are retained for compatibility.
+14 pixels is recommended for serif detail. The earlier approved desktop preview used these same Tinos faces with a desktop rasterizer; Android hinting may differ slightly. Android device inspection remains necessary after building the APK.
 
-## Times New Roman
-
-In **Settings → Display settings → Import Times New Roman font**, select a Regular `.ttf` licensed for use on this Android device. The picker copies it into private app storage after bounded metadata checks and successful rasterization. It rejects other families, renamed unrelated files, bold/italic source faces, font collections, variable fonts and files over 4 MiB. A rejected replacement preserves the previous working import. Import/replacement is disabled during an active service.
-
-Whole strings render using Android Paint/Canvas at integer sizes, antialiasing off and actual ink bounds. Text fits seven or fourteen rows without resampling. Bold and italic use native synthetic styling; italic overhang is included. Fourteen rows is recommended for the serif face. Raster results are cached locally; text and formatting remain portable, font bytes do not.
-
-Missing Times New Roman is reported explicitly; no substitute is used. If restored data requires a missing font, output is held and saved data is preserved: import the font again to recover it. Service Serif and Clear Sans are removed. Existing selections of those retired fonts migrate to Service Matrix while retaining other formatting.
+Legacy `times_new_roman` selections migrate to `tinos`, keeping text, height, formatting, alignment, speed and effect. No Times New Roman bytes are bundled or read from another app. The old font-import UI, picker bridge and private-file loader are removed. Existing imported files are ignored. Retired `service_serif` and `clear_sans` selections still migrate to the unchanged Service Matrix face.
 
 ## LedArt-Lite evidence
 
-The supplied base APK SHA-256 was `4f36553aac8a221726e4d9e20a232133f4547d9fb53c87658677e6c3ac95f6ae`. Its complete font inventory did not include Times New Roman. Static inspection found a private downloaded font library, native Typeface loading, antialiasing disabled, synthetic bold/italic when needed, and fitting based on actual raster ink bounds. Church Service Timer independently implements that general native approach. The exact Times font on the user's phone and pixel-identical output were not established. No vendor code or font was copied.
-
-Microsoft's [font redistribution FAQ](https://learn.microsoft.com/en-us/typography/fonts/font-faq) does not grant app redistribution rights for Windows fonts, including converted bitmap fonts. The [Times New Roman family page](https://learn.microsoft.com/en-us/typography/font-list/times-new-roman) links to licensing information. This APK/repository contains no Times font bytes or proprietary bitmap atlas; a bundled edition would require redistribution rights.
-
-Actual Android rendering and distant physical readability still need device/sign checks. Tests with fake rasters verify application behavior, not the appearance of a genuine imported face.
+The inspected base APK SHA-256 was `4f36553aac8a221726e4d9e20a232133f4547d9fb53c87658677e6c3ac95f6ae`. Static inspection found a private downloaded font library, native Typeface loading, antialiasing disabled and fitting to actual raster ink. Church Service Timer independently implements the general phone-rendered bitmap approach. No vendor source or fonts were copied; pixel-identical vendor rendering has not been established.

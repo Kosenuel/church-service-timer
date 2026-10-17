@@ -23,7 +23,7 @@ class SettingsPort extends FakePort {
   }
 
   @override
-  Future<String> installedVersion() async => '0.9.0 (9)';
+  Future<String> installedVersion() async => '0.10.0 (10)';
   @override
   Future<Map<String, dynamic>?> pickBackup() async => backup;
   @override
@@ -71,9 +71,9 @@ void main() {
     () {
       expect(
         File('pubspec.yaml').readAsStringSync(),
-        contains('version: 0.9.0+9'),
+        contains('version: 0.10.0+10'),
       );
-      expect(appVersion, '0.9.0 (9)');
+      expect(appVersion, '0.10.0 (10)');
       expect(
         File('android/app/src/main/AndroidManifest.xml').readAsStringSync(),
         contains('android:label="$appName"'),
@@ -156,15 +156,15 @@ void main() {
     },
   );
   test(
-    'Missing imported font blocks restore without changing saved content',
+    'Unavailable bundled Tinos rasterizer blocks restore without changing saved content',
     () async {
       final c = await setup(SettingsPort());
       final before = jsonEncode(c.state.toJson());
       final target = AppState.fresh(epoch)
-        ..stageCues = [const TextLayout('AMEN', font: 'times_new_roman')];
+        ..stageCues = [const TextLayout('AMEN', font: 'tinos')];
       expect(await c.restoreBackup(target), false);
       expect(jsonEncode(c.state.toJson()), before);
-      expect(c.error, contains('Times New Roman'));
+      expect(c.error, contains('Tinos'));
       c.dispose();
     },
   );
@@ -209,7 +209,7 @@ void main() {
       );
       await t.tap(find.text('Display settings'));
       await t.pumpAndSettle();
-      expect(find.text('AT ZERO · ALL SERVICES'), findsOneWidget);
+      expect(find.text('At Zero'), findsOneWidget);
       await t.pageBack();
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('About'));
@@ -217,7 +217,7 @@ void main() {
       await t.tap(find.text('About'));
       await t.pumpAndSettle();
       expect(find.text('Created by I-Proton'), findsOneWidget);
-      expect(find.text('Version 0.9.0 (9)'), findsOneWidget);
+      expect(find.text('Version 0.10.0 (10)'), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/about-phone.png'),

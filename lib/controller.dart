@@ -28,6 +28,15 @@ class Simulator {
 
   void update(Session s, Stamp now) {
     if (s.disconnected || s.held) return;
+    if (s.outputBlank) {
+      if (owner != s.id || signature != 'blank') deliveredAt = now.mono;
+      owner = s.id;
+      signature = 'blank';
+      revision = s.revision;
+      delivered = null;
+      pixels = List.filled(512, false);
+      return;
+    }
     final desired = s.intended(now);
     if (desired == null) return; // Ready/idle retain previous output.
     final next = jsonEncode(desired.toJson());
@@ -113,7 +122,10 @@ class AppController extends ChangeNotifier {
       final data = await port.load();
       state = data == null
           ? AppState.fresh(now)
-          : AppState.fromJson(Map<String, dynamic>.from(jsonDecode(data)));
+          : AppState.fromJson(
+              Map<String, dynamic>.from(jsonDecode(data)),
+              now: now,
+            );
       loadingChurchName = state.churchName;
       themeSelection.value = state.themeId;
       notifyListeners();
@@ -206,6 +218,7 @@ class AppController extends ChangeNotifier {
         await validateBannerPixels(draft.churchBanner);
       themeIdValue(draft.themeId);
       draft.applySharedZero();
+      draft.applySharedWarnings(at);
       await NativeDisplayFonts.prepareState(draft);
       await port.save(jsonEncode(draft.toJson()));
       state = draft;
@@ -336,50 +349,33 @@ class AppController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  Future<bool> setLiveWarnings(List<WarningRule> rules) => commit((draft, at) {
-    final s = draft.session;
-    require(
-      s.timeline != null && (s.active || s.phase == 'ready'),
-      'Load a service first.',
-    );
-    final old = s.timeline!;
-    final consumed = s.warningSeen
-        .map((i) => old.display.warnings[i].seconds)
-        .toSet();
-    s.warningSeen = rules
-        .asMap()
-        .entries
-        .where(
-          (e) =>
-              consumed.contains(e.value.seconds) ||
-              (s.active && e.value.seconds * 1000 > s.remaining(at)),
-        )
-        .map((e) => e.key)
-        .toList();
-    s.automaticCue = null;
-    s.warningNotice = null;
-    // The previous segment's warning indexes refer to the old rule set.
-    if (s.undo != null) {
-      final u = s.undo!.toJson();
-      final thresholds = s.undo!.warningSeen
-          .map((i) => old.display.warnings[i].seconds)
-          .toSet();
-      u['warningSeen'] = rules
-          .asMap()
-          .entries
-          .where((e) => thresholds.contains(e.value.seconds))
-          .map((e) => e.key)
-          .toList();
-      s.undo = UndoPoint.fromJson(u);
-    }
-    s.timeline = old.withDisplay(old.display.withWarnings(rules));
-    final i = draft.templates.indexWhere((t) => t.name == old.name);
-    if (i >= 0) {
-      final t = draft.templates[i];
-      draft.templates[i] = t.withDisplay(t.display.withWarnings(rules));
-    }
-    s.revision++;
-  });
+  Future<bool> setSharedWarnings(List<WarningRule> rules) =>
+      commit((draft, at) {
+        final checked = readWarnings(rules.map((w) => w.toJson()).toList());
+        draft.defaults = draft.defaults.withWarnings(checked);
+        draft.applySharedWarnings(at);
+        draft.session.revision++;
+      });
+
+  /// Deliberately excludes names, cue text, notes, paths and raw exceptions.
+  String get feedbackDiagnostics {
+    final categories = [
+      if (corrupt) 'state recovery',
+      if (storageUncertain || retry != null) 'storage',
+      if (error != null) 'app action',
+      if (notificationError != null) 'notifications',
+      if (deviceSettingsError != null) 'screen preference',
+    ];
+    return [
+      'Output adapter: Simulator',
+      'Connection: ${displayConnection.label}',
+      'Physical controller: not configured',
+      'Notifications: ${notificationState['enabled'] == true ? 'enabled' : 'disabled'}',
+      'Notification sound: ${notificationState['sound'] == true ? 'enabled' : 'disabled'}',
+      'Precise alarms: ${notificationState['exact'] == true ? 'allowed' : 'not allowed'}',
+      'Current error categories: ${categories.isEmpty ? 'none' : categories.join(', ')}',
+    ].join('\n');
+  }
 
   Future<bool> sendAndSaveCue(TextLayout layout, {int? index, int? revision}) =>
       commit((draft, at) {

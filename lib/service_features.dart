@@ -3,7 +3,7 @@ part of 'domain.dart';
 const displayFontNames = {
   'cuekeeper_matrix': 'Service Matrix',
   'cuekeeper_sq_matrix': 'Service Sq-Matrix',
-  'times_new_roman': 'Times New Roman',
+  'tinos': 'Tinos',
 };
 
 class WarningRule {
@@ -91,7 +91,7 @@ void applyWarnings(Session s, Stamp now, {bool allowStage = true}) {
     ),
   );
   final rule = s.timeline!.display.warnings[due.first];
-  final canDisplay = allowStage && !s.held && !s.disconnected;
+  final canDisplay = allowStage && !s.held && !s.disconnected && !s.outputBlank;
   s.warningNotice =
       '${rule.cue.text} · ${rule.seconds == 0 ? 'Time complete' : '${formatTime(rule.seconds * 1000)} remaining'}';
   if (rule.destination == 'stage') {
@@ -101,7 +101,7 @@ void applyWarnings(Session s, Stamp now, {bool allowStage = true}) {
       s.warningNotice = '${s.warningNotice} · stage cue for 8 seconds';
     } else {
       s.warningNotice =
-          '${s.warningNotice} · stage cue skipped (disconnected, held output, or recovery)';
+          '${s.warningNotice} · stage cue skipped (blank, disconnected, held output, or recovery)';
     }
   }
 }

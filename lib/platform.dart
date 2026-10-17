@@ -8,9 +8,8 @@ abstract class DevicePort {
   Future<String> installedVersion() async => appVersion;
   Future<void> setKeepScreenAwake(bool enabled) async {}
   Future<Map<String, dynamic>?> pickBackup() => pickFile();
-  Future<bool> hasTimesFont() async => false;
-  Future<bool> importTimesFont() async => false;
-  Future<Json> rasterizeTimes(TextLayout layout) async =>
+  Future<bool> hasTinosFont() async => false;
+  Future<Json> rasterizeTinos(TextLayout layout) async =>
       throw RuleError('Native font rendering requires Android.');
   Future<Json> notificationStatus() async => {
     'enabled': false,
@@ -56,15 +55,12 @@ class AndroidPort extends DevicePort {
   }
 
   @override
-  Future<bool> hasTimesFont() async =>
-      await channel.invokeMethod<bool>('hasTimesFont') ?? false;
+  Future<bool> hasTinosFont() async =>
+      await channel.invokeMethod<bool>('hasTinosFont') ?? false;
   @override
-  Future<bool> importTimesFont() async =>
-      await channel.invokeMethod<bool>('importTimesFont') ?? false;
-  @override
-  Future<Json> rasterizeTimes(TextLayout layout) async =>
+  Future<Json> rasterizeTinos(TextLayout layout) async =>
       Map<String, dynamic>.from(
-        (await channel.invokeMethod<Map>('rasterizeTimes', layout.toJson()))!,
+        (await channel.invokeMethod<Map>('rasterizeTinos', layout.toJson()))!,
       );
   @override
   Future<Json> notificationStatus() async => Map<String, dynamic>.from(

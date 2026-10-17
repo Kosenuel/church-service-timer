@@ -12,13 +12,13 @@ Map<String, String> layoutGlyphs(TextLayout l) =>
     l.font == 'cuekeeper_sq_matrix' ? squareGlyphs : glyphs;
 
 int textWidth(TextLayout l) {
-  if (l.font == 'times_new_roman') {
+  if (l.font == 'tinos') {
     final raster = NativeDisplayFonts.cached(l);
     require(
       raster != null,
       NativeDisplayFonts.available
-          ? 'Preparing Times New Roman preview…'
-          : 'Import a licensed Times New Roman Regular .ttf in Settings → Display settings first.',
+          ? 'Preparing Tinos preview…'
+          : 'Bundled Tinos could not be loaded. Android is required for native text rendering.',
     );
     return raster!.width;
   }
@@ -68,7 +68,7 @@ List<bool> renderPixels(TextLayout? layout, int elapsedMs) {
   if (layout == null) return pixels;
   if (layout.effect == 'flash' && (elapsedMs ~/ 500).isOdd) return pixels;
   final width = textWidth(layout);
-  if (layout.font == 'times_new_roman') {
+  if (layout.font == 'tinos') {
     final raster = NativeDisplayFonts.cached(layout)!;
     final scrolling = layout.effect == 'scroll' && width > 32;
     final start = scrolling

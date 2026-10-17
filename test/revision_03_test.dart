@@ -25,9 +25,9 @@ class NotificationPort extends FakePort {
 class FontPort extends FakePort {
   int renders = 0;
   @override
-  Future<bool> hasTimesFont() async => true;
+  Future<bool> hasTinosFont() async => true;
   @override
-  Future<Json> rasterizeTimes(TextLayout l) async {
+  Future<Json> rasterizeTinos(TextLayout l) async {
     renders++;
     return {
       'width': 40,
@@ -57,12 +57,12 @@ void main() {
       expect(state.stageCues.last.bold, true);
       expect(state.stageCues.last.speed, 21);
       expect(state.stageCues.last.font, 'cuekeeper_matrix');
-      expect(state.stageCues.length, 5);
-      expect(AppState.fromJson(state.toJson()).stageCues.length, 5);
+      expect(state.stageCues.length, 4);
+      expect(AppState.fromJson(state.toJson()).stageCues.length, 4);
       expect(displayFontNames.keys, [
         'cuekeeper_matrix',
         'cuekeeper_sq_matrix',
-        'times_new_roman',
+        'tinos',
       ]);
     },
   );
@@ -180,7 +180,7 @@ void main() {
       await c.initialize(startTicker: false);
       await c.act('load', value: c.state.templates.last);
       await c.act('start');
-      await c.setLiveWarnings([
+      await c.setSharedWarnings([
         const WarningRule(45, TextLayout('CHECK'), destination: 'stage'),
       ]);
       expect(c.state.session.timeline!.display.warnings.single.seconds, 45);
@@ -199,7 +199,7 @@ void main() {
       await c.act('load', value: c.state.templates.last);
       await c.act('start');
       port.at = at(20);
-      await c.setLiveWarnings([
+      await c.setSharedWarnings([
         const WarningRule(50, TextLayout('PAST'), destination: 'stage'),
         const WarningRule(10, TextLayout('FUTURE'), destination: 'stage'),
       ]);
@@ -210,32 +210,29 @@ void main() {
     },
   );
 
-  test(
-    'Upgrade enables the former suggested stage warnings and keeps custom operator rules',
-    () {
-      final old = AppState.fresh(epoch).toJson()..['version'] = 2;
-      for (final warning in old['defaults']['warnings']) {
-        warning['destination'] = 'operator';
-      }
-      old['templates'][0]['display']['warnings'] = [
-        const WarningRule(45, TextLayout('CUSTOM')).toJson(),
-      ];
-      final state = AppState.fromJson(old);
-      expect(
-        state.defaults.warnings.every((w) => w.destination == 'stage'),
-        true,
-      );
-      expect(
-        state.templates.first.display.warnings.single.destination,
-        'operator',
-      );
-    },
-  );
+  test('Upgrade uses shared defaults as the authoritative warning rules', () {
+    final old = AppState.fresh(epoch).toJson()..['version'] = 2;
+    for (final warning in old['defaults']['warnings']) {
+      warning['destination'] = 'operator';
+    }
+    old['templates'][0]['display']['warnings'] = [
+      const WarningRule(45, TextLayout('CUSTOM')).toJson(),
+    ];
+    final state = AppState.fromJson(old);
+    expect(
+      state.defaults.warnings.every((w) => w.destination == 'stage'),
+      true,
+    );
+    expect(
+      state.templates.first.display.warnings.map((w) => w.toJson()).toList(),
+      state.defaults.warnings.map((w) => w.toJson()).toList(),
+    );
+  });
 
   test(
-    'Missing Times font is explicit; native rasters are cached, clipped and scrolled without scaling',
+    'Unavailable native Tinos is explicit; native rasters are cached, clipped and scrolled without scaling',
     () async {
-      const l = TextLayout('TEST', font: 'times_new_roman', height: 2);
+      const l = TextLayout('TEST', font: 'tinos', height: 2);
       await NativeDisplayFonts.initialize(FakePort());
       await expectLater(
         NativeDisplayFonts.prepare(l),

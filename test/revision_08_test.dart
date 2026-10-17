@@ -135,63 +135,44 @@ void main() {
   }
 
   testWidgets(
-    'Template warning changes are drafts until Save timeline and persist after restart',
+    'Shared warning edits update templates and loaded services after restart',
     (t) async {
       size(t);
       final port = FakePort();
       final c = await setup(port);
       await c.act('load', value: c.state.templates.first);
-      final defaults = c.state.defaults.toJson();
-      final loaded = c.state.session.timeline!.display.toJson();
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await editor(t);
-      await changeWarning(t, '42');
-      expect(c.state.templates.first.display.toJson(), loaded);
-      await t.pageBack();
+      await t.tap(find.byType(NavigationDestination).at(2));
       await t.pumpAndSettle();
-      expect(c.state.templates.first.display.toJson(), loaded);
-      await t.ensureVisible(find.text('Edit template'));
-      await t.tap(find.text('Edit template'));
+      await t.tap(find.text('Warnings & alerts'));
       await t.pumpAndSettle();
       await changeWarning(t, '43');
+      expect(
+        c.state.templates.every(
+          (v) => v.display.warnings.any((w) => w.seconds == 43),
+        ),
+        true,
+      );
+      expect(c.state.session.timeline!.display.warnings.first.seconds, 43);
       await t.ensureVisible(find.byType(WarningSettingsPanel));
       await t.pumpAndSettle();
       await expectLater(
         find.byType(MaterialApp),
-        matchesGoldenFile('goldens/template-warnings-phone.png'),
+        matchesGoldenFile('goldens/warnings-settings-phone.png'),
       );
-      await t.scrollUntilVisible(
-        find.text('Save timeline'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await t.tap(find.text('Save timeline'));
-      await t.pumpAndSettle();
-      expect(
-        c.state.templates.first.display.warnings.any((w) => w.seconds == 43),
-        true,
-      );
-      expect(c.state.defaults.toJson(), defaults);
-      expect(c.state.session.timeline!.display.toJson(), loaded);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
       final restored = await setup(port);
-      expect(
-        restored.state.templates.first.display.warnings.any(
-          (w) => w.seconds == 43,
-        ),
-        true,
-      );
+      expect(restored.state.defaults.warnings.first.seconds, 43);
       restored.dispose();
     },
   );
   testWidgets(
-    'Display defaults have no Editing selector and warning edits only affect future templates',
+    'Display settings is compact and has no warning editor or Editing selector',
     (t) async {
       size(t);
       final c = await setup(FakePort());
-      final before = c.state.templates.map((v) => v.toJson()).toList();
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await t.tap(find.byType(NavigationDestination).at(2));
@@ -199,27 +180,16 @@ void main() {
       await t.tap(find.text('Display settings'));
       await t.pumpAndSettle();
       expect(find.text('Editing'), findsNothing);
-      expect(find.text('Defaults for new templates'), findsOneWidget);
+      expect(find.byType(WarningSettingsPanel), findsNothing);
+      expect(find.text('Default end screen'), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/display-settings-phone.png'),
       );
-      await t.ensureVisible(find.byType(WarningSettingsPanel));
-      final edit = find
-          .descendant(
-            of: find.byType(WarningSettingsPanel),
-            matching: find.byTooltip('Edit warning'),
-          )
-          .first;
-      await t.ensureVisible(edit);
-      await t.tap(edit);
+      await t.pageBack();
       await t.pumpAndSettle();
-      await t.enterText(find.widgetWithText(TextField, 'Minutes'), '0');
-      await t.enterText(find.widgetWithText(TextField, 'Seconds'), '39');
-      await t.tap(find.text('Save warning'));
-      await t.pumpAndSettle();
-      expect(c.state.defaults.warnings.any((w) => w.seconds == 39), true);
-      expect(c.state.templates.map((v) => v.toJson()).toList(), before);
+      await editor(t);
+      expect(find.byType(WarningSettingsPanel), findsNothing);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
     },

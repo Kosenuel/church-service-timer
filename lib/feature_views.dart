@@ -100,133 +100,81 @@ extension FeatureViews on _HomeState {
     ),
   );
 
-  Widget liveWarnings() {
-    final d = c.state.session.timeline!.display;
-    final count = d.warnings
-        .where((w) => w.enabled && w.destination == 'stage')
-        .length;
-    return panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget warningsSettings() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      WarningSettingsPanel(
+        settings: c.state.defaults,
+        title: 'Automatic warnings · all services',
+        scope:
+            'Shared across services and rehearsals, including the loaded service. Changes affect future threshold crossings; earlier warnings are not replayed.',
+        busy: c.busy,
+        onSave: (next) async {
+          if (!await c.setSharedWarnings(next.warnings) && mounted)
+            await showError(c.error ?? 'Could not save warnings.');
+        },
+      ),
+      const SizedBox(height: 16),
+      panel(child: phoneWarningSettings()),
+    ],
+  );
+
+  Widget phoneWarningSettings() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        c.notificationState['enabled'] == true
+            ? (c.notificationState['sound'] == true
+                  ? 'Phone notifications and sound enabled'
+                  : 'Phone notifications enabled · channel sound is off')
+            : 'Phone notifications are off',
+        style: TextStyle(color: appColors(context).muted),
+      ),
+      if (c.notificationError != null)
+        Text(
+          c.notificationError!,
+          style: TextStyle(color: appColors(context).warning),
+        ),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            title: const Text('Automatic warnings · this service'),
-            subtitle: Text(
-              '$count stage warnings · thresholds use time remaining',
+          if (c.notificationState['enabled'] != true)
+            button(
+              'Enable phone notifications',
+              Icons.notifications_active_outlined,
+              c.enablePhoneWarnings,
             ),
-            children: [
-              warningSettings(d, (next) async {
-                await c.setLiveWarnings(next.warnings);
-              }),
-            ],
-          ),
-          Text(
-            c.notificationState['enabled'] == true
-                ? (c.notificationState['sound'] == true
-                      ? 'Phone notifications and sound enabled'
-                      : 'Phone notifications enabled · channel sound is off')
-                : 'Phone notifications are off',
-            style: TextStyle(color: appColors(context).muted),
-          ),
-          if (c.notificationError != null)
-            Text(
-              c.notificationError!,
-              style: TextStyle(color: appColors(context).warning),
-            ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (c.notificationState['enabled'] != true)
-                button(
-                  'Enable phone notifications',
-                  Icons.notifications_active_outlined,
-                  c.enablePhoneWarnings,
-                ),
-              button(
-                'Notification settings',
-                Icons.settings_outlined,
-                () async {
-                  try {
-                    await c.port.openNotificationSettings();
-                  } catch (e) {
-                    if (mounted) await showError('$e');
-                  }
-                },
-              ),
-              button(
-                'Test notification sound',
-                Icons.volume_up_outlined,
-                () async {
-                  try {
-                    await c.port.testNotification();
-                  } catch (e) {
-                    if (mounted) await showError('$e');
-                  }
-                },
-              ),
-              if (c.notificationState['exact'] != true)
-                button('Allow precise warnings', Icons.alarm, () async {
-                  try {
-                    await c.port.requestExactWarnings();
-                  } catch (e) {
-                    if (mounted) await showError('$e');
-                  }
-                }),
-            ],
-          ),
+          button('Notification settings', Icons.settings_outlined, () async {
+            try {
+              await c.port.openNotificationSettings();
+            } catch (e) {
+              if (mounted) await showError('$e');
+            }
+          }),
+          button('Test notification sound', Icons.volume_up_outlined, () async {
+            try {
+              await c.port.testNotification();
+            } catch (e) {
+              if (mounted) await showError('$e');
+            }
+          }),
           if (c.notificationState['exact'] != true)
-            Text(
-              'Without precise alarm access, Android may delay warnings while the phone sleeps.',
-              style: TextStyle(color: appColors(context).muted, fontSize: 12),
-            ),
+            button('Allow precise warnings', Icons.alarm, () async {
+              try {
+                await c.port.requestExactWarnings();
+              } catch (e) {
+                if (mounted) await showError('$e');
+              }
+            }),
         ],
       ),
-    );
-  }
-
-  Widget timesFontSettings() => panel(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        label('Times New Roman'),
-        const SizedBox(height: 8),
+      if (c.notificationState['exact'] != true)
         Text(
-          NativeDisplayFonts.available
-              ? 'Times New Roman is installed on this device.'
-              : 'Import a Times New Roman Regular .ttf licensed for use on this device. The app does not bundle or substitute this font.',
+          'Without precise alarm access, Android may delay warnings while the phone sleeps.',
+          style: TextStyle(color: appColors(context).muted, fontSize: 12),
         ),
-        const SizedBox(height: 12),
-        button(
-          NativeDisplayFonts.available
-              ? 'Replace Times New Roman font'
-              : 'Import Times New Roman font',
-          Icons.font_download_outlined,
-          c.busy || c.state.session.active
-              ? null
-              : () async {
-                  try {
-                    if (await c.port.importTimesFont()) {
-                      await c.reloadFonts();
-                    }
-                  } catch (e) {
-                    if (mounted) await showError('Font import failed: $e');
-                  }
-                },
-        ),
-        if (c.state.session.active)
-          Text(
-            'End the current service before changing the installed font.',
-            style: TextStyle(color: appColors(context).muted),
-          ),
-        const SizedBox(height: 8),
-        Text(
-          'Service Matrix is built in and unchanged. Retired Service Serif and Clear Sans selections use Service Matrix.',
-          style: TextStyle(color: appColors(context).muted),
-        ),
-      ],
-    ),
+    ],
   );
 
   Future<void> confirmPause() async {
@@ -432,7 +380,7 @@ class WarningSettingsPanel extends StatelessWidget {
             ],
             const SizedBox(height: 8),
             Text(
-              'Triggers at the selected time remaining, once per segment. Stage warnings overlay the display for 8 seconds, then restore the cue or timer. Phone notifications follow Android sound and Do Not Disturb settings.',
+              'Triggers at the selected time remaining, once per segment. Stage warnings overlay the display for 8 seconds, then restore the cue or timer. Blank sign suppresses stage output until restored. Phone notifications follow Android sound and Do Not Disturb settings.',
               style: TextStyle(color: appColors(context).muted),
             ),
             ...d.warnings.asMap().entries.map(

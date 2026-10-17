@@ -1,7 +1,7 @@
 name: church_service_timer
 description: Offline church service timer with a 32 by 16 LED simulator.
 publish_to: none
-version: 0.9.0+9
+version: 0.10.0+10
 environment:
   sdk: '>=3.10.0 <4.0.0'
 dependencies:
@@ -12,6 +12,8 @@ dev_dependencies:
     sdk: flutter
 flutter:
   uses-material-design: true
+  assets:
+    - assets/licenses/OFL-Tinos.txt
   fonts:
     - family: Roboto
       fonts:

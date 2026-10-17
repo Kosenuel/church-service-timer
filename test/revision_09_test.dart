@@ -162,7 +162,7 @@ void main() {
       expect(
         copied,
         startsWith(
-          'To: kosenuel@gmail.com\nSubject: Church Service Timer feedback:',
+          'To: immanuelproton@gmail.com\nSubject: Church Service Timer feedback:',
         ),
       );
       expect(copied, contains('operator@example.com'));

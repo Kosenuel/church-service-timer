@@ -18,6 +18,7 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
       contact = TextEditingController();
   bool busy = false, issue = false;
   String? status;
+  String? diagnostics;
 
   @override
   void dispose() {
@@ -48,6 +49,7 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
       message: message.text,
       contact: contact.text,
       version: widget.controller.appVersion,
+      diagnostics: diagnostics,
     );
     FocusScope.of(context).unfocus();
     setState(() {
@@ -117,6 +119,7 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
     setState(() {
       status = null;
       issue = false;
+      diagnostics = null;
     });
   }
 
@@ -200,6 +203,31 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
                       fontSize: 13,
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  SwitchListTile.adaptive(
+                    key: const ValueKey('feedback-diagnostics'),
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Include optional diagnostics'),
+                    subtitle: const Text(
+                      'Connection, notification status and error categories. No church content, credentials or private notes.',
+                    ),
+                    value: diagnostics != null,
+                    onChanged: busy
+                        ? null
+                        : (value) => setState(
+                            () => diagnostics = value
+                                ? widget.controller.feedbackDiagnostics
+                                : null,
+                          ),
+                  ),
+                  if (diagnostics != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: SelectableText(
+                        'Review the details included in your email:\n\n$diagnostics',
+                        key: const ValueKey('diagnostics-preview'),
+                      ),
+                    ),
                   if (status != null) ...[
                     const SizedBox(height: 16),
                     Semantics(

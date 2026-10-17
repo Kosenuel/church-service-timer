@@ -46,6 +46,7 @@ void main() {
       final port = FakePort()..at = epoch;
       final c = AppController(port);
       await c.initialize(startTicker: false);
+      await c.setSharedWarnings([]);
       await c.act('load', value: c.state.templates.last);
       await c.act('start');
       final cue = c.state.stageCues.first;
@@ -71,6 +72,7 @@ void main() {
     () async {
       final c = AppController(FakePort()..at = epoch);
       await c.initialize(startTicker: false);
+      await c.setSharedWarnings([]);
       final first = c.state.stageCues.first;
       final second = c.state.stageCues[1];
       expect(await c.deleteStageCue(0, first), true);
@@ -86,6 +88,7 @@ void main() {
       final port = FakePort()..at = epoch;
       final c = AppController(port);
       await c.initialize(startTicker: false);
+      await c.setSharedWarnings([]);
       await c.act(
         'load',
         value: Timeline('Test', const [
@@ -124,6 +127,7 @@ void main() {
     size(t, const Size(700, 1500));
     final c = AppController(FakePort()..at = epoch);
     await c.initialize(startTicker: false);
+    await c.setSharedWarnings([]);
     await c.act('load', value: c.state.templates.last);
     await c.act('start');
     await t.pumpWidget(TimerApp(controller: c));
@@ -153,6 +157,7 @@ void main() {
       size(t, const Size(700, 1500));
       final c = AppController(FakePort()..at = epoch);
       await c.initialize(startTicker: false);
+      await c.setSharedWarnings([]);
       await c.act('load', value: c.state.templates.first);
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
@@ -193,6 +198,7 @@ void main() {
       size(t, const Size(430, 1100));
       final c = AppController(FakePort()..at = epoch);
       await c.initialize(startTicker: false);
+      await c.setSharedWarnings([]);
       await c.commit((a, _) => a.reports = reportFixtures());
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
@@ -236,6 +242,7 @@ void main() {
       final port = ExportPort()..at = epoch;
       final c = AppController(port);
       await c.initialize(startTicker: false);
+      await c.setSharedWarnings([]);
       await c.commit((a, _) => a.reports = reportFixtures());
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
@@ -295,6 +302,7 @@ void main() {
     final port = FakePort()..at = epoch;
     final c = AppController(port);
     await c.initialize(startTicker: false);
+    await c.setSharedWarnings([]);
     await c.act(
       'load',
       value: Timeline('Test', const [
@@ -311,6 +319,8 @@ void main() {
     await t.tap(find.text('Display settings'));
     await t.pumpAndSettle();
     expect(find.text('Editing'), findsNothing);
+    await t.tap(find.text('At Zero'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Custom text'));
     await t.pump(const Duration(milliseconds: 300));
     await t.enterText(find.widgetWithText(TextField, 'Display text'), 'DONE');

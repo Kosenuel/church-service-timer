@@ -84,6 +84,8 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Display settings'));
       await t.pumpAndSettle();
+      await t.tap(find.text('LED preview shape'));
+      await t.pumpAndSettle();
       await t.ensureVisible(find.text('Circular LEDs'));
       await t.tap(find.text('Circular LEDs'));
       await t.pumpAndSettle();
@@ -93,6 +95,8 @@ void main() {
         LedAppearance.of(t.element(find.byType(LedMatrix).first)),
         'circular',
       );
+      await t.pageBack();
+      await t.pumpAndSettle();
       await t.pageBack();
       await t.pumpAndSettle();
       await t.tap(find.text('Live'));
@@ -115,7 +119,7 @@ void main() {
       );
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
-      expect(c.state.stageCues.length, 4);
+      expect(c.state.stageCues.length, 3);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
       final restored = AppController(port);

@@ -11,11 +11,11 @@ final revision06Cases = <String, void Function()>{
       t.remove('type');
     }
     final a = AppState.fromJson(old);
-    equal(a.groupTemplates, false);
+    equal(a.groupTemplates, true);
     equal(a.templates.first.type, 'service');
     equal(a.templates.last.type, 'rehearsal');
     equal(a.templates.first.display.end.bold, true);
-    equal(a.toJson()['version'], 8);
+    equal(a.toJson()['version'], 9);
   },
   'Template group and list preference survive restart and JSON import': () {
     final a = AppState.fresh(epoch)..groupTemplates = true;
@@ -29,7 +29,7 @@ final revision06Cases = <String, void Function()>{
       DisplaySettings(),
     );
     equal(imported.type, 'rehearsal');
-    equal(imported.toJson()['schemaVersion'], 3);
+    equal(imported.toJson()['schemaVersion'], 4);
     equal(imported.renamed('Practice').type, 'rehearsal');
   },
   'Shared zero and settings changes preserve explicit template group': () {

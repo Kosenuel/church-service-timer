@@ -1,14 +1,16 @@
 import 'domain.dart';
 
-const feedbackRecipient = 'kosenuel@gmail.com';
+const feedbackRecipient = 'immanuelproton@gmail.com';
 
 class FeedbackMessage {
   final String title, message, contact, version;
+  final String? diagnostics;
   FeedbackMessage({
     required String title,
     required String message,
     required String contact,
     required this.version,
+    this.diagnostics,
   }) : title = checked(title, 120, 'Title'),
        message = checked(message, 4000, 'Message', multiline: true),
        contact = checked(contact, 120, 'Contact');
@@ -36,6 +38,6 @@ class FeedbackMessage {
 
   String get subject => '$appName feedback: $title';
   String get body =>
-      'Title: $title\n\nMessage:\n$message\n\nContact: $contact\n\nApp: $appName\nVersion: $version';
+      'Title: $title\n\nMessage:\n$message\n\nContact: $contact\n\nApp: $appName\nVersion: $version${diagnostics == null ? '' : '\n\nOptional diagnostics (reviewed):\n$diagnostics'}';
   String get copyText => 'To: $feedbackRecipient\nSubject: $subject\n\n$body';
 }

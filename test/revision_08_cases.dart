@@ -12,14 +12,14 @@ final revision08Cases = <String, void Function()>{
     old.remove('churchBanner');
     final state = AppState.fromJson(old);
     equal(state.churchBanner, '');
-    equal(state.toJson()['version'], 8);
+    equal(state.toJson()['version'], 9);
     equal(state.templates.map((t) => t.toJson()).toList(), old['templates']);
   },
   'Banner survives saved-state and portable-backup round trips': () {
     final state = AppState.fresh(epoch)..churchBanner = bannerFixture();
     equal(AppState.fromJson(state.toJson()).churchBanner, state.churchBanner);
     final raw = exportBackup(state, epoch);
-    equal(jsonDecode(raw)['schemaVersion'], 2);
+    equal(jsonDecode(raw)['schemaVersion'], 3);
     equal(importBackup(raw, epoch).churchBanner, state.churchBanner);
   },
   'Older schema 1 backups restore using the built-in banner': () {
@@ -46,38 +46,37 @@ final revision08Cases = <String, void Function()>{
         rejects(() => churchBannerValue(base64Encode(bytes)));
         rejects(() => churchBannerValue(base64Encode([0, 1, 2])));
       },
-  'Template warning edits retain formatting without changing defaults or other templates':
-      () {
-        final state = AppState.fresh(epoch);
-        final before = state.defaults.toJson();
-        final other = state.templates.last.toJson();
-        final warning = WarningRule(
-          42,
-          const TextLayout(
-            'FINISH',
-            bold: true,
-            italic: true,
-            effect: 'scroll',
-            speed: 12,
-            height: 2,
-            font: 'cuekeeper_sq_matrix',
-          ),
-          destination: 'stage',
-        );
-        state.saveTemplate(
-          state.templates.first.withDisplay(
-            state.templates.first.display.withWarnings([warning]),
-          ),
-          replacing: 0,
-        );
-        final restored = AppState.fromJson(state.toJson());
-        equal(
-          restored.templates.first.display.warnings.single.toJson(),
-          warning.toJson(),
-        );
-        equal(restored.defaults.toJson(), before);
-        equal(restored.templates.last.toJson(), other);
-      },
+  'Template warning overrides are normalized to shared settings': () {
+    final state = AppState.fresh(epoch);
+    final before = state.defaults.toJson();
+    final other = state.templates.last.toJson();
+    final warning = WarningRule(
+      42,
+      const TextLayout(
+        'FINISH',
+        bold: true,
+        italic: true,
+        effect: 'scroll',
+        speed: 12,
+        height: 2,
+        font: 'cuekeeper_sq_matrix',
+      ),
+      destination: 'stage',
+    );
+    state.saveTemplate(
+      state.templates.first.withDisplay(
+        state.templates.first.display.withWarnings([warning]),
+      ),
+      replacing: 0,
+    );
+    final restored = AppState.fromJson(state.toJson());
+    equal(
+      restored.templates.first.display.warnings.map((w) => w.toJson()).toList(),
+      state.defaults.warnings.map((w) => w.toJson()).toList(),
+    );
+    equal(restored.defaults.toJson(), before);
+    equal(restored.templates.last.toJson(), other);
+  },
   'New templates inherit current defaults but existing templates retain their settings':
       () {
         final state = AppState.fresh(epoch);

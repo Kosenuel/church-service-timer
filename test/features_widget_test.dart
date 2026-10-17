@@ -104,7 +104,7 @@ void main() {
   );
 
   testWidgets(
-    'Warning editor changes destination without modifying the running snapshot',
+    'Warning editor updates shared rules including the running snapshot',
     (tester) async {
       size(tester, const Size(500, 1100));
       final port = FakePort()..at = epoch;
@@ -116,7 +116,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Settings'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Display settings'));
+      await tester.tap(find.text('Warnings & alerts'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('02:00 · 2 MIN LEFT'));
       await tester.pumpAndSettle();
@@ -131,7 +131,7 @@ void main() {
       expect(c.state.defaults.warnings.first.destination, 'operator');
       expect(
         c.state.session.timeline!.display.warnings.first.destination,
-        'stage',
+        'operator',
       );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

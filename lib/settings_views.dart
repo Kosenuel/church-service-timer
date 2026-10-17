@@ -108,9 +108,15 @@ extension SettingsViews on _HomeState {
         ]),
         group('Service & display', [
           entry(
+            Icons.notifications_active_outlined,
+            'Warnings & alerts',
+            'Shared thresholds, phone notifications and sound',
+            () => openSettingsDetail('Warnings & alerts', warningsSettings),
+          ),
+          entry(
             Icons.display_settings_outlined,
             'Display settings',
-            'End screens, At Zero, warnings, fonts and LEDs',
+            'Connection, profile, end screens, fonts and LEDs',
             () => openSettingsDetail('Display settings', displaySettings),
           ),
           Padding(
@@ -199,7 +205,7 @@ extension SettingsViews on _HomeState {
             ),
             const SizedBox(height: 12),
             Text(
-              'Backups exclude the current running service, phone permissions and imported font files. Reimport Times New Roman in Display settings on a new phone before restoring a backup that uses it.',
+              'Backups exclude the current running service and phone permissions. Tinos and both Matrix fonts are built in on every installation. Private operator notes are included in templates.',
               style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 20),
@@ -339,7 +345,7 @@ extension SettingsViews on _HomeState {
             label('Display fonts'),
             const SizedBox(height: 10),
             const Text(
-              'Service Matrix and Service Sq-Matrix preserve the original Matrix glyphs. Times New Roman uses a font file you import on your device.',
+              'Service Matrix and Service Sq-Matrix preserve the original Matrix glyphs. Tinos includes four bundled faces under SIL Open Font License 1.1.',
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
@@ -349,7 +355,7 @@ extension SettingsViews on _HomeState {
                 applicationVersion: c.appVersion,
               ),
               icon: const Icon(Icons.description_outlined),
-              label: const Text('Font and software licenses'),
+              label: const Text('Open-source licenses'),
             ),
           ],
         ),
@@ -566,60 +572,76 @@ class _AppearancePageState extends State<AppearancePage> {
                   style: TextStyle(color: appColors(context).muted),
                 ),
                 const SizedBox(height: 20),
-                ...appPalettes.map(
-                  (p) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Material(
-                      color: p.surface,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: selected == p.id ? p.accent : p.border,
-                          width: selected == p.id ? 2 : 1,
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < appPalettes.length; i++) ...[
+                        if (i > 0)
+                          const Divider(height: 1, indent: 16, endIndent: 16),
+                        Builder(
+                          builder: (context) {
+                            final p = appPalettes[i];
+                            return ListTile(
+                              key: ValueKey('theme-${p.id}'),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 4,
+                              ),
+                              selected: selected == p.id,
+                              leading: SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Row(
+                                    children: [
+                                      for (final color in [
+                                        p.background,
+                                        p.surface,
+                                        p.accent,
+                                      ])
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: color,
+                                            child: const SizedBox.expand(),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                p.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                p.description,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              trailing: Icon(
+                                selected == p.id
+                                    ? Icons.check_circle
+                                    : Icons.circle_outlined,
+                                size: 22,
+                              ),
+                              onTap: saving
+                                  ? null
+                                  : () {
+                                      setState(() => selected = p.id);
+                                      widget.controller.previewTheme(p.id);
+                                    },
+                            );
+                          },
                         ),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: ListTile(
-                        key: ValueKey('theme-${p.id}'),
-                        selected: selected == p.id,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        leading: CircleAvatar(
-                          backgroundColor: p.accent,
-                          child: Icon(
-                            Icons.palette_outlined,
-                            color: p.light ? Colors.white : p.background,
-                          ),
-                        ),
-                        title: Text(
-                          p.name,
-                          style: TextStyle(
-                            color: p.text,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        subtitle: Text(
-                          p.description,
-                          style: TextStyle(color: p.muted),
-                        ),
-                        trailing: Icon(
-                          selected == p.id
-                              ? Icons.check_circle
-                              : Icons.circle_outlined,
-                          color: p.accent,
-                        ),
-                        onTap: saving
-                            ? null
-                            : () {
-                                setState(() => selected = p.id);
-                                widget.controller.previewTheme(p.id);
-                              },
-                      ),
-                    ),
+                      ],
+                    ],
                   ),
                 ),
+                const SizedBox(height: 20),
                 const SizedBox(height: 8),
                 if (error != null)
                   Text(

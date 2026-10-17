@@ -1,7 +1,7 @@
 part of 'domain.dart';
 
 const appName = 'Church Service Timer';
-const appVersion = '0.9.0 (9)';
+const appVersion = '0.10.0 (10)';
 const themeIds = {
   'midnight_lime',
   'royal_navy',
@@ -74,7 +74,7 @@ String exportBackup(AppState state, Stamp now) {
     ..remove('version');
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    'schemaVersion': 2,
+    'schemaVersion': 3,
     'createdUtc': DateTime.fromMillisecondsSinceEpoch(
       now.wall,
       isUtc: true,
@@ -98,7 +98,7 @@ AppState importBackup(String raw, Stamp now) {
     keys(envelope, {'type', 'schemaVersion', 'createdUtc', 'data'}, 'Backup');
     require(
       envelope['type'] == 'church-service-timer-backup' &&
-          {1, 2}.contains(envelope['schemaVersion']),
+          {1, 2, 3}.contains(envelope['schemaVersion']),
       'Choose a supported Church Service Timer backup.',
     );
     final data = Map<String, dynamic>.from(envelope['data']);
@@ -112,10 +112,10 @@ AppState importBackup(String raw, Stamp now) {
       'churchName',
       'themeId',
       'keepScreenAwake',
-      if (envelope['schemaVersion'] == 2) 'churchBanner',
+      if (envelope['schemaVersion'] >= 2) 'churchBanner',
     }, 'Backup data');
     require(
-      data.length == (envelope['schemaVersion'] == 2 ? 10 : 9) &&
+      data.length == (envelope['schemaVersion'] >= 2 ? 10 : 9) &&
           data.values.every((v) => v != null),
       'Backup is missing saved preferences.',
     );
@@ -127,7 +127,7 @@ AppState importBackup(String raw, Stamp now) {
     );
     final restored = AppState.fromJson({
       ...data,
-      'version': 8,
+      'version': envelope['schemaVersion'] == 3 ? 9 : 8,
       'session': Session(id: 'restored', anchor: now, held: true).toJson(),
     });
     require(

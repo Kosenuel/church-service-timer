@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
 import 'church_banner.dart';
@@ -18,12 +20,18 @@ part 'report_views.dart';
 part 'live_views.dart';
 part 'template_views.dart';
 part 'settings_views.dart';
+part 'refined_settings.dart';
 
 String styleSummary(TextLayout l) =>
     '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks([
+      'Tinos',
+    ], await rootBundle.loadString('assets/licenses/OFL-Tinos.txt'));
+  });
   runApp(TimerApp(controller: AppController(AndroidPort())));
 }
 
@@ -59,6 +67,11 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> with WidgetsBindingObserver {
   AppController get c => widget.controller;
   int page = 0;
+  bool focused = false;
+  void setFocused(bool value) => setState(() {
+    focused = value;
+    page = 0;
+  });
   final settingsRefresh = ValueNotifier<int>(0);
 
   String reportFilter = 'all', reportView = 'list';
@@ -519,6 +532,23 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 6),
+            if (t.segments[s.index].speaker.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text('Speaker: ${t.segments[s.index].speaker}'),
+              ),
+            if (t.segments[s.index].notes.isNotEmpty)
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                leading: const Icon(Icons.lock_outline, size: 18),
+                title: const Text('Private operator notes'),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(t.segments[s.index].notes),
+                  ),
+                ],
+              ),
             SegmentGauge(session: s, now: c.now),
           ] else ...[
             const SizedBox(height: 18),
@@ -640,7 +670,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ],
           const SizedBox(height: 8),
           Text(
-            'Intended: ${s.intended(c.now)?.text ?? 'No new output'}',
+            'Intended: ${s.outputBlank ? 'Blank' : s.intended(c.now)?.text ?? 'No new output'}',
             style: TextStyle(color: appColors(context).muted),
           ),
           Text(
@@ -680,7 +710,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 12),
           Text(
-            s.hasAutomaticCue(c.now)
+            s.outputBlank
+                ? (s.paused
+                      ? 'Display blank · timer paused'
+                      : 'Display blank · timing continues')
+                : s.hasAutomaticCue(c.now)
                 ? 'Warning on display: ${s.automaticCue!.text}'
                 : s.alert == null
                 ? 'The right words, at the right moment.'
@@ -725,10 +759,36 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               button(
                 'Show timer',
                 Icons.timer_outlined,
-                enabled && (s.alert != null || s.hasAutomaticCue(c.now))
+                enabled &&
+                        (s.outputBlank ||
+                            s.alert != null ||
+                            s.hasAutomaticCue(c.now))
                     ? () => c.act('timer')
                     : null,
-                primary: s.alert != null,
+                primary: s.alert != null || s.outputBlank,
+              ),
+              button(
+                'Show cue',
+                Icons.chat_bubble_outline,
+                enabled ? chooseStageCue : null,
+              ),
+              button(
+                'Blank sign',
+                Icons.tv_off_outlined,
+                enabled && !s.outputBlank
+                    ? () async {
+                        final revision = s.revision;
+                        if (await confirmTimer(
+                          revision: revision,
+                          title: 'Blank the display?',
+                          action: 'Blank simulator',
+                          content: () => const Text(
+                            'Clear the simulator while timing continues. Automatic stage cues stay hidden until you choose Show timer or send a cue. Phone warnings remain enabled.',
+                          ),
+                        ))
+                          await c.act('blank', revision: revision);
+                      }
+                    : null,
               ),
             ],
           ),
@@ -739,6 +799,33 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       builder: (context, constraints) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                TextButton.icon(
+                  onPressed: () => setFocused(!focused),
+                  icon: Icon(
+                    focused ? Icons.fullscreen_exit : Icons.fullscreen,
+                  ),
+                  label: Text(
+                    focused ? 'Exit focused view' : 'Focused operator view',
+                  ),
+                ),
+                if (!focused)
+                  TextButton.icon(
+                    onPressed: () => openSettingsDetail(
+                      'Ready for service',
+                      readinessSettings,
+                    ),
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: const Text('Ready for service'),
+                  ),
+              ],
+            ),
+          ),
           if (c.displayConnection == DisplayConnection.disconnected &&
               (s.active || s.phase == 'ended'))
             Padding(
@@ -829,7 +916,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
               ),
             ),
-          if (constraints.maxWidth >= 850)
+          if (focused)
+            timerPanel
+          else if (constraints.maxWidth >= 850)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -844,12 +933,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             displayPanel,
           ],
           const SizedBox(height: 20),
-          if (s.active || s.phase == 'ended') ...[
+          if (!focused && (s.active || s.phase == 'ended')) ...[
             timingOverview(),
-            const SizedBox(height: 16),
-          ],
-          if (s.timeline != null && (s.active || s.phase == 'ready')) ...[
-            liveWarnings(),
             const SizedBox(height: 16),
           ],
           if (s.warningNotice != null) ...[
@@ -924,138 +1009,27 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     );
   }
 
-  Widget displaySettings() {
-    final d = c.state.defaults;
-    Future<void> save(DisplaySettings next) async {
-      final ok = await c.commit((draft, _) => draft.defaults = next);
-      if (!ok && mounted)
-        await showError(c.error ?? 'Could not save defaults.');
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Make every pixel count.',
-          style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'At Zero, fonts and LED shape are shared across services. For a service’s end screen and warning rules, open its template and choose Edit template.',
-          style: TextStyle(color: appColors(context).muted),
-        ),
-        const SizedBox(height: 20),
-        sharedZeroSettings(),
-        const SizedBox(height: 20),
-        Text(
-          'Defaults for new templates',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'These end-screen and warning settings are copied when you create a template. Existing templates and loaded services keep their own settings.',
-          style: TextStyle(color: appColors(context).muted),
-        ),
-        const SizedBox(height: 16),
-        panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              label('When the service ends'),
-              const SizedBox(height: 8),
-              Text(d.end.text, style: const TextStyle(fontSize: 24)),
-              const SizedBox(height: 8),
-              Text(
-                styleSummary(d.end),
-                style: TextStyle(color: appColors(context).muted),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Default end screen for new templates.',
-                style: TextStyle(color: appColors(context).muted),
-              ),
-              const SizedBox(height: 12),
-              button(
-                'Edit end screen',
-                Icons.edit_outlined,
-                c.busy
-                    ? null
-                    : () async {
-                        final l = await compose(
-                          d.end,
-                          'End screen',
-                          'Save end screen',
-                        );
-                        if (l != null)
-                          await save(
-                            DisplaySettings(
-                              zero: d.zero,
-                              end: l,
-                              cues: d.cues,
-                              warnings: d.warnings,
-                            ),
-                          );
-                      },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        WarningSettingsPanel(
-          settings: d,
-          onSave: save,
-          busy: c.busy,
-          title: 'Default automatic warnings',
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Shared across all services',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 16),
-        panel(
-          child: const Text(
-            'Stage cues are shared across all services. Edit a cue or add a new one on Live; Send saves every formatting choice.',
-          ),
-        ),
-        const SizedBox(height: 16),
-        timesFontSettings(),
-        const SizedBox(height: 16),
-        ledShapeSettings(),
-        const SizedBox(height: 16),
-        panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              label('Prototype display profile'),
-              const SizedBox(height: 10),
-              const Text(
-                '32 × 16 · monochrome\nFonts: Service Matrix, Service Sq-Matrix, imported Times New Roman\nCountdown: Service Matrix · 14-pixel height\nPhysical controller: not configured',
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'The simulator is a visual testing tool. It cannot grant physical-layout approval or measure Wi-Fi/sign latency. Physical Test on Sign is unavailable until a verified adapter is added.',
-                style: TextStyle(color: appColors(context).muted),
-              ),
-              const SizedBox(height: 12),
-              button('Test on sign — unavailable', Icons.developer_board, null),
-              TextButton(
-                onPressed: () =>
-                    showLicensePage(context: context, applicationName: appName),
-                child: const Text('Font and software licenses'),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: c,
     builder: (context, _) => Scaffold(
       appBar: AppBar(
+        actions: [
+          if (c.ready)
+            IconButton(
+              key: const ValueKey('header-connection'),
+              tooltip: '${c.displayConnection.label} · connection details',
+              onPressed: () =>
+                  openSettingsDetail('Display connection', connectionSettings),
+              icon: Icon(
+                connectionIcon(c.displayConnection),
+                color: c.displayConnection == DisplayConnection.disconnected
+                    ? appColors(context).error
+                    : appColors(context).accent,
+              ),
+            ),
+          const SizedBox(width: 8),
+        ],
         toolbarHeight: math.max(
           76,
           MediaQuery.textScalerOf(context).scale(18) * 2.4 +
@@ -1192,28 +1166,37 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
               ),
             ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: page,
-        onDestinationSelected: (v) => setState(() => page = v),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.radio_button_checked),
-            label: 'Live',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.view_timeline_outlined),
-            label: 'Templates',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            label: 'Settings',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.assessment_outlined),
-            label: 'Reports',
-          ),
-        ],
-      ),
+      bottomNavigationBar: focused
+          ? SafeArea(
+              top: false,
+              child: TextButton.icon(
+                onPressed: () => setFocused(false),
+                icon: const Icon(Icons.fullscreen_exit),
+                label: const Text('Exit focused view'),
+              ),
+            )
+          : NavigationBar(
+              selectedIndex: page,
+              onDestinationSelected: (v) => setState(() => page = v),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.radio_button_checked),
+                  label: 'Live',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.view_timeline_outlined),
+                  label: 'Templates',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  label: 'Settings',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.assessment_outlined),
+                  label: 'Reports',
+                ),
+              ],
+            ),
     ),
   );
 }
@@ -1279,7 +1262,7 @@ class _TextComposerState extends State<TextComposer> {
   @override
   Widget build(BuildContext context) {
     final request = layout;
-    if (request.font == 'times_new_roman' &&
+    if (request.font == 'tinos' &&
         NativeDisplayFonts.key(request) != fontRequest) {
       fontRequest = NativeDisplayFonts.key(request);
       fontError = null;
@@ -1299,7 +1282,7 @@ class _TextComposerState extends State<TextComposer> {
     } catch (e) {
       error = e.toString();
     }
-    if (font == 'times_new_roman' && fontError != null) error = fontError;
+    if (font == 'tinos' && fontError != null) error = fontError;
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
@@ -1369,15 +1352,15 @@ class _TextComposerState extends State<TextComposer> {
                 onChanged: (v) => setState(() {
                   font = v!;
                   fontRequest = null;
-                  if (font == 'times_new_roman') height = 2;
+                  if (font == 'tinos') height = 2;
                   watch.reset();
                 }),
               ),
-              if (font == 'times_new_roman')
+              if (font == 'tinos')
                 Padding(
                   padding: EdgeInsets.only(top: 8),
                   child: Text(
-                    'Genuine imported font · 14 px recommended. Compact text has fewer serif details.',
+                    'Bundled Tinos font · 14 px recommended. Compact text has fewer serif details.',
                     style: TextStyle(color: appColors(context).muted),
                   ),
                 ),
@@ -1501,7 +1484,6 @@ class _TemplateEditorState extends State<TemplateEditor> {
   late TextEditingController name;
   late List<Segment> segments;
   late TextLayout endScreen;
-  late List<WarningRule> warnings;
   late String templateType;
   String? error;
   @override
@@ -1510,7 +1492,6 @@ class _TemplateEditorState extends State<TemplateEditor> {
     name = TextEditingController(text: widget.initial.name);
     segments = [...widget.initial.segments];
     endScreen = widget.initial.display.end;
-    warnings = [...widget.initial.display.warnings];
     templateType = widget.initial.type;
   }
 
@@ -1527,11 +1508,18 @@ class _TemplateEditorState extends State<TemplateEditor> {
         duration = TextEditingController(
           text: index == null ? '5' : '${segments[index].minutes}',
         );
+    final speaker = TextEditingController(
+      text: index == null ? '' : segments[index].speaker,
+    );
+    final notes = TextEditingController(
+      text: index == null ? '' : segments[index].notes,
+    );
     String? issue;
     final result = await showDialog<Segment>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
+          scrollable: true,
           title: Text(index == null ? 'Add segment' : 'Edit segment'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1546,6 +1534,26 @@ class _TemplateEditorState extends State<TemplateEditor> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Duration · whole minutes (1–99)',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: speaker,
+                maxLength: 80,
+                decoration: const InputDecoration(
+                  labelText: 'Speaker (optional)',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notes,
+                maxLength: 1000,
+                minLines: 2,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'Private operator notes',
+                  helperText:
+                      'Never shown on the sign. Included in template backups.',
                 ),
               ),
               if (issue != null)
@@ -1566,6 +1574,8 @@ class _TemplateEditorState extends State<TemplateEditor> {
                   final s = Segment.fromJson({
                     'name': label.text,
                     'minutes': int.tryParse(duration.text),
+                    'speaker': speaker.text,
+                    'notes': notes.text,
                   });
                   Navigator.pop(ctx, s);
                 } catch (e) {
@@ -1581,6 +1591,8 @@ class _TemplateEditorState extends State<TemplateEditor> {
     Future<void>.delayed(const Duration(seconds: 1), () {
       label.dispose();
       duration.dispose();
+      speaker.dispose();
+      notes.dispose();
     });
     if (result != null && mounted)
       setState(() {
@@ -1642,7 +1654,9 @@ class _TemplateEditorState extends State<TemplateEditor> {
               child: ListTile(
                 leading: const Icon(Icons.drag_handle),
                 title: Text(segments[i].name),
-                subtitle: Text('${segments[i].minutes} minutes'),
+                subtitle: Text(
+                  '${segments[i].minutes} minutes${segments[i].speaker.isEmpty ? '' : ' · ${segments[i].speaker}'}${segments[i].notes.isEmpty ? '' : '\nPrivate notes saved'}',
+                ),
                 onTap: () => segment(index: i),
                 trailing: IconButton(
                   tooltip: 'Remove segment',
@@ -1710,13 +1724,8 @@ class _TemplateEditorState extends State<TemplateEditor> {
             ),
           ),
           const SizedBox(height: 24),
-          WarningSettingsPanel(
-            settings: widget.initial.display.withWarnings(warnings),
-            title: 'Automatic warnings · this template',
-            scope:
-                'Changes are saved with Save timeline and apply the next time you load this template. Going back discards them.',
-            onSave: (next) async =>
-                setState(() => warnings = [...next.warnings]),
+          const Text(
+            'Warnings are shared across all services. Edit them in Settings → Warnings & alerts.',
           ),
           const SizedBox(height: 24),
           if (error != null)
@@ -1728,9 +1737,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
                   Timeline(
                     name.text,
                     segments,
-                    widget.initial.display
-                        .withEnd(endScreen)
-                        .withWarnings(warnings),
+                    widget.initial.display.withEnd(endScreen),
                     type: templateType,
                   ).toJson(),
                 );
@@ -1749,7 +1756,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Template edits apply the next time you load this service. End-screen and warning defaults for new templates are available in Settings → Display settings.',
+            'Template edits apply the next time you load this service. Default end screens are available in Settings → Display settings. Warnings are shared through Settings → Warnings & alerts.',
             style: TextStyle(color: appColors(context).muted),
           ),
         ],

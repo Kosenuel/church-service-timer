@@ -245,8 +245,45 @@ extension TemplateViews on _HomeState {
                                                   ),
                                                 ),
                                                 Expanded(
-                                                  child: Text(
-                                                    t.segments[i].name,
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(t.segments[i].name),
+                                                      if (t
+                                                          .segments[i]
+                                                          .speaker
+                                                          .isNotEmpty)
+                                                        Text(
+                                                          t.segments[i].speaker,
+                                                          style: TextStyle(
+                                                            color: appColors(
+                                                              context,
+                                                            ).muted,
+                                                            fontSize: 13,
+                                                          ),
+                                                        ),
+                                                      if (t
+                                                          .segments[i]
+                                                          .notes
+                                                          .isNotEmpty)
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets.only(
+                                                                top: 6,
+                                                              ),
+                                                          child: Text(
+                                                            'Private note: ${t.segments[i].notes}',
+                                                            style: TextStyle(
+                                                              color: appColors(
+                                                                context,
+                                                              ).muted,
+                                                              fontSize: 13,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
                                                   ),
                                                 ),
                                                 const SizedBox(width: 12),
@@ -287,7 +324,7 @@ extension TemplateViews on _HomeState {
                                         ),
                                         const SizedBox(height: 12),
                                         Text(
-                                          '${t.display.warnings.where((w) => w.enabled).length} automatic warnings enabled',
+                                          '${c.state.defaults.warnings.where((w) => w.enabled).length} shared automatic warnings enabled',
                                           style: TextStyle(
                                             color: appColors(context).muted,
                                             fontSize: 13,
@@ -365,6 +402,11 @@ extension TemplateViews on _HomeState {
                                         label: const Text('Export CSV'),
                                       ),
                                     ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'JSON includes speaker names and private notes. CSV contains segment names and durations only.',
+                                    style: TextStyle(fontSize: 12),
                                   ),
                                   const SizedBox(height: 16),
                                   Align(
