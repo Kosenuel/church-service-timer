@@ -271,9 +271,22 @@ void main() {
       await t.pumpAndSettle();
       await templates(t);
       expect(t.takeException(), isNull);
+      expect(c.state.groupTemplates, true);
       await t.tap(find.byTooltip('Template list options'));
       await t.pumpAndSettle();
-      await t.tap(find.text('Services & rehearsals'));
+      await t.tap(
+        find.widgetWithText(CheckedPopupMenuItem<bool>, 'Single list'),
+      );
+      await t.pumpAndSettle();
+      expect(c.state.groupTemplates, false);
+      await t.tap(find.byTooltip('Template list options'));
+      await t.pumpAndSettle();
+      await t.tap(
+        find.widgetWithText(
+          CheckedPopupMenuItem<bool>,
+          'Services & rehearsals',
+        ),
+      );
       await t.pumpAndSettle();
       expect(c.state.groupTemplates, true);
       expect(find.text('SERVICES'), findsOneWidget);

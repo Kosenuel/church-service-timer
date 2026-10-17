@@ -111,7 +111,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Display settings'));
     await tester.pumpAndSettle();
-    expect(find.text('Defaults for new templates'), findsOneWidget);
+    expect(find.text('Default end screen'), findsOneWidget);
+    await tester.ensureVisible(find.text('Default end screen'));
+    await tester.tap(find.text('Default end screen'));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await tester.ensureVisible(find.text('Edit end screen'));
     await tester.tap(find.text('Edit end screen'));

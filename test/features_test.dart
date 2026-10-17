@@ -17,18 +17,19 @@ void main() {
       final port = FakePort()..at = epoch;
       final c = AppController(port);
       await c.initialize(startTicker: false);
+      // Rules now belong to shared Settings, not the loaded template.
+      expect(
+        await c.setSharedWarnings(const [
+          WarningRule(120, TextLayout('TWO'), destination: 'stage'),
+          WarningRule(0, TextLayout('ZERO'), destination: 'stage'),
+        ]),
+        true,
+      );
       await c.act(
         'load',
-        value: Timeline(
-          'Warnings',
-          const [Segment('Talk', 3)],
-          DisplaySettings(
-            warnings: [
-              const WarningRule(120, TextLayout('TWO'), destination: 'stage'),
-              const WarningRule(0, TextLayout('ZERO'), destination: 'stage'),
-            ],
-          ),
-        ),
+        value: Timeline('Warnings', const [
+          Segment('Talk', 3),
+        ], DisplaySettings()),
       );
       await c.act('start');
       port.at = at(60);

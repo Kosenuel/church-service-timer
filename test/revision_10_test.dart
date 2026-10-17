@@ -342,11 +342,15 @@ void main() {
       final c = await setup(FakePort());
       await t.pumpWidget(
         MaterialApp(
+          debugShowCheckedModeBanner: false,
           theme: appTheme('midnight_lime'),
-          home: MediaQuery(
-            data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
-            child: Home(controller: c),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.6)),
+            child: child!,
           ),
+          home: Home(controller: c),
         ),
       );
       await t.pumpAndSettle();
@@ -356,6 +360,11 @@ void main() {
       expect(t.takeException(), isNull);
       await tap(t, 'Display profile');
       expect(find.text('PHYSICAL SIGN · NOT VERIFIED'), findsOneWidget);
+      expect(
+        MediaQuery.textScalerOf(t.element(find.text('Resolution'))).scale(10),
+        16,
+      );
+      expect(t.takeException(), isNull);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/display-profile-large-text.png'),

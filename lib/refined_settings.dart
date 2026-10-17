@@ -91,7 +91,7 @@ extension RefinedSettings on _HomeState {
         ),
       ]),
       Text(
-        'Each template keeps its own end screen. Warnings are shared in Settings → Warnings & alerts.',
+        'Each template keeps its own end screen. Manage shared warnings under Warnings & alerts in Settings.',
         style: TextStyle(color: appColors(context).muted),
       ),
     ],
@@ -204,7 +204,7 @@ extension RefinedSettings on _HomeState {
       ),
       const SizedBox(height: 12),
       const Text(
-        'Tall (14 px) gives Tinos the clearest detail. Long messages scroll across the 32 × 16 display. Licenses are available in About → Open-source licenses.',
+        'Tall (14 px) gives Tinos the clearest detail. Long messages scroll across the 32 × 16 display. Find Open-source licenses on the About page.',
       ),
       if (!NativeDisplayFonts.available) ...[
         const SizedBox(height: 12),
