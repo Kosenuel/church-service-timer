@@ -1,8 +1,11 @@
 import 'package:flutter/services.dart';
 
 import 'domain.dart';
+import 'package:nsd/nsd.dart' as nsd;
 
 abstract class DevicePort {
+  Future<void> advertisePairHost(int port) async {}
+  Future<void> stopPairAdvertisement() async {}
   Future<Json> administerDisplay(
     String kind,
     String value,
@@ -59,6 +62,34 @@ abstract class DevicePort {
 }
 
 class AndroidPort extends DevicePort {
+  nsd.Registration? _pairRegistration;
+  int _pairAdvertisementGeneration = 0;
+  @override
+  Future<void> advertisePairHost(int port) async {
+    await stopPairAdvertisement();
+    final generation = _pairAdvertisementGeneration;
+    final registration = await nsd.register(
+      nsd.Service(
+        name: 'Church Service Timer',
+        type: '_cstimer._tcp',
+        port: port,
+      ),
+    );
+    if (generation != _pairAdvertisementGeneration) {
+      await nsd.unregister(registration);
+    } else {
+      _pairRegistration = registration;
+    }
+  }
+
+  @override
+  Future<void> stopPairAdvertisement() async {
+    _pairAdvertisementGeneration++;
+    final registration = _pairRegistration;
+    _pairRegistration = null;
+    if (registration != null) await nsd.unregister(registration);
+  }
+
   static const channel = MethodChannel('church.timer/device');
   @override
   Future<Json> administerDisplay(

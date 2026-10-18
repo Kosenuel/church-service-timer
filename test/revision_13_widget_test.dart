@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/controller.dart';
 import 'package:church_service_timer/domain.dart';
+import 'package:church_service_timer/pairing.dart';
+import 'package:church_service_timer/app_theme.dart';
 import 'domain_test.dart' show FakePort;
 
 class PrintPort extends FakePort {
@@ -64,6 +66,83 @@ void main() {
       await t.pumpWidget(const SizedBox());
     });
   }
+  testWidgets(
+    'Pairing shows six digits and optional QR instead of a long token',
+    (t) async {
+      size(t);
+      final c = await open(t);
+      await t.runAsync(() => c.pairing.host('127.0.0.1'));
+      c.pairing.pin = '001234';
+      c.pairing.code = PairCode(
+        '192.168.1.17',
+        12345,
+        'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+        9999999999999,
+      );
+      await setting(t, 'Paired devices');
+      expect(find.text('001 234'), findsOneWidget);
+      expect(find.text('Copy new pairing code'), findsNothing);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/pairing-short-code.png'),
+      );
+      await t.ensureVisible(find.text('Show QR code'));
+      await t.tap(find.text('Show QR code'));
+      await t.pumpAndSettle();
+      expect(find.text('Pair with QR code'), findsOneWidget);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/pairing-qr.png'),
+      );
+      await t.tap(find.text('Close'));
+      await t.pumpAndSettle();
+      await t.runAsync(() => c.pairing.stop());
+      await t.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets('Join page offers six-digit input and a camera-free fallback', (
+    t,
+  ) async {
+    size(t);
+    const nsdChannel = MethodChannel('com.haberey/nsd');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(nsdChannel, (_) async {
+          throw PlatformException(code: 'notAvailable');
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(nsdChannel, null),
+    );
+    final c = AppController(FakePort());
+    await c.initialize(startTicker: false);
+    await t.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: appTheme('midnight_lime'),
+        home: JoinDevicePage(controller: c),
+      ),
+    );
+    await t.pumpAndSettle();
+    final field = find.widgetWithText(TextField, 'Six-digit code');
+    await t.enterText(field, '001234567x');
+    await t.pumpAndSettle();
+    expect(t.widget<TextField>(field).controller!.text, '001234');
+    expect(find.text('Scan QR code instead'), findsOneWidget);
+    expect(
+      t
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Join service'),
+          )
+          .onPressed,
+      isNull,
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/pairing-join.png'),
+    );
+    await t.pumpWidget(const SizedBox());
+    c.dispose();
+  });
   testWidgets('Warnings support disabling and confirmed deletion', (t) async {
     size(t);
     final c = await open(t);

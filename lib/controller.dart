@@ -171,6 +171,8 @@ class AppController extends ChangeNotifier {
   Future<bool> Function()? retry;
   Timer? _timer;
   AppController(this.port) {
+    pairing.advertise = port.advertisePairHost;
+    pairing.unadvertise = port.stopPairAdvertisement;
     pairing.addListener(() {
       if (!_disposed) notifyListeners();
     });

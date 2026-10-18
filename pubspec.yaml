@@ -6,6 +6,10 @@ environment:
   sdk: '>=3.10.0 <4.0.0'
 dependencies:
   cryptography: ^2.8.1
+  pointycastle: ^4.0.0
+  nsd: ^5.0.1
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.4.2
   flutter:
     sdk: flutter
 dev_dependencies:

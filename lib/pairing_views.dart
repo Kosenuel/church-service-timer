@@ -5,7 +5,7 @@ extension PairingViews on _HomeState {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       const Text(
-        'Keep both devices on the same local Wi-Fi. This phone hosts the timer and sign connection; only one operator controls it at a time. Other apps such as LedArt are outside this control system.',
+        'Use Wi-Fi that lets the devices communicate; some sign hotspots isolate phones. This phone hosts the timer and sign. Only one operator controls it at a time; other apps such as LedArt are outside this control system.',
       ),
       const SizedBox(height: 16),
       if (!c.pairing.hosting) ...[
@@ -55,23 +55,44 @@ extension PairingViews on _HomeState {
                 'Keep this host phone running. Pairing codes expire after 10 minutes; approved connections last until disconnected.',
               ),
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  c.pairing.newCode();
-                  await Clipboard.setData(
-                    ClipboardData(text: c.pairing.code!.encode()),
-                  );
-                  if (mounted)
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'New pairing code copied. Paste it on the second device. Keep the code private.',
-                        ),
-                      ),
-                    );
-                },
-                icon: const Icon(Icons.copy),
-                label: const Text('Copy new pairing code'),
+              Semantics(
+                label: 'Six-digit pairing code',
+                child: SelectableText(
+                  c.pairing.pinAvailable
+                      ? '${c.pairing.pin.substring(0, 3)} ${c.pairing.pin.substring(3)}'
+                      : 'Code unavailable',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: c.pairing.pinAvailable ? 36 : 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 3,
+                  ),
+                ),
+              ),
+              Text(
+                c.pairing.pinAvailable
+                    ? 'Choose this host on the second device and enter these six digits.'
+                    : 'The code expired or reached its attempt limit. Create a new code below.',
+              ),
+              if (c.pairing.discoveryNotice.isNotEmpty)
+                Text(c.pairing.discoveryNotice),
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => PairQrDialog(hub: c.pairing),
+                    ),
+                    icon: const Icon(Icons.qr_code),
+                    label: const Text('Show QR code'),
+                  ),
+                  TextButton.icon(
+                    onPressed: c.pairing.newCode,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('New code'),
+                  ),
+                ],
               ),
               if (!c.pairing.localControl)
                 FilledButton(
@@ -91,7 +112,7 @@ extension PairingViews on _HomeState {
         const SizedBox(height: 12),
         if (c.pairing.peers.isEmpty)
           const Text(
-            'Waiting for a device to join. Paste the pairing code on its Paired devices page.',
+            'Waiting for a device. On its Paired devices page, choose Join another operator and enter the six-digit code or scan the QR code.',
           ),
         for (final peer in List<PairPeer>.of(c.pairing.peers))
           panel(
@@ -161,17 +182,154 @@ class JoinDevicePage extends StatefulWidget {
   State<JoinDevicePage> createState() => _JoinDevicePageState();
 }
 
-class _JoinDevicePageState extends State<JoinDevicePage> {
+class _JoinDevicePageState extends State<JoinDevicePage>
+    with WidgetsBindingObserver {
   final code = TextEditingController(),
       name = TextEditingController(text: 'Second device');
   String role = 'viewer';
-  bool busy = false;
-  String? error;
+  bool busy = false, discovering = false;
+  String? error, discoveryError, selected;
+  nsd.Discovery? discovery;
+  int discoveryGeneration = 0;
+
+  String serviceKey(nsd.Service s) => '${s.name}:${s.port}';
+  String? serviceAddress(nsd.Service s) {
+    for (final address in s.addresses ?? []) {
+      if (localPairAddress(address.address)) return address.address;
+    }
+    return s.host != null && localPairAddress(s.host!) ? s.host : null;
+  }
+
+  List<nsd.Service> get hosts => (discovery?.services ?? <nsd.Service>[])
+      .where(
+        (s) =>
+            serviceAddress(s) != null &&
+            s.port != null &&
+            s.port! > 0 &&
+            s.port! <= 65535,
+      )
+      .toList();
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(findHosts());
+  }
+
+  void changed() {
+    if (!mounted) return;
+    setState(() {
+      final available = hosts;
+      if (!available.any((s) => serviceKey(s) == selected)) {
+        selected = available.length == 1 ? serviceKey(available.single) : null;
+      }
+    });
+  }
+
+  Future<void> stopDiscovery() async {
+    discoveryGeneration++;
+    final previous = discovery;
+    discovery = null;
+    previous?.removeListener(changed);
+    if (previous != null) {
+      try {
+        await nsd.stopDiscovery(previous);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> findHosts() async {
+    await stopDiscovery();
+    if (!mounted) return;
+    final generation = ++discoveryGeneration;
+    setState(() {
+      discovering = true;
+      discoveryError = null;
+      selected = null;
+    });
+    try {
+      final result = await nsd.startDiscovery(
+        '_cstimer._tcp',
+        ipLookupType: nsd.IpLookupType.v4,
+      );
+      if (!mounted || generation != discoveryGeneration) {
+        await nsd.stopDiscovery(result);
+        return;
+      }
+      discovery = result..addListener(changed);
+      changed();
+    } catch (_) {
+      if (mounted && generation == discoveryGeneration)
+        setState(() {
+          discoveryError = 'Nearby discovery is unavailable. Try the QR code.';
+        });
+    } finally {
+      if (mounted && generation == discoveryGeneration)
+        setState(() => discovering = false);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) unawaited(stopDiscovery());
+    if (state == AppLifecycleState.resumed) unawaited(findHosts());
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(stopDiscovery());
     code.dispose();
     name.dispose();
     super.dispose();
+  }
+
+  Future<void> join({String? qr}) async {
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      require(
+        !widget.controller.state.session.active,
+        'End this phone’s local service first.',
+      );
+      final host = hosts.where((s) => serviceKey(s) == selected).firstOrNull;
+      require(
+        qr != null || (host != null && validPairPin(code.text)),
+        'Choose a nearby host and enter its six-digit code.',
+      );
+      final address = await widget.controller.port.localNetworkAddress();
+      if (widget.controller.hardware.connected)
+        await widget.controller.hardware.disconnect();
+      if (qr != null) {
+        await widget.controller.pairing.join(
+          qr,
+          name.text.trim(),
+          role,
+          sourceAddress: address,
+        );
+      } else {
+        await widget.controller.pairing.joinPin(
+          serviceAddress(host!)!,
+          host.port!,
+          code.text,
+          name.text.trim(),
+          role,
+          sourceAddress: address,
+        );
+      }
+      code.clear();
+      if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+    } catch (_) {
+      if (mounted)
+        setState(
+          () => error =
+              'Could not join. Check the six-digit code or refresh the QR code on the host. After five code attempts, create a new code. Both devices need Wi-Fi that allows them to communicate.',
+        );
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   @override
@@ -181,26 +339,15 @@ class _JoinDevicePageState extends State<JoinDevicePage> {
       padding: const EdgeInsets.all(20),
       children: [
         const Text(
-          'Copy a pairing code from the host, then paste it here. The host must approve this device. End any local service first.',
+          'Use the same Wi-Fi as the host. Choose it below and enter its six-digit code, or scan its QR code. The host approves every new device.',
         ),
         const SizedBox(height: 16),
         TextField(
           controller: name,
           maxLength: 60,
+          enabled: !busy,
           decoration: const InputDecoration(labelText: 'Device name'),
         ),
-        TextField(
-          controller: code,
-          maxLength: 1000,
-          maxLines: 3,
-          autocorrect: false,
-          enableSuggestions: false,
-          decoration: const InputDecoration(
-            labelText: 'Pairing code',
-            counterText: '',
-          ),
-        ),
-        const SizedBox(height: 16),
         DropdownButtonFormField<String>(
           initialValue: role,
           decoration: const InputDecoration(labelText: 'Use this device as'),
@@ -215,43 +362,222 @@ class _JoinDevicePageState extends State<JoinDevicePage> {
           onChanged: busy ? null : (v) => setState(() => role = v!),
         ),
         const SizedBox(height: 16),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Nearby hosts',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Refresh nearby hosts',
+              onPressed: busy || discovering ? null : findHosts,
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
+        ),
+        if (discovering) const LinearProgressIndicator(),
+        if (hosts.isEmpty)
+          Text(
+            discoveryError ??
+                'Looking for a host… Tap Share this service on the other phone. If it does not appear, try QR pairing.',
+          ),
+        for (final host in hosts)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              selected == serviceKey(host)
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_off,
+            ),
+            title: Text(host.name ?? 'Church Service Timer'),
+            subtitle: Text(serviceAddress(host)!),
+            onTap: busy
+                ? null
+                : () => setState(() => selected = serviceKey(host)),
+          ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: code,
+          enabled: !busy,
+          maxLength: 6,
+          keyboardType: TextInputType.number,
+          autocorrect: false,
+          enableSuggestions: false,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          onChanged: (_) => setState(() {}),
+          style: const TextStyle(fontSize: 26, letterSpacing: 5),
+          decoration: const InputDecoration(
+            labelText: 'Six-digit code',
+            hintText: '000000',
+          ),
+        ),
         if (error != null)
           Text(error!, style: TextStyle(color: appColors(context).error)),
         FilledButton(
+          onPressed: busy || selected == null || !validPairPin(code.text)
+              ? null
+              : join,
+          child: Text(busy ? 'Connecting…' : 'Join service'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
           onPressed: busy
               ? null
               : () async {
-                  setState(() => busy = true);
-                  try {
-                    require(
-                      !widget.controller.state.session.active,
-                      'End this phone’s local service first.',
-                    );
-                    final address = await widget.controller.port
-                        .localNetworkAddress();
-                    if (widget.controller.hardware.connected)
-                      await widget.controller.hardware.disconnect();
-                    await widget.controller.pairing.join(
-                      code.text.trim(),
-                      name.text.trim(),
-                      role,
-                      sourceAddress: address,
-                    );
-                    code.clear();
-                    if (context.mounted)
-                      Navigator.of(context).popUntil((r) => r.isFirst);
-                  } catch (_) {
-                    if (mounted)
-                      setState(
-                        () => error =
-                            'Could not join. Check the code, host approval and shared Wi-Fi.',
-                      );
-                  } finally {
-                    if (mounted) setState(() => busy = false);
-                  }
+                  final qr = await Navigator.of(context).push<String>(
+                    MaterialPageRoute(builder: (_) => const PairScannerPage()),
+                  );
+                  if (qr != null && mounted) await join(qr: qr);
                 },
-          child: Text(busy ? 'Connecting…' : 'Join service'),
+          icon: const Icon(Icons.qr_code_scanner),
+          label: const Text('Scan QR code instead'),
         ),
+        const SizedBox(height: 12),
+        const Text(
+          'Some sign hotspots isolate phones. If pairing fails, use a shared router or another hotspot.',
+        ),
+      ],
+    ),
+  );
+}
+
+class PairQrDialog extends StatefulWidget {
+  final PairHub hub;
+  const PairQrDialog({super.key, required this.hub});
+  @override
+  State<PairQrDialog> createState() => _PairQrDialogState();
+}
+
+class _PairQrDialogState extends State<PairQrDialog> {
+  Timer? timer;
+  @override
+  void initState() {
+    super.initState();
+    widget.hub.addListener(refresh);
+    timer = Timer.periodic(const Duration(seconds: 1), (_) => refresh());
+  }
+
+  void refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    widget.hub.removeListener(refresh);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final invitation = widget.hub.code;
+    final valid =
+        invitation != null &&
+        invitation.expires > DateTime.now().millisecondsSinceEpoch;
+    return AlertDialog(
+      title: const Text('Pair with QR code'),
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: 260,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (valid)
+                QrImageView(
+                  data: invitation.encode(),
+                  size: 250,
+                  backgroundColor: Colors.white,
+                  semanticsLabel:
+                      'Private pairing invitation. Scan from the second device.',
+                )
+              else
+                const Text('This invitation expired. Generate a new code.'),
+              const SizedBox(height: 12),
+              const Text(
+                'On the second device, choose Scan QR code instead. Keep this invitation private; it expires after 10 minutes. You still approve the device.',
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: widget.hub.hosting ? widget.hub.newCode : null,
+          child: const Text('New code'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+class PairScannerPage extends StatefulWidget {
+  const PairScannerPage({super.key});
+  @override
+  State<PairScannerPage> createState() => _PairScannerPageState();
+}
+
+class _PairScannerPageState extends State<PairScannerPage> {
+  final scanner = MobileScannerController(
+    formats: [BarcodeFormat.qrCode],
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
+  bool done = false;
+  String? error;
+  @override
+  void dispose() {
+    unawaited(scanner.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Scan host QR code')),
+    body: Column(
+      children: [
+        Expanded(
+          child: MobileScanner(
+            controller: scanner,
+            onDetect: (capture) {
+              if (done || !mounted) return;
+              final raw = capture.barcodes.firstOrNull?.rawValue;
+              try {
+                PairCode.parse(raw ?? '');
+                done = true;
+                Navigator.pop(context, raw);
+              } catch (_) {
+                setState(
+                  () => error =
+                      'Use a current Church Service Timer QR code from the host.',
+                );
+              }
+            },
+            errorBuilder: (context, error) => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Camera unavailable. Allow camera access in Android settings, or go back and enter the six-digit code.',
+                ),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text(
+            error ?? 'Point the camera at the QR code on the host phone.',
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Use six-digit code instead'),
+        ),
+        const SizedBox(height: 16),
       ],
     ),
   );

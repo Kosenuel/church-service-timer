@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'package:nsd/nsd.dart' as nsd;
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'pairing_pin.dart';
 import 'dart:ui' show ImageFilter;
 import 'dart:math' as math;
 

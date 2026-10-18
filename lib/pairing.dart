@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'domain.dart';
+import 'pairing_pin.dart';
 
 Future<SecretKey> pairSessionKey(
   SecretKey shared,
@@ -141,6 +142,16 @@ class PairHub extends ChangeNotifier {
   PairWire? _client;
   final peers = <PairPeer>[];
   PairCode? code;
+  String pin = '';
+  PairPinInvitation? _pinInvitation;
+  int pinAttempts = 0;
+  bool get pinAvailable =>
+      code != null &&
+      pinAttempts < 5 &&
+      code!.expires > DateTime.now().millisecondsSinceEpoch;
+  Future<void> Function(int port)? advertise;
+  Future<void> Function()? unadvertise;
+  String discoveryNotice = '';
   Timer? _timer;
   bool _busy = false, _disposed = false;
   final _sockets = <Socket>{};
@@ -192,10 +203,20 @@ class PairHub extends ChangeNotifier {
     );
     onOwnershipChanged?.call();
     changed();
+    try {
+      await advertise?.call(_server!.port);
+    } catch (_) {
+      discoveryNotice =
+          'Nearby discovery is unavailable. Use the QR code instead.';
+    }
+    changed();
   }
 
   void newCode() {
     if (_server == null) return;
+    pin = createPairPin();
+    _pinInvitation = PairPinInvitation(pin);
+    pinAttempts = 0;
     code = PairCode(
       _server!.address.address,
       _server!.port,
@@ -207,6 +228,7 @@ class PairHub extends ChangeNotifier {
 
   Future<void> _accept(Socket socket) async {
     final invitation = code;
+    final pinInvitation = _pinInvitation;
     if (invitation == null ||
         invitation.expires < DateTime.now().millisecondsSinceEpoch ||
         _sockets.length >= 8) {
@@ -221,19 +243,77 @@ class PairHub extends ChangeNotifier {
       final public = await kp.extractPublicKey();
       final challenge = pairRandom(24);
       socket.write(
-        '${jsonEncode({'challenge': challenge, 'public': base64Encode(public.bytes)})}\n',
+        '${jsonEncode({'challenge': challenge, 'public': base64Encode(public.bytes), 'salt': base64Encode(pinInvitation!.salt)})}\n',
       );
       final input = StreamIterator(pairLines(socket));
       require(
         await input.moveNext().timeout(const Duration(seconds: 8)),
         'Missing pairing hello.',
       );
-      final helloWire = PairWire(
-        socket,
-        SecretKey(base64Url.decode(invitation.secret)),
-        challenge,
+      late final PairWire wire;
+      late final Json hello;
+      if (input.current.startsWith('{')) {
+        require(
+          pinAvailable && identical(code, invitation),
+          'Generate a new code.',
+        );
+        pinAttempts++;
+        changed();
+        final request = jsonDecode(input.current) as Map;
+        require(request['type'] == 'pin', 'Invalid pairing method.');
+        final a = pairNumber(request['a']);
+        final srp = pinInvitation.server();
+        final b = srp.generateServerCredentials()!;
+        srp.calculateSecret(a);
+        socket.write('${jsonEncode({'b': b.toRadixString(16)})}\n');
+        require(
+          await input.moveNext().timeout(const Duration(seconds: 12)),
+          'Missing proof.',
+        );
+        final proof = jsonDecode(input.current) as Map;
+        require(
+          srp.verifyClientEvidenceMessage(
+            pairNumber(proof['proof'], proof: true),
+          ),
+          'Incorrect pairing code.',
+        );
+        final m2 = srp.calculateServerEvidenceMessage()!;
+        final key = await pinInvitation.sessionKey(srp, challenge);
+        socket.write('${jsonEncode({'proof': m2.toRadixString(16)})}\n');
+        wire = PairWire(socket, key, challenge);
+        require(
+          await input.moveNext().timeout(const Duration(seconds: 8)),
+          'Missing hello.',
+        );
+        hello = await wire.decode(input.current);
+      } else {
+        final helloWire = PairWire(
+          socket,
+          SecretKey(base64Url.decode(invitation.secret)),
+          challenge,
+        );
+        hello = await helloWire.decode(input.current);
+        final shared = await exchange.sharedSecretKey(
+          keyPair: kp,
+          remotePublicKey: SimplePublicKey(
+            base64Decode(hello['public']),
+            type: KeyPairType.x25519,
+          ),
+        );
+        final key = await pairSessionKey(
+          shared,
+          invitation.secret,
+          challenge,
+          base64Encode(public.bytes),
+          hello['public'] as String,
+        );
+        wire = PairWire(socket, key, challenge);
+      }
+      require(
+        identical(code, invitation) &&
+            invitation.expires > DateTime.now().millisecondsSinceEpoch,
+        'This invitation expired or was replaced.',
       );
-      final hello = await helloWire.decode(input.current);
       require(
         hello['type'] == 'hello' &&
             ['viewer', 'stage', 'operator'].contains(hello['role']) &&
@@ -241,21 +321,6 @@ class PairHub extends ChangeNotifier {
             (hello['name'] as String).length <= 60,
         'Invalid pairing hello.',
       );
-      final shared = await exchange.sharedSecretKey(
-        keyPair: kp,
-        remotePublicKey: SimplePublicKey(
-          base64Decode(hello['public']),
-          type: KeyPairType.x25519,
-        ),
-      );
-      final key = await pairSessionKey(
-        shared,
-        invitation.secret,
-        challenge,
-        base64Encode(public.bytes),
-        hello['public'] as String,
-      );
-      final wire = PairWire(socket, key, challenge);
       peer = PairPeer(
         pairRandom(12),
         nameValue(hello['name'], 'Device name'),
@@ -397,8 +462,40 @@ class PairHub extends ChangeNotifier {
     String name,
     String role, {
     String? sourceAddress,
+  }) =>
+      _join(PairCode.parse(encoded), name, role, sourceAddress: sourceAddress);
+
+  Future<void> joinPin(
+    String address,
+    int port,
+    String pin,
+    String name,
+    String role, {
+    String? sourceAddress,
+  }) {
+    require(
+      localPairAddress(address) &&
+          port > 0 &&
+          port <= 65535 &&
+          validPairPin(pin),
+      'Choose a nearby host and enter its six-digit code.',
+    );
+    return _join(
+      PairCode(address, port, '', 0),
+      name,
+      role,
+      pin: pin,
+      sourceAddress: sourceAddress,
+    );
+  }
+
+  Future<void> _join(
+    PairCode invitation,
+    String name,
+    String role, {
+    String? sourceAddress,
+    String? pin,
   }) async {
-    final invitation = PairCode.parse(encoded);
     require(
       ['viewer', 'stage', 'operator'].contains(role),
       'Choose a device role.',
@@ -428,35 +525,64 @@ class PairHub extends ChangeNotifier {
             (challenge['challenge'] as String).length <= 100,
         'Invalid host.',
       );
-      final exchange = X25519();
-      final kp = await exchange.newKeyPair();
-      final public = await kp.extractPublicKey();
-      final hello = PairWire(
-        socket,
-        SecretKey(base64Url.decode(invitation.secret)),
-        challenge['challenge'],
+      if (pin != null) {
+        final srp = PairPinClient();
+        final a = srp.start(challenge['salt'], pin);
+        socket.write('${jsonEncode({'type': 'pin', 'a': a})}\n');
+        require(
+          await input.moveNext().timeout(const Duration(seconds: 12)),
+          'Code unavailable.',
+        );
+        final response = jsonDecode(input.current) as Map;
+        final proof = srp.prove(response['b']);
+        socket.write('${jsonEncode({'proof': proof})}\n');
+        require(
+          await input.moveNext().timeout(const Duration(seconds: 12)),
+          'Incorrect code.',
+        );
+        final verified = jsonDecode(input.current) as Map;
+        final key = await srp.finish(verified['proof'], challenge['challenge']);
+        _client = PairWire(socket, key, challenge['challenge']);
+        await _client!.send({'type': 'hello', 'name': name, 'role': role});
+      } else {
+        final exchange = X25519();
+        final kp = await exchange.newKeyPair();
+        final public = await kp.extractPublicKey();
+        final hello = PairWire(
+          socket,
+          SecretKey(base64Url.decode(invitation.secret)),
+          challenge['challenge'],
+        );
+        await hello.send({
+          'type': 'hello',
+          'name': name,
+          'role': role,
+          'public': base64Encode(public.bytes),
+        });
+        final shared = await exchange.sharedSecretKey(
+          keyPair: kp,
+          remotePublicKey: SimplePublicKey(
+            base64Decode(challenge['public']),
+            type: KeyPairType.x25519,
+          ),
+        );
+        final key = await pairSessionKey(
+          shared,
+          invitation.secret,
+          challenge['challenge'] as String,
+          challenge['public'] as String,
+          base64Encode(public.bytes),
+        );
+        _client = PairWire(socket, key, challenge['challenge']);
+      }
+      // Do not show a successful join until the host accepts the handshake.
+      require(
+        await input.moveNext().timeout(const Duration(seconds: 8)),
+        'Invitation unavailable.',
       );
-      await hello.send({
-        'type': 'hello',
-        'name': name,
-        'role': role,
-        'public': base64Encode(public.bytes),
-      });
-      final shared = await exchange.sharedSecretKey(
-        keyPair: kp,
-        remotePublicKey: SimplePublicKey(
-          base64Decode(challenge['public']),
-          type: KeyPairType.x25519,
-        ),
-      );
-      final key = await pairSessionKey(
-        shared,
-        invitation.secret,
-        challenge['challenge'] as String,
-        challenge['public'] as String,
-        base64Encode(public.bytes),
-      );
-      _client = PairWire(socket, key, challenge['challenge']);
+      final pending = await _client!.decode(input.current);
+      require(pending['type'] == 'pending', 'Invalid pairing acknowledgement.');
+      clientId = pending['id'];
       status = 'Waiting for host approval';
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         unawaited(
@@ -539,6 +665,10 @@ class PairHub extends ChangeNotifier {
   Future<void> stop() async {
     _timer?.cancel();
     _timer = null;
+    try {
+      await unadvertise?.call();
+    } catch (_) {}
+    discoveryNotice = '';
     await _server?.close();
     _server = null;
     for (final socket in _sockets.toList()) {
@@ -552,6 +682,9 @@ class PairHub extends ChangeNotifier {
     _client?.close();
     _client = null;
     code = null;
+    pin = '';
+    _pinInvitation = null;
+    pinAttempts = 0;
     owner = '';
     snapshot = null;
     lastSnapshot = 0;
