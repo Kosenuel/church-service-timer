@@ -15,6 +15,7 @@ import 'pixels.dart';
 import 'platform.dart';
 import 'native_fonts.dart';
 import 'display_connection.dart';
+import 'pairing.dart';
 
 part 'feature_views.dart';
 part 'report_views.dart';
@@ -23,6 +24,10 @@ part 'template_views.dart';
 part 'settings_views.dart';
 part 'refined_settings.dart';
 part 'hardware_views.dart';
+part 'operator_settings.dart';
+part 'planning_views.dart';
+part 'pairing_views.dart';
+part 'device_management.dart';
 
 String styleSummary(TextLayout l) =>
     '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
@@ -506,7 +511,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Widget live() {
     final s = c.state.session, t = s.timeline;
-    final enabled = s.active && !c.busy && !c.corrupt && !controlsLocked;
+    final enabled =
+        s.active &&
+        !c.busy &&
+        !c.corrupt &&
+        !controlsLocked &&
+        c.pairing.localControl;
     final phase = s.phase == 'active'
         ? (s.paused ? 'Paused' : 'Live')
         : s.phase == 'ready'
@@ -764,7 +774,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           const SizedBox(height: 8),
           Text(
             s.alert == null
-                ? 'Tap a cue to edit it. Send saves its text and formatting for every service.'
+                ? 'Tap a prepared cue to send it. Manage text and formatting in Settings / Stage cues.'
                 : s.paused
                 ? 'The underlying timer is paused.'
                 : 'The countdown continues underneath this cue.',
@@ -781,7 +791,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   (e) => button(
                     e.value.text,
                     Icons.chat_bubble_outline,
-                    enabled ? () => sendCue(e.value, cueIndex: e.key) : null,
+                    enabled && !c.hardware.sending
+                        ? () => sendPreparedCue(e.value)
+                        : null,
                   ),
                 )
                 .toList(),
@@ -792,9 +804,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             runSpacing: 10,
             children: [
               button(
-                'New cue',
+                'Manage cues',
                 Icons.edit_outlined,
-                enabled ? () => sendCue(const TextLayout('')) : null,
+                controlsLocked
+                    ? null
+                    : () => openSettingsDetail('Stage cues', stageCueSettings),
               ),
               button(
                 'Show timer',
@@ -1088,6 +1102,33 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   label('Service rundown · snapshot'),
+                  if (s.active)
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        TextButton.icon(
+                          onPressed: enabled ? editUpcoming : null,
+                          icon: const Icon(Icons.edit_calendar_outlined),
+                          label: const Text('Edit upcoming'),
+                        ),
+                        TextButton.icon(
+                          onPressed: enabled ? finishPlanning : null,
+                          icon: const Icon(Icons.schedule),
+                          label: const Text('Plan finish'),
+                        ),
+                        TextButton.icon(
+                          onPressed: controlsLocked
+                              ? null
+                              : () => printServiceSheet(t),
+                          icon: const Icon(Icons.print_outlined),
+                          label: const Text('Service sheet'),
+                        ),
+                      ],
+                    ),
+                  if (s.targetFinishWall != null)
+                    Text(
+                      'Target finish ${clockLabel(s.targetFinishWall!)} · actual finish depends on manual advances',
+                    ),
                   const SizedBox(height: 12),
                   ...t.segments.asMap().entries.map((e) {
                     final current = e.key == s.index;
@@ -1206,248 +1247,292 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: c,
-    builder: (context, _) => Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            clipBehavior: Clip.antiAlias,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(26)),
-            ),
-            flexibleSpace: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(26),
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color.alphaBlend(
-                          appColors(context).accent.withValues(alpha: .04),
-                          appColors(context).surface,
-                        ).withValues(alpha: .84),
-                        appColors(context).surface.withValues(alpha: .92),
-                      ],
+    builder: (context, _) => c.pairing.joined
+        ? PairedScreen(controller: c)
+        : Scaffold(
+            body: CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  pinned: true,
+                  clipBehavior: Clip.antiAlias,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(26),
                     ),
                   ),
-                  child: const SizedBox.expand(),
-                ),
-              ),
-            ),
-            actions: [
-              if (c.ready)
-                IconButton(
-                  key: const ValueKey('header-connection'),
-                  tooltip: '${c.displayConnection.label} · connection details',
-                  onPressed: () => controlsLocked
-                      ? null
-                      : openSettingsDetail(
-                          'Display connection',
-                          connectionSettings,
-                        ),
-                  icon: Icon(
-                    connectionIcon(c.displayConnection),
-                    color: c.displayConnection == DisplayConnection.disconnected
-                        ? appColors(context).error
-                        : appColors(context).accent,
-                  ),
-                ),
-              const SizedBox(width: 8),
-            ],
-            toolbarHeight: headerHeight(context),
-            title: Row(
-              children: [
-                const ChurchTimerMark(),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        appName,
-                        maxLines: 2,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if ((c.ready ? c.state.churchName : c.loadingChurchName)
-                          .isNotEmpty)
-                        Tooltip(
-                          message: c.ready
-                              ? c.state.churchName
-                              : c.loadingChurchName,
-                          child: Text(
-                            c.ready ? c.state.churchName : c.loadingChurchName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: appColors(context).muted,
-                            ),
+                  flexibleSpace: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(26),
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color.alphaBlend(
+                                appColors(
+                                  context,
+                                ).accent.withValues(alpha: .04),
+                                appColors(context).surface,
+                              ).withValues(alpha: .84),
+                              appColors(context).surface.withValues(alpha: .92),
+                            ],
                           ),
                         ),
-                    ],
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          if (!c.ready)
-            SliverFillRemaining(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const ChurchTimerMark(size: 84),
-                      const SizedBox(height: 20),
-                      const Text(
-                        appName,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
+                  actions: [
+                    if (c.ready)
+                      IconButton(
+                        key: const ValueKey('header-connection'),
+                        tooltip:
+                            '${c.displayConnection.label} · connection details',
+                        onPressed: () =>
+                            (controlsLocked || !c.pairing.localControl)
+                            ? null
+                            : openSettingsDetail(
+                                'Display connection',
+                                connectionSettings,
+                              ),
+                        icon: Icon(
+                          connectionIcon(c.displayConnection),
+                          color:
+                              c.displayConnection ==
+                                  DisplayConnection.disconnected
+                              ? appColors(context).error
+                              : appColors(context).accent,
                         ),
                       ),
-                      if (c.loadingChurchName.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            c.loadingChurchName,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      const SizedBox(height: 24),
-                      const CircularProgressIndicator(),
-                    ],
-                  ),
-                ),
-              ),
-            )
-          else
-            SliverToBoxAdapter(
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1200),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (c.backgroundError != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Text(
-                                c.backgroundError!,
-                                style: TextStyle(
-                                  color: appColors(context).error,
-                                ),
+                    const SizedBox(width: 8),
+                  ],
+                  toolbarHeight: headerHeight(context),
+                  title: Row(
+                    children: [
+                      const ChurchTimerMark(),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              appName,
+                              maxLines: 2,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                          if (c.error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: panel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      c.error!,
-                                      style: TextStyle(
-                                        color: appColors(context).warning,
+                            if ((c.ready
+                                    ? c.state.churchName
+                                    : c.loadingChurchName)
+                                .isNotEmpty)
+                              Tooltip(
+                                message: c.ready
+                                    ? c.state.churchName
+                                    : c.loadingChurchName,
+                                child: Text(
+                                  c.ready
+                                      ? c.state.churchName
+                                      : c.loadingChurchName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: appColors(context).muted,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!c.ready)
+                  SliverFillRemaining(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const ChurchTimerMark(size: 84),
+                            const SizedBox(height: 20),
+                            const Text(
+                              appName,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (c.loadingChurchName.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  c.loadingChurchName,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            const SizedBox(height: 24),
+                            const CircularProgressIndicator(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1200),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (c.pairing.hosting)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: panel(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            c.pairing.localControl
+                                                ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices'
+                                                : 'Control is with a paired operator. This phone remains the service host.',
+                                          ),
+                                          TextButton(
+                                            onPressed: () => openSettingsDetail(
+                                              'Paired devices',
+                                              pairedDeviceSettings,
+                                            ),
+                                            child: const Text(
+                                              'Manage devices and control',
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    if (c.retry != null)
-                                      TextButton(
-                                        onPressed: c.busy
-                                            ? null
-                                            : () => c.retry!(),
-                                        child: const Text(
-                                          'Retry failed action',
-                                        ),
+                                  ),
+                                if (c.backgroundError != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: Text(
+                                      c.backgroundError!,
+                                      style: TextStyle(
+                                        color: appColors(context).error,
                                       ),
-                                    if (c.corrupt)
-                                      TextButton(
-                                        onPressed: () async {
-                                          if (await confirm(
-                                            'Reset local state?',
-                                            'This replaces unreadable local service and template data with starter templates. No physical display is connected.',
-                                            'Reset local data',
-                                          ))
-                                            await c.resetCorrupt();
-                                        },
-                                        child: const Text('Reset local data…'),
+                                    ),
+                                  ),
+                                if (c.error != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: panel(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            c.error!,
+                                            style: TextStyle(
+                                              color: appColors(context).warning,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          if (c.retry != null)
+                                            TextButton(
+                                              onPressed: c.busy
+                                                  ? null
+                                                  : () => c.retry!(),
+                                              child: const Text(
+                                                'Retry failed action',
+                                              ),
+                                            ),
+                                          if (c.corrupt)
+                                            TextButton(
+                                              onPressed: () async {
+                                                if (await confirm(
+                                                  'Reset local state?',
+                                                  'This replaces unreadable local service and template data with starter templates. No physical display is connected.',
+                                                  'Reset local data',
+                                                ))
+                                                  await c.resetCorrupt();
+                                              },
+                                              child: const Text(
+                                                'Reset local data…',
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                  ],
+                                    ),
+                                  ),
+                                AbsorbPointer(
+                                  absorbing:
+                                      c.corrupt || !c.pairing.localControl,
+                                  child: page == 0
+                                      ? live()
+                                      : page == 1
+                                      ? templates()
+                                      : page == 2
+                                      ? settingsHub()
+                                      : reports(),
                                 ),
-                              ),
+                              ],
                             ),
-                          AbsorbPointer(
-                            absorbing: c.corrupt,
-                            child: page == 0
-                                ? live()
-                                : page == 1
-                                ? templates()
-                                : page == 2
-                                ? settingsHub()
-                                : reports(),
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            ),
-        ],
-      ),
-      bottomNavigationBar: focused
-          ? SafeArea(
-              top: false,
-              child: TextButton.icon(
-                onPressed: () => setFocused(false),
-                icon: const Icon(Icons.fullscreen_exit),
-                label: const Text('Exit focused view'),
-              ),
-            )
-          : NavigationBar(
-              selectedIndex: page,
-              onDestinationSelected: (v) {
-                if (!controlsLocked) setState(() => page = v);
-              },
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.radio_button_checked),
-                  label: 'Live',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.view_timeline_outlined),
-                  label: 'Templates',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  label: 'Settings',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.assessment_outlined),
-                  label: 'Reports',
-                ),
               ],
             ),
-    ),
+            bottomNavigationBar: focused
+                ? SafeArea(
+                    top: false,
+                    child: TextButton.icon(
+                      onPressed: () => setFocused(false),
+                      icon: const Icon(Icons.fullscreen_exit),
+                      label: const Text('Exit focused view'),
+                    ),
+                  )
+                : NavigationBar(
+                    selectedIndex: page,
+                    onDestinationSelected: (v) {
+                      if (!controlsLocked) setState(() => page = v);
+                    },
+                    destinations: const [
+                      NavigationDestination(
+                        icon: Icon(Icons.radio_button_checked),
+                        label: 'Live',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.view_timeline_outlined),
+                        label: 'Templates',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.settings_outlined),
+                        label: 'Settings',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.assessment_outlined),
+                        label: 'Reports',
+                      ),
+                    ],
+                  ),
+          ),
   );
 }
 
@@ -1720,11 +1805,13 @@ class TemplateEditor extends StatefulWidget {
   final Timeline initial;
   final Set<String> existingNames;
   final TextLayout defaultEnd;
+  final bool upcomingOnly;
   const TemplateEditor({
     super.key,
     required this.initial,
     required this.existingNames,
     this.defaultEnd = defaultEndScreen,
+    this.upcomingOnly = false,
   });
   @override
   State<TemplateEditor> createState() => _TemplateEditorState();
@@ -1856,31 +1943,41 @@ class _TemplateEditorState extends State<TemplateEditor> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Timeline editor')),
+    appBar: AppBar(
+      title: Text(
+        widget.upcomingOnly ? 'Upcoming segments' : 'Timeline editor',
+      ),
+    ),
     body: SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          TextField(
-            controller: name,
-            decoration: const InputDecoration(labelText: 'Template name'),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            initialValue: templateType,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Template group'),
-            items: const [
-              DropdownMenuItem(value: 'service', child: Text('Service')),
-              DropdownMenuItem(value: 'rehearsal', child: Text('Rehearsal')),
-            ],
-            onChanged: (value) => setState(() => templateType = value!),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Grouping organizes templates. Choose rehearsal speed when starting a service.',
-            style: TextStyle(color: appColors(context).muted, fontSize: 12),
-          ),
+          if (!widget.upcomingOnly) ...[
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(labelText: 'Template name'),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: templateType,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Template group'),
+              items: const [
+                DropdownMenuItem(value: 'service', child: Text('Service')),
+                DropdownMenuItem(value: 'rehearsal', child: Text('Rehearsal')),
+              ],
+              onChanged: (value) => setState(() => templateType = value!),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Grouping organizes templates. Choose rehearsal speed when starting a service.',
+              style: TextStyle(color: appColors(context).muted, fontSize: 12),
+            ),
+          ],
+          if (widget.upcomingOnly)
+            const Text(
+              'Edit only the upcoming segments. Current and completed segments, saved templates and end screens stay unchanged.',
+            ),
           const SizedBox(height: 16),
           Text(
             '${segments.length} segments · ${segments.fold<int>(0, (a, s) => a + s.minutes)} minutes',
@@ -1922,67 +2019,86 @@ class _TemplateEditorState extends State<TemplateEditor> {
             icon: const Icon(Icons.add),
             label: const Text('Add segment'),
           ),
-          const SizedBox(height: 24),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'End screen · this template',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 12),
-                  LedMatrix(pixels: renderPixels(endScreen, 0)),
-                  const SizedBox(height: 12),
-                  Text(styleSummary(endScreen)),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Edit template end screen'),
-                        onPressed: () async {
-                          final next = await showDialog<TextLayout>(
-                            context: context,
-                            builder: (_) => TextComposer(
-                              initial: endScreen,
-                              title: 'Template end screen',
-                              button: 'Use end screen',
-                            ),
-                          );
-                          if (next != null && mounted)
-                            setState(() => endScreen = next);
-                        },
-                      ),
-                      TextButton(
-                        onPressed: () =>
-                            setState(() => endScreen = widget.defaultEnd),
-                        child: const Text('Use current default'),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    'Saved with this template. At Zero is shared across all services and can be changed in Settings → Display settings.',
-                    style: TextStyle(color: appColors(context).muted),
-                  ),
-                ],
+          if (!widget.upcomingOnly) ...[
+            const SizedBox(height: 24),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'End screen · this template',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    LedMatrix(pixels: renderPixels(endScreen, 0)),
+                    const SizedBox(height: 12),
+                    Text(styleSummary(endScreen)),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.edit_outlined),
+                          label: const Text('Edit template end screen'),
+                          onPressed: () async {
+                            final next = await showDialog<TextLayout>(
+                              context: context,
+                              builder: (_) => TextComposer(
+                                initial: endScreen,
+                                title: 'Template end screen',
+                                button: 'Use end screen',
+                              ),
+                            );
+                            if (next != null && mounted)
+                              setState(() => endScreen = next);
+                          },
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              setState(() => endScreen = widget.defaultEnd),
+                          child: const Text('Use current default'),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Saved with this template. At Zero is shared across all services and can be changed in Settings → Display settings.',
+                      style: TextStyle(color: appColors(context).muted),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Warnings are shared across all services. Edit them in Settings → Warnings & alerts.',
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+            const Text(
+              'Warnings are shared across all services. Edit them in Settings → Warnings & alerts.',
+            ),
+            const SizedBox(height: 24),
+          ],
           if (error != null)
             Text(error!, style: TextStyle(color: appColors(context).warning)),
+          if (widget.upcomingOnly) const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: () {
               try {
+                if (widget.upcomingOnly) {
+                  require(segments.length <= 200, 'Keep at most 200 segments.');
+                  for (final s in segments) {
+                    Segment.fromJson(s.toJson());
+                  }
+                  Navigator.pop(
+                    context,
+                    Timeline(
+                      widget.initial.name,
+                      segments,
+                      widget.initial.display,
+                      type: widget.initial.type,
+                    ),
+                  );
+                  return;
+                }
                 final t = Timeline.fromJson(
                   Timeline(
                     name.text,
@@ -2002,13 +2118,16 @@ class _TemplateEditorState extends State<TemplateEditor> {
               }
             },
             icon: const Icon(Icons.check),
-            label: const Text('Save timeline'),
+            label: Text(
+              widget.upcomingOnly ? 'Review rundown changes' : 'Save timeline',
+            ),
           ),
           const SizedBox(height: 12),
-          Text(
-            'Template edits apply the next time you load this service. Default end screens are available in Settings → Display settings. Warnings are shared through Settings → Warnings & alerts.',
-            style: TextStyle(color: appColors(context).muted),
-          ),
+          if (!widget.upcomingOnly)
+            Text(
+              'Template edits apply the next time you load this service. Default end screens are available in Settings → Display settings. Warnings are shared through Settings → Warnings & alerts.',
+              style: TextStyle(color: appColors(context).muted),
+            ),
         ],
       ),
     ),

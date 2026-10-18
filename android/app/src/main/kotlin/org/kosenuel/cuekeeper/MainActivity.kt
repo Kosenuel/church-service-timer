@@ -83,12 +83,25 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
     private var importLimit = 1048576
     private var notificationRequest: MethodChannel.Result? = null
     private val bundledFonts by lazy { BundledFonts(context) }
+    private val vault by lazy { DisplayCredentialVault(context) }
+    private val printer by lazy { ServiceSheetPrinter() }
     private val stateFile get() = AtomicFile(File(filesDir, "service-state.json"))
 
     init {
         WarningNotifications.ensureChannel(context)
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "printSheet" -> try { printer.print(activity(), call.argument<String>("name")!!, call.argument<String>("html")!!); result.success(null) } catch(e: Exception) { result.error("PRINT", "Could not open the print screen", null) }
+                "localAddress" -> background(result) {
+                    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+                    val net = cm.allNetworks.firstOrNull { cm.getNetworkCapabilities(it)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true } ?: error("Connect both devices to the same Wi-Fi first")
+                    cm.getLinkProperties(net)?.linkAddresses?.firstOrNull { it.address is java.net.Inet4Address }?.address?.hostAddress ?: error("No Wi-Fi IPv4 address")
+                }
+                "saveDisplayPassword" -> background(result) { vault.save(call.argument<String>("id")!!, call.argument<String>("password")!!); null }
+                "savedDisplayPassword" -> background(result) { vault.read(call.arguments as String) }
+                "forgetDisplayPassword" -> background(result) { vault.forget(call.arguments as String); null }
+                "forgetDisplay" -> displayBackground(result) { val id = w2.preferences()["id"] as String; vault.forget(id); w2.forget(); null }
+
                 "activeServiceRunning" -> result.success(ActiveService.running)
                 "activeService" -> {
                     if (call.arguments == true) {
@@ -106,6 +119,15 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                 "w2Disconnect" -> displayBackground(result) { w2.disconnect(); null }
                 "w2Simulator" -> displayBackground(result) { w2.simulator(); null }
                 "w2Status" -> displayBackground(result) { w2.status() }
+                "w2Admin" -> displayBackground(result) {
+                    val saved = stateFile.openRead().use { org.json.JSONObject(String(it.readBytes(), Charsets.UTF_8)) }
+                    check(saved.getJSONObject("session").getString("phase") != "active") { "End the service before changing device settings." }
+                    val kind = call.argument<String>("kind") ?: ""
+                    val id = w2.preferences()["id"] as String
+                    val outcome = w2.administer(kind, (call.argument<String>("value") ?: "").toCharArray(), call.argument<Int>("generation") ?: -1)
+                    if (kind == "devicePassword") vault.forget(id)
+                    outcome
+                }
                 "w2Send" -> displayBackground(result) {
                     w2.send(call.argument<ByteArray>("bytes") ?: error("Missing program"),
                         call.argument<Number>("deadline")?.toLong(), call.argument<Int>("generation") ?: -1)

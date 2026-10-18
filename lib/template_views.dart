@@ -401,6 +401,15 @@ extension TemplateViews on _HomeState {
                                         icon: const Icon(Icons.ios_share),
                                         label: const Text('Export CSV'),
                                       ),
+                                      OutlinedButton.icon(
+                                        onPressed: disabled
+                                            ? null
+                                            : () => printServiceSheet(t),
+                                        icon: const Icon(Icons.print_outlined),
+                                        label: const Text(
+                                          'Print service sheet',
+                                        ),
+                                      ),
                                     ],
                                   ),
                                   const SizedBox(height: 8),

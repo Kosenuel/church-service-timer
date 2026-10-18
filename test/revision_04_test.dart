@@ -121,36 +121,41 @@ void main() {
     },
   );
 
-  testWidgets('Cue editor confirms deletion and dismisses only after saving', (
-    t,
-  ) async {
-    size(t, const Size(700, 1500));
-    final c = AppController(FakePort()..at = epoch);
-    await c.initialize(startTicker: false);
-    await c.setSharedWarnings([]);
-    await c.act('load', value: c.state.templates.last);
-    await c.act('start');
-    await t.pumpWidget(TimerApp(controller: c));
-    await t.pumpAndSettle();
-    final cue = find.widgetWithText(OutlinedButton, 'WRAP UP');
-    await t.ensureVisible(cue);
-    await t.pumpAndSettle();
-    await t.tap(cue);
-    await t.pump(const Duration(milliseconds: 300));
-    await t.tap(find.widgetWithText(TextButton, 'Delete cue'));
-    await t.pump(const Duration(milliseconds: 300));
-    await t.tap(find.widgetWithText(TextButton, 'Cancel').last);
-    await t.pump(const Duration(milliseconds: 300));
-    expect(c.state.stageCues.first.text, 'WRAP UP');
-    await t.tap(find.widgetWithText(TextButton, 'Delete cue'));
-    await t.pump(const Duration(milliseconds: 300));
-    await t.tap(find.widgetWithText(FilledButton, 'Delete cue'));
-    await t.pumpAndSettle();
-    expect(find.byType(TextComposer), findsNothing);
-    expect(c.state.stageCues.any((v) => v.text == 'WRAP UP'), false);
-    expect(t.takeException(), isNull);
-    await t.pumpWidget(const SizedBox());
-  });
+  testWidgets(
+    'Settings cue list confirms deletion and preserves cancelled item',
+    (t) async {
+      size(t, const Size(700, 1500));
+      final c = AppController(FakePort()..at = epoch);
+      await c.initialize(startTicker: false);
+      await c.setSharedWarnings([]);
+      await c.act('load', value: c.state.templates.last);
+      await c.act('start');
+      await t.pumpWidget(TimerApp(controller: c));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Settings'));
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.text('Stage cues'));
+      await t.tap(find.text('Stage cues'));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('Cue actions').first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Delete cue'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await t.pumpAndSettle();
+      expect(c.state.stageCues.first.text, 'WRAP UP');
+      await t.tap(find.byTooltip('Cue actions').first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Delete cue'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(FilledButton, 'Delete cue'));
+      await t.pumpAndSettle();
+      expect(find.byType(TextComposer), findsNothing);
+      expect(c.state.stageCues.any((v) => v.text == 'WRAP UP'), false);
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    },
+  );
 
   testWidgets(
     'Template end editor saves that template while loaded end stays unchanged',

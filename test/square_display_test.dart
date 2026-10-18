@@ -101,7 +101,9 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Live'));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.text('New cue'));
+      await t.ensureVisible(find.text('Manage cues'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Manage cues'));
       await t.pumpAndSettle();
       await t.tap(find.text('New cue'));
       await t.pump(const Duration(milliseconds: 300));
@@ -178,25 +180,25 @@ void main() {
             child: Column(
               children: [
                 sample(
-                  'Original Service Matrix · square LEDs · 7 px',
+                  'Original I-Proton Matrix · square LEDs · 7 px',
                   'cuekeeper_matrix',
                   'square',
                   'Amen',
                 ),
                 sample(
-                  'Service Sq-Matrix · square LEDs · 7 px',
+                  'I-Proton Sq-Matrix · square LEDs · 7 px',
                   'cuekeeper_sq_matrix',
                   'square',
                   'Amen',
                 ),
                 sample(
-                  'Service Sq-Matrix · circular LEDs · 7 px',
+                  'I-Proton Sq-Matrix · circular LEDs · 7 px',
                   'cuekeeper_sq_matrix',
                   'circular',
                   'Amen',
                 ),
                 sample(
-                  'Service Sq-Matrix · square LEDs · 14 px',
+                  'I-Proton Sq-Matrix · square LEDs · 14 px',
                   'cuekeeper_sq_matrix',
                   'square',
                   'GO',

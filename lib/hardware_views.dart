@@ -86,7 +86,9 @@ extension HardwareViews on _HomeState {
               if (!c.hardware.connected) ...[
                 const SizedBox(height: 12),
                 button(
-                  'Connect display',
+                  c.hardware.rememberedId.isEmpty
+                      ? 'Connect display'
+                      : 'Reconnect display',
                   Icons.wifi,
                   () => openHardwareConnection(),
                 ),
@@ -110,6 +112,44 @@ class HardwareConnectionPage extends StatefulWidget {
 class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
   final password = TextEditingController();
   String? selected;
+  bool rememberPassword = false, hasSaved = false, useSaved = false;
+  @override
+  void initState() {
+    super.initState();
+    if (c.hardware.rememberedId.isNotEmpty)
+      WidgetsBinding.instance.addPostFrameCallback((_) => scanRemembered());
+  }
+
+  Future<void> select(String id) async {
+    if (!mounted) return;
+    setState(() {
+      selected = id;
+      hasSaved = useSaved = false;
+      password.clear();
+    });
+    try {
+      final saved = await c.port.savedDisplayPassword(id);
+      if (mounted && selected == id)
+        setState(() {
+          hasSaved = saved != null;
+          useSaved = hasSaved;
+        });
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Saved password unavailable. Enter it again.'),
+          ),
+        );
+    }
+  }
+
+  Future<void> scanRemembered() async {
+    await c.hardware.discover();
+    if (c.hardware.devices.any((d) => d['id'] == c.hardware.rememberedId))
+      await select(c.hardware.rememberedId);
+  }
+
   AppController get c => widget.controller;
   @override
   void dispose() {
@@ -135,7 +175,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
             ),
             const SizedBox(height: 12),
             const Text(
-              '1. Join the sign’s Wi-Fi.\n2. Scan and select your display.\n3. Enter its device password and connect.\n\nConnecting reads the profile and signs in. It does not replace what is on the sign.',
+              'Join the sign’s Wi-Fi, select your display and connect. Its current output stays unchanged.',
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -174,40 +214,81 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                   ),
                   title: Text(device['name'] as String),
                   subtitle: Text(
-                    '${device['firmware']} · ${device['width']} × ${device['height']}\n${device['address']}${device['id'] == h.rememberedId ? ' · remembered' : ''}${device['supported'] == true ? '' : '\nUnsupported profile for this milestone'}',
+                    '${device['firmware']} · ${device['width']} × ${device['height']}\n${device['address']}${device['id'] == h.rememberedId ? ' · remembered' : ''}${device['supported'] == true ? '' : '\nUnsupported display profile'}',
                   ),
                   selected: selected == device['id'],
                   onTap: disabled || device['supported'] != true
                       ? null
-                      : () => setState(() => selected = device['id'] as String),
+                      : () => select(device['id'] as String),
                 ),
               ),
             if (selected != null) ...[
               const SizedBox(height: 16),
-              TextField(
-                controller: password,
-                obscureText: true,
-                autocorrect: false,
-                enableSuggestions: false,
-                maxLength: 128,
-                decoration: const InputDecoration(
-                  labelText: 'Display device password',
-                  helperText:
-                      'Not saved. This may differ from the Wi-Fi password.',
-                  helperMaxLines: 3,
+              if (hasSaved)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Use saved password'),
+                  value: useSaved,
+                  onChanged: disabled
+                      ? null
+                      : (v) => setState(() => useSaved = v!),
                 ),
-              ),
+              if (!useSaved)
+                TextField(
+                  controller: password,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  maxLength: 128,
+                  decoration: const InputDecoration(
+                    labelText: 'Display device password',
+                    helperText: 'This may differ from the Wi-Fi password.',
+                    helperMaxLines: 3,
+                  ),
+                ),
               const SizedBox(height: 8),
               FilledButton(
                 onPressed: disabled
                     ? null
                     : () async {
-                        final secret = password.text;
-                        password.clear();
-                        await h.connect(selected!, secret);
+                        final id = selected!;
+                        try {
+                          final secret = useSaved
+                              ? await c.port.savedDisplayPassword(id)
+                              : password.text;
+                          password.clear();
+                          if (secret == null)
+                            throw RuleError(
+                              'Saved password unavailable. Enter it again.',
+                            );
+                          final ok = await h.connect(id, secret);
+                          if (ok && rememberPassword && !useSaved)
+                            await c.port.saveDisplayPassword(id, secret);
+                        } catch (_) {
+                          if (context.mounted)
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Could not use or save the credential. Review the connection status and enter it again.',
+                                ),
+                              ),
+                            );
+                        }
                       },
                 child: const Text('Connect selected display'),
               ),
+              if (!useSaved)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Remember password on this phone'),
+                  subtitle: const Text(
+                    'Encrypted locally. Excluded from backups.',
+                  ),
+                  value: rememberPassword,
+                  onChanged: disabled
+                      ? null
+                      : (v) => setState(() => rememberPassword = v!),
+                ),
             ],
             const SizedBox(height: 20),
             if (h.busy || h.sending) const LinearProgressIndicator(),
@@ -216,24 +297,16 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
             if (h.connected) ...[
               const SizedBox(height: 12),
               const Text(
-                'Connected. Return to Live to start a service, or review and restore the current timer.',
+                'Connected. Return to Live to start or restore the timer.',
               ),
               OutlinedButton(
                 onPressed: disabled ? null : () => h.disconnect(),
                 child: const Text('Disconnect display'),
               ),
             ],
-            const SizedBox(height: 24),
-            const Text(
-              'First hardware milestone',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Normal speed · up to 59:59 remaining. Countdown uses the original Matrix font. Cues retain their font and formatting; scrolling frames play on the controller.\n\nThe active-service notification supports warning delivery and return to the timer while the phone is locked. If it cannot start, keep the app open. Connection loss or stopping the app requires review before restoring. A cue or paused frame may remain on the sign.\n\nAt Zero applies when a segment expires; each template owns its end screen. Each program change can cause one brief blink.',
-            ),
             const SizedBox(height: 20),
-            TextButton(
+            OutlinedButton.icon(
+              icon: const Icon(Icons.desktop_windows_outlined),
               onPressed: disabled
                   ? null
                   : () async {
@@ -261,7 +334,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                       if (c.state.session.disconnected) await c.act('connect');
                       if (context.mounted) Navigator.pop(context);
                     },
-              child: const Text('Use Simulator instead'),
+              label: const Text('Use simulator instead'),
             ),
           ],
         ),

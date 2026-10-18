@@ -75,7 +75,7 @@ void main() {
     },
   );
 
-  test('Service Matrix preserves every original style and size', () {
+  test('I-Proton Matrix preserves every original style and size', () {
     for (final height in [1, 2]) {
       for (final bold in [false, true]) {
         for (final italic in [false, true]) {

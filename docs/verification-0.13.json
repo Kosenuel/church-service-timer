@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-18",
+  "version": "0.13.0+13",
+  "apkSha256": "35f37294764f05bcf245112a1b3616ec8ccbcf150d73c9b8f4e5fc8f7c7daff7",
+  "automated": {
+    "analysis": "flutter analyze: no issues",
+    "flutterTests": 288,
+    "result": "All passed, including refreshed golden images",
+    "reviewedChangedOrNewScreenshots": 19,
+    "nativeAdministrationChecks": 36,
+    "androidBuild": "flutter build apk --debug; APK Signature Scheme v2 verified",
+    "identity": "org.kosenuel.cuekeeper, versionName 0.13.0, versionCode 13",
+    "matrixFonts": "lib/matrix_font.dart, lib/square_matrix_font.dart and lib/pixels.dart unchanged",
+    "installation": "adb install -r succeeded on Samsung SM-A266B; installed version 0.13.0 (13) verified without clearing app data",
+    "pairing": "Real loopback sockets verify encrypted exchange, tamper/replay rejection, pending-approval heartbeat, one operator, host save/clock command path, stale revision rejection, private-note filtering and disconnect/reclaim",
+    "planningAndPrinting": "Upcoming-only edits preserve current metrics/clock; catch-up and invalid target tests pass; service-sheet escaping and default exclusion of private notes pass"
+  },
+  "physical": {
+    "readOnlyDiscovery": "GloryArenaTimer, HD_W2 V6.02.232, 32x16 red, HD7=1, password complexity=1; valid command27 response",
+    "administrationWrites": "Not performed. New setters require separate controlled write/reconnection tests; this record does not claim physical write success.",
+    "twoAndroidDevices": "Pending: second device USB connection and host approval/handover/stage-view checks",
+    "printPreview": "Pending: operator phone unlock and Android Print/Save as PDF check",
+    "newCueAndReconnectFlow": "Pending on-device UI and physical observation; prior output/warning evidence remains in verification-0.12.json"
+  },
+  "remainingLimits": [
+    "Sign program replacements briefly blink; native countdown is normal speed and at most 59:59 remaining.",
+    "Pairing requires local peer reachability; some sign hotspots isolate Wi-Fi clients.",
+    "The host retains the timer, persistence and sign connection after control handover. Host loss freezes peers; no host migration is implemented.",
+    "Pairing coordinates this app only; it cannot prevent another app with the controller credentials from operating the sign.",
+    "Administration ACK and reconnection behavior remain physically unverified; uncertain responses require manual verification before retrying.",
+    "Endurance, process-kill/power-loss acceptance and independent cryptographic review are not established."
+  ]
+}

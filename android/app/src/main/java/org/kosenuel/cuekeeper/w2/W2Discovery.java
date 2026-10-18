@@ -45,6 +45,7 @@ public final class W2Discovery {
         result.put("address",address); result.put("firmware",firmware);
         result.put("width",width); result.put("height",height); result.put("color",color);
         result.put("model",model); result.put("chunk",chunk); result.put("supported",supported);
+        result.put("pwdComplexity",wire[218]&255);
         return result;
     }
 }

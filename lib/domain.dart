@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 part 'service_features.dart';
 part 'app_settings.dart';
+part 'service_planning.dart';
 
 typedef Json = Map<String, dynamic>;
 const maxRemainingMs = 5999000;
@@ -378,6 +379,7 @@ class Session {
   Stamp? automaticCueAt;
   int automaticCueDurationMs;
   List<ServiceEvent> events;
+  int? targetFinishWall;
   Session({
     required this.id,
     required this.anchor,
@@ -405,6 +407,7 @@ class Session {
     this.automaticCue,
     this.automaticCueAt,
     this.automaticCueDurationMs = 8000,
+    this.targetFinishWall,
     List<ServiceEvent>? events,
   }) : checkpoint = checkpoint ?? anchor,
        warningSeen = warningSeen ?? [],
@@ -509,9 +512,17 @@ class Session {
       ? 'Alert'
       : 'Countdown';
   factory Session.fromJson(Json j) {
+    require(
+      j['targetFinishWall'] == null ||
+          (j['targetFinishWall'] is int &&
+              j['targetFinishWall'] >= 0 &&
+              j['targetFinishWall'] <= 8640000000000000),
+      'Invalid target finish.',
+    );
     final s = Session(
       id: j['id'],
       events: readServiceEvents(j['events']),
+      targetFinishWall: j['targetFinishWall'] as int?,
       automaticCueDurationMs: readCueDuration(j['automaticCueDurationMs']),
       churchName: churchNameValue(j['churchName'] ?? ''),
       phase: j['phase'],
@@ -617,6 +628,7 @@ class Session {
     'automaticCueAt': automaticCueAt?.toJson(),
     'automaticCueDurationMs': automaticCueDurationMs,
     'events': events.map((e) => e.toJson()).toList(),
+    'targetFinishWall': targetFinishWall,
   };
   Session copy() => Session.fromJson(toJson());
 }
@@ -1079,9 +1091,7 @@ class AppState {
           u['warningSeen'] = remap(s.undo!.warningSeen, s.undoRemaining(at));
           s.undo = UndoPoint.fromJson(u);
         }
-        s.automaticCue = null;
-        s.automaticCueAt = null;
-        s.warningNotice = null;
+        // A rule change affects future triggers; an in-flight cue finishes normally.
         s.timeline = normalize(s.timeline!);
       }
       if (s.prior != null) apply(s.prior!);

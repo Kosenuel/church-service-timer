@@ -158,6 +158,26 @@ extension SettingsViews on _HomeState {
             ),
           ),
         ]),
+        group('Service tools', [
+          entry(
+            Icons.chat_bubble_outline,
+            'Stage cues',
+            'Create, format and reorder your Live buttons',
+            () => openSettingsDetail('Stage cues', stageCueSettings),
+          ),
+          entry(
+            Icons.devices,
+            'Paired devices',
+            'View, operate or use a second screen',
+            () => openSettingsDetail('Paired devices', pairedDeviceSettings),
+          ),
+          entry(
+            Icons.router_outlined,
+            'Device management',
+            'Display identity and saved connection credentials',
+            () => openSettingsDetail('Device management', deviceManagement),
+          ),
+        ]),
         group('Data & app', [
           entry(
             Icons.backup_outlined,
@@ -345,7 +365,7 @@ extension SettingsViews on _HomeState {
             label('Display fonts'),
             const SizedBox(height: 10),
             const Text(
-              'Service Matrix and Service Sq-Matrix preserve the original Matrix glyphs. Tinos includes four bundled faces under SIL Open Font License 1.1.',
+              'I-Proton Matrix and I-Proton Sq-Matrix preserve the original Matrix glyphs. Tinos includes four bundled faces under SIL Open Font License 1.1.',
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(

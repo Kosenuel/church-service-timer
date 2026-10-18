@@ -3,6 +3,19 @@ import 'package:flutter/services.dart';
 import 'domain.dart';
 
 abstract class DevicePort {
+  Future<Json> administerDisplay(
+    String kind,
+    String value,
+    int generation,
+  ) async => throw RuleError('Device administration requires Android.');
+  Future<void> printServiceSheet(String name, String html) async =>
+      throw RuleError('Printing requires Android.');
+  Future<String> localNetworkAddress() async => '127.0.0.1';
+  Future<void> saveDisplayPassword(String id, String password) async {}
+  Future<String?> savedDisplayPassword(String id) async => null;
+  Future<void> forgetDisplayPassword(String id) async {}
+  Future<void> forgetDisplay() async {}
+
   void setBackgroundHandler(Future<void> Function()? handler) {}
   Future<bool> setActiveService(bool enabled) async => false;
   Future<bool> activeServiceRunning() async => false;
@@ -47,6 +60,39 @@ abstract class DevicePort {
 
 class AndroidPort extends DevicePort {
   static const channel = MethodChannel('church.timer/device');
+  @override
+  Future<Json> administerDisplay(
+    String kind,
+    String value,
+    int generation,
+  ) async => Map<String, dynamic>.from(
+    (await channel.invokeMethod<Map>('w2Admin', {
+      'kind': kind,
+      'value': value,
+      'generation': generation,
+    }))!,
+  );
+  @override
+  Future<void> printServiceSheet(String name, String html) =>
+      channel.invokeMethod<void>('printSheet', {'name': name, 'html': html});
+  @override
+  Future<String> localNetworkAddress() async =>
+      (await channel.invokeMethod<String>('localAddress'))!;
+  @override
+  Future<void> saveDisplayPassword(String id, String password) =>
+      channel.invokeMethod<void>('saveDisplayPassword', {
+        'id': id,
+        'password': password,
+      });
+  @override
+  Future<String?> savedDisplayPassword(String id) =>
+      channel.invokeMethod<String>('savedDisplayPassword', id);
+  @override
+  Future<void> forgetDisplayPassword(String id) =>
+      channel.invokeMethod<void>('forgetDisplayPassword', id);
+  @override
+  Future<void> forgetDisplay() => channel.invokeMethod<void>('forgetDisplay');
+
   @override
   void setBackgroundHandler(Future<void> Function()? handler) {
     channel.setMethodCallHandler(

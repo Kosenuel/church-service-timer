@@ -93,7 +93,7 @@ extension FeatureViews on _HomeState {
         ),
         const SizedBox(height: 8),
         Text(
-          'Service Sq-Matrix · compact preview',
+          'I-Proton Sq-Matrix · compact preview',
           style: TextStyle(color: appColors(context).muted),
         ),
       ],
@@ -107,7 +107,7 @@ extension FeatureViews on _HomeState {
         settings: c.state.defaults,
         title: 'Automatic warnings · all services',
         scope:
-            'Shared across services and rehearsals, including the loaded service. Changes affect future threshold crossings; earlier warnings are not replayed.',
+            'All services and rehearsals. Changes affect future warnings; earlier thresholds are not replayed.',
         busy: c.busy,
         onSave: (next) async {
           if (!await c.setSharedWarnings(next.warnings) && mounted)
@@ -115,7 +115,25 @@ extension FeatureViews on _HomeState {
         },
       ),
       const SizedBox(height: 16),
-      panel(child: phoneWarningSettings()),
+      panel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              c.backgroundActive
+                  ? 'Background operation active'
+                  : 'Background operation starts with a connected service',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Keep the active-service notification running for stage warnings while the phone is locked. If unavailable, keep the app open. After interruption, reconnect and restore output.',
+            ),
+            const SizedBox(height: 16),
+            phoneWarningSettings(),
+          ],
+        ),
+      ),
     ],
   );
 
@@ -380,7 +398,7 @@ class WarningSettingsPanel extends StatelessWidget {
             ],
             const SizedBox(height: 8),
             Text(
-              'Triggers at the selected time remaining, once per segment. Stage warnings use their configured duration, then restore the current timer. Blank sign suppresses stage output until restored. Phone notifications follow Android sound and Do Not Disturb settings.',
+              'Triggers once per segment at the selected time remaining. A stage cue returns to the timer after its duration. Blank sign suppresses stage cues; phone alerts follow Android sound and Do Not Disturb settings.',
               style: TextStyle(color: appColors(context).muted),
             ),
             ...d.warnings.asMap().entries.map(
@@ -393,10 +411,63 @@ class WarningSettingsPanel extends StatelessWidget {
                   '${e.value.destination == 'stage' ? 'Operator + stage' : 'Operator only'} · ${displayFontNames[e.value.cue.font]}',
                 ),
                 onTap: busy ? null : () => edit(index: e.key),
-                trailing: IconButton(
-                  tooltip: 'Edit warning',
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: busy ? null : () => edit(index: e.key),
+                trailing: PopupMenuButton<String>(
+                  tooltip: 'Warning actions',
+                  enabled: !busy,
+                  onSelected: (action) async {
+                    if (action == 'edit') {
+                      await edit(index: e.key);
+                      return;
+                    }
+                    if (action == 'delete') {
+                      final yes = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Delete warning for all services?'),
+                          content: Text(
+                            'Remove “${e.value.cue.text}”? A warning already on stage will finish normally.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Delete warning'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (yes != true) return;
+                    }
+                    final rules = [...d.warnings];
+                    if (action == 'delete') {
+                      rules.removeAt(e.key);
+                    } else {
+                      rules[e.key] = WarningRule.fromJson({
+                        ...e.value.toJson(),
+                        'enabled': !e.value.enabled,
+                      });
+                    }
+                    await onSave(d.withWarnings(rules));
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit warning'),
+                    ),
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child: Text(
+                        e.value.enabled ? 'Disable warning' : 'Enable warning',
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete warning'),
+                    ),
+                  ],
                 ),
               ),
             ),

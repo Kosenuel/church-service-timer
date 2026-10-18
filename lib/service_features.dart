@@ -1,8 +1,8 @@
 part of 'domain.dart';
 
 const displayFontNames = {
-  'cuekeeper_matrix': 'Service Matrix',
-  'cuekeeper_sq_matrix': 'Service Sq-Matrix',
+  'cuekeeper_matrix': 'I-Proton Matrix',
+  'cuekeeper_sq_matrix': 'I-Proton Sq-Matrix',
   'tinos': 'Tinos',
 };
 

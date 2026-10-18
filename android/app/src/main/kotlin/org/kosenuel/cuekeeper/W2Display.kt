@@ -34,6 +34,7 @@ class W2Display(context: Context) {
         "id" to (prefs.getString("id", "") ?: ""),
         "name" to (prefs.getString("name", "") ?: "")
     )
+    fun forget() { disconnect(); check(prefs.edit().remove("id").remove("name").putBoolean("hardware", false).commit()) }
     fun simulator() {
         disconnect()
         check(prefs.edit().putBoolean("hardware", false).commit()) { "Could not save output preference" }
@@ -104,12 +105,12 @@ class W2Display(context: Context) {
         } catch (e: Exception) { disconnect(); throw e }
         finally { password.fill('\u0000') }
     }
-    private fun exchange(request: Hd7Auth.Request): Hd7Auth.Reply {
+    private fun exchange(request: Hd7Auth.Request, attempts: Int = 2): Hd7Auth.Reply {
         val s = socket ?: error("Display disconnected")
         val wire = request.bytes()
         try {
             // A retry is exactly the same authenticated request, including salt and ID.
-            repeat(2) {
+            repeat(attempts) {
                 s.send(DatagramPacket(wire, wire.size))
                 val until = SystemClock.elapsedRealtime() + 1200
                 while (SystemClock.elapsedRealtime() < until) {
@@ -133,6 +134,27 @@ class W2Display(context: Context) {
         (session ?: error("Reconnect to the display.")).command(code, body).use { request ->
             exchange(request).close()
         }
+    }
+    /** Administration never retries: a lost ACK may still mean the setting changed. */
+    fun administer(kind: String, value: CharArray, expectedGeneration: Int): Map<String, Any> {
+        var body: ByteArray? = null
+        try {
+            check(expectedGeneration == generation && session != null) { "Reconnect before changing device settings." }
+            check(W2Administration.supported(device ?: emptyMap())) { "Administration is not verified for this display." }
+            val code = if (kind == "devicePassword") W2Administration.DEVICE_PASSWORD_COMMAND else W2Administration.WIFI_COMMAND
+            body = when(kind) {
+                "ssid" -> W2Administration.ssidBody(String(value))
+                "wifiPassword" -> W2Administration.wifiPasswordBody(value)
+                "devicePassword" -> W2Administration.devicePasswordBody(value)
+                else -> error("Unknown device setting")
+            }
+            val accepted = try {
+                session!!.command(code, body).use { request -> exchange(request, 1).close() }
+                true
+            } catch (_: Exception) { false }
+            disconnect()
+            return mapOf("acknowledged" to accepted)
+        } finally { value.fill('\u0000'); body?.fill(0) }
     }
     fun status(): Map<String, Any> {
         val d = device ?: return mapOf("connected" to false)

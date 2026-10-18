@@ -57,7 +57,7 @@ void main() {
   );
 
   testWidgets(
-    'Sending an edited Live cue saves formatting across services and restart',
+    'Settings cue editing persists formatting; Live sends without a dialog',
     (tester) async {
       size(tester, const Size(700, 1500));
       final port = FakePort()..at = epoch;
@@ -68,11 +68,12 @@ void main() {
       await tester.pumpWidget(TimerApp(controller: c));
       await tester.pumpAndSettle();
       expect(find.text('Saved cue library'), findsNothing);
-      await tester.ensureVisible(
-        find.widgetWithText(OutlinedButton, 'WRAP UP'),
-      );
+      await tester.tap(find.text('Settings'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(OutlinedButton, 'WRAP UP'));
+      await tester.ensureVisible(find.text('Stage cues'));
+      await tester.tap(find.text('Stage cues'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('WRAP UP'));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.enterText(
         find.widgetWithText(TextField, 'Display text'),
@@ -80,18 +81,30 @@ void main() {
       );
       await tester.tap(find.text('Bold'));
       await tester.tap(find.text('Italic'));
-      await tester.tap(find.text('Service Matrix'));
+      await tester.tap(find.text('I-Proton Matrix'));
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.text('Service Sq-Matrix').last);
+      await tester.tap(find.text('I-Proton Sq-Matrix').last);
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Tall · 14 px'));
-      await tester.tap(find.widgetWithText(FilledButton, 'Send'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save cue'));
       await tester.pumpAndSettle();
       final saved = c.state.stageCues.first;
       expect(saved.text, 'FINISH NOW');
       expect(saved.bold && saved.italic, true);
       expect(saved.height, 2);
       expect(saved.font, 'cuekeeper_sq_matrix');
+      expect(c.state.session.alert, isNull);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Live'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.widgetWithText(OutlinedButton, 'FINISH NOW'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(OutlinedButton, 'FINISH NOW'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextComposer), findsNothing);
       expect(c.state.session.alert!.toJson(), saved.toJson());
       await c.act('end');
       await c.act('load', value: c.state.templates.first);

@@ -2,11 +2,11 @@
 
 | Name | Stable ID | Availability |
 |---|---|---|
-| Service Matrix | `cuekeeper_matrix` | Original bitmap font, unchanged |
-| Service Sq-Matrix | `cuekeeper_sq_matrix` | Original square-pixel bitmap font, unchanged |
+| I-Proton Matrix | `cuekeeper_matrix` | Original bitmap font, unchanged |
+| I-Proton Sq-Matrix | `cuekeeper_sq_matrix` | Original square-pixel bitmap font, unchanged |
 | Tinos | `tinos` | Four bundled Android faces; no import required |
 
-Both Matrix glyph tables, JSON font assets, scaling, weight and italic behavior are unchanged. Countdown digits continue to use Service Matrix at 14 pixels. Square/circular LED appearance changes only cell painting, not the 512-bit display frame.
+Both Matrix glyph tables, JSON font assets, scaling, weight and italic behavior are unchanged. Countdown digits continue to use I-Proton Matrix at 14 pixels. Square/circular LED appearance changes only cell painting, not the 512-bit display frame.
 
 ## Bundled Tinos
 
@@ -16,7 +16,7 @@ Android `BundledFonts.kt` loads the appropriate face from APK assets. It draws t
 
 14 pixels is recommended for serif detail. The earlier approved desktop preview used these same Tinos faces with a desktop rasterizer; Android hinting may differ slightly. Android device inspection remains necessary after building the APK.
 
-Legacy `times_new_roman` selections migrate to `tinos`, keeping text, height, formatting, alignment, speed and effect. No Times New Roman bytes are bundled or read from another app. The old font-import UI, picker bridge and private-file loader are removed. Existing imported files are ignored. Retired `service_serif` and `clear_sans` selections still migrate to the unchanged Service Matrix face.
+Legacy `times_new_roman` selections migrate to `tinos`, keeping text, height, formatting, alignment, speed and effect. No Times New Roman bytes are bundled or read from another app. The old font-import UI, picker bridge and private-file loader are removed. Existing imported files are ignored. Retired `service_serif` and `clear_sans` selections still migrate to the unchanged I-Proton Matrix face.
 
 ## LedArt-Lite evidence
 

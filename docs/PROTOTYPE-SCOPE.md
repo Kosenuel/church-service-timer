@@ -13,11 +13,11 @@ Version 0.11 adds the first physical adapter to the simulator prototype: Huidu W
 - Suspend-aware Android monotonic clock; elapsed-time calculation instead of callback counting.
 - Confirmed pause/resume, custom Add and ±120-second adjustments; clamp at zero, 99:59 maximum; prominent red End service control.
 - Confirmed advance, elapsed-aware one-step undo, 10-second quick-undo window and modification tracking.
-- Shared Live cues: editing and Send replaces the item persistently across services; New cue and Send appends. All formatting persists; old customized cues migrate.
-- Unchanged Service Matrix and Service Sq-Matrix; bundled Tinos in four styles with native rasterization. No font import is required. Explicit unsupported-character and rendering errors.
+- Shared prepared cues: one-tap Live sending; create, format, reorder and delete in Settings → Stage cues. Editing leaves existing stage output unchanged.
+- Unchanged I-Proton Matrix and I-Proton Sq-Matrix; bundled Tinos in four styles with native rasterization. No font import is required. Explicit unsupported-character and rendering errors.
 - Saved square/circular simulator LED appearance, shared by Live and previews without altering output bits.
 - Bold, italic, 7/14-pixel text height, horizontal alignment, scrolling speed and flash preview.
-- New/untested cues require preview and confirmation on each send. No preview confers physical approval.
+- Cue editing includes a matrix preview; Live prepared cues send immediately. A preview does not confer physical approval.
 - Shared global At Zero and per-template end screens editable in the template editor; new templates copy the Display end default.
 - Atomic local persistence before logical publication; failure feedback/retry; corrupt state blocks output until explicit reset.
 - Running, paused, Ready, ended, alert and undo restoration; conservative 30-minute output hold and uncertainty on reboot.
@@ -35,13 +35,17 @@ See `FEATURES-0.9.md` for Feedback Center, `FEATURES-0.8.md` for compact lists a
 
 ## First hardware milestone
 
-- Guided Wi-Fi discovery, strict controller/profile validation, explicit device selection and password entry. Identity is remembered; passwords and active connections are not backed up or persisted.
+- Guided Wi-Fi discovery, strict controller/profile validation, explicit device selection and password entry. Identity is remembered. Optional saved credentials are encrypted with Android Keystore; credentials and connections are excluded from portable backups.
 - Authenticated HD7 upload on Wi-Fi-bound sockets. One transfer at a time, bounded identical-packet retries, read-only liveness checks and separate connection/delivery status.
 - Native countdown with clock calibration, pause via a static frame, resume, time adjustments, segment changes, static/scrolling/flashing cue replacement and return to current timer. No per-second uploads.
 - Cues preserve selected font and formatting. Accelerated rehearsals and remaining times above 59:59 are rejected in hardware mode before changing the run. Animation uploads contain at most 2048 frames, split into 4096-byte chunks.
 - Stale successful writes invalidate the accepted-output cache and reconcile the newest intent. Failure, process interruption and reconnect hold output for review; restoring uncertain timing requires verification and retains the report uncertainty marker.
 - Animated At Zero and end screens use the frame uploader. The default native countdown can remain at 00:00 without a replacement upload. Next segment clears stale cues/holds and sends its new deadline; deliberate keep-blank is offered.
 - Version 0.12 adds the active Android foreground service, compact focused preview and control lock, rundown details, raised chapel branding, glass header, Reports banner and activity timeline. See `FEATURES-0.12.md` for evidence and boundaries.
+
+## Version 0.13 additions
+
+Prepared cue management, removable warnings, optional encrypted credentials, explicit physical reconnection, local encrypted device pairing with one controlling operator, viewer and stage screens, guarded W2 administration, upcoming-only live edits, finish proposals and Android printing/PDF are implemented. See `FEATURES-0.13.md` for the twelve items and security/recovery boundaries. Pairing coordinates this app’s instances; other controller apps remain outside its ownership model. Administration setters use the exact inspected command path but are not claimed physically validated until an intentional setting change is observed and reconnection succeeds.
 
 ## Still deferred
 

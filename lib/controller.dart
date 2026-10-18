@@ -12,6 +12,7 @@ import 'native_fonts.dart';
 import 'warning_notifications.dart';
 import 'display_connection.dart';
 import 'hardware_display.dart';
+import 'pairing.dart';
 
 /// The simulator is an output adapter, not a fake Huidu protocol implementation.
 class Simulator {
@@ -54,6 +55,7 @@ class Simulator {
 
 class AppController extends ChangeNotifier {
   final DevicePort port;
+  final pairing = PairHub();
   late AppState state;
   Stamp now = const Stamp(0, 0, 'unknown');
   final simulator = Simulator();
@@ -92,9 +94,8 @@ class AppController extends ChangeNotifier {
   Future<void> syncActiveService() async {
     final desired =
         state.session.active &&
-        hardware.enabled &&
-        hardware.connected &&
-        !hardware.held;
+        ((hardware.enabled && hardware.connected && !hardware.held) ||
+            pairing.hosting);
     if (desired == backgroundActive) return;
     try {
       backgroundActive = await port.setActiveService(desired);
@@ -117,10 +118,48 @@ class AppController extends ChangeNotifier {
     themeSelection.value = id ?? (ready ? state.themeId : 'midnight_lime');
   }
 
+  Json pairedSnapshot(bool privateNotes) {
+    if (!ready) return {};
+    final s = state.session, t = state.session.timeline;
+    final display = s.intended(now);
+    return {
+      'revision': s.revision,
+      'service': t?.name ?? 'Standing by',
+      'church': state.churchName,
+      'segment': t == null ? '' : t.segments[s.index].name,
+      'index': s.index,
+      'phase': s.phase,
+      'paused': s.paused,
+      'remaining': s.overtime(now) > 0
+          ? '+${formatTime(s.overtime(now))}'
+          : s.formatted(now),
+      'overtime': s.overtime(now) > 0,
+      'blank': s.outputBlank,
+      'displayText': s.outputBlank ? '' : display?.text ?? '',
+      'effect': display?.effect ?? 'static',
+      'speed': display?.speed ?? 12,
+      'bold': display?.bold ?? false,
+      'italic': display?.italic ?? false,
+      'connection': displayConnection.label,
+      'rundown': [
+        for (final e in t?.segments ?? <Segment>[])
+          {
+            'name': e.name,
+            'minutes': e.minutes,
+            'speaker': e.speaker,
+            if (privateNotes) 'notes': e.notes,
+          },
+      ],
+      if (privateNotes) 'cues': [for (final cue in state.stageCues) cue.text],
+    };
+  }
+
   Future<void> syncDeviceSettings() async {
     themeSelection.value = _previewTheme ?? state.themeId;
     try {
-      await port.setKeepScreenAwake(state.keepScreenAwake);
+      await port.setKeepScreenAwake(
+        state.keepScreenAwake || pairing.mode == 'stage',
+      );
       deviceSettingsError = null;
     } catch (e) {
       deviceSettingsError =
@@ -132,6 +171,45 @@ class AppController extends ChangeNotifier {
   Future<bool> Function()? retry;
   Timer? _timer;
   AppController(this.port) {
+    pairing.addListener(() {
+      if (!_disposed) notifyListeners();
+    });
+    pairing.snapshotFor = pairedSnapshot;
+    pairing.onControlChanged = (message) {
+      if (ready && state.session.active && _events.length < 2000) {
+        _events.add((
+          session: state.session.id,
+          event: ServiceEvent(now.wall, 'operator', message),
+        ));
+      }
+    };
+    pairing.onOwnershipChanged = () {
+      if (ready && !_disposed) {
+        unawaited(syncActiveService());
+        unawaited(syncDeviceSettings());
+      }
+    };
+    pairing.command = (action, value, revision) async {
+      if (!{
+            'pause',
+            'adjust',
+            'advance',
+            'cue',
+            'timer',
+            'blank',
+            'end',
+          }.contains(action) ||
+          busy)
+        return false;
+      if (action == 'adjust' && (value is! int || value.abs() > 3600))
+        return false;
+      if (action == 'cue') {
+        if (value is! int || value < 0 || value >= state.stageCues.length)
+          return false;
+        value = state.stageCues[value];
+      }
+      return await act(action, value: value, revision: revision, remote: true);
+    };
     hardware = HardwareDisplay(port)..addListener(_hardwareChanged);
     hardware.onEvent = (session, kind, message) {
       if (_events.length < 2000)
@@ -158,7 +236,9 @@ class AppController extends ChangeNotifier {
     });
   }
   void _hardwareChanged() {
-    if (backgroundActive && (!hardware.connected || hardware.held)) {
+    if (backgroundActive &&
+        !pairing.hosting &&
+        (!hardware.connected || hardware.held)) {
       backgroundActive = false;
       if (!_foreground) _needsRecovery = true;
       unawaited(port.setActiveService(false));
@@ -332,7 +412,12 @@ class AppController extends ChangeNotifier {
       await NativeDisplayFonts.prepareState(draft);
       if (draft.session.automaticCue != null &&
           draft.session.automaticCueAt != null &&
-          draft.session.automaticCueAt!.mono != previous.automaticCueAt?.mono) {
+          draft.session.automaticCueAt!.mono != previous.automaticCueAt?.mono &&
+          draft.session.timeline!.display.warnings.any(
+            (w) =>
+                jsonEncode(w.cue.toJson()) ==
+                jsonEncode(draft.session.automaticCue!.toJson()),
+          )) {
         final rule = draft.session.timeline!.display.warnings.firstWhere(
           (w) =>
               jsonEncode(w.cue.toJson()) ==
@@ -373,8 +458,34 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<bool> act(String action, {dynamic value, int? revision}) async {
+  Future<bool> act(
+    String action, {
+    dynamic value,
+    int? revision,
+    bool remote = false,
+  }) async {
+    if ((!pairing.localControl && !remote) || pairing.joined) {
+      error = 'This device does not currently control the service.';
+      notifyListeners();
+      return false;
+    }
+    final controlEpoch = pairing.epoch;
+    if (action == 'cue' &&
+        hardware.enabled &&
+        (!hardware.connected || hardware.held)) {
+      error =
+          'Reconnect and restore output before sending a cue. Nothing was queued.';
+      notifyListeners();
+      return false;
+    }
     final saved = await commit((draft, at) {
+      require(
+        controlEpoch == pairing.epoch &&
+            (remote
+                ? pairing.hosting && !pairing.localControl
+                : pairing.localControl),
+        'Operator control changed. Review the action again.',
+      );
       if (action == 'cue') validateLayout(value as TextLayout);
       draft.session = transition(
         draft.session,
@@ -741,6 +852,7 @@ class AppController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    pairing.dispose();
     port.setBackgroundHandler(null);
     unawaited(port.setActiveService(false));
     _timer?.cancel();

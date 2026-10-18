@@ -162,7 +162,7 @@ extension RefinedSettings on _HomeState {
           settingsRow(
             Icons.timer_outlined,
             'Countdown',
-            'Service Matrix · 14 pixels tall',
+            'I-Proton Matrix · 14 pixels tall',
             null,
           ),
         ],
@@ -186,7 +186,7 @@ extension RefinedSettings on _HomeState {
         ),
       ]),
       const Text(
-        'This milestone reads the display profile and sends countdowns or static frames. Scan wiring, polarity, firmware, brightness and network settings are not changed.',
+        'The connected display supplies its profile. Wi-Fi and password controls are in Settings / Device management. Panel wiring, firmware and brightness are not editable.',
       ),
     ],
   );
@@ -197,13 +197,13 @@ extension RefinedSettings on _HomeState {
       settingsGroup('Built-in display fonts', [
         settingsRow(
           Icons.grid_on,
-          'Service Matrix',
+          'I-Proton Matrix',
           'Original bitmap font · unchanged',
           null,
         ),
         settingsRow(
           Icons.grid_4x4,
-          'Service Sq-Matrix',
+          'I-Proton Sq-Matrix',
           'Square-pixel bitmap font · unchanged',
           null,
         ),
@@ -408,7 +408,7 @@ extension RefinedSettings on _HomeState {
             onPressed: () => Navigator.pop(ctx, -1),
             child: const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('Write a new cue'),
+              child: Text('Manage cues in Settings'),
             ),
           ),
         ],
@@ -416,9 +416,9 @@ extension RefinedSettings on _HomeState {
     );
     if (selected == null || !mounted) return;
     if (selected == -1) {
-      await sendCue(const TextLayout(''));
+      await openSettingsDetail('Stage cues', stageCueSettings);
     } else if (selected < c.state.stageCues.length) {
-      await sendCue(c.state.stageCues[selected], cueIndex: selected);
+      await sendPreparedCue(c.state.stageCues[selected]);
     }
   }
 }

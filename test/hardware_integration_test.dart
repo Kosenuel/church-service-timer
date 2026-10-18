@@ -116,7 +116,7 @@ void main() {
       );
       await c.hardware.disconnect();
       await tester.pumpAndSettle();
-      expect(find.text('Connect display'), findsOneWidget);
+      expect(find.text('Reconnect display'), findsOneWidget);
       expect(find.text('Restore current output'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
