@@ -1,6 +1,6 @@
 # Church Service Timer
 
-Android church service timer with an exact 32 × 16 pixel simulator and a first hardware milestone for Huidu W2 V6.02.232, 32 × 16 red monochrome displays. Independent hardware tests verified native countdown, pause/resume using static frames, cue replacement and return to the current timer. Each program replacement briefly blinks; seamless updates and production endurance are not established.
+Android church service timer with an exact 32 × 16 pixel simulator and a first hardware milestone for Huidu W2 V6.02.232, 32 × 16 red monochrome displays. Independent hardware tests and the installed app have verified native countdown, pause/resume using static frames, time adjustment while paused, cue replacement and return to the current timer. The operator confirmed smooth counting between changes, with one brief blink at each program replacement. Seamless updates and production endurance are not established.
 
 For hardware, open **Settings → Display settings → Display connection → Connect a display**. Join the sign's Wi-Fi, scan, select the sign and enter its device password. The app remembers the identity but never saves the password. Connecting does not replace the sign's output. Start a normal-speed service, or use **Restore current output** on Live after reviewing an existing service. The profile is read and validated before any content is sent.
 

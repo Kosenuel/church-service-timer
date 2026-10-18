@@ -1,12 +1,12 @@
 {
   "date": "2026-10-18",
-  "scope": "Physical W2 protocol validation and first app hardware integration. Version 0.11.0 is installed and discovery is verified; app-controlled output verification is pending.",
+  "scope": "Physical W2 protocol validation and first app hardware integration. Version 0.11.0 discovery, authentication and app-controlled countdown/pause/adjustment/resume/static-cue/restoration are verified on the physical sign.",
   "appBuild": {
     "version": "0.11.0+11",
     "sourceCommit": "cdd04979d646885c186f391ca691953cceeba549",
     "apkSha256": "36d36aed87c6dc548a1e3938e11791fe50a0411be720a4c6fa54636802edc890",
     "verification": "Static analysis clean; 246 Flutter tests passed; final UI cleanup passed 40 affected tests; 10 changed/new screenshots reviewed; 12 HD7 and 10 discovery Java checks passed. APK version and signature verified against the preceding release.",
-    "runtime": "Installed as an update on Android 16. App discovery returned the expected W2 V6.02.232 32x16 profile. Device-password entry and app-controlled output acceptance remain pending."
+    "runtime": "Installed as an update on Android 16. App discovery returned the expected W2 V6.02.232 32x16 profile and the user entered the device password on the phone. Each app-controlled change received controller acceptance; the user independently confirmed the complete sequence and smooth counting with one brief blink per change."
   },
   "artifacts": {
     "baseApkSha256": "4f36553aac8a221726e4d9e20a232133f4547d9fb53c87658677e6c3ac95f6ae",
@@ -36,7 +36,10 @@
     "User confirmed the countdown appeared, counted, was properly centered, and settled at 00:00.",
     "Static 01:50 pause, countdown resume, AMEN cue and restoration transfers each received authenticated successful final acknowledgements.",
     "User confirmed the repeated pause/resume/AMEN/restoration test worked as intended, then clarified there was one brief blink at each change, not repeated blinking while displayed. Full program replacement is functional but is not seamless.",
-    "Repeats using the same HP program identity for countdown, pause and cue received authenticated successful acknowledgements for every transfer. User confirmed the same brief blink at each change. Reusing program identity did not eliminate the blink on this W2. This does not establish that every possible controller update method must blink."
+    "Repeats using the same HP program identity for countdown, pause and cue received authenticated successful acknowledgements for every transfer. User confirmed the same brief blink at each change. Reusing program identity did not eliminate the blink on this W2. This does not establish that every possible controller update method must blink.",
+    "The installed Church Service Timer app discovered and authenticated with the user's W2 without replacing its existing output on connection.",
+    "An app-controlled Quick rehearsal sent a native countdown, paused at 00:29, added two minutes while paused to show 02:29, resumed, displayed AMEN, and restored the lower current remaining time. The app reported controller acceptance for each change.",
+    "The user explicitly confirmed the entire installed-app sequence appeared correctly on the physical sign, with smooth counting between changes and only the expected single brief blink at each change."
   ],
   "wire": {
     "udpPort": 6101,
@@ -87,7 +90,7 @@
     "A verified update method that avoids the observed single blink on each full program replacement",
     "Animation cadence and seamless loop confirmation",
     "Native pause support, if any, for target-time widgets",
-    "Installed 0.11.0 connection, asynchronous output coordination and recovery verification; implementation and fake-transport tests are present",
+    "Physical verification of recovery and uncertain delivery after connection loss or backgrounding; implementation and fake-transport tests are present",
     "Longer countdowns, reconnection, app background and power-loss tests"
   ]
 }

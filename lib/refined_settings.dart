@@ -384,7 +384,7 @@ extension RefinedSettings on _HomeState {
         }),
         const SizedBox(height: 12),
         const Text(
-          'Sound also depends on phone volume and Do Not Disturb. Physical sign testing will be available after the hardware is verified.',
+          'Sound also depends on phone volume and Do Not Disturb. This preview does not send to the sign. To check physical output, connect the display and start a short rehearsal.',
         ),
       ],
     );

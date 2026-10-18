@@ -977,9 +977,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   label('Automatic warning'),
                   const SizedBox(height: 8),
                   Text(
-                    s.warningNotice!,
+                    c.hardware.enabled
+                        ? s.warningNotice!.replaceFirst(
+                            RegExp(
+                              r' · stage cue (?:for 8 seconds|skipped \([^)]*\))$',
+                            ),
+                            '',
+                          )
+                        : s.warningNotice!,
                     style: TextStyle(color: appColors(context).warning),
                   ),
+                  if (c.hardware.enabled) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Automatic warnings are not sent to the physical sign in this version.',
+                    ),
+                  ],
                   TextButton(
                     onPressed: c.busy ? null : () => c.act('dismissWarning'),
                     child: const Text('Dismiss warning'),

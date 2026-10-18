@@ -578,6 +578,8 @@ extension LiveViewActions on _HomeState {
         ),
       );
       final label = Text(text, textAlign: TextAlign.center);
+      if (filled && icon == null)
+        return FilledButton(onPressed: callback, style: style, child: label);
       if (filled)
         return FilledButton.icon(
           onPressed: callback,
@@ -599,6 +601,12 @@ extension LiveViewActions on _HomeState {
       builder: (context, constraints) {
         final large = MediaQuery.textScalerOf(context).scale(14) > 18;
         final columns = constraints.maxWidth >= 330 && !large ? 4 : 2;
+        // Keep the complete label at the user's text size. On narrow four-button
+        // rows, omit the optional icon for both Pause and Resume.
+        final buttonWidth =
+            (constraints.maxWidth - 8 * (columns - 1)) / columns;
+        final showPauseIcon =
+            buttonWidth >= MediaQuery.textScalerOf(context).scale(96);
         final controls = [
           control(
             '−2 min',
@@ -609,7 +617,9 @@ extension LiveViewActions on _HomeState {
           control(
             s.paused ? 'Resume' : 'Pause',
             enabled ? confirmPause : null,
-            icon: s.paused ? Icons.play_arrow : Icons.pause,
+            icon: showPauseIcon
+                ? (s.paused ? Icons.play_arrow : Icons.pause)
+                : null,
             filled: true,
           ),
           control(

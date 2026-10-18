@@ -1,6 +1,6 @@
 # Prototype scope and evidence boundaries
 
-Version 0.11 adds the first physical adapter to the simulator prototype: Huidu W2 V6.02.232, 32 × 16 red monochrome. Protocol tests verified centered native countdown, static pause, resume, cue replacement and return to the unchanged deadline. Each replacement briefly blinks, including with a shared program identity. This is a limited hardware milestone, not a production reliability claim. See `w2-protocol-evidence.json` for exact evidence and remaining physical checks.
+Version 0.11 adds the first physical adapter to the simulator prototype: Huidu W2 V6.02.232, 32 × 16 red monochrome. Protocol tests verified centered native countdown, static pause, resume, cue replacement and return to the unchanged deadline. The installed app's connection, countdown, pause, adjustment while paused, resume, AMEN cue and return to the current remaining time are also physically confirmed by the operator. Each replacement briefly blinks, including with a shared program identity; counting between changes is smooth. This is a limited hardware milestone, not a production reliability claim. See `w2-protocol-evidence.json` for exact evidence and remaining physical checks.
 
 ## Implemented
 
@@ -63,4 +63,4 @@ The physical connection page reads the discovered profile. There is no firmware 
 
 ## Next hardware milestone
 
-Validate the installed app's connection, countdown → static cue → current countdown and recovery on the physical sign. Then verify animation cadence/looping, longer countdowns, midnight, network/power loss and endurance before expanding the supported capability list.
+Validate recovery after network loss, app backgrounding and sign power loss on the physical sign, then run a full-service endurance test. Animation cadence/looping, longer countdowns and midnight transitions need their own physical verification before expanding the supported capability list.

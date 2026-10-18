@@ -150,6 +150,62 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('Paused controls stay in one even row on a 411px phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(411, 1250);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final c = (await tester.runAsync(() => setup(W2Port())))!;
+    await tester.runAsync(() => c.act('pause'));
+    await tester.pumpWidget(TimerApp(controller: c));
+    await tester.pumpAndSettle();
+    final resume = find.ancestor(
+      of: find.text('Resume'),
+      matching: find.byWidgetPredicate((w) => w is FilledButton),
+    );
+    final subtract = find.ancestor(
+      of: find.text('−2 min'),
+      matching: find.byWidgetPredicate((w) => w is OutlinedButton),
+    );
+    expect(tester.getRect(resume).top, tester.getRect(subtract).top);
+    expect(tester.getSize(resume).height, tester.getSize(subtract).height);
+    expect(tester.getSize(find.text('Resume')).height, lessThan(24));
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/hardware-paused-phone.png'),
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('Hardware warnings do not claim stage cue delivery', (
+    tester,
+  ) async {
+    final port = W2Port();
+    final c = (await tester.runAsync(() => setup(port)))!;
+    await tester.runAsync(() async {
+      await c.setSharedWarnings(const [
+        WarningRule(570, TextLayout('WARN'), destination: 'stage'),
+      ]);
+      port.at = after(31);
+      await c.tick();
+      await flush();
+    });
+    await tester.pumpWidget(TimerApp(controller: c));
+    await tester.pumpAndSettle();
+    expect(find.text('WARN · 09:30 remaining'), findsOneWidget);
+    expect(find.textContaining('stage cue for 8 seconds'), findsNothing);
+    expect(
+      find.text(
+        'Automatic warnings are not sent to the physical sign in this version.',
+      ),
+      findsOneWidget,
+    );
+    expect(port.sent.length, 1);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
   test(
     'Connect does not replace output; starting sends one native deadline',
     () async {
