@@ -1,6 +1,12 @@
 # Church Service Timer
 
-Offline Android prototype for church production timing and stage cues, with an exact 32 × 16 monochrome pixel simulator. No Huidu controller is contacted. Hardware compatibility and physical latency remain unverified.
+Android church service timer with an exact 32 × 16 pixel simulator and a first hardware milestone for Huidu W2 V6.02.232, 32 × 16 red monochrome displays. Independent hardware tests verified native countdown, pause/resume using static frames, cue replacement and return to the current timer. Each program replacement briefly blinks; seamless updates and production endurance are not established.
+
+For hardware, open **Settings → Display settings → Display connection → Connect a display**. Join the sign's Wi-Fi, scan, select the sign and enter its device password. The app remembers the identity but never saves the password. Connecting does not replace the sign's output. Start a normal-speed service, or use **Restore current output** on Live after reviewing an existing service. The profile is read and validated before any content is sent.
+
+This milestone supports native countdowns up to **59:59**, pause/resume, time adjustments, segment changes and static cues fitting 32 pixels. Static cues retain their chosen font/style; both Matrix fonts remain unchanged. **Controller accepted** requires the final authenticated upload acknowledgement; the red preview estimates accepted content and is not optical confirmation. Keep the app open for controls. On backgrounding, reconnect or uncertain delivery, output is held for operator review. A running countdown continues independently; a cue or paused frame may remain visible until replaced.
+
+Automatic sign warnings, scrolling/flashing sign content, longer countdowns and background control are deferred. Phone warnings retain their configured behaviour. Animated At Zero falls back to 00:00; an animated or oversized end screen clears the sign, as stated in the start/end confirmations. Simulator features are unchanged. See [hardware evidence and remaining checks](docs/w2-protocol-evidence.json).
 
 ## Try it
 
@@ -9,7 +15,7 @@ Offline Android prototype for church production timing and stage cues, with an e
 3. Choose live timing or a **Fast rehearsal** speed while Ready. Select **Start first segment** and accept the untested layouts for this session.
 4. Use the progress arc, **Remaining / Overtime** clock and **Allocated time** to track the current segment. Try Pause, Custom (add/remove minutes and seconds), ±2 minutes, Next segment and Undo. Every action requires confirmation; adjustments preview their effect while time continues. Stage output retains the shared At Zero setting until you act.
 5. Tap a Stage cue to edit it, then **Send** to persist its text and all formatting across every service. **New cue → Send** adds another item; **Delete cue** in an existing cue editor removes it after confirmation. Choose unchanged **Service Matrix**, unchanged **Service Sq-Matrix**, or bundled **Tinos** (Regular, Bold, Italic and Bold Italic). The countdown continues underneath; **Show timer** dismisses the cue without changing pause state.
-6. Disconnect the simulator, wait, and reconnect. A banner appears above Live and the display badge changes from **Simulator** to **Disconnected**. The last simulated frame stays marked stale. Reconnection clears the banner and receives current output without replaying missed updates. **Display connected** is reserved for a future physical adapter.
+6. Disconnect the simulator, wait, and reconnect. A banner appears above Live and the display badge changes from **Simulator** to **Disconnected**. The last simulated frame stays marked stale. Reconnection clears the banner and receives current output without replaying missed updates. **Display connected** identifies the authenticated W2 adapter; physical reconnection requires review before replacing output.
 7. Follow the **Service timing overview**. The prominent red **End service** button shows the end screen and saves its **Report**, with clickable service records, a detailed segment breakdown, a Graph view, individual/bulk CSV/JSON export and confirmed clearing of one/all records.
 8. Open **Settings → Warnings & alerts** to edit the global rules shared by every service and rehearsal. Warnings use time remaining and overlay the simulator for eight seconds. Enable phone notifications, allow precise warnings where offered, and test notification sound. Android volume/Do Not Disturb still apply.
 9. In **Settings → Display settings**, open **LED preview shape** and select **Square LEDs** or **Circular LEDs** for all simulator previews. The choice survives restart without changing any glyph or output bit.
@@ -21,7 +27,7 @@ See the [0.10 shared settings and Tinos guide](docs/FEATURES-0.10.md), [0.9 Feed
 
 **Ready for service** offers an optional checklist and isolated preview test. **Focused operator view** keeps the timer, essential controls and cues visible. **Blank sign** clears simulator output while timing and phone warnings continue; Show timer or sending a cue restores output. The header icon opens connection details and distinguishes local rendering from physical delivery.
 
-The app keeps the screen awake while visible by default; turn this off in Settings to use normal automatic screen sleep. Locking or closing it can suspend simulator rendering; reopening reconstructs time. Phone warnings use Android alarms independently, subject to permissions and battery restrictions. A 30-minute absence or uncertain reboot timing holds stage output for review. Continuous physical output remains outside this prototype.
+The app keeps the screen awake while visible by default; turn this off in Settings to use normal automatic screen sleep. Locking or closing it can suspend simulator rendering; reopening reconstructs time. Phone warnings use Android alarms independently, subject to permissions and battery restrictions. A 30-minute absence or uncertain reboot timing holds simulator output for review; physical output requires review after every background transition. Only the uploaded native countdown is established to continue independently.
 
 ## Personalize and back up
 
@@ -50,6 +56,8 @@ The debug APK uses a development signing identity. Production signing and distri
 - `lib/feedback_page.dart`, `feedback_message.dart` and Android `FeedbackEmail.kt`: validated feedback form, fixed-recipient email composition and copy fallback.
 - `lib/domain.dart`: pure service transitions, timing, snapshots, recovery and template schema.
 - `lib/controller.dart`: atomic save-before-publication, failure/retry behavior and simulator adapter.
+- `lib/hardware_display.dart`, `hardware_output.dart`, `w2_program.dart`: serialized physical output, stable deadlines, stale-acknowledgement handling and independent W2 serialization.
+- `lib/hardware_views.dart`, Android `W2Display.kt`, `w2/Hd7Auth.java`, `w2/W2Discovery.java`: guided connection, Wi-Fi-bound sockets, strict profile validation and authenticated transfer. Credentials and active connections are excluded from backups.
 - `lib/service_features.dart`: warning rules, run metrics and reports.
 - `lib/pixels.dart`, `matrix_font.dart`, `square_matrix_font.dart`: bitmap fonts, LED appearance and exact 512-bit frames.
 - `lib/native_fonts.dart` and Android `BundledFonts.kt`: four bundled Tinos faces and native rasterization.
@@ -74,4 +82,4 @@ CSV uses UTF-8 and exact headers `Segment Name,Duration (Minutes)`. Durations ar
 
 ## Physical hardware gate
 
-Before enabling any real adapter, verify controller identity and firmware, preserve panel settings, establish command framing/acknowledgements and transient vs persistent writes, then test countdown, cue replacement, return-to-current-timer, reconnection and ordering. Run the PRD's 100-cue latency measurement and full-service endurance test on each claimed configuration. Simulator timing is not evidence of physical delivery.
+The first adapter is gated to the tested W2 firmware/profile. It does not change scan settings, polarities, firmware, Wi-Fi settings or passwords. Countdown publication calibrates the controller clock to the phone and sends a fixed target. The PRD's 100-cue latency measurement, full-service endurance and power-loss acceptance remain outstanding. Simulator timing and automated fake-transport tests are not evidence of physical delivery.

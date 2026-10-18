@@ -66,7 +66,7 @@ try {
     $result = [ordered]@{
         status='built'; apk=$target; sha256=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
         completedAt=(Get-Date).ToString('o'); version=$versionLine; flutter='3.47.7'; tests=$(if ($BuildOnly) { 'Not rerun in this build-only invocation' } elseif ($UpdateGoldens) { 'flutter test --update-goldens passed; review updated images' } else { 'flutter test passed' })
-        physicalHardware='Not tested; simulator only'; nativeRuntime='Requires installation test on Android'
+        physicalHardware='W2 protocol verified on a 32x16 red sign; see docs/w2-protocol-evidence.json for scope and app test status'; nativeRuntime='Requires installation test of this build on Android'
     }
     $result | ConvertTo-Json | Set-Content -LiteralPath $resultFile -Encoding UTF8
     Write-Host "APK ready: $target"

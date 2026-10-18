@@ -151,14 +151,26 @@ class LedAppearance extends InheritedWidget {
 class LedMatrix extends StatelessWidget {
   final List<bool> pixels;
   final bool stale;
-  const LedMatrix({super.key, required this.pixels, this.stale = false});
+  final bool hardware;
+  const LedMatrix({
+    super.key,
+    required this.pixels,
+    this.stale = false,
+    this.hardware = false,
+  });
   @override
   Widget build(BuildContext context) => Semantics(
-    label: '32 by 16 monochrome LED simulator${stale ? ', output held' : ''}',
+    label:
+        '32 by 16 monochrome LED ${hardware ? 'accepted-program preview' : 'simulator'}${stale ? ', output held' : ''}',
     child: AspectRatio(
       aspectRatio: 2,
       child: CustomPaint(
-        painter: _MatrixPainter(pixels, stale, LedAppearance.of(context)),
+        painter: _MatrixPainter(
+          pixels,
+          stale,
+          LedAppearance.of(context),
+          hardware,
+        ),
       ),
     ),
   );
@@ -168,7 +180,8 @@ class _MatrixPainter extends CustomPainter {
   final List<bool> pixels;
   final bool stale;
   final String shape;
-  _MatrixPainter(this.pixels, this.stale, this.shape);
+  final bool hardware;
+  _MatrixPainter(this.pixels, this.stale, this.shape, this.hardware);
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRRect(
@@ -178,7 +191,11 @@ class _MatrixPainter extends CustomPainter {
     final pitch = math.min(size.width / 32, size.height / 16);
     final off = Paint()..color = const Color(0xff14201d);
     final on = Paint()
-      ..color = stale ? const Color(0xffb79558) : const Color(0xffc9f96c);
+      ..color = stale
+          ? const Color(0xffb79558)
+          : hardware
+          ? const Color(0xffff4545)
+          : const Color(0xffc9f96c);
     for (var y = 0; y < 16; y++) {
       for (var x = 0; x < 32; x++) {
         final paint = pixels[y * 32 + x] ? on : off;

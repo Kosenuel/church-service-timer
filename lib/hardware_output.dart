@@ -121,6 +121,8 @@ HardwareOutputPlan planHardwareOutput(
   Stamp now, {
   int connectionGeneration = 0,
   int maximumCountdownMs = observedW2CountdownLimitMs,
+  bool allowUncertainTiming = false,
+  bool automaticCues = true,
 }) {
   require(connectionGeneration >= 0, 'Invalid connection generation.');
   require(
@@ -151,7 +153,8 @@ HardwareOutputPlan planHardwareOutput(
 
   if (session.disconnected) return blocked(HardwareOutputReason.disconnected);
   if (session.held) return blocked(HardwareOutputReason.held);
-  if (session.uncertain) return blocked(HardwareOutputReason.uncertain);
+  if (session.uncertain && !allowUncertainTiming)
+    return blocked(HardwareOutputReason.uncertain);
   // Never send accelerated simulator time to a real-time hardware countdown,
   // including cues/end screens belonging to the accelerated session.
   if (session.rate != 1) {
@@ -188,7 +191,7 @@ HardwareOutputPlan planHardwareOutput(
   if (!now.sameBoot(session.anchor) || !now.sameBoot(session.checkpoint)) {
     return blocked(HardwareOutputReason.untrustedClock);
   }
-  if (session.hasAutomaticCue(now)) {
+  if (automaticCues && session.hasAutomaticCue(now)) {
     return make(
       HardwareOutputKind.text,
       HardwareOutputReason.automaticCue,

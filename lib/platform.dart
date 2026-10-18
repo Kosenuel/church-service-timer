@@ -3,6 +3,20 @@ import 'package:flutter/services.dart';
 import 'domain.dart';
 
 abstract class DevicePort {
+  Future<Json> displayPreferences() async => {'hardware': false};
+  Future<List<Json>> discoverDisplays() async =>
+      throw RuleError('Android Wi-Fi is required.');
+  Future<Json> connectDisplay(String id, String password) async =>
+      throw RuleError('Android Wi-Fi is required.');
+  Future<void> disconnectDisplay() async {}
+  Future<void> useSimulator() async {}
+  Future<void> openWifiSettings() async {}
+  Future<Json> checkDisplay() async => {'connected': false};
+  Future<Json> sendDisplay(
+    Uint8List bytes,
+    int generation,
+    int? deadline,
+  ) async => throw RuleError('Android Wi-Fi is required.');
   Future<bool> composeFeedback(String subject, String body) async => false;
   Future<String?> pickChurchBanner() async => null;
   Future<String> installedVersion() async => appVersion;
@@ -30,6 +44,45 @@ abstract class DevicePort {
 
 class AndroidPort extends DevicePort {
   static const channel = MethodChannel('church.timer/device');
+  @override
+  Future<Json> displayPreferences() async => Map<String, dynamic>.from(
+    (await channel.invokeMethod<Map>('w2Preferences'))!,
+  );
+  @override
+  Future<List<Json>> discoverDisplays() async =>
+      (await channel.invokeMethod<List>(
+        'w2Discover',
+      ))!.map((v) => Map<String, dynamic>.from(v)).toList();
+  @override
+  Future<Json> connectDisplay(String id, String password) async =>
+      Map<String, dynamic>.from(
+        (await channel.invokeMethod<Map>('w2Connect', {
+          'id': id,
+          'password': password,
+        }))!,
+      );
+  @override
+  Future<void> disconnectDisplay() =>
+      channel.invokeMethod<void>('w2Disconnect');
+  @override
+  Future<void> useSimulator() => channel.invokeMethod<void>('w2Simulator');
+  @override
+  Future<void> openWifiSettings() => channel.invokeMethod<void>('wifiSettings');
+  @override
+  Future<Json> checkDisplay() async =>
+      Map<String, dynamic>.from((await channel.invokeMethod<Map>('w2Status'))!);
+  @override
+  Future<Json> sendDisplay(
+    Uint8List bytes,
+    int generation,
+    int? deadline,
+  ) async => Map<String, dynamic>.from(
+    (await channel.invokeMethod<Map>('w2Send', {
+      'bytes': bytes,
+      'generation': generation,
+      'deadline': deadline,
+    }))!,
+  );
   @override
   Future<bool> composeFeedback(String subject, String body) async =>
       await channel.invokeMethod<bool>('composeFeedback', {

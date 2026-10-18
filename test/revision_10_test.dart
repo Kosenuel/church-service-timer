@@ -168,7 +168,10 @@ void main() {
       await t.tap(status);
       await t.pumpAndSettle();
       expect(find.text('Physical delivery'), findsOneWidget);
-      expect(find.text('Not available · no hardware adapter'), findsOneWidget);
+      expect(
+        find.text('Available after connecting a supported W2 display'),
+        findsOneWidget,
+      );
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/connection-phone.png'),
@@ -359,7 +362,7 @@ void main() {
       await tap(t, 'Display settings');
       expect(t.takeException(), isNull);
       await tap(t, 'Display profile');
-      expect(find.text('PHYSICAL SIGN · NOT VERIFIED'), findsOneWidget);
+      expect(find.text('PHYSICAL SIGN'), findsOneWidget);
       expect(
         MediaQuery.textScalerOf(t.element(find.text('Resolution'))).scale(10),
         16,

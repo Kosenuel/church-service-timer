@@ -11,6 +11,7 @@ import 'platform.dart';
 import 'native_fonts.dart';
 import 'warning_notifications.dart';
 import 'display_connection.dart';
+import 'hardware_display.dart';
 
 /// The simulator is an output adapter, not a fake Huidu protocol implementation.
 class Simulator {
@@ -56,6 +57,7 @@ class AppController extends ChangeNotifier {
   late AppState state;
   Stamp now = const Stamp(0, 0, 'unknown');
   final simulator = Simulator();
+  late final HardwareDisplay hardware;
   bool ready = false,
       busy = false,
       corrupt = false,
@@ -93,10 +95,18 @@ class AppController extends ChangeNotifier {
   Json notificationState = {'enabled': false, 'exact': false, 'sound': false};
   Future<bool> Function()? retry;
   Timer? _timer;
-  AppController(this.port);
+  AppController(this.port) {
+    hardware = HardwareDisplay(port)..addListener(_hardwareChanged);
+  }
+  void _hardwareChanged() {
+    if (!_disposed) notifyListeners();
+  }
+
   DisplayConnection get displayConnection => DisplayConnection.fromAdapter(
-    simulated: true, // The only implemented output adapter is Simulator.
-    connected: !state.session.disconnected,
+    simulated: !hardware.enabled,
+    connected: hardware.enabled
+        ? hardware.connected
+        : !state.session.disconnected,
   );
   void _beginWrite() {
     busy = true;
@@ -113,6 +123,7 @@ class AppController extends ChangeNotifier {
   void _publish() {
     if (_foreground && !_needsRecovery && !corrupt && !_disposed) {
       simulator.update(state.session, now);
+      if (!storageUncertain) hardware.reconcile(state.session, now);
     }
   }
 
@@ -153,6 +164,11 @@ class AppController extends ChangeNotifier {
     }
     ready = true;
     try {
+      await hardware.initialize();
+    } catch (_) {
+      hardware.status = 'Display preferences unavailable · scan to connect';
+    }
+    try {
       appVersion = await port.installedVersion();
     } catch (_) {
       /* Source build fallback. */
@@ -179,6 +195,7 @@ class AppController extends ChangeNotifier {
           await act('warnings');
         }
         _publish();
+        unawaited(hardware.check(now));
         if (!busy &&
             !storageUncertain &&
             now.since(state.session.checkpoint) >= 55000 &&
@@ -231,6 +248,11 @@ class AppController extends ChangeNotifier {
       retry = null;
       _retryIsCheckpoint = false;
       storageUncertain = false;
+      if (previous.phase == 'ready' &&
+          state.session.active &&
+          hardware.connected) {
+        hardware.release(state.session);
+      }
       _publish();
       return true;
     } catch (e) {
@@ -255,11 +277,69 @@ class AppController extends ChangeNotifier {
           value: value,
           expectedRevision: revision,
         );
+        if ([
+          'start',
+          'pause',
+          'adjust',
+          'advance',
+          'undo',
+          'rate',
+          'cue',
+        ].contains(action)) {
+          hardware.validateAction(
+            draft.session,
+            at,
+            cue: action == 'cue' ? value as TextLayout : null,
+          );
+        }
         if (action == 'load') draft.session.churchName = draft.churchName;
+        if (action == 'start' && hardware.connected)
+          draft.session.disconnected = false;
         if (action == 'end') {
           draft.reports.add(ServiceReport.fromSession(draft.session, at));
         }
       }, revision: revision);
+
+  Future<bool> restoreHardware({int? verifiedSeconds, int? revision}) async {
+    if (!hardware.connected) return false;
+    final saved = await commit((draft, at) {
+      final s = draft.session;
+      if (verifiedSeconds != null)
+        require(
+          verifiedSeconds >= 0 && verifiedSeconds <= 3599,
+          'Enter a verified time from 00:00 to 59:59.',
+        );
+      require(
+        s.active || s.phase == 'ended',
+        'Start a service before restoring its output.',
+      );
+      if (s.uncertain && s.active)
+        require(
+          verifiedSeconds != null,
+          'Verify the remaining time before restoring.',
+        );
+      if (s.active) {
+        s.baseMs = verifiedSeconds == null
+            ? s.balance(at)
+            : verifiedSeconds * 1000;
+        s.anchor = at;
+        s.undo = null;
+      }
+      s.alert = null;
+      s.automaticCue = null;
+      s.outputBlank = false;
+      s.held = false;
+      s.disconnected = false;
+      s.outage = null;
+      s.checkpoint = at;
+      s.revision++;
+      hardware.validateAction(s, at);
+    }, revision: revision);
+    if (!saved || !hardware.connected) return false;
+    hardware.release(state.session, timingVerified: true);
+    _publish();
+    return true;
+  }
 
   Future<bool> restoreBackup(AppState restored) async {
     try {
@@ -367,9 +447,9 @@ class AppController extends ChangeNotifier {
       if (deviceSettingsError != null) 'screen preference',
     ];
     return [
-      'Output adapter: Simulator',
+      'Output adapter: ${hardware.enabled ? 'W2 Wi-Fi' : 'Simulator'}',
       'Connection: ${displayConnection.label}',
-      'Physical controller: not configured',
+      'Physical controller: ${hardware.enabled ? 'W2 hardware milestone' : 'not configured'}',
       'Notifications: ${notificationState['enabled'] == true ? 'enabled' : 'disabled'}',
       'Notification sound: ${notificationState['sound'] == true ? 'enabled' : 'disabled'}',
       'Precise alarms: ${notificationState['exact'] == true ? 'allowed' : 'not allowed'}',
@@ -380,6 +460,7 @@ class AppController extends ChangeNotifier {
   Future<bool> sendAndSaveCue(TextLayout layout, {int? index, int? revision}) =>
       commit((draft, at) {
         validateLayout(layout);
+        hardware.validateAction(draft.session, at, cue: layout);
         if (index != null) {
           require(
             index >= 0 && index < draft.stageCues.length,
@@ -452,6 +533,10 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> suspend() async {
+    if (hardware.enabled)
+      hardware.hold(
+        'App was in the background · review and restore output. The sign may retain a cue or continue its countdown.',
+      );
     _foreground = false;
     _needsRecovery = true;
     _resumeRequest++;
@@ -529,6 +614,8 @@ class AppController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _timer?.cancel();
+    hardware.removeListener(_hardwareChanged);
+    hardware.dispose();
     themeSelection.dispose();
     super.dispose();
   }

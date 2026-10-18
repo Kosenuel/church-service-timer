@@ -21,6 +21,7 @@ part 'live_views.dart';
 part 'template_views.dart';
 part 'settings_views.dart';
 part 'refined_settings.dart';
+part 'hardware_views.dart';
 
 String styleSummary(TextLayout l) =>
     '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
@@ -198,7 +199,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         : '\n\nAutomatic stage warnings:\n${stageWarnings.map((w) => '${formatTime(w.seconds * 1000)} — ${styleSummary(w.cue)}').join('\n')}';
     if (await confirm(
       'Start ${s.timeline!.segments.first.name}?',
-      '${s.rehearsal ? 'REHEARSAL: time will run ${s.rate}× faster. Reports will be marked as rehearsal.\n\n' : ''}The countdown, zero-time screen, end screen and configured automatic stage warnings have not been tested on a physical sign. This session uses the simulator only.$warningSummary\n\n${s.disconnected ? 'The simulator is disconnected. Timing will start, but its output will stay unchanged.\n\n' : ''}Accept these layouts for this service? This does not grant physical approval.',
+      c.hardware.enabled
+          ? '${c.hardware.connected ? 'Send the countdown to ${c.hardware.rememberedName}.' : 'The display is disconnected. Timing will start locally; connect and restore the timer to send it.'}\n\nNormal speed and up to 59:59 remaining are supported. Updates may blink briefly. Automatic sign warnings and animated cues are deferred. An animated At Zero shows 00:00; an animated end screen clears the sign. Keep the app open for controls.'
+          : '${s.rehearsal ? 'REHEARSAL: time will run ${s.rate}× faster. Reports will be marked as rehearsal.\n\n' : ''}This session uses the simulator only.$warningSummary\n\n${s.disconnected ? 'The simulator is disconnected. Timing will start, but its output will stay unchanged.\n\n' : ''}Accept these layouts for this simulated service?',
       'Start first segment',
     ))
       await c.act('start', revision: revision);
@@ -587,7 +590,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 12),
             Text(
-              'Timing has not started. The simulator retains its previous output.',
+              'Timing has not started. The display retains its previous output.',
               style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 12),
@@ -622,7 +625,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                         title: 'End ${t!.name}?',
                         action: 'End service',
                         content: () => Text(
-                          'Finish this service, save its report, clear the active cue and show “${t.display.end.text}”.',
+                          c.hardware.enabled
+                              ? c.hardware.held || !c.hardware.connected
+                                    ? 'Finish this service and save its report. The sign will keep its last program until you reconnect and restore output.'
+                                    : 'Finish this service and save its report. The sign will show the static end screen, or clear if that screen needs animation. A brief blink is expected.'
+                              : 'Finish this service, save its report, clear the active cue and show “${t.display.end.text}”.',
                         ),
                       ))
                         await c.act('end', revision: rev);
@@ -651,8 +658,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           DisplayPreviewHeader(connection: c.displayConnection),
           const SizedBox(height: 14),
           LedMatrix(
-            pixels: c.simulator.pixels,
-            stale: s.held || s.disconnected,
+            pixels: c.hardware.enabled
+                ? c.hardware.preview(c.now)
+                : c.simulator.pixels,
+            hardware: c.hardware.enabled,
+            stale: c.hardware.enabled
+                ? c.hardware.held || !c.hardware.connected
+                : s.held || s.disconnected,
           ),
           const SizedBox(height: 12),
           Text(
@@ -674,20 +686,33 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             style: TextStyle(color: appColors(context).muted),
           ),
           Text(
-            'Simulated: ${c.simulator.delivered?.text ?? 'Blank'}',
+            c.hardware.enabled
+                ? 'Last accepted: ${c.hardware.acceptedLabel}'
+                : 'Simulated: ${c.simulator.delivered?.text ?? 'Blank'}',
             style: TextStyle(color: appColors(context).muted),
           ),
           const SizedBox(height: 8),
           Text(
-            'Simulator only · physical delivery is not enabled.',
+            c.hardware.enabled
+                ? 'Preview is an estimate of the last accepted program, not a live camera view of the sign.'
+                : 'Simulator only · connect a display in Settings for physical output.',
             style: TextStyle(color: appColors(context).muted, fontSize: 12),
           ),
           const SizedBox(height: 12),
           button(
-            s.disconnected ? 'Reconnect simulator' : 'Disconnect simulator',
+            c.hardware.enabled
+                ? 'Display connection'
+                : s.disconnected
+                ? 'Reconnect simulator'
+                : 'Disconnect simulator',
             s.disconnected ? Icons.link : Icons.link_off,
             c.busy || c.corrupt
                 ? null
+                : c.hardware.enabled
+                ? () => openSettingsDetail(
+                    'Display connection',
+                    connectionSettings,
+                  )
                 : () => c.act(s.disconnected ? 'connect' : 'disconnect'),
           ),
         ],
@@ -718,7 +743,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 ? 'Warning on display: ${s.automaticCue!.text}'
                 : s.alert == null
                 ? 'The right words, at the right moment.'
-                : 'On display: ${s.alert!.text}',
+                : '${c.hardware.enabled ? 'Selected cue' : 'On display'}: ${s.alert!.text}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
@@ -781,9 +806,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                         if (await confirmTimer(
                           revision: revision,
                           title: 'Blank the display?',
-                          action: 'Blank simulator',
-                          content: () => const Text(
-                            'Clear the simulator while timing continues. Automatic stage cues stay hidden until you choose Show timer or send a cue. Phone warnings remain enabled.',
+                          action: c.hardware.enabled
+                              ? 'Blank display'
+                              : 'Blank simulator',
+                          content: () => Text(
+                            'Clear the ${c.hardware.enabled ? 'display' : 'simulator'} while timing continues. Automatic stage cues stay hidden until you choose Show timer or send a cue. Phone warnings remain enabled.',
                           ),
                         ))
                           await c.act('blank', revision: revision);
@@ -854,7 +881,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             ),
                           ),
                           Text(
-                            'Simulator output is paused. ${s.active
+                            '${c.hardware.enabled ? 'The sign may retain its last accepted output.' : 'Simulator output is paused.'} ${s.active
                                 ? s.paused
                                       ? 'The timer is paused.'
                                       : 'Timing continues.'
@@ -867,7 +894,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
               ),
             ),
-          if (s.held && (s.active || s.phase == 'ended'))
+          if (c.hardware.enabled)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: hardwareStatusPanel(),
+            ),
+          if (!c.hardware.enabled && s.held && (s.active || s.phase == 'ended'))
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: panel(

@@ -330,10 +330,10 @@ extension SettingsViews on _HomeState {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            label('Prototype · simulator'),
+            label('Simulator & W2 display'),
             const SizedBox(height: 10),
             const Text(
-              '32 × 16 monochrome display simulator. Physical LED sign delivery is not yet implemented or tested. Simulator status is never a hardware connection confirmation.',
+              '32 × 16 simulator and the first W2 Wi-Fi hardware milestone: native countdown, pause/resume, time adjustments and static cues. Hardware updates may blink briefly. Automatic sign warnings and animated sign content remain deferred.',
             ),
             const SizedBox(height: 16),
             label('Your data'),

@@ -60,7 +60,9 @@ extension RefinedSettings on _HomeState {
         settingsRow(
           Icons.grid_on_outlined,
           'Display profile',
-          '32 × 16 · monochrome · not verified on hardware',
+          c.hardware.profile == null
+              ? '32 × 16 preview · connect to read the sign'
+              : '${c.hardware.profile!['width']} × ${c.hardware.profile!['height']} · red monochrome · W2',
           () => openSettingsDetail('Display profile', displayProfile),
         ),
       ]),
@@ -136,42 +138,55 @@ extension RefinedSettings on _HomeState {
   Widget displayProfile() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      settingsGroup('Simulator profile', [
-        settingsRow(
-          Icons.aspect_ratio,
-          'Resolution',
-          '32 × 16 pixels · simulator assumption',
-          null,
-        ),
-        settingsRow(
-          Icons.palette_outlined,
-          'Color capability',
-          'Monochrome · simulator assumption',
-          null,
-        ),
-        settingsRow(
-          Icons.timer_outlined,
-          'Countdown',
-          'Service Matrix · 14 pixels tall',
-          null,
-        ),
-      ]),
-      settingsGroup('Physical sign · not verified', [
+      settingsGroup(
+        c.hardware.profile == null
+            ? 'Preview profile'
+            : 'Connected display profile',
+        [
+          settingsRow(
+            Icons.aspect_ratio,
+            'Resolution',
+            c.hardware.profile == null
+                ? '32 × 16 pixels · preview'
+                : '${c.hardware.profile!['width']} × ${c.hardware.profile!['height']} pixels · read from controller',
+            null,
+          ),
+          settingsRow(
+            Icons.palette_outlined,
+            'Color capability',
+            c.hardware.profile == null
+                ? 'Monochrome · preview'
+                : 'Red monochrome · read from controller',
+            null,
+          ),
+          settingsRow(
+            Icons.timer_outlined,
+            'Countdown',
+            'Service Matrix · 14 pixels tall',
+            null,
+          ),
+        ],
+      ),
+      settingsGroup('Physical sign', [
         settingsRow(
           Icons.developer_board_outlined,
           'Controller',
-          'Unknown · waiting for the sign',
+          c.hardware.profile == null
+              ? 'Connect a display to read its profile'
+              : 'Huidu W2',
           null,
         ),
         settingsRow(
           Icons.info_outline,
           'Device details',
-          'No properties have been read from hardware',
+          c.hardware.profile == null
+              ? 'No properties read in this app session'
+              : '${c.hardware.profile!['firmware']} · ${c.hardware.profile!['address']}',
           null,
         ),
       ]),
       const Text(
-        'The preview profile is for testing. Hardware resolution, controller details, brightness and delivery verification will be added after connecting and testing the sign.',
+        'This milestone reads the display profile and sends countdowns or static frames. Scan wiring, polarity, firmware, brightness and network settings are not changed.',
       ),
     ],
   );
@@ -218,7 +233,9 @@ extension RefinedSettings on _HomeState {
 
   Widget connectionSettings() {
     final s = c.state.session;
-    final output = s.disconnected
+    final output = c.hardware.enabled
+        ? c.hardware.status
+        : s.disconnected
         ? 'No updates while disconnected'
         : s.held
         ? 'Held for operator review'
@@ -232,29 +249,47 @@ extension RefinedSettings on _HomeState {
           settingsRow(
             connectionIcon(c.displayConnection),
             c.displayConnection.label,
-            'Adapter: local 32 × 16 simulator',
+            c.hardware.enabled
+                ? 'Adapter: W2 over Wi-Fi'
+                : 'Adapter: local 32 × 16 simulator',
             null,
           ),
           settingsRow(Icons.update, 'Output status', output, null),
           settingsRow(
             Icons.verified_outlined,
             'Physical delivery',
-            'Not available · no hardware adapter',
+            c.hardware.enabled
+                ? c.hardware.acceptedLabel
+                : 'Available after connecting a supported W2 display',
             null,
           ),
         ]),
         const Text(
-          'A connection status does not confirm that a physical sign received an update. This build only renders local simulated frames.',
+          'Connection and delivery are separate. “Controller accepted” means the final upload was acknowledged; check the sign to confirm its appearance.',
         ),
         const SizedBox(height: 16),
         button(
-          s.disconnected ? 'Reconnect simulator' : 'Disconnect simulator',
-          s.disconnected ? Icons.link : Icons.link_off,
-          c.busy || c.corrupt
-              ? null
-              : () => c.act(s.disconnected ? 'connect' : 'disconnect'),
+          'Connect a display',
+          Icons.wifi,
+          c.busy ? null : openHardwareConnection,
+          primary: true,
         ),
-        if (s.held)
+        const SizedBox(height: 12),
+        if (!c.hardware.enabled)
+          button(
+            s.disconnected ? 'Reconnect simulator' : 'Disconnect simulator',
+            s.disconnected ? Icons.link : Icons.link_off,
+            c.busy || c.corrupt
+                ? null
+                : () => c.act(s.disconnected ? 'connect' : 'disconnect'),
+          ),
+        if (c.hardware.enabled && c.hardware.connected)
+          button(
+            'Disconnect display',
+            Icons.link_off,
+            c.hardware.sending ? null : () => c.hardware.disconnect(),
+          ),
+        if (s.held || (c.hardware.enabled && c.hardware.held))
           const Padding(
             padding: EdgeInsets.only(top: 12),
             child: Text('Return to Live to review and restore held output.'),
@@ -285,7 +320,7 @@ extension RefinedSettings on _HomeState {
           settingsRow(
             connectionIcon(c.displayConnection),
             'Display connection',
-            '${c.displayConnection.label}${s.held ? ' · output held' : ''}',
+            '${c.displayConnection.label}${(c.hardware.enabled ? c.hardware.held : s.held) ? ' · output held' : ''}',
             () => openSettingsDetail('Display connection', connectionSettings),
           ),
           settingsRow(

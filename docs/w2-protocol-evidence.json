@@ -1,6 +1,6 @@
 {
   "date": "2026-10-18",
-  "scope": "Initial physical W2 validation; not yet wired into the installed app UI",
+  "scope": "Physical W2 protocol validation and first app hardware integration. The 0.11.0 app build still requires installed runtime verification.",
   "artifacts": {
     "baseApkSha256": "4f36553aac8a221726e4d9e20a232133f4547d9fb53c87658677e6c3ac95f6ae",
     "arm64SplitSha256": "291dd9342d329b105bd4aeb88ab32d0e15bacf42d4752db40e15e375b4a448be",
@@ -29,7 +29,7 @@
     "User confirmed the countdown appeared, counted, was properly centered, and settled at 00:00.",
     "Static 01:50 pause, countdown resume, AMEN cue and restoration transfers each received authenticated successful final acknowledgements.",
     "User confirmed the repeated pause/resume/AMEN/restoration test worked as intended, then clarified there was one brief blink at each change, not repeated blinking while displayed. Full program replacement is functional but is not seamless.",
-    "A repeat using the same HP program identity for countdown, pause and cue received authenticated successful acknowledgements for every transfer. The visual effect on the transition blink is awaiting user observation."
+    "Repeats using the same HP program identity for countdown, pause and cue received authenticated successful acknowledgements for every transfer. User confirmed the same brief blink at each change. Reusing program identity did not eliminate the blink on this W2. This does not establish that every possible controller update method must blink."
   ],
   "wire": {
     "udpPort": 6101,
@@ -80,7 +80,7 @@
     "A verified update method that avoids the observed single blink on each full program replacement",
     "Animation cadence and seamless loop confirmation",
     "Native pause support, if any, for target-time widgets",
-    "Connection UI, asynchronous output coordination and recovery integration",
+    "Installed 0.11.0 connection, asynchronous output coordination and recovery verification; implementation and fake-transport tests are present",
     "Longer countdowns, reconnection, app background and power-loss tests"
   ]
 }

@@ -24,6 +24,8 @@ import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
     private val io = Executors.newSingleThreadExecutor()
+    private val displayIo = Executors.newSingleThreadExecutor()
+    private val w2 by lazy { W2Display(this) }
     private var pending: MethodChannel.Result? = null
     private var exportContent: String? = null
     private var importLimit = 1048576
@@ -37,6 +39,19 @@ class MainActivity : FlutterActivity() {
         WarningNotifications.ensureChannel(this)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "church.timer/device").setMethodCallHandler { call, result ->
             when (call.method) {
+                "w2Preferences" -> displayBackground(result) { w2.preferences() }
+                "w2Discover" -> displayBackground(result) { w2.discover() }
+                "w2Connect" -> displayBackground(result) {
+                    w2.connect(call.argument<String>("id") ?: "", (call.argument<String>("password") ?: "").toCharArray())
+                }
+                "w2Disconnect" -> displayBackground(result) { w2.disconnect(); null }
+                "w2Simulator" -> displayBackground(result) { w2.simulator(); null }
+                "w2Status" -> displayBackground(result) { w2.status() }
+                "w2Send" -> displayBackground(result) {
+                    w2.send(call.argument<ByteArray>("bytes") ?: error("Missing program"),
+                        call.argument<Number>("deadline")?.toLong(), call.argument<Int>("generation") ?: -1)
+                }
+                "wifiSettings" -> { startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)); result.success(null) }
                 "composeFeedback" -> {
                     try {
                         val subject = call.argument<String>("subject") ?: ""
@@ -172,6 +187,20 @@ class MainActivity : FlutterActivity() {
             try { val value = block(); runOnUiThread { result.success(value) } }
             catch (e: Exception) { runOnUiThread { result.error("IO", e.message ?: e.javaClass.simpleName, null) } }
         }
+    }
+
+    private fun displayBackground(result: MethodChannel.Result, block: () -> Any?) {
+        displayIo.execute {
+            try { val value = block(); runOnUiThread { result.success(value) } }
+            catch (e: Exception) { runOnUiThread { result.error("DISPLAY", e.message ?: "Display request failed", null) } }
+        }
+    }
+
+    override fun onDestroy() {
+        displayIo.execute { w2.disconnect() }
+        displayIo.shutdown()
+        io.shutdown()
+        super.onDestroy()
     }
 
     @Deprecated("Activity result bridge for Flutter's method channel")
