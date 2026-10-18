@@ -1,6 +1,13 @@
 {
   "date": "2026-10-18",
-  "scope": "Physical W2 protocol validation and first app hardware integration. The 0.11.0 app build still requires installed runtime verification.",
+  "scope": "Physical W2 protocol validation and first app hardware integration. Version 0.11.0 is installed and discovery is verified; app-controlled output verification is pending.",
+  "appBuild": {
+    "version": "0.11.0+11",
+    "sourceCommit": "cdd04979d646885c186f391ca691953cceeba549",
+    "apkSha256": "36d36aed87c6dc548a1e3938e11791fe50a0411be720a4c6fa54636802edc890",
+    "verification": "Static analysis clean; 246 Flutter tests passed; final UI cleanup passed 40 affected tests; 10 changed/new screenshots reviewed; 12 HD7 and 10 discovery Java checks passed. APK version and signature verified against the preceding release.",
+    "runtime": "Installed as an update on Android 16. App discovery returned the expected W2 V6.02.232 32x16 profile. Device-password entry and app-controlled output acceptance remain pending."
+  },
   "artifacts": {
     "baseApkSha256": "4f36553aac8a221726e4d9e20a232133f4547d9fb53c87658677e6c3ac95f6ae",
     "arm64SplitSha256": "291dd9342d329b105bd4aeb88ab32d0e15bacf42d4752db40e15e375b4a448be",
