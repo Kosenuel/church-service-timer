@@ -18,7 +18,7 @@ extension FeatureViews on _HomeState {
         ),
         const SizedBox(height: 8),
         Text(
-          'Shared across every service, including the one currently loaded. A manual cue or automatic warning keeps priority.',
+          'Choose what the stage display shows when a segment reaches 00:00. The operator’s timer continues into overtime, and the next segment starts only when you select Next segment. This setting applies to every service. Blank output and active cues take priority; an end screen applies when you end the whole service.',
           style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 12),
@@ -380,7 +380,7 @@ class WarningSettingsPanel extends StatelessWidget {
             ],
             const SizedBox(height: 8),
             Text(
-              'Triggers at the selected time remaining, once per segment. Stage warnings overlay the display for 8 seconds, then restore the cue or timer. Blank sign suppresses stage output until restored. Phone notifications follow Android sound and Do Not Disturb settings.',
+              'Triggers at the selected time remaining, once per segment. Stage warnings use their configured duration, then restore the current timer. Blank sign suppresses stage output until restored. Phone notifications follow Android sound and Do Not Disturb settings.',
               style: TextStyle(color: appColors(context).muted),
             ),
             ...d.warnings.asMap().entries.map(
@@ -436,6 +436,8 @@ class _WarningEditorState extends State<WarningEditor> {
   late TextEditingController minutes, seconds;
   late bool enabled;
   late String destination;
+  late bool scrollOnce;
+  late TextEditingController duration;
   late TextLayout cue;
   String? error;
   @override
@@ -446,10 +448,13 @@ class _WarningEditorState extends State<WarningEditor> {
     enabled = widget.initial.enabled;
     destination = widget.initial.destination;
     cue = widget.initial.cue;
+    scrollOnce = widget.initial.scrollOnce;
+    duration = TextEditingController(text: '${widget.initial.durationSeconds}');
   }
 
   @override
   void dispose() {
+    duration.dispose();
     minutes.dispose();
     seconds.dispose();
     super.dispose();
@@ -504,7 +509,7 @@ class _WarningEditorState extends State<WarningEditor> {
                 ),
                 DropdownMenuItem(
                   value: 'stage',
-                  child: Text('Operator + simulated stage'),
+                  child: Text('Operator + stage display'),
                 ),
               ],
               onChanged: (v) => setState(() => destination = v!),
@@ -528,10 +533,31 @@ class _WarningEditorState extends State<WarningEditor> {
               label: const Text('Edit warning text'),
             ),
             const SizedBox(height: 10),
-            Text(
-              'Stage cues last 8 real seconds, including in fast rehearsal. Long scrolling messages may need shorter text or a faster speed.',
-              style: TextStyle(color: appColors(context).muted),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Scroll once, then return'),
+              subtitle: const Text(
+                'For scrolling text wider than the display.',
+              ),
+              value: scrollOnce,
+              onChanged: (v) => setState(() => scrollOnce = v),
             ),
+            TextField(
+              controller: duration,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Show for (seconds)',
+                helperText:
+                    '1–120 seconds; also used for text that does not scroll',
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Preview duration: ${(warningDurationMs(WarningRule(0, cue, scrollOnce: scrollOnce, durationSeconds: int.tryParse(duration.text)?.clamp(1, 120) ?? 8)) / 1000).toStringAsFixed(1)} real seconds. Timing continues underneath.',
+            ),
+            const SizedBox(height: 8),
+            WarningAnimationPreview(layout: cue),
             if (error != null)
               Text(error!, style: TextStyle(color: appColors(context).warning)),
           ],
@@ -563,6 +589,13 @@ class _WarningEditorState extends State<WarningEditor> {
               'A warning already uses this threshold.',
             );
             validateLayout(cue);
+            final secondsToShow = int.tryParse(duration.text);
+            require(
+              secondsToShow != null &&
+                  secondsToShow >= 1 &&
+                  secondsToShow <= 120,
+              'Enter a duration from 1 to 120 seconds.',
+            );
             Navigator.pop(
               context,
               WarningRule(
@@ -570,6 +603,8 @@ class _WarningEditorState extends State<WarningEditor> {
                 cue,
                 enabled: enabled,
                 destination: destination,
+                durationSeconds: secondsToShow!,
+                scrollOnce: scrollOnce,
               ),
             );
           } catch (e) {
@@ -577,6 +612,56 @@ class _WarningEditorState extends State<WarningEditor> {
           }
         },
         child: const Text('Save warning'),
+      ),
+    ],
+  );
+}
+
+class WarningAnimationPreview extends StatefulWidget {
+  final TextLayout layout;
+  const WarningAnimationPreview({super.key, required this.layout});
+  @override
+  State<WarningAnimationPreview> createState() =>
+      _WarningAnimationPreviewState();
+}
+
+class _WarningAnimationPreviewState extends State<WarningAnimationPreview> {
+  Timer? timer;
+  final watch = Stopwatch();
+  void toggle() {
+    if (watch.isRunning) {
+      watch.stop();
+      timer?.cancel();
+    } else {
+      watch.start();
+      timer = Timer.periodic(const Duration(milliseconds: 80), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+    setState(() {});
+  }
+
+  @override
+  void didUpdateWidget(WarningAnimationPreview old) {
+    super.didUpdateWidget(old);
+    if (old.layout != widget.layout) watch.reset();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    watch.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      LedMatrix(pixels: renderPixels(widget.layout, watch.elapsedMilliseconds)),
+      TextButton.icon(
+        onPressed: toggle,
+        icon: Icon(watch.isRunning ? Icons.pause : Icons.play_arrow),
+        label: Text(watch.isRunning ? 'Pause preview' : 'Play preview'),
       ),
     ],
   );

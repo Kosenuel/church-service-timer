@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-18",
+  "version": "0.12.0+12",
+  "apkSha256": "84dad872bba03318b8682d60740d23f62eb56395159c66ddb03defce91f04225",
+  "physicalSequenceApkSha256": "85e967af77a8e8846862b4eea42e20dc2e142021ce2696db4761cb657d2158ba",
+  "signingCertificateSha256": "7447b222512d8002f5ba5d7e985f7fdeca0cbc176b167fe240e790147a336afd",
+  "automated": {
+    "analysis": "flutter analyze: no issues",
+    "flutterTests": 267,
+    "result": "All passed, including updated golden images",
+    "reviewedChangedOrNewScreenshots": 33,
+    "androidBuild": "flutter build apk --debug; signature verified using APK Signature Scheme v2",
+    "identity": "org.kosenuel.cuekeeper, versionName 0.12.0, versionCode 12; signer matches 0.11.0",
+    "matrixFonts": "lib/matrix_font.dart and lib/square_matrix_font.dart unchanged",
+    "installation": "Final APK installed with adb install -r on the connected Android 16 phone; package version and update time verified. Existing profile, cues and report retained. Final scrolled header and current rundown row reviewed on-device."
+  },
+  "physical": {
+    "phone": "Samsung SM-A266B, Android 16",
+    "display": "GloryArenaTimer, HD_W2 V6.02.232, 32x16 red monochrome",
+    "credentials": "Entered privately by the user on the phone; not stored in this evidence",
+    "confirmed": [
+      "The connected-device foreground service was running with its persistent notification and partial wake lock while the phone was locked.",
+      "The controller acknowledged the 1 MIN, 30 SEC LEFT scrolling warning and restoration to the current countdown while the phone was locked. The user confirmed correct scrolling and restoration with only the established brief blink per program change.",
+      "After reducing a segment to zero and entering overtime, Next segment started Message at 02:00. The in-app preview resumed counting and the user confirmed the physical sign resumed correctly.",
+      "Ending the test saved an activity report and received an end-screen acknowledgement. The foreground service stopped; end-screen appearance was not separately optically confirmed."
+    ],
+    "finalBuildDelta": "Header sizing/scrolling polish and chronological activity ordering. Hardware transport, warning scheduling, Matrix fonts and native foreground service are unchanged from the physically observed build.",
+    "notPhysicallyEstablished": [
+      "Flash effects and scroll-once duration",
+      "Every font/style combination",
+      "Process-kill, reboot and network-loss recovery",
+      "Long-duration endurance and battery behaviour",
+      "Controllers or resolutions other than the observed W2 profile"
+    ]
+  },
+  "remainingLimits": [
+    "Whole-program changes briefly blink the sign.",
+    "Native countdown supports normal speed and at most 59:59 remaining.",
+    "If the app or connection stops during a cue, the sign may retain it until output is restored.",
+    "Launcher themed-icon colours follow the Android launcher/system palette; in-app chapel colours follow the chosen app theme.",
+    "Second-update operator sharing, secondary Android display and controller administration remain deferred."
+  ]
+}

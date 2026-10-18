@@ -333,7 +333,7 @@ extension SettingsViews on _HomeState {
             label('Simulator & W2 display'),
             const SizedBox(height: 10),
             const Text(
-              '32 × 16 simulator and the first W2 Wi-Fi hardware milestone: native countdown, pause/resume, time adjustments and static cues. Hardware updates may blink briefly. Automatic sign warnings and animated sign content remain deferred.',
+              '32 × 16 simulator and W2 Wi-Fi output: native countdown, pause/resume, time adjustments and automatic warnings with scrolling. Hardware updates may blink briefly. The active-service notification supports locked-screen operation; after connection loss or process termination, reconnect and review the output.',
             ),
             const SizedBox(height: 16),
             label('Your data'),
@@ -550,6 +550,10 @@ class _AppearancePageState extends State<AppearancePage> {
   late String selected = widget.controller.state.themeId;
   bool saving = false;
   String? error;
+  List<AppPalette> get choices => [
+    ...appPalettes,
+    if (selected.startsWith('custom:')) paletteFor(selected),
+  ];
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Appearance')),
@@ -568,7 +572,7 @@ class _AppearancePageState extends State<AppearancePage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Tap a theme to preview it. Save to keep it, or go back to discard. Warning and overdue cues retain their meaning; LED colors are unchanged.',
+                  'Tap a theme to preview it. Save to keep it, or go back to discard. Warning and overdue cues retain their meaning; LED colors are unchanged. The launcher’s themed icon follows Android’s system colors where supported.',
                   style: TextStyle(color: appColors(context).muted),
                 ),
                 const SizedBox(height: 20),
@@ -577,12 +581,12 @@ class _AppearancePageState extends State<AppearancePage> {
                   margin: EdgeInsets.zero,
                   child: Column(
                     children: [
-                      for (var i = 0; i < appPalettes.length; i++) ...[
+                      for (var i = 0; i < choices.length; i++) ...[
                         if (i > 0)
                           const Divider(height: 1, indent: 16, endIndent: 16),
                         Builder(
                           builder: (context) {
-                            final p = appPalettes[i];
+                            final p = choices[i];
                             return ListTile(
                               key: ValueKey('theme-${p.id}'),
                               contentPadding: const EdgeInsets.symmetric(
@@ -641,7 +645,24 @@ class _AppearancePageState extends State<AppearancePage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.palette_outlined),
+                  label: const Text('Create custom theme'),
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          final value = await showDialog<String>(
+                            context: context,
+                            builder: (_) =>
+                                CustomThemeEditor(initial: selected),
+                          );
+                          if (value != null && mounted) {
+                            setState(() => selected = value);
+                            widget.controller.previewTheme(value);
+                          }
+                        },
+                ),
                 const SizedBox(height: 8),
                 if (error != null)
                   Text(
@@ -684,4 +705,174 @@ class _AppearancePageState extends State<AppearancePage> {
       ),
     ),
   );
+}
+
+class CustomThemeEditor extends StatefulWidget {
+  final String initial;
+  const CustomThemeEditor({super.key, required this.initial});
+  @override
+  State<CustomThemeEditor> createState() => _CustomThemeEditorState();
+}
+
+class _CustomThemeEditorState extends State<CustomThemeEditor> {
+  late final AppPalette base = paletteFor(widget.initial);
+  late final fields = [
+    base.accent,
+    base.background,
+    base.surface,
+  ].map((c) => TextEditingController(text: hex(c))).toList();
+  static String hex(Color c) => c.toARGB32().toRadixString(16).substring(2);
+  String get id =>
+      'custom:${fields.map((f) => f.text.toLowerCase().replaceAll('#', '')).join(':')}';
+  String? validation() {
+    try {
+      themeIdValue(id);
+    } on RuleError catch (e) {
+      return e.toString();
+    }
+    final p = paletteFor(id);
+    if (contrast(p.text, p.surface) < 4.5 ||
+        contrast(p.text, p.background) < 4.5)
+      return 'Choose a background and panel with similar brightness so text stays readable.';
+    return null;
+  }
+
+  @override
+  void dispose() {
+    for (final field in fields) {
+      field.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final error = validation();
+    final p = error == null ? paletteFor(id) : base;
+    return AlertDialog(
+      title: const Text('Create custom theme'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Choose colors or enter hex values. Text and accent contrast are adjusted for readability.',
+              ),
+              const SizedBox(height: 16),
+              for (var i = 0; i < fields.length; i++) ...[
+                TextField(
+                  controller: fields[i],
+                  maxLength: 7,
+                  decoration: InputDecoration(
+                    labelText: ['Accent', 'Background', 'Panels'][i],
+                    prefixText: '# ',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                Wrap(
+                  spacing: 8,
+                  children:
+                      (i == 0
+                              ? [
+                                  0xff165aab,
+                                  0xff345d48,
+                                  0xff9a47d3,
+                                  0xff9e4059,
+                                  0xffc9f96c,
+                                  0xffd89928,
+                                ]
+                              : [
+                                  0xffedf5fc,
+                                  0xfff9fcff,
+                                  0xfff3f2e9,
+                                  0xffe5eee5,
+                                  0xff0a1210,
+                                  0xff131d1a,
+                                  0xff0b1426,
+                                  0xff15233b,
+                                ])
+                          .map(
+                            (value) => IconButton(
+                              tooltip: 'Use #${hex(Color(value))}',
+                              onPressed: () => setState(
+                                () => fields[i].text = hex(Color(value)),
+                              ),
+                              icon: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Color(value),
+                                  border: Border.all(
+                                    color: appColors(context).muted,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const SizedBox(width: 24, height: 24),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Theme(
+                data: appTheme(error == null ? id : widget.initial),
+                child: Container(
+                  color: p.background,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      const ChurchTimerMark(size: 56),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Sunday Service',
+                        style: TextStyle(
+                          color: p.text,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        color: p.surface,
+                        padding: const EdgeInsets.all(12),
+                        child: Text(
+                          '08:59 remaining',
+                          style: TextStyle(color: p.accent, fontSize: 24),
+                        ),
+                      ),
+                      Text(
+                        'Warning · Overtime',
+                        style: TextStyle(color: p.error),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (error != null)
+                Text(error, style: TextStyle(color: appColors(context).error)),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => setState(() {
+            final colors = [base.accent, base.background, base.surface];
+            for (var i = 0; i < 3; i++) {
+              fields[i].text = hex(colors[i]);
+            }
+          }),
+          child: const Text('Reset'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: error == null ? () => Navigator.pop(context, id) : null,
+          child: const Text('Use theme'),
+        ),
+      ],
+    );
+  }
 }

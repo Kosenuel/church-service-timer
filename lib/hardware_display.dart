@@ -9,7 +9,8 @@ import 'pixels.dart';
 import 'platform.dart';
 import 'w2_program.dart';
 
-/// Foreground-only first hardware milestone. Never retries a whole stale job.
+/// Serialized display updates, including the active Android foreground service.
+/// Never retries a whole stale job.
 class HardwareDisplay extends ChangeNotifier {
   final DevicePort port;
   bool enabled = false, connected = false, held = true;
@@ -25,7 +26,19 @@ class HardwareDisplay extends ChangeNotifier {
   Session? _latest;
   Stamp? _now;
   List<Json> devices = [];
+  void Function(String session, String kind, String message)? onEvent;
+  Stamp? _acceptedAt;
+  String? _warningToken;
+  int _warningUntil = 0;
+  void Function(String session, int segment, int trigger, Stamp acceptedAt)?
+  onWarningAccepted;
+  String cueToken(Session s) => '${s.id}/${s.index}/${s.automaticCueAt?.mono}';
   HardwareDisplay(this.port);
+  void event(String kind, String message, {String? session}) {
+    final id = session ?? _latest?.id;
+    if (id != null) onEvent?.call(id, kind, message);
+  }
+
   void changed() {
     if (!_disposed) notifyListeners();
   }
@@ -80,6 +93,7 @@ class HardwareDisplay extends ChangeNotifier {
       rememberedId = id;
       rememberedName = p['name'] as String;
       status = 'Connected · output held for review';
+      event('connection', 'Display connected · output held for review');
       _lastCheck = -10000;
       return true;
     } catch (e) {
@@ -98,6 +112,7 @@ class HardwareDisplay extends ChangeNotifier {
     _confirmed = null;
     timingApprovedSession = null;
     status = 'Disconnected · the sign may retain its last accepted output';
+    event('connection', 'Display disconnected · last output may remain');
     changed();
     try {
       if (simulator) {
@@ -119,6 +134,7 @@ class HardwareDisplay extends ChangeNotifier {
     _confirmed = null;
     timingApprovedSession = null;
     status = reason;
+    event('hold', reason);
     changed();
   }
 
@@ -163,13 +179,16 @@ class HardwareDisplay extends ChangeNotifier {
   }
 
   HardwareOutputPlan _plan(Session s, Stamp at) {
-    // Automatic stage warnings and effects are intentionally not enabled yet.
-    final copy = s.copy()..automaticCue = null;
+    final current = s.copy();
+    if (cueToken(s) == _warningToken &&
+        s.automaticCueAt != null &&
+        s.automaticCue != null) {
+      current.automaticCueDurationMs = _warningUntil - s.automaticCueAt!.mono;
+    }
     return planHardwareOutput(
-      copy,
+      current,
       at,
       connectionGeneration: generation,
-      automaticCues: false,
       allowUncertainTiming: timingApprovedSession == s.id,
     );
   }
@@ -187,15 +206,13 @@ class HardwareDisplay extends ChangeNotifier {
       );
     if (cue != null)
       require(
-        staticLayout(cue),
-        'Use a static cue that fits 32 pixels for this hardware milestone. Scrolling and flashing sign cues are not enabled yet.',
+        textWidth(cue) + 6 <= 2048,
+        'This cue is too long for the display animation buffer.',
       );
   }
 
   static bool staticLayout(TextLayout l) =>
       l.effect != 'flash' && textWidth(l) <= 32;
-  bool _fallback(HardwareOutputPlan p) =>
-      p.kind == HardwareOutputKind.text && !staticLayout(p.layout!);
   List<bool> _pixels(HardwareOutputPlan p, Stamp at) {
     if (p.kind == HardwareOutputKind.countdown) {
       final left = ((p.deadlineWallMs! - at.wall).clamp(
@@ -207,15 +224,11 @@ class HardwareDisplay extends ChangeNotifier {
         0,
       );
     }
-    if (p.kind == HardwareOutputKind.blank ||
-        (_fallback(p) && p.reason == HardwareOutputReason.endScreen))
-      return List.filled(512, false);
-    if (_fallback(p))
-      return renderPixels(
-        const TextLayout('00:00', effect: 'static', height: 2),
-        0,
-      );
-    return renderPixels(p.layout, 0);
+    if (p.kind == HardwareOutputKind.blank) return List.filled(512, false);
+    return renderPixels(
+      p.layout,
+      _acceptedAt == null ? 0 : at.since(_acceptedAt!),
+    );
   }
 
   List<bool> preview(Stamp at) =>
@@ -225,10 +238,8 @@ class HardwareDisplay extends ChangeNotifier {
     if (p == null) return 'No current output acknowledgement';
     if (p.kind == HardwareOutputKind.countdown)
       return 'Native countdown · phone preview estimates remaining time';
-    if (p.kind == HardwareOutputKind.blank ||
-        (_fallback(p) && p.reason == HardwareOutputReason.endScreen))
-      return 'Blank';
-    return _fallback(p) ? '00:00' : p.layout?.text ?? 'Blank';
+    if (p.kind == HardwareOutputKind.blank) return 'Blank';
+    return p.layout?.text ?? 'Blank';
   }
 
   void reconcile(Session s, Stamp at) {
@@ -243,30 +254,16 @@ class HardwareDisplay extends ChangeNotifier {
       return;
     }
     if (!p.canPublish || _confirmed == p.fingerprint) return;
-    if (p.kind == HardwareOutputKind.text &&
-        !staticLayout(p.layout!) &&
-        p.reason != HardwareOutputReason.endScreen &&
-        p.reason != HardwareOutputReason.atZero) {
-      hold(
-        'This cue needs animation. Choose a static cue or restore the timer.',
-      );
-      return;
-    }
     // The controller already stops at 00:00; do not cause a needless blink there.
     if (p.reason == HardwareOutputReason.atZero &&
         accepted?.kind == HardwareOutputKind.countdown &&
         accepted!.sessionId == p.sessionId &&
         accepted!.segmentIndex == p.segmentIndex &&
         at.wall >= accepted!.deadlineWallMs! &&
-        (_fallback(p) ||
-            jsonEncode(p.layout!.toJson()) ==
-                jsonEncode(
-                  const TextLayout(
-                    '00:00',
-                    effect: 'static',
-                    height: 2,
-                  ).toJson(),
-                ))) {
+        (jsonEncode(p.layout!.toJson()) ==
+            jsonEncode(
+              const TextLayout('00:00', effect: 'static', height: 2).toJson(),
+            ))) {
       _confirmed = p.fingerprint;
       status = 'Native countdown reached 00:00';
       changed();
@@ -275,15 +272,38 @@ class HardwareDisplay extends ChangeNotifier {
     unawaited(_send(p, at));
   }
 
+  Uint8List _program(HardwareOutputPlan p, Stamp at) {
+    final l = p.layout;
+    if (l == null) return W2Program.frames([List.filled(512, false)]);
+    if (l.effect == 'flash')
+      return W2Program.frames([
+        renderPixels(l, 0),
+        List.filled(512, false),
+      ], frameIntervalMs: 500);
+    if (l.effect == 'scroll' && textWidth(l) > 32) {
+      final interval = 2 * (500 / l.speed).round();
+      return W2Program.frames(
+        List.generate(
+          textWidth(l) + 6,
+          (i) => renderPixels(l, (i * 1000 / l.speed).ceil()),
+        ),
+        frameIntervalMs: interval,
+      );
+    }
+    return W2Program.frames([renderPixels(l, 0)]);
+  }
+
   Future<void> _send(HardwareOutputPlan plan, Stamp at) async {
     final epoch = _epoch;
+    final warningSession = _latest?.copy();
     sending = true;
     status = 'Sending…';
+    event('sending', 'Sending ${plan.reason.name}', session: plan.sessionId);
     changed();
     try {
       final Uint8List bytes = plan.kind == HardwareOutputKind.countdown
           ? W2Program.countdown(0)
-          : W2Program.frames([_pixels(plan, at)]);
+          : _program(plan, at);
       final result = await port.sendDisplay(
         bytes,
         generation,
@@ -299,16 +319,37 @@ class HardwareDisplay extends ChangeNotifier {
       );
       // Even a stale successful write reached the sign. Invalidate the cache,
       // then reconcile the newest desired output rather than suppressing it.
+      final acceptedAt = await port.clock();
+      if (_disposed || epoch != _epoch) return;
       accepted = plan;
+      _acceptedAt = acceptedAt;
+      if (plan.reason == HardwareOutputReason.automaticCue &&
+          warningSession != null &&
+          _latest != null &&
+          cueToken(_latest!) == cueToken(warningSession) &&
+          _latest!.active &&
+          !_latest!.outputBlank &&
+          _latest!.automaticCue != null) {
+        _warningToken = cueToken(warningSession);
+        _warningUntil =
+            _acceptedAt!.mono + warningSession.automaticCueDurationMs;
+        onWarningAccepted?.call(
+          plan.sessionId,
+          plan.segmentIndex,
+          warningSession.automaticCueAt!.mono,
+          _acceptedAt!,
+        );
+      }
+      event(
+        'accepted',
+        'Controller accepted ${plan.reason.name} · appearance is not optically verified',
+        session: plan.sessionId,
+      );
       _confirmed = null;
       final current = _plan(_latest!, _now!);
       if (current.fingerprint == plan.fingerprint && current.canPublish)
         _confirmed = plan.fingerprint;
-      status = _fallback(plan)
-          ? plan.reason == HardwareOutputReason.endScreen
-                ? 'Controller accepted blank · animated end screen is deferred'
-                : 'Controller accepted 00:00 · animated At Zero is deferred'
-          : 'Controller accepted · check the sign to confirm appearance';
+      status = 'Controller accepted · check the sign to confirm appearance';
     } catch (e) {
       if (epoch == _epoch && !_disposed) {
         _confirmed = null;
@@ -316,6 +357,11 @@ class HardwareDisplay extends ChangeNotifier {
         held = true;
         ++_epoch;
         status = 'Update not confirmed: $e';
+        event(
+          'failed',
+          'Display update not confirmed · reconnect and review',
+          session: plan.sessionId,
+        );
         try {
           await port.disconnectDisplay();
         } catch (_) {}

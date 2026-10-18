@@ -14,7 +14,7 @@ class SegmentGauge extends StatelessWidget {
   Widget build(BuildContext context) {
     final balance = session.balance(now);
     final warning = session.nearWarning(now);
-    final expired = session.active && balance <= 0;
+    final expired = balance < 0 || (session.active && balance == 0);
     final color = expired
         ? appColors(context).error
         : warning
@@ -38,7 +38,9 @@ class SegmentGauge extends StatelessWidget {
       style: TextStyle(
         fontSize: 11,
         letterSpacing: 1.1,
-        color: appColors(context).muted,
+        color: value == 'Overtime'
+            ? appColors(context).error
+            : appColors(context).muted,
       ),
     );
     final number = Text(
@@ -601,12 +603,6 @@ extension LiveViewActions on _HomeState {
       builder: (context, constraints) {
         final large = MediaQuery.textScalerOf(context).scale(14) > 18;
         final columns = constraints.maxWidth >= 330 && !large ? 4 : 2;
-        // Keep the complete label at the user's text size. On narrow four-button
-        // rows, omit the optional icon for both Pause and Resume.
-        final buttonWidth =
-            (constraints.maxWidth - 8 * (columns - 1)) / columns;
-        final showPauseIcon =
-            buttonWidth >= MediaQuery.textScalerOf(context).scale(96);
         final controls = [
           control(
             '−2 min',
@@ -614,13 +610,17 @@ extension LiveViewActions on _HomeState {
                 ? () => adjustTime(fixedSeconds: -120)
                 : null,
           ),
-          control(
-            s.paused ? 'Resume' : 'Pause',
-            enabled ? confirmPause : null,
-            icon: showPauseIcon
-                ? (s.paused ? Icons.play_arrow : Icons.pause)
-                : null,
-            filled: true,
+          Tooltip(
+            message: s.paused ? 'Resume' : 'Pause',
+            child: FilledButton(
+              key: const ValueKey('pause-resume'),
+              onPressed: enabled ? confirmPause : null,
+              child: Icon(
+                s.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                size: 28,
+                semanticLabel: s.paused ? 'Resume' : 'Pause',
+              ),
+            ),
           ),
           control(
             '+2 min',

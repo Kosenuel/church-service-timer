@@ -13,9 +13,9 @@ flutter build apk --debug
 
 Output: `build/app/outputs/flutter-apk/app-debug.apk`. Install with `adb install -r` after enabling USB debugging and accepting the phone's trust prompt, or transfer the APK and open it on the phone. A physical sign is not needed.
 
-The native bridge supplies Android `SystemClock.elapsedRealtime()` with `BOOT_COUNT`, uses `AtomicFile` in application-private storage, and accesses selected documents through the system picker. The app requires no account or Internet connection. Debug builds may carry Flutter's tooling Internet permission; no application transport is implemented.
+The native bridge supplies Android `SystemClock.elapsedRealtime()` with `BOOT_COUNT`, uses `AtomicFile` in application-private storage, and accesses selected documents through the system picker. The app requires no account or Internet connection. The W2 adapter uses the local Wi-Fi connection; Internet permission is used for its sockets.
 
-Version 0.3 also requests notification permission and, optionally, precise-alarm access. These prompts are initiated by the operator from Settings → Warnings & alerts. A private, non-exported receiver posts scheduled warnings. No boot receiver or foreground sign-output service is installed.
+Version 0.3 also requests notification permission and, optionally, precise-alarm access. These prompts are initiated by the operator from Settings → Warnings & alerts. A private, non-exported receiver posts scheduled warnings. There is no boot receiver. Version 0.12 adds a connected-device foreground service for an active authenticated sign session; it is not restarted automatically after process death.
 
 ## Installation checks (including 0.10)
 
@@ -53,3 +53,5 @@ Run the helper in a normal PowerShell window when the agent sandbox blocks Flutt
 If a fresh checkout lacks the Gradle wrapper binary, run `flutter create --platforms android --org org.kosenuel .` using the pinned Flutter version, then inspect its changes before building. The committed native bridge and app identity must remain intact.
 
 For 0.10, follow `FEATURES-0.10.md`: global warning editing (including while paused and after Undo), connection header, compact Display/Appearance, default grouping, cue migration, private notes, readiness, focused mode, blank output and optional feedback diagnostics. Historical version checklists describe those releases; the 0.10 global warning model supersedes per-template warning configuration.
+
+For 0.12, follow `FEATURES-0.12.md`: scrolling warnings and return, locked-screen operation, overtime-to-next recovery, focused blank preview/control lock, rundown notes, custom themes, Reports banner and activity timeline. Verify acknowledgement separately from visible output; brief replacement blinking remains expected.

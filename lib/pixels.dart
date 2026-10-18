@@ -11,6 +11,16 @@ export 'matrix_font.dart' show glyphs;
 Map<String, String> layoutGlyphs(TextLayout l) =>
     l.font == 'cuekeeper_sq_matrix' ? squareGlyphs : glyphs;
 
+int warningDurationMs(WarningRule rule) {
+  if (rule.scrollOnce &&
+      rule.cue.effect == 'scroll' &&
+      textWidth(rule.cue) > 32) {
+    return ((textWidth(rule.cue) + 6) * 2 * (500 / rule.cue.speed).round())
+        .clamp(1000, 120000);
+  }
+  return rule.durationSeconds * 1000;
+}
+
 int textWidth(TextLayout l) {
   if (l.font == 'tinos') {
     final raster = NativeDisplayFonts.cached(l);

@@ -168,7 +168,7 @@ void main() {
       expect((port.plans.last['notice'] as Map)['title'], '2 MIN LEFT');
       port.at = at(68);
       await c.tick();
-      expect(c.simulator.delivered!.text, 'MANUAL');
+      expect(c.simulator.delivered!.text, '01:52');
       c.dispose();
     },
   );
@@ -281,18 +281,18 @@ void main() {
       await c.act('start');
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.text('Pause'));
+      await t.tap(find.byTooltip('Pause'));
       await t.pumpAndSettle();
       expect(c.state.session.paused, false);
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
       expect(c.state.session.paused, false);
-      await t.tap(find.text('Pause'));
+      await t.tap(find.byTooltip('Pause'));
       await t.pumpAndSettle();
       await t.tap(find.text('Confirm pause'));
       await t.pumpAndSettle();
       expect(c.state.session.paused, true);
-      await t.tap(find.text('Resume'));
+      await t.tap(find.byTooltip('Resume'));
       await t.pumpAndSettle();
       expect(c.state.session.paused, true);
       await t.tap(find.text('Confirm resume'));

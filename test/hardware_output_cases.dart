@@ -84,7 +84,7 @@ final hardwareOutputCases = <String, void Function()>{
         equal(restored.deadlineWallMs, timer.deadlineWallMs);
         equal(restored.replaces(message), true);
       },
-  'Automatic warning expires without a revision and restores a manual cue': () {
+  'Automatic warning expires without a revision and restores countdown': () {
     var s = service(
       warnings: const [
         WarningRule(150, TextLayout('WARN'), destination: 'stage'),
@@ -97,7 +97,7 @@ final hardwareOutputCases = <String, void Function()>{
     equal(warning.layout!.text, 'WARN');
     equal(warning.isCurrent(s, at(37), connectionGeneration: 0), true);
     equal(warning.isCurrent(s, at(38), connectionGeneration: 0), false);
-    equal(planHardwareOutput(s, at(38)).layout!.text, 'MANUAL');
+    equal(planHardwareOutput(s, at(38)).reason.name, 'running');
   },
   'Automatic cue restores the correct deadline; an expired timer stays at zero':
       () {

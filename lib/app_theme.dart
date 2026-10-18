@@ -82,9 +82,70 @@ const appPalettes = [
     Color(0xffa2b5bb),
     Color(0xffe6f0f2),
   ),
+  AppPalette(
+    'morning_sky',
+    'Morning Sky',
+    'Cool white · clear blue',
+    Color(0xffedf5fc),
+    Color(0xfff9fcff),
+    Color(0xff165aab),
+    Color(0xff52657a),
+    Color(0xff152b45),
+    light: true,
+  ),
+  AppPalette(
+    'sage_linen',
+    'Sage Linen',
+    'Soft linen · calm sage',
+    Color(0xfff3f2e9),
+    Color(0xfffbfcf5),
+    Color(0xff345d48),
+    Color(0xff5e685d),
+    Color(0xff20372b),
+    light: true,
+  ),
 ];
-AppPalette paletteFor(String id) =>
-    appPalettes.firstWhere((p) => p.id == id, orElse: () => appPalettes.first);
+double contrast(Color a, Color b) {
+  final x = a.computeLuminance(), y = b.computeLuminance();
+  return (x > y ? (x + .05) / (y + .05) : (y + .05) / (x + .05));
+}
+
+Color readable(Color background) =>
+    contrast(Colors.black, background) >= contrast(Colors.white, background)
+    ? Colors.black
+    : Colors.white;
+AppPalette paletteFor(String id) {
+  if (RegExp(r'^custom:[0-9a-f]{6}:[0-9a-f]{6}:[0-9a-f]{6}$').hasMatch(id)) {
+    final values = id
+        .split(':')
+        .skip(1)
+        .map((hex) => Color(0xff000000 | int.parse(hex, radix: 16)))
+        .toList();
+    final bg = values[1], surface = values[2], text = readable(bg);
+    var accent = values[0];
+    for (var i = 0; i < 24 && contrast(accent, surface) < 4.5; i++) {
+      accent = Color.lerp(accent, readable(surface), .12)!;
+    }
+    var muted = Color.lerp(surface, text, .72)!;
+    if (contrast(muted, surface) < 4.5) muted = text;
+    return AppPalette(
+      id,
+      'Custom theme',
+      'Your colors · readable accents',
+      bg,
+      surface,
+      accent,
+      muted,
+      text,
+      light: bg.computeLuminance() > .179,
+    );
+  }
+  return appPalettes.firstWhere(
+    (p) => p.id == id,
+    orElse: () => appPalettes.first,
+  );
+}
+
 AppPalette appColors(BuildContext context) =>
     Theme.of(context).extension<AppPalette>() ?? appPalettes.first;
 
@@ -99,7 +160,7 @@ ThemeData appTheme(String id) {
       seedColor: p.accent,
       brightness: brightness,
       primary: p.accent,
-      onPrimary: p.light ? Colors.white : p.background,
+      onPrimary: readable(p.accent),
       surface: p.surface,
       onSurface: p.text,
       error: p.error,
@@ -149,56 +210,39 @@ ThemeData appTheme(String id) {
   );
 }
 
-/// The same church, cross and clock motif as the Android launcher asset.
+/// One legible chapel symbol, with theme-colored raised surfaces.
 class ChurchTimerMark extends StatelessWidget {
   final double size;
-  const ChurchTimerMark({super.key, this.size = 36});
+  const ChurchTimerMark({super.key, this.size = 42});
   @override
-  Widget build(BuildContext context) => ExcludeSemantics(
-    child: SizedBox.square(
-      dimension: size,
-      child: CustomPaint(
-        painter: _ChurchTimerPainter(appColors(context).accent),
+  Widget build(BuildContext context) {
+    final p = appColors(context);
+    return ExcludeSemantics(
+      child: Container(
+        width: size,
+        height: size,
+        padding: EdgeInsets.all(size * .1),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * .24),
+          border: Border.all(color: p.accent.withValues(alpha: .25)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color.lerp(p.surface, Colors.white, p.light ? .9 : .12)!,
+              p.surface,
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: p.light ? .12 : .3),
+              blurRadius: size * .16,
+              offset: Offset(0, size * .08),
+            ),
+          ],
+        ),
+        child: Icon(Icons.church_outlined, color: p.accent, size: size * .8),
       ),
-    ),
-  );
-}
-
-class _ChurchTimerPainter extends CustomPainter {
-  final Color color;
-  _ChurchTimerPainter(this.color);
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width / 100, size.height / 100);
-    final p = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 5
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(const Offset(50, 8), const Offset(50, 26), p);
-    canvas.drawLine(const Offset(42, 15), const Offset(58, 15), p);
-    canvas.drawPath(
-      Path()
-        ..moveTo(18, 51)
-        ..lineTo(50, 27)
-        ..lineTo(82, 51)
-        ..lineTo(82, 90)
-        ..lineTo(18, 90)
-        ..close(),
-      p,
-    );
-    canvas.drawCircle(const Offset(50, 63), 18, p);
-    canvas.drawPath(
-      Path()
-        ..moveTo(50, 51)
-        ..lineTo(50, 63)
-        ..lineTo(59, 68),
-      p,
     );
   }
-
-  @override
-  bool shouldRepaint(_ChurchTimerPainter oldDelegate) =>
-      color != oldDelegate.color;
 }

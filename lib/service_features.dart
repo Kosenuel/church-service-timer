@@ -10,15 +10,26 @@ class WarningRule {
   final int seconds;
   final bool enabled;
   final String destination;
+  final int durationSeconds;
+  final bool scrollOnce;
   final TextLayout cue;
   const WarningRule(
     this.seconds,
     this.cue, {
     this.enabled = true,
     this.destination = 'operator',
+    this.durationSeconds = 8,
+    this.scrollOnce = false,
   });
   factory WarningRule.fromJson(Json j) {
-    keys(j, {'seconds', 'enabled', 'destination', 'cue'}, 'Warning rule');
+    keys(j, {
+      'seconds',
+      'enabled',
+      'destination',
+      'cue',
+      'durationSeconds',
+      'scrollOnce',
+    }, 'Warning rule');
     require(
       j['seconds'] is int && j['seconds'] >= 0 && j['seconds'] <= 5999,
       'Warning time must be 0–99:59.',
@@ -27,17 +38,32 @@ class WarningRule {
       j['enabled'] is bool && {'operator', 'stage'}.contains(j['destination']),
       'Invalid warning destination or enabled state.',
     );
+    require(
+      j['durationSeconds'] == null ||
+          (j['durationSeconds'] is int &&
+              j['durationSeconds'] >= 1 &&
+              j['durationSeconds'] <= 120),
+      'Warning duration must be 1–120 seconds.',
+    );
+    require(
+      j['scrollOnce'] == null || j['scrollOnce'] is bool,
+      'Invalid warning duration mode.',
+    );
     return WarningRule(
       j['seconds'],
       TextLayout.fromJson(Map<String, dynamic>.from(j['cue'])),
       enabled: j['enabled'],
       destination: j['destination'],
+      durationSeconds: j['durationSeconds'] ?? 8,
+      scrollOnce: j['scrollOnce'] ?? false,
     );
   }
   Json toJson() => {
     'seconds': seconds,
     'enabled': enabled,
     'destination': destination,
+    'durationSeconds': durationSeconds,
+    'scrollOnce': scrollOnce,
     'cue': cue.toJson(),
   };
 }
@@ -94,11 +120,22 @@ void applyWarnings(Session s, Stamp now, {bool allowStage = true}) {
   final canDisplay = allowStage && !s.held && !s.disconnected && !s.outputBlank;
   s.warningNotice =
       '${rule.cue.text} · ${rule.seconds == 0 ? 'Time complete' : '${formatTime(rule.seconds * 1000)} remaining'}';
+  addServiceEvent(
+    s.events,
+    ServiceEvent(
+      now.wall,
+      'warning',
+      '${rule.cue.text} · ${rule.destination == 'stage' && canDisplay ? 'stage warning requested' : 'operator warning'}',
+    ),
+  );
   if (rule.destination == 'stage') {
     if (canDisplay) {
+      s.alert = null; // Warning completion returns to the current timer.
       s.automaticCue = rule.cue;
+      s.automaticCueDurationMs = rule.durationSeconds * 1000;
       s.automaticCueAt = now;
-      s.warningNotice = '${s.warningNotice} · stage cue for 8 seconds';
+      s.warningNotice =
+          '${s.warningNotice} · ${rule.scrollOnce ? 'scroll once' : 'stage cue for ${rule.durationSeconds} seconds'}';
     } else {
       s.warningNotice =
           '${s.warningNotice} · stage cue skipped (blank, disconnected, held output, or recovery)';
@@ -209,6 +246,7 @@ class ServiceReport {
   final int endedWall, rate;
   final bool uncertain;
   final List<ReportRow> rows;
+  final List<ServiceEvent> events;
   ServiceReport(
     this.id,
     this.name,
@@ -219,7 +257,9 @@ class ServiceReport {
     this.uncertain,
     List<ReportRow> rows, {
     this.churchName = '',
-  }) : rows = List.unmodifiable(rows);
+    List<ServiceEvent> events = const [],
+  }) : rows = List.unmodifiable(rows),
+       events = List.of(events);
   factory ServiceReport.fromSession(Session s, Stamp now) {
     require(s.phase == 'ended', 'Reports are finalized when a service ends.');
     return ServiceReport(
@@ -244,6 +284,7 @@ class ServiceReport {
           )
           .toList(),
       churchName: s.churchName,
+      events: s.events,
     );
   }
   bool get rehearsal => rate > 1;
@@ -267,6 +308,7 @@ class ServiceReport {
         .map((e) => ReportRow.fromJson(Map<String, dynamic>.from(e)))
         .toList(),
     churchName: churchNameValue(j['churchName'] ?? ''),
+    events: readServiceEvents(j['events']),
   );
   Json toJson() => {
     'id': id,
@@ -278,6 +320,7 @@ class ServiceReport {
     'rate': rate,
     'uncertain': uncertain,
     'rows': rows.map((e) => e.toJson()).toList(),
+    'events': events.map((e) => e.toJson()).toList(),
   };
 }
 
@@ -406,3 +449,76 @@ String durationLabel(int ms) {
 String varianceLabel(int ms) => ms.abs() < 1000
     ? 'On time'
     : '${durationLabel(ms)} ${ms > 0 ? 'behind' : 'ahead'}';
+
+int readCueDuration(dynamic value) {
+  require(
+    value == null || (value is int && value >= 1000 && value <= 120000),
+    'Invalid cue duration.',
+  );
+  return value ?? 8000;
+}
+
+class ServiceEvent {
+  final int wall;
+  final String kind, message;
+  const ServiceEvent(this.wall, this.kind, this.message);
+  Json toJson() => {'wall': wall, 'kind': kind, 'message': message};
+  factory ServiceEvent.fromJson(Json j) {
+    require(
+      j['wall'] is int &&
+          j['wall'] >= 0 &&
+          j['wall'] <= 8640000000000000 &&
+          j['kind'] is String &&
+          j['kind'].length <= 40 &&
+          j['message'] is String &&
+          j['message'].length <= 500,
+      'Invalid service event.',
+    );
+    return ServiceEvent(j['wall'], j['kind'], j['message']);
+  }
+}
+
+List<ServiceEvent> readServiceEvents(dynamic value) {
+  if (value == null) return [];
+  require(value is List && value.length <= 1000, 'Invalid activity timeline.');
+  final events = <ServiceEvent>[];
+  for (final item in value as List) {
+    addServiceEvent(
+      events,
+      ServiceEvent.fromJson(Map<String, dynamic>.from(item)),
+    );
+  }
+  return events;
+}
+
+void addServiceEvent(List<ServiceEvent> events, ServiceEvent event) {
+  // Transport callbacks can be persisted after a later operator action.
+  // Keep their original timestamps and preserve arrival order for ties.
+  var index = events.length;
+  while (index > 0 && events[index - 1].wall > event.wall) {
+    index--;
+  }
+  events.insert(index, event);
+  if (events.length > 1000) events.removeRange(0, events.length - 1000);
+}
+
+String? serviceActionDescription(
+  String action,
+  Session s,
+  dynamic value,
+) => switch (action) {
+  'start' => '${s.timeline!.segments[s.index].name} started',
+  'advance' =>
+    '${s.timeline!.segments[s.index].name} started${s.outputBlank ? ' · display kept blank' : ''}',
+  'undo' => 'Previous segment restored',
+  'pause' => s.paused ? 'Timer paused' : 'Timer resumed',
+  'adjust' =>
+    '${(value as int) >= 0 ? '+' : ''}$value seconds requested · ${formatTime(s.remaining(s.anchor))} remaining',
+  'cue' => 'Stage cue requested: ${s.alert!.text}',
+  'blank' => 'Blank display requested',
+  'timer' || 'releaseTimer' => 'Current timer requested',
+  'end' => 'Service ended',
+  'disconnect' => 'Simulator disconnected',
+  'connect' => 'Simulator reconnected',
+  _ => null,
+};

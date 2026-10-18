@@ -146,7 +146,7 @@ class W2Display(context: Context) {
     }
     fun send(bytes: ByteArray, targetWall: Long?, expectedGeneration: Int): Map<String, Any> {
         check(expectedGeneration == generation && session != null) { "Connection changed. Reconnect before sending." }
-        check(bytes.size in listOf(233, 393) && bytes[0] == 'H'.code.toByte() && bytes[1] == 'C'.code.toByte()) { "Unsupported display program" }
+        check(bytes.size in 233..135335 && bytes[0] == 'H'.code.toByte() && bytes[1] == 'C'.code.toByte()) { "Unsupported display program" }
         try {
             check(cm.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) { "Wi-Fi disconnected" }
             val now = System.currentTimeMillis()
@@ -158,10 +158,19 @@ class W2Display(context: Context) {
                 command(20, ByteBuffer.allocate(14).put(14.toByte()).putInt(localSeconds.toInt()).put(0.toByte()).putInt(0).putInt(0).array())
                 // The countdown deadline stays fixed even if an acknowledgement is retried.
                 ByteBuffer.wrap(bytes).putInt(144, ((targetWall + offset) / 1000).toInt())
-            } else check(bytes.size == 233 && bytes[142] == 0x30.toByte()) { "Only static frames are enabled in this milestone." }
+            } else {
+                val frames = ByteBuffer.wrap(bytes).getShort(143).toInt() and 0xffff
+                check(bytes[142] == 0x30.toByte() && frames in 1..2048 && bytes.size == 167 + 66 * frames &&
+                    ByteBuffer.wrap(bytes).getInt(155) == 27 + 2 * frames) { "Invalid display frame sequence" }
+            }
             val transfer = random.nextInt(65536).toShort()
-            command(2, ByteBuffer.allocate(5).put(5.toByte()).putShort(transfer).putShort(1.toShort()).array())
-            command(3, ByteBuffer.allocate(5 + bytes.size).put(5.toByte()).putShort(transfer).putShort(0.toShort()).put(bytes).array())
+            val packets = (bytes.size + 4095) / 4096
+            command(2, ByteBuffer.allocate(5).put(5.toByte()).putShort(transfer).putShort(packets.toShort()).array())
+            repeat(packets) { index ->
+                val offset = index * 4096
+                val length = minOf(4096, bytes.size - offset)
+                command(3, ByteBuffer.allocate(5 + length).put(5.toByte()).putShort(transfer).putShort(index.toShort()).put(bytes, offset, length).array())
+            }
             command(4, ByteBuffer.allocate(3).put(3.toByte()).putShort(transfer).array())
             return mapOf("accepted" to true, "generation" to generation, "acceptedAt" to System.currentTimeMillis())
         } catch (e: Exception) { disconnect(); throw e }

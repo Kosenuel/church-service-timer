@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'domain.dart';
 
 abstract class DevicePort {
+  void setBackgroundHandler(Future<void> Function()? handler) {}
+  Future<bool> setActiveService(bool enabled) async => false;
+  Future<bool> activeServiceRunning() async => false;
   Future<Json> displayPreferences() async => {'hardware': false};
   Future<List<Json>> discoverDisplays() async =>
       throw RuleError('Android Wi-Fi is required.');
@@ -44,6 +47,23 @@ abstract class DevicePort {
 
 class AndroidPort extends DevicePort {
   static const channel = MethodChannel('church.timer/device');
+  @override
+  void setBackgroundHandler(Future<void> Function()? handler) {
+    channel.setMethodCallHandler(
+      handler == null
+          ? null
+          : (call) async {
+              if (call.method == 'backgroundTick') await handler();
+            },
+    );
+  }
+
+  @override
+  Future<bool> setActiveService(bool enabled) async =>
+      await channel.invokeMethod<bool>('activeService', enabled) ?? false;
+  @override
+  Future<bool> activeServiceRunning() async =>
+      await channel.invokeMethod<bool>('activeServiceRunning') ?? false;
   @override
   Future<Json> displayPreferences() async => Map<String, dynamic>.from(
     (await channel.invokeMethod<Map>('w2Preferences'))!,

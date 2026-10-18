@@ -376,6 +376,8 @@ class Session {
   String? warningNotice;
   TextLayout? automaticCue;
   Stamp? automaticCueAt;
+  int automaticCueDurationMs;
+  List<ServiceEvent> events;
   Session({
     required this.id,
     required this.anchor,
@@ -402,8 +404,11 @@ class Session {
     this.warningNotice,
     this.automaticCue,
     this.automaticCueAt,
+    this.automaticCueDurationMs = 8000,
+    List<ServiceEvent>? events,
   }) : checkpoint = checkpoint ?? anchor,
-       warningSeen = warningSeen ?? [];
+       warningSeen = warningSeen ?? [],
+       events = events ?? [];
   bool get active => phase == 'active';
 
   /// Signed operator clock. Stage output continues to obey the shared At Zero
@@ -470,7 +475,7 @@ class Session {
       automaticCue != null &&
       automaticCueAt != null &&
       now.sameBoot(automaticCueAt!) &&
-      now.since(automaticCueAt!) < 8000;
+      now.since(automaticCueAt!) < automaticCueDurationMs;
   int get plannedMs =>
       timeline?.segments.fold<int>(0, (n, s) => n + s.minutes * 60000) ?? 0;
   int totalElapsed(Stamp now) => run == null
@@ -506,6 +511,8 @@ class Session {
   factory Session.fromJson(Json j) {
     final s = Session(
       id: j['id'],
+      events: readServiceEvents(j['events']),
+      automaticCueDurationMs: readCueDuration(j['automaticCueDurationMs']),
       churchName: churchNameValue(j['churchName'] ?? ''),
       phase: j['phase'],
       revision: j['revision'],
@@ -608,6 +615,8 @@ class Session {
     'warningNotice': warningNotice,
     'automaticCue': automaticCue?.toJson(),
     'automaticCueAt': automaticCueAt?.toJson(),
+    'automaticCueDurationMs': automaticCueDurationMs,
+    'events': events.map((e) => e.toJson()).toList(),
   };
   Session copy() => Session.fromJson(toJson());
 }
@@ -734,6 +743,9 @@ Session transition(
           s.run!.currentMs = 0;
         }
         s.index++;
+        s.alert = null;
+        s.outputBlank = value == true; // Explicit Keep blank choice.
+        s.held = false;
         s.baseMs = s.timeline!.segments[s.index].minutes * 60000;
         s.warningCeiling = s.baseMs + 1;
         s.warningSeen = [];
@@ -795,6 +807,11 @@ Session transition(
       default:
         throw RuleError('Unknown action: $action');
     }
+  }
+  if (action != 'warnings' && action != 'dismissWarning' && action != 'load') {
+    final description = serviceActionDescription(action, s, value);
+    if (description != null)
+      addServiceEvent(s.events, ServiceEvent(now.wall, action, description));
   }
   s.revision = original.revision + 1;
   s.checkpoint = now;

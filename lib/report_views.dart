@@ -124,9 +124,47 @@ extension ReportViews on _HomeState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Reports',
-          style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
+        Stack(
+          children: [
+            ChurchProfileBanner(image: c.state.churchBanner),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x22000000), Color(0xcc000000)],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Reports',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  if (c.state.churchName.isNotEmpty)
+                    Text(
+                      c.state.churchName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Text(
@@ -812,6 +850,42 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                                   ),
                                 )
                                 .toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    block(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Activity timeline',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Latest ${r.events.length} events · controller acceptance is not visual confirmation.',
+                            style: TextStyle(color: appColors(context).muted),
+                          ),
+                          if (r.events.isEmpty)
+                            const Text(
+                              'No activity events were recorded for this service.',
+                            ),
+                          ...r.events.map(
+                            (event) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(
+                                event.kind == 'failed' || event.kind == 'hold'
+                                    ? Icons.warning_amber
+                                    : event.kind == 'accepted'
+                                    ? Icons.check_circle_outline
+                                    : Icons.history,
+                              ),
+                              title: Text(event.message),
+                              subtitle: Text(
+                                '${clockLabel(event.wall)}:${DateTime.fromMillisecondsSinceEpoch(event.wall).second.toString().padLeft(2, '0')}',
+                              ),
+                            ),
                           ),
                         ],
                       ),

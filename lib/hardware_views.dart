@@ -15,7 +15,7 @@ extension HardwareViews on _HomeState {
     } else if (!await confirm(
       s.phase == 'ended' ? 'Restore end output?' : 'Restore current timer?',
       s.phase == 'ended'
-          ? 'Replace the sign’s current output with the static end screen. An animated or oversized end screen clears the sign in this milestone.'
+          ? 'Replace the sign’s current output with this service’s end screen. Scrolling plays on the controller; a brief blink is expected.'
           : '${s.timeline!.segments[s.index].name} · ${s.formatted(c.now)} remaining${s.paused ? ' · paused' : ''}.\n\nReplace any cue on the sign. The current remaining time will be sent; the segment will not restart. A brief blink is expected.',
       'Restore output',
     )) {
@@ -230,7 +230,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Normal speed · up to 59:59 remaining · static cues that fit 32 pixels. Countdown uses the original Matrix font. Static cues retain their selected font and formatting.\n\nKeep the app open for controls. After backgrounding or losing connection, review before restoring. Automatic sign warnings, scrolling and flashing are deferred; phone warnings keep their configured behaviour.\n\nAt zero, an animated setting falls back to 00:00. Ending with an animated end screen clears the sign. Each program change can cause one brief blink.',
+              'Normal speed · up to 59:59 remaining. Countdown uses the original Matrix font. Cues retain their font and formatting; scrolling frames play on the controller.\n\nThe active-service notification supports warning delivery and return to the timer while the phone is locked. If it cannot start, keep the app open. Connection loss or stopping the app requires review before restoring. A cue or paused frame may remain on the sign.\n\nAt Zero applies when a segment expires; each template owns its end screen. Each program change can cause one brief blink.',
             ),
             const SizedBox(height: 20),
             TextButton(

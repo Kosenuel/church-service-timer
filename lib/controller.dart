@@ -72,6 +72,42 @@ class AppController extends ChangeNotifier {
   String? error;
   String? notificationError;
   String? deviceSettingsError;
+  bool backgroundActive = false;
+  ({String session, int segment, int trigger, Stamp acceptedAt})?
+  _warningAccepted;
+  String? backgroundError;
+  final List<({String session, ServiceEvent event})> _events = [];
+  List<({String session, ServiceEvent event})> _mergeEvents(AppState draft) {
+    final batch = List.of(_events);
+    for (final item in batch) {
+      if (draft.session.id == item.session)
+        addServiceEvent(draft.session.events, item.event);
+      for (final report in draft.reports.where((r) => r.id == item.session)) {
+        addServiceEvent(report.events, item.event);
+      }
+    }
+    return batch;
+  }
+
+  Future<void> syncActiveService() async {
+    final desired =
+        state.session.active &&
+        hardware.enabled &&
+        hardware.connected &&
+        !hardware.held;
+    if (desired == backgroundActive) return;
+    try {
+      backgroundActive = await port.setActiveService(desired);
+      backgroundError = desired && !backgroundActive
+          ? 'Keep this app open: background operation is unavailable.'
+          : null;
+    } catch (_) {
+      backgroundActive = false;
+      backgroundError =
+          'Keep this app open: background operation could not start.';
+    }
+  }
+
   String loadingChurchName = '';
   String appVersion = branding.appVersion;
   final themeSelection = ValueNotifier<String>('midnight_lime');
@@ -97,8 +133,37 @@ class AppController extends ChangeNotifier {
   Timer? _timer;
   AppController(this.port) {
     hardware = HardwareDisplay(port)..addListener(_hardwareChanged);
+    hardware.onEvent = (session, kind, message) {
+      if (_events.length < 2000)
+        _events.add((
+          session: session,
+          event: ServiceEvent(now.wall, kind, message),
+        ));
+    };
+    hardware.onWarningAccepted = (session, segment, trigger, acceptedAt) {
+      _warningAccepted = (
+        session: session,
+        segment: segment,
+        trigger: trigger,
+        acceptedAt: acceptedAt,
+      );
+    };
+    port.setBackgroundHandler(() async {
+      if (backgroundActive && !await port.activeServiceRunning()) {
+        backgroundActive = false;
+        await suspend();
+      } else {
+        await tick();
+      }
+    });
   }
   void _hardwareChanged() {
+    if (backgroundActive && (!hardware.connected || hardware.held)) {
+      backgroundActive = false;
+      if (!_foreground) _needsRecovery = true;
+      unawaited(port.setActiveService(false));
+      if (ready && !busy) unawaited(checkpoint());
+    }
     if (!_disposed) notifyListeners();
   }
 
@@ -121,7 +186,10 @@ class AppController extends ChangeNotifier {
   }
 
   void _publish() {
-    if (_foreground && !_needsRecovery && !corrupt && !_disposed) {
+    if ((_foreground || backgroundActive) &&
+        !_needsRecovery &&
+        !corrupt &&
+        !_disposed) {
       simulator.update(state.session, now);
       if (!storageUncertain) hardware.reconcile(state.session, now);
     }
@@ -182,13 +250,33 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> tick() async {
-    if (_ticking || !ready || _disposed || !_foreground || _needsRecovery)
+    if (_ticking ||
+        !ready ||
+        _disposed ||
+        (!_foreground && !backgroundActive) ||
+        _needsRecovery)
       return;
     _ticking = true;
     try {
       now = await port.clock();
-      if (!_foreground || _needsRecovery || _disposed) return;
+      if ((!_foreground && !backgroundActive) || _needsRecovery || _disposed)
+        return;
       if (!corrupt) {
+        if (!busy && _warningAccepted != null && retry == null) {
+          final accepted = _warningAccepted!;
+          final saved = await commit((draft, _) {
+            final s = draft.session;
+            if (s.id == accepted.session &&
+                s.index == accepted.segment &&
+                s.active &&
+                s.automaticCueAt?.mono == accepted.trigger &&
+                s.automaticCue != null &&
+                !s.outputBlank) {
+              s.automaticCueAt = accepted.acceptedAt;
+            }
+          });
+          if (saved && _warningAccepted == accepted) _warningAccepted = null;
+        }
         if (!busy &&
             retry == null &&
             dueWarnings(state.session, now).isNotEmpty) {
@@ -198,7 +286,8 @@ class AppController extends ChangeNotifier {
         unawaited(hardware.check(now));
         if (!busy &&
             !storageUncertain &&
-            now.since(state.session.checkpoint) >= 55000 &&
+            (now.since(state.session.checkpoint) >= 55000 ||
+                _events.isNotEmpty) &&
             (state.session.active || state.session.phase == 'ended'))
           await checkpoint();
       }
@@ -214,7 +303,11 @@ class AppController extends ChangeNotifier {
     void Function(AppState draft, Stamp at) mutation, {
     int? revision,
   }) async {
-    if (busy || corrupt || _needsRecovery || !_foreground || _disposed)
+    if (busy ||
+        corrupt ||
+        _needsRecovery ||
+        (!_foreground && !backgroundActive) ||
+        _disposed)
       return false;
     _beginWrite();
     notifyListeners();
@@ -237,8 +330,20 @@ class AppController extends ChangeNotifier {
       draft.applySharedZero();
       draft.applySharedWarnings(at);
       await NativeDisplayFonts.prepareState(draft);
+      if (draft.session.automaticCue != null &&
+          draft.session.automaticCueAt != null &&
+          draft.session.automaticCueAt!.mono != previous.automaticCueAt?.mono) {
+        final rule = draft.session.timeline!.display.warnings.firstWhere(
+          (w) =>
+              jsonEncode(w.cue.toJson()) ==
+              jsonEncode(draft.session.automaticCue!.toJson()),
+        );
+        draft.session.automaticCueDurationMs = warningDurationMs(rule);
+      }
+      final logged = _mergeEvents(draft);
       await port.save(jsonEncode(draft.toJson()));
       state = draft;
+      _events.removeRange(0, logged.length);
       if (state.session.phase == 'idle' && state.session.id != previous.id)
         simulator.clear();
       themeSelection.value = _previewTheme ?? state.themeId;
@@ -253,6 +358,7 @@ class AppController extends ChangeNotifier {
           hardware.connected) {
         hardware.release(state.session);
       }
+      await syncActiveService();
       _publish();
       return true;
     } catch (e) {
@@ -267,38 +373,45 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<bool> act(String action, {dynamic value, int? revision}) =>
-      commit((draft, at) {
-        if (action == 'cue') validateLayout(value as TextLayout);
-        draft.session = transition(
+  Future<bool> act(String action, {dynamic value, int? revision}) async {
+    final saved = await commit((draft, at) {
+      if (action == 'cue') validateLayout(value as TextLayout);
+      draft.session = transition(
+        draft.session,
+        action,
+        at,
+        value: value,
+        expectedRevision: revision,
+      );
+      if ([
+        'start',
+        'pause',
+        'adjust',
+        'advance',
+        'undo',
+        'rate',
+        'cue',
+      ].contains(action)) {
+        hardware.validateAction(
           draft.session,
-          action,
           at,
-          value: value,
-          expectedRevision: revision,
+          cue: action == 'cue' ? value as TextLayout : null,
         );
-        if ([
-          'start',
-          'pause',
-          'adjust',
-          'advance',
-          'undo',
-          'rate',
-          'cue',
-        ].contains(action)) {
-          hardware.validateAction(
-            draft.session,
-            at,
-            cue: action == 'cue' ? value as TextLayout : null,
-          );
-        }
-        if (action == 'load') draft.session.churchName = draft.churchName;
-        if (action == 'start' && hardware.connected)
-          draft.session.disconnected = false;
-        if (action == 'end') {
-          draft.reports.add(ServiceReport.fromSession(draft.session, at));
-        }
-      }, revision: revision);
+      }
+      if (action == 'load') draft.session.churchName = draft.churchName;
+      if ((action == 'start' || action == 'advance') && hardware.connected)
+        draft.session.disconnected = false;
+      if (action == 'end') {
+        draft.reports.add(ServiceReport.fromSession(draft.session, at));
+      }
+    }, revision: revision);
+    if (saved && action == 'advance' && hardware.connected) {
+      hardware.release(state.session, timingVerified: true);
+      await syncActiveService();
+      _publish();
+    }
+    return saved;
+  }
 
   Future<bool> restoreHardware({int? verifiedSeconds, int? revision}) async {
     if (!hardware.connected) return false;
@@ -337,6 +450,7 @@ class AppController extends ChangeNotifier {
     }, revision: revision);
     if (!saved || !hardware.connected) return false;
     hardware.release(state.session, timingVerified: true);
+    await syncActiveService();
     _publish();
     return true;
   }
@@ -508,8 +622,10 @@ class AppController extends ChangeNotifier {
       now = at;
       final draft = state.copy();
       draft.session.checkpoint = at;
+      final logged = _mergeEvents(draft);
       await port.save(jsonEncode(draft.toJson()));
       state = draft;
+      _events.removeRange(0, logged.length);
       storageUncertain = false;
       if (_retryIsCheckpoint) {
         error = null;
@@ -533,6 +649,12 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> suspend() async {
+    if (backgroundActive && await port.activeServiceRunning()) {
+      _foreground = false;
+      await checkpoint();
+      return;
+    }
+    backgroundActive = false;
     if (hardware.enabled)
       hardware.hold(
         'App was in the background · review and restore output. The sign may retain a cue or continue its countdown.',
@@ -544,6 +666,12 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> resume() async {
+    if (backgroundActive && await port.activeServiceRunning()) {
+      _foreground = true;
+      await tick();
+      return;
+    }
+    backgroundActive = false;
     _foreground = true;
     _needsRecovery = true;
     final request = ++_resumeRequest;
@@ -613,6 +741,8 @@ class AppController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    port.setBackgroundHandler(null);
+    unawaited(port.setActiveService(false));
     _timer?.cancel();
     hardware.removeListener(_hardwareChanged);
     hardware.dispose();

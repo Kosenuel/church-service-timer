@@ -71,6 +71,7 @@ void main() {
       await tester.ensureVisible(
         find.widgetWithText(OutlinedButton, 'WRAP UP'),
       );
+      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(OutlinedButton, 'WRAP UP'));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.enterText(
@@ -122,7 +123,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('02:00 · 2 MIN LEFT'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Operator + simulated stage'));
+      await tester.tap(find.text('Operator + stage display'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Operator + phone notification').last);
       await tester.pumpAndSettle();

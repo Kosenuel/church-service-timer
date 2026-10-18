@@ -129,7 +129,7 @@ void main() {
       expect(s.formatted(after(950)), '00:50');
     });
     test(
-      'Advance from pause runs next; undo restores paused checkpoint and cue',
+      'Advance clears the cue; undo restores the paused timing checkpoint',
       () {
         var s = transition(running(), 'pause', after(420));
         s = transition(s, 'cue', after(421), value: const TextLayout('WAIT'));
@@ -139,7 +139,7 @@ void main() {
         s = transition(s, 'undo', after(427));
         expect(s.formatted(after(1000)), '03:00');
         expect(s.paused, true);
-        expect(s.alert!.text, 'WAIT');
+        expect(s.alert, isNull);
         expect(s.undo, isNull);
       },
     );

@@ -4,7 +4,7 @@ Version 0.11 adds the first physical adapter to the simulator prototype: Huidu W
 
 ## Implemented
 
-- Church branding, five theme presets with cancelable previews, configurable screen awake, grouped Settings, About with author/version, and validated setup backup/restore. Reports snapshot church identity.
+- Church branding, seven theme presets and custom colors with cancelable previews, configurable screen awake, grouped Settings, About with author/version, and validated setup backup/restore. Reports snapshot church identity.
 - Feedback Center collects title, message and contact, includes the installed version, and opens a draft to immanuelproton@gmail.com in the phone's email app. Copy fallback and confirmed draft clearing are available. The operator reviews and sends from the email app; there is no background delivery or receipt tracking.
 
 - Separate Live, Templates, Settings and Reports views; responsive phone/tablet layouts.
@@ -26,7 +26,7 @@ Version 0.11 adds the first physical adapter to the simulator prototype: Huidu W
 - Android document picker import/export; bounded UTF-8 reads; CSV/JSON validation, preview, conflict checks and atomic acceptance.
 - Template reordering by touch and complete JSON/segment-only CSV round trips.
 - Service timing overview with elapsed time, projected variance and estimated finish.
-- Configurable warnings with operator-only or temporary simulated-stage output. Due stage warnings briefly overlay manual cues, then restore them; a new manual cue takes over immediately.
+- Configurable shared warnings with operator-only or temporary simulator/physical-stage output. Stage warnings return to the current countdown, clearing prior manual cues; a new manual cue takes over immediately. Duration is configurable or one scrolling cycle.
 - Android phone notifications with default notification sound, permission/settings controls and monotonic alarm scheduling independent of Flutter frame callbacks.
 - After-service reports with segment actuals, pauses, adjustments, compact list/detail pages, filtered comparison charts, individual/bulk CSV/JSON export and confirmed deletion of one/all local records.
 - Fast rehearsal at 5×, 10×, 30× or 60×, labelled separately from live timing.
@@ -37,16 +37,17 @@ See `FEATURES-0.9.md` for Feedback Center, `FEATURES-0.8.md` for compact lists a
 
 - Guided Wi-Fi discovery, strict controller/profile validation, explicit device selection and password entry. Identity is remembered; passwords and active connections are not backed up or persisted.
 - Authenticated HD7 upload on Wi-Fi-bound sockets. One transfer at a time, bounded identical-packet retries, read-only liveness checks and separate connection/delivery status.
-- Native countdown with clock calibration, pause via a static frame, resume, time adjustments, segment changes, static cue replacement and return to current timer. No per-second uploads.
-- Static cues preserve selected font and formatting. Accelerated rehearsals, remaining times above 59:59 and animated manual cues are rejected in hardware mode before changing the run.
-- Stale successful writes invalidate the accepted-output cache and reconcile the newest intent. Failure, backgrounding and reconnect hold output for review; restoring uncertain timing requires verification and retains the report uncertainty marker.
-- Animated At Zero falls back to 00:00; animated/oversized end screens clear the sign. These limits are shown before starting and ending a physical service.
+- Native countdown with clock calibration, pause via a static frame, resume, time adjustments, segment changes, static/scrolling/flashing cue replacement and return to current timer. No per-second uploads.
+- Cues preserve selected font and formatting. Accelerated rehearsals and remaining times above 59:59 are rejected in hardware mode before changing the run. Animation uploads contain at most 2048 frames, split into 4096-byte chunks.
+- Stale successful writes invalidate the accepted-output cache and reconcile the newest intent. Failure, process interruption and reconnect hold output for review; restoring uncertain timing requires verification and retains the report uncertainty marker.
+- Animated At Zero and end screens use the frame uploader. The default native countdown can remain at 00:00 without a replacement upload. Next segment clears stale cues/holds and sends its new deadline; deliberate keep-blank is offered.
+- Version 0.12 adds the active Android foreground service, compact focused preview and control lock, rundown details, raised chapel branding, glass header, Reports banner and activity timeline. See `FEATURES-0.12.md` for evidence and boundaries.
 
 ## Still deferred
 
-- Automatic warnings on the physical sign, scrolling/flashing hardware cues and countdowns above 59:59. Existing simulator and phone warning behaviour remains available.
+- Countdowns above 59:59 and a replacement method without the observed brief blink.
 - Actual Test on Sign, physical-layout fingerprint approval records and profile-change acceptance.
-- Native foreground service for continuous screen-locked physical output, target-device battery policy validation and hardware liveness.
+- Broad target-device battery policy validation, process-kill recovery and full-service endurance. A foreground service is not a guarantee against force-stop or process death.
 - 250 ms p95 / 500 ms maximum cue measurements, viewing-distance readability and three-hour physical endurance acceptance.
 
 The physical connection page reads the discovered profile. There is no firmware or panel-configuration write path. Final authenticated upload acknowledgement means controller acceptance, not optical verification.
@@ -63,4 +64,4 @@ The physical connection page reads the discovered profile. There is no firmware 
 
 ## Next hardware milestone
 
-Validate recovery after network loss, app backgrounding and sign power loss on the physical sign, then run a full-service endurance test. Animation cadence/looping, longer countdowns and midnight transitions need their own physical verification before expanding the supported capability list.
+Validate recovery after network loss, app backgrounding and sign power loss on the physical sign, then run a full-service endurance test. See `FEATURES-0.12.md` for the current animation/background test status. Longer countdowns and midnight transitions remain unverified.

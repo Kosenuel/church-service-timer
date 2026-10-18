@@ -161,17 +161,14 @@ void main() {
     await tester.runAsync(() => c.act('pause'));
     await tester.pumpWidget(TimerApp(controller: c));
     await tester.pumpAndSettle();
-    final resume = find.ancestor(
-      of: find.text('Resume'),
-      matching: find.byWidgetPredicate((w) => w is FilledButton),
-    );
+    final resume = find.byKey(const ValueKey('pause-resume'));
     final subtract = find.ancestor(
       of: find.text('−2 min'),
       matching: find.byWidgetPredicate((w) => w is OutlinedButton),
     );
     expect(tester.getRect(resume).top, tester.getRect(subtract).top);
     expect(tester.getSize(resume).height, tester.getSize(subtract).height);
-    expect(tester.getSize(find.text('Resume')).height, lessThan(24));
+    expect(find.byTooltip('Resume'), findsOneWidget);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/hardware-paused-phone.png'),
@@ -179,33 +176,34 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
-  testWidgets('Hardware warnings do not claim stage cue delivery', (
-    tester,
-  ) async {
-    final port = W2Port();
-    final c = (await tester.runAsync(() => setup(port)))!;
-    await tester.runAsync(() async {
-      await c.setSharedWarnings(const [
-        WarningRule(570, TextLayout('WARN'), destination: 'stage'),
-      ]);
-      port.at = after(31);
-      await c.tick();
-      await flush();
-    });
-    await tester.pumpWidget(TimerApp(controller: c));
-    await tester.pumpAndSettle();
-    expect(find.text('WARN · 09:30 remaining'), findsOneWidget);
-    expect(find.textContaining('stage cue for 8 seconds'), findsNothing);
-    expect(
-      find.text(
-        'Automatic warnings are not sent to the physical sign in this version.',
-      ),
-      findsOneWidget,
-    );
-    expect(port.sent.length, 1);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-  });
+  testWidgets(
+    'Hardware warning UI distinguishes requested output from acceptance',
+    (tester) async {
+      final port = W2Port();
+      final c = (await tester.runAsync(() => setup(port)))!;
+      await tester.runAsync(() async {
+        await c.setSharedWarnings(const [
+          WarningRule(570, TextLayout('WARN'), destination: 'stage'),
+        ]);
+        port.at = after(31);
+        await c.tick();
+        await flush();
+      });
+      await tester.pumpWidget(TimerApp(controller: c));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('WARN · 09:30 remaining'), findsOneWidget);
+      expect(find.textContaining('stage cue for 8 seconds'), findsOneWidget);
+      expect(
+        find.text(
+          'Stage warnings return to the current countdown. Updates may blink briefly.',
+        ),
+        findsOneWidget,
+      );
+      expect(port.sent.length, 2);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   test(
     'Connect does not replace output; starting sends one native deadline',
     () async {
@@ -364,61 +362,61 @@ void main() {
     },
   );
   test(
-    'Animation and long countdown controls fail before persistence or sending',
+    'Animations encode once; out-of-range countdown fails before saving',
     () async {
       final port = W2Port();
       final c = await setup(port);
       addTearDown(c.dispose);
-      final before = c.state.session.revision;
       expect(
         await c.sendAndSaveCue(
           const TextLayout('A VERY LONG CUE', effect: 'scroll'),
         ),
-        false,
+        true,
       );
+      await flush();
+      expect(port.sent.last.bytes.length, greaterThan(233));
       expect(
         await c.sendAndSaveCue(const TextLayout('AMEN', effect: 'flash')),
-        false,
+        true,
       );
+      await flush();
+      expect(port.sent.last.bytes.length, 299);
+      final before = c.state.session.revision;
       expect(await c.act('adjust', value: 3600), false);
       expect(c.state.session.revision, before);
-      expect(port.sent.length, 1);
+      expect(port.sent.length, 3);
     },
   );
-  test(
-    'Zero does not resend a frame; animated end clears once with an explanation',
-    () async {
-      final port = W2Port();
-      final c = await setup(port);
-      addTearDown(c.dispose);
-      port.at = after(601);
-      await c.tick();
-      await flush();
-      expect(port.sent.length, 1);
-      expect(c.hardware.status, contains('00:00'));
-      await c.act('end');
-      await flush();
-      expect(port.sent.length, 2);
-      expect(port.sent.last.bytes.sublist(169).every((b) => b == 0), true);
-      expect(c.hardware.status, contains('animated end screen'));
-    },
-  );
-  test(
-    'Automatic stage warnings do not replace this milestone countdown',
-    () async {
-      final port = W2Port();
-      final c = await setup(port);
-      addTearDown(c.dispose);
-      await c.setSharedWarnings(const [
-        WarningRule(570, TextLayout('WARN'), destination: 'stage'),
-      ]);
-      port.at = after(31);
-      await c.tick();
-      await flush();
-      expect(c.state.session.automaticCue, isNotNull);
-      expect(port.sent.length, 1);
-    },
-  );
+  test('Zero retains the native frame; animated end is encoded once', () async {
+    final port = W2Port();
+    final c = await setup(port);
+    addTearDown(c.dispose);
+    await c.setSharedWarnings([]);
+    port.at = after(601);
+    await c.tick();
+    await flush();
+    expect(port.sent.length, 1);
+    expect(c.hardware.status, contains('00:00'));
+    await c.act('end');
+    await flush();
+    expect(port.sent.length, 2);
+    expect(port.sent.last.bytes.length, greaterThan(233));
+    expect(c.hardware.status, contains('Controller accepted'));
+  });
+  test('Automatic stage warnings publish on the physical adapter', () async {
+    final port = W2Port();
+    final c = await setup(port);
+    addTearDown(c.dispose);
+    await c.setSharedWarnings(const [
+      WarningRule(570, TextLayout('WARN'), destination: 'stage'),
+    ]);
+    port.at = after(31);
+    await c.tick();
+    await flush();
+    expect(c.state.session.automaticCue, isNotNull);
+    expect(port.sent.length, 2);
+    expect(c.hardware.accepted!.reason, HardwareOutputReason.automaticCue);
+  });
   test('Persisted hardware preference starts disconnected and held', () async {
     final port = W2Port()..hardwarePreference = true;
     final c = AppController(port);

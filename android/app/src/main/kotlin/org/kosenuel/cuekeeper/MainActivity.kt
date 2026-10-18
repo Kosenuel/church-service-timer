@@ -1,6 +1,11 @@
 package org.kosenuel.cuekeeper
 
 import android.app.Activity
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import java.lang.ref.WeakReference
+import io.flutter.embedding.engine.FlutterEngineCache
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -23,22 +28,76 @@ import java.nio.charset.CodingErrorAction
 import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
+    companion object { var bridge: DeviceBridge? = null }
+    override fun provideFlutterEngine(context: Context): FlutterEngine? = FlutterEngineCache.getInstance().get("service-timer")
+    override fun shouldDestroyEngineWithHost() = false
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        FlutterEngineCache.getInstance().put("service-timer", flutterEngine)
+        if (bridge == null) bridge = DeviceBridge(applicationContext, flutterEngine)
+        bridge!!.attach(this)
+    }
+    override fun onDestroy() { bridge?.detach(this); super.onDestroy() }
+    @Deprecated("Activity result bridge")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        bridge?.onActivityResult(requestCode, resultCode, data)
+    }
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        bridge?.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+}
+
+/** Engine-owned bridge: no Activity is retained while the screen is closed. */
+class DeviceBridge(private val context: Context, engine: FlutterEngine) {
+    private var host = WeakReference<MainActivity>(null)
+    private var keepAwake = true
+    fun attach(activity: MainActivity) {
+        host = WeakReference(activity)
+        if (keepAwake) activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+    fun detach(activity: MainActivity) { if (host.get() === activity) host.clear() }
+    private fun activity(): MainActivity = host.get() ?: error("Open the app to perform this action")
+    private val main = Handler(Looper.getMainLooper())
+    private fun runOnUiThread(block: () -> Unit) { main.post(block) }
+    private val filesDir get() = context.filesDir
+    private val contentResolver get() = context.contentResolver
+    private val packageManager get() = context.packageManager
+    private val packageName get() = context.packageName
+    private val window get() = activity().window
+    private fun startActivity(intent: Intent) = activity().startActivity(intent)
+    private fun startActivityForResult(intent: Intent, code: Int) = activity().startActivityForResult(intent, code)
+    private fun checkSelfPermission(permission: String) = context.checkSelfPermission(permission)
+    private fun requestPermissions(permissions: Array<String>, code: Int) = activity().requestPermissions(permissions, code)
+    val channel = MethodChannel(engine.dartExecutor.binaryMessenger, "church.timer/device")
+    fun pulse() { channel.invokeMethod("backgroundTick", null) }
+    fun closeDisplay() { displayIo.execute { w2.disconnect() } }
+
     private val io = Executors.newSingleThreadExecutor()
     private val displayIo = Executors.newSingleThreadExecutor()
-    private val w2 by lazy { W2Display(this) }
+    private val w2 by lazy { W2Display(context) }
     private var pending: MethodChannel.Result? = null
     private var exportContent: String? = null
     private var importLimit = 1048576
     private var notificationRequest: MethodChannel.Result? = null
-    private val bundledFonts by lazy { BundledFonts(this) }
+    private val bundledFonts by lazy { BundledFonts(context) }
     private val stateFile get() = AtomicFile(File(filesDir, "service-state.json"))
 
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        WarningNotifications.ensureChannel(this)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "church.timer/device").setMethodCallHandler { call, result ->
+    init {
+        WarningNotifications.ensureChannel(context)
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "activeServiceRunning" -> result.success(ActiveService.running)
+                "activeService" -> {
+                    if (call.arguments == true) {
+                        try {
+                            activity() // Start only from a visible, user-initiated session.
+                            ActiveService.start(context, result)
+                        } catch (e: Exception) { result.error("SERVICE", e.message, null) }
+                    } else { ActiveService.stop(context); result.success(false) }
+                }
                 "w2Preferences" -> displayBackground(result) { w2.preferences() }
                 "w2Discover" -> displayBackground(result) { w2.discover() }
                 "w2Connect" -> displayBackground(result) {
@@ -72,6 +131,7 @@ class MainActivity : FlutterActivity() {
                     result.success("${info.versionName} ($code)")
                 }
                 "keepScreenAwake" -> {
+                    keepAwake = call.arguments == true
                     if (call.arguments == true) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     result.success(null)
@@ -94,7 +154,7 @@ class MainActivity : FlutterActivity() {
                         } catch (e: Exception) { pending = null; result.error("IMAGE", e.message, null) }
                     }
                 }
-                "notificationStatus" -> result.success(WarningNotifications.status(this))
+                "notificationStatus" -> result.success(WarningNotifications.status(context))
                 "enableNotifications" -> {
                     if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                         if (notificationRequest != null) result.error("BUSY", "Notification permission request already open", null)
@@ -114,11 +174,11 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "syncWarnings" -> {
-                    try { WarningNotifications.sync(this, call.arguments as Map<*, *>); result.success(null) }
+                    try { WarningNotifications.sync(context, call.arguments as Map<*, *>); result.success(null) }
                     catch (e: Exception) { result.error("NOTIFICATION", e.message, null) }
                 }
                 "testNotification" -> {
-                    try { WarningNotifications.test(this); result.success(null) }
+                    try { WarningNotifications.test(context); result.success(null) }
                     catch (e: Exception) { result.error("NOTIFICATION", e.message, null) }
                 }
                 "clock" -> result.success(mapOf(
@@ -196,16 +256,8 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    override fun onDestroy() {
-        displayIo.execute { w2.disconnect() }
-        displayIo.shutdown()
-        io.shutdown()
-        super.onDestroy()
-    }
-
     @Deprecated("Activity result bridge for Flutter's method channel")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
+    fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode != 41 && requestCode != 42 && requestCode != 45) return
         val result = pending ?: return
         val maxBytes = importLimit
@@ -217,7 +269,7 @@ class MainActivity : FlutterActivity() {
             return
         }
         if (requestCode == 45) {
-            background(result) { ChurchBanner.read(this, uri) }
+            background(result) { ChurchBanner.read(context, uri) }
             return
         }
         if (requestCode == 42) {
@@ -255,8 +307,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         if (requestCode == 44) {
             notificationRequest?.success(null)
             notificationRequest = null

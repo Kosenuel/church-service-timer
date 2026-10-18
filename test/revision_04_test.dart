@@ -134,6 +134,7 @@ void main() {
     await t.pumpAndSettle();
     final cue = find.widgetWithText(OutlinedButton, 'WRAP UP');
     await t.ensureVisible(cue);
+    await t.pumpAndSettle();
     await t.tap(cue);
     await t.pump(const Duration(milliseconds: 300));
     await t.tap(find.widgetWithText(TextButton, 'Delete cue'));

@@ -153,21 +153,20 @@ final featureCases = <String, void Function()>{
     final s = service(firstMinutes: 1);
     equal(dueWarnings(s, at(31)), [1]);
   },
-  'Automatic warning overlays a manual cue and restores it after eight seconds':
-      () {
-        var s = service(
-          warnings: [
-            const WarningRule(120, TextLayout('AUTO'), destination: 'stage'),
-          ],
-        );
-        s = transition(s, 'cue', at(50), value: const TextLayout('MANUAL'));
-        s = transition(s, 'warnings', at(60));
-        equal(s.intended(at(60))!.text, 'AUTO');
-        equal(s.intended(at(68))!.text, 'MANUAL');
-        s = transition(s, 'timer', at(61));
-        equal(s.intended(at(61))!.text, '01:59');
-        equal(dueWarnings(s, at(62)), []);
-      },
+  'Automatic warning replaces a manual cue and restores the current timer': () {
+    var s = service(
+      warnings: [
+        const WarningRule(120, TextLayout('AUTO'), destination: 'stage'),
+      ],
+    );
+    s = transition(s, 'cue', at(50), value: const TextLayout('MANUAL'));
+    s = transition(s, 'warnings', at(60));
+    equal(s.intended(at(60))!.text, 'AUTO');
+    equal(s.intended(at(68))!.text, '01:52');
+    s = transition(s, 'timer', at(61));
+    equal(s.intended(at(61))!.text, '01:59');
+    equal(dueWarnings(s, at(62)), []);
+  },
   'Manual cue supersedes and permanently clears an automatic overlay': () {
     var s = service(
       warnings: [

@@ -1,13 +1,15 @@
 part of 'domain.dart';
 
 const appName = 'Church Service Timer';
-const appVersion = '0.11.0 (11)';
+const appVersion = '0.12.0 (12)';
 const themeIds = {
   'midnight_lime',
   'royal_navy',
   'warm_ivory',
   'deep_plum',
   'slate_teal',
+  'morning_sky',
+  'sage_linen',
 };
 const backupLimitBytes = 16 * 1024 * 1024;
 
@@ -57,8 +59,39 @@ String churchBannerValue(dynamic value) {
 }
 
 String themeIdValue(dynamic value) {
-  require(themeIds.contains(value), 'Unknown appearance theme.');
-  return value as String;
+  require(
+    value is String &&
+        (themeIds.contains(value) ||
+            RegExp(
+              r'^custom:[0-9a-f]{6}:[0-9a-f]{6}:[0-9a-f]{6}$',
+            ).hasMatch(value)),
+    'Unknown appearance theme.',
+  );
+  if ((value as String).startsWith('custom:')) {
+    final parts = value.split(':');
+    double luminance(String hex) {
+      final rgb = int.parse(hex, radix: 16);
+      double channel(int n) {
+        final c = n / 255;
+        return c <= .04045
+            ? c / 12.92
+            : math.pow((c + .055) / 1.055, 2.4).toDouble();
+      }
+
+      return .2126 * channel((rgb >> 16) & 255) +
+          .7152 * channel((rgb >> 8) & 255) +
+          .0722 * channel(rgb & 255);
+    }
+
+    final bg = luminance(parts[2]), surface = luminance(parts[3]);
+    final black = (bg + .05) / .05 >= 1.05 / (bg + .05);
+    final ratio = black ? (surface + .05) / .05 : 1.05 / (surface + .05);
+    require(
+      ratio >= 4.5,
+      'Custom background and panel colors need compatible contrast.',
+    );
+  }
+  return value;
 }
 
 bool boolSetting(dynamic value) {
