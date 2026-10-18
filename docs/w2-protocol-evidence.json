@@ -3,10 +3,11 @@
   "scope": "Physical W2 protocol validation and first app hardware integration. Version 0.11.0 discovery, authentication and app-controlled countdown/pause/adjustment/resume/static-cue/restoration are verified on the physical sign.",
   "appBuild": {
     "version": "0.11.0+11",
-    "sourceCommit": "cdd04979d646885c186f391ca691953cceeba549",
-    "apkSha256": "36d36aed87c6dc548a1e3938e11791fe50a0411be720a4c6fa54636802edc890",
-    "verification": "Static analysis clean; 246 Flutter tests passed; final UI cleanup passed 40 affected tests; 10 changed/new screenshots reviewed; 12 HD7 and 10 discovery Java checks passed. APK version and signature verified against the preceding release.",
-    "runtime": "Installed as an update on Android 16. App discovery returned the expected W2 V6.02.232 32x16 profile and the user entered the device password on the phone. Each app-controlled change received controller acceptance; the user independently confirmed the complete sequence and smooth counting with one brief blink per change."
+    "sourceCommit": "0785e054d6384094cd7314a1c6ad3c7bfc072b57",
+    "apkSha256": "1299dc83a1cec3f16d9db4319b5ceccfb4e8502a71d78b5cd27f83826636ff58",
+    "verification": "Static analysis clean; all 248 Flutter tests passed; all 10 changed/new screenshots reviewed. The unchanged native code previously passed 12 HD7 and 10 discovery Java checks. APK version and signature verified against the preceding release; installed as an update on Android 16.",
+    "runtime": "App discovery returned the expected W2 V6.02.232 32x16 profile and the user entered the device password on the phone. Each app-controlled change received controller acceptance; the user independently confirmed the complete sequence and smooth counting with one brief blink per change. The final APK adds phone-layout and wording fixes; hardware transport, output planning and both Matrix fonts are unchanged from the physically tested build.",
+    "physicalSequenceApkSha256": "36d36aed87c6dc548a1e3938e11791fe50a0411be720a4c6fa54636802edc890"
   },
   "artifacts": {
     "baseApkSha256": "4f36553aac8a221726e4d9e20a232133f4547d9fb53c87658677e6c3ac95f6ae",
