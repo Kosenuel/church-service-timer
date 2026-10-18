@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-18",
+  "scope": "Initial physical W2 validation; not yet wired into the installed app UI",
+  "artifacts": {
+    "baseApkSha256": "4f36553aac8a221726e4d9e20a232133f4547d9fb53c87658677e6c3ac95f6ae",
+    "arm64SplitSha256": "291dd9342d329b105bd4aeb88ab32d0e15bacf42d4752db40e15e375b4a448be",
+    "libappSha256": "9397abf7ff63acd77ce871e743b3223428791996a822a0f1d3127be98334d878",
+    "appVersion": "LedArt-Lite 2.3.14 (157)",
+    "analysis": "Local JADX Java/smali and radare2/r2flutter AOT inspection; separate from retained REA evidence"
+  },
+  "hardware": {
+    "firmware": "HD_W2 V6.02.232",
+    "modelCode": 145,
+    "width": 32,
+    "height": 16,
+    "colorCode": 0,
+    "protocolVersion": 1,
+    "hd7": true,
+    "rawChunkCapacity": 4096,
+    "discoveryReplyBytes": 224,
+    "discoveryChecks": ["HR magic", "header length 28", "body length 193", "command 27", "status 0", "matching message ID", "additive checksum", "AA terminator"]
+  },
+  "observed": [
+    "Independent Android UDP discovery returned the W2 identity and profile.",
+    "Independent Church Service Timer HD7 login returned an authenticated 73-byte response and a 24-byte decrypted session result.",
+    "Clock calibration command 20 and file commands 2, 3, 4 each returned authenticated status 0.",
+    "W2 successful ACKs can be 41 bytes with an empty body and encryption flag C1. File-data ACK used C0.",
+    "A 393-byte native countdown program using the original Matrix glyphs was accepted.",
+    "User confirmed the countdown appeared, counted, was properly centered, and settled at 00:00.",
+    "Static 01:50 pause, countdown resume, AMEN cue and restoration transfers each received authenticated successful final acknowledgements.",
+    "User confirmed the repeated pause/resume/AMEN/restoration test worked as intended, then clarified there was one brief blink at each change, not repeated blinking while displayed. Full program replacement is functional but is not seamless.",
+    "A repeat using the same HP program identity for countdown, pause and cue received authenticated successful acknowledgements for every transfer. The visual effect on the transition blink is awaiting user observation."
+  ],
+  "wire": {
+    "udpPort": 6101,
+    "discoveryPayloadHex": "000cff0deca9610000c60001",
+    "request": "HT, 27-byte header, BE total length, command, UUID16, messageId32, body, additive checksum16, AA",
+    "legacyReply": "HR, UUID16, BE headerLength16=28, command8, status8, bodyLength16, messageId32, body, additive checksum16, AA",
+    "hd7Request": "HD, LE totalLength16, headerLength8=23, session8, salt32, flags8, messageId32, command8, body, HMAC-MD5(16), AA",
+    "hd7Reply": "DH; same fields plus signed status at23; headerLength24; body begins24",
+    "crypto": "AES-ECB/PKCS7 and HMAC-MD5, as required by this controller protocol; no credentials in fixtures",
+    "loginKey": "Nonempty password: MD5(UTF8(password + 64ACFEB8B6FE4EF082DB8F3CD428EB20)); empty: MD5(32 zero bytes)",
+    "loginLogSeparator": "_",
+    "fileStart": "command2: 05, transferId:u16BE, packetCount:u16BE",
+    "fileData": "command3: 05, transferId:u16BE, zeroBasedIndex:u16BE, raw chunk",
+    "fileEnd": "command4: 03, transferId:u16BE",
+    "completion": "Require authenticated successful final fileEnd acknowledgement; this is controller acceptance, not optical verification"
+  },
+  "evidenceAnchors": {
+    "legacyPacket": "libapp.so:0x90a590",
+    "legacyReply": "libapp.so:0x90684c,0x90713c",
+    "discovery": "libapp.so:0x9bf360,0x9bf454",
+    "parameters": "libapp.so:0x8da354",
+    "hd7Packet": "libapp.so:0x8df554",
+    "hd7Reply": "libapp.so:0x9073ec",
+    "login": "libapp.so:0x909514",
+    "passwordKey": "libapp.so:0x90b838",
+    "fileTransfer": "libapp.so:0x9dbb50,0x9db690,0x9db9b8",
+    "program": "classes.dex:F0.f; raw smali validates integer writes; p000a.b big-endian writer",
+    "bitmap": "classes.dex:p003b.a, row-major monochrome packing"
+  },
+  "integrationRequirements": [
+    "Bind Android sockets to Wi-Fi explicitly, including when cellular internet remains active.",
+    "Select and validate controller identity; never treat simulator state as a physical connection.",
+    "One transfer at a time. Retries reuse the same request bytes, message ID and salt.",
+    "Invalidate confirmed-output cache after stale successful or uncertain in-flight writes, then reconcile the latest intent.",
+    "Clock/reboot recovery needs explicit verification and rebasing; do not silently clear uncertain session timing.",
+    "Preserve the original and square Matrix definitions unchanged.",
+    "Keep native countdown below 60 minutes until total-minute rendering is verified; app timer itself can represent up to99:59.",
+    "Do not change scan configuration, polarities, firmware, network settings or passwords."
+  ],
+  "unverifiedCommandEvidence": {
+    "nativePause": "countingTiming wire36 appears only in a command-verification whitelist at0x90b5a4; no sender/payload recovered. No command36 sent.",
+    "clockRead": "No getTime sender or current RTC field recovered. Schedule times and clkProperty are not current clock readings. Confirmed setTime20 is a write only.",
+    "buttonControls": "setButtonCtrl0x92d16c changes persistent hardware button mappings; it is not a substitute for a network pause command.",
+    "sendRealFile": "Commands24/25/26 occur in FirmwareUpgradeService: packHeadData0xb81910, packContentData0xb814e8 (command25 assigned0xb818a8), packEndData0xb813fc. These are not established as a live framebuffer API. Do not probe them as a display optimization.",
+    "clearPolicy": "F0/f.java2763-2833 accounts for all59 HP bytes with schedules, identity and fixed constants; no clearAll option found there. Bitmap C9 already represents effects.clearImmediately=false and does not govern native timer replacement."
+  },
+  "pending": [
+    "A verified update method that avoids the observed single blink on each full program replacement",
+    "Animation cadence and seamless loop confirmation",
+    "Native pause support, if any, for target-time widgets",
+    "Connection UI, asynchronous output coordination and recovery integration",
+    "Longer countdowns, reconnection, app background and power-loss tests"
+  ]
+}
