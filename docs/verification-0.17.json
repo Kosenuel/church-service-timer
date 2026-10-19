@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-19",
+  "version": "0.17.0+17",
+  "sourceCommit": "925e4df",
+  "apkSha256": "7b09904203ec43a45d68996f0ad4e7fa60a7398cee70547ea5af3d88b3c3016f",
+  "automated": {
+    "analysis": "flutter analyze: no issues found",
+    "flutterTests": 350,
+    "result": "Full Flutter suite passed, including unchanged-baseline screenshot comparisons after the reviewed updates",
+    "screenshotsReviewed": 18,
+    "stageShortcuts": "Stage role selected by the Live shortcut, cancellation preserves local state, and Go to Live preserves hosting",
+    "endedMessages": "Confirmation is bound to the ended session and current control; encrypted loopback checks cover delivery, report immutability, expiry, end-output restoration, deliberate blank restoration, and disconnected recipients",
+    "choices": "Theme-aware sheets and chips checked in dark/light palettes, with larger text, search, cancellation, disabled state and keyboard inset",
+    "rememberPassword": "Default selection, existing-credential removal, storage failure and retry verified without disconnecting the active display",
+    "printing": "Planned start column removed; dates, recorded durations, optional banner and private-note selection preserved",
+    "identity": "org.kosenuel.cuekeeper, versionName 0.17.0, versionCode 17",
+    "androidBuild": "flutter build apk --release succeeded; aapt identity and apksigner v2 signature verified",
+    "signingCertificateSha256": "7447b222512d8002f5ba5d7e985f7fdeca0cbc176b167fe240e790147a336afd",
+    "matrixFonts": "Both existing Matrix font implementations are unchanged",
+    "hardwareProtocol": "W2 serializer and native controller implementation are unchanged"
+  },
+  "physical": {
+    "installation": "ADB install -r succeeded on Samsung SM-A266B, retaining app data. Android package metadata confirms versionName 0.17.0 and versionCode 17.",
+    "manualTesting": "Left to the user at their explicit request. No phone UI, pairing, timer, cue or sign-output tests performed for this release.",
+    "deviceSettings": "No phone settings or Wi-Fi configuration changed"
+  },
+  "remainingLimits": [
+    "Post-service messages require a connected, approved stage receiver and local control; sending before any service has run remains disabled.",
+    "Automated peer tests use encrypted loopback sessions. Hands-on behavior on the user's devices awaits their testing.",
+    "The existing prototype signing certificate is retained for upgrade compatibility."
+  ]
+}
