@@ -8,10 +8,10 @@ From a normal shell in the repository:
 flutter pub get
 flutter analyze
 flutter test
-flutter build apk --debug
+flutter build apk --release
 ```
 
-Output: `build/app/outputs/flutter-apk/app-debug.apk`. Install with `adb install -r` after enabling USB debugging and accepting the phone's trust prompt, or transfer the APK and open it on the phone. A physical sign is not needed.
+Output: `build/app/outputs/flutter-apk/app-release.apk`. This optimized build uses the existing local prototype signing key, preserving upgrades. Production distribution needs a separate signing plan. Install with `adb install -r` after enabling USB debugging and accepting the phone's trust prompt, or transfer the APK and open it on the phone. A physical sign is not needed. The helper defaults to release; use `-BuildMode profile` for VM timeline measurements or `-BuildMode debug` for development.
 
 The native bridge supplies Android `SystemClock.elapsedRealtime()` with `BOOT_COUNT`, uses `AtomicFile` in application-private storage, and accesses selected documents through the system picker. The app requires no account or Internet connection. The W2 adapter uses the local Wi-Fi connection; Internet permission is used for its sockets.
 

@@ -32,8 +32,10 @@ class W2Display(context: Context) {
     fun preferences(): Map<String, Any> = mapOf(
         "hardware" to prefs.getBoolean("hardware", false),
         "id" to (prefs.getString("id", "") ?: ""),
+        "autoReconnect" to prefs.getBoolean("autoReconnect", true),
         "name" to (prefs.getString("name", "") ?: "")
     )
+    fun autoReconnect(enabled: Boolean) { check(prefs.edit().putBoolean("autoReconnect", enabled).commit()) }
     fun forget() { disconnect(); check(prefs.edit().remove("id").remove("name").putBoolean("hardware", false).commit()) }
     fun simulator() {
         disconnect()
@@ -164,7 +166,12 @@ class W2Display(context: Context) {
             val current = scan(net, d["address"] as String, 1000).firstOrNull { it["id"] == d["id"] }
             check(current != null && current["supported"] == true)
             mapOf("connected" to true, "generation" to generation)
-        } catch (_: Exception) { disconnect(); mapOf("connected" to false) }
+        } catch (_: Exception) {
+            // A missed discovery reply is not proof that the authenticated session died.
+            // Dart applies a grace period before closing and re-authenticating it.
+            mapOf("connected" to false, "generation" to generation,
+                "reason" to "Controller health reply missing")
+        }
     }
     fun send(bytes: ByteArray, targetWall: Long?, expectedGeneration: Int): Map<String, Any> {
         check(expectedGeneration == generation && session != null) { "Connection changed. Reconnect before sending." }

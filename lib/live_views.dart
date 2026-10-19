@@ -317,7 +317,10 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: widget.controller,
+    animation: Listenable.merge([
+      widget.controller,
+      widget.controller.liveClock,
+    ]),
     builder: (context, _) {
       final c = widget.controller, s = c.state.session;
       final custom = widget.fixedSeconds == null;
@@ -519,7 +522,7 @@ extension LiveViewActions on _HomeState {
       await showDialog<bool>(
         context: context,
         builder: (ctx) => AnimatedBuilder(
-          animation: c,
+          animation: Listenable.merge([c, c.liveClock]),
           builder: (ctx, _) {
             final stale = c.state.session.revision != revision;
             return AlertDialog(

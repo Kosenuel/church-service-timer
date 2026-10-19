@@ -9,7 +9,9 @@ class DeviceManagementPanel extends StatefulWidget {
 
 class _DeviceManagementPanelState extends State<DeviceManagementPanel>
     with WidgetsBindingObserver {
-  String? revealed, status;
+  String? revealed, revealedWifi, status;
+  Json network = {};
+  bool get wifiConnected => network['wifiConnected'] == true;
   bool busy = false;
   AppController get c => widget.controller;
   Future<void> operation(Future<void> Function() work) async {
@@ -30,9 +32,14 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
   bool get adminSupported =>
       c.hardware.connected &&
       c.hardware.profile?['supported'] == true &&
+      c.hardware.profile?['firmware'] == 'HD_W2 V6.02.232' &&
       c.hardware.profile?['pwdComplexity'] == 1;
   Future<void> changeSetting(String kind, String label) async {
-    if (!adminSupported || c.state.session.active || c.pairing.hosting || busy)
+    if (!adminSupported ||
+        !wifiConnected ||
+        c.state.session.active ||
+        c.pairing.hosting ||
+        busy)
       return;
     final value = TextEditingController(), repeated = TextEditingController();
     String? problem;
@@ -167,12 +174,110 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => readNetwork());
+  }
+
+  Future<void> readNetwork({bool requestName = false}) async {
+    try {
+      final next = await c.port.displayNetworkInfo(requestName: requestName);
+      if (mounted) setState(() => network = next);
+    } catch (_) {
+      if (mounted)
+        setState(
+          () => status =
+              'Wi-Fi details unavailable. Check Android Wi-Fi settings.',
+        );
+    }
+  }
+
+  Future<void> connectFromSettings() async {
+    if (busy) return;
+    setState(() => busy = true);
+    try {
+      if (!c.hardware.connected &&
+          c.hardware.rememberedId.isNotEmpty &&
+          await c.hardware.reconnectSaved()) {
+        if (mounted)
+          await connectionSuccess(
+            context,
+            c.hardware.rememberedName,
+            c.hardware.held,
+            actionLabel: 'Continue',
+          );
+      } else if (mounted) {
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) =>
+                HardwareConnectionPage(controller: c, returnToLive: false),
+          ),
+        );
+      }
+      await readNetwork();
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> saveKnownWifiPassword() async {
+    final field = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Save known Wi-Fi password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Stores your entry encrypted on this phone. It does not read or change the sign’s password.',
+            ),
+            TextField(
+              controller: field,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              maxLength: 128,
+              decoration: const InputDecoration(
+                labelText: 'Known Wi-Fi password',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (field.text.isNotEmpty) Navigator.pop(ctx, field.text);
+            },
+            child: const Text('Save on phone'),
+          ),
+        ],
+      ),
+    );
+    Future<void>.delayed(const Duration(seconds: 1), field.dispose);
+    if (value != null)
+      await operation(() async {
+        await c.port.saveDisplayPassword(
+          'wifi:${c.hardware.rememberedId}',
+          value,
+        );
+        if (mounted)
+          setState(() {
+            revealedWifi = null;
+            status = 'Known Wi-Fi password saved on this phone.';
+          });
+      });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed && mounted)
-      setState(() => revealed = null);
+      setState(() {
+        revealed = null;
+        revealedWifi = null;
+      });
   }
 
   @override
@@ -194,17 +299,87 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
       ),
       const SizedBox(height: 8),
       Text(c.hardware.connected ? 'Connected' : 'Disconnected'),
+      const SizedBox(height: 12),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.wifi),
+        title: const Text('Current Wi-Fi name'),
+        subtitle: Text(
+          (network['ssid'] as String? ?? '').isNotEmpty
+              ? network['ssid'] as String
+              : wifiConnected
+              ? 'Android has not shared the Wi-Fi name'
+              : 'No Wi-Fi connection',
+        ),
+        trailing: IconButton(
+          tooltip: 'Read Wi-Fi name',
+          icon: const Icon(Icons.refresh),
+          onPressed: busy ? null : () => readNetwork(requestName: true),
+        ),
+      ),
+      const Text(
+        'Android requires location permission to reveal the Wi-Fi name. The app uses it only for this detail, not location tracking.',
+      ),
+      const Divider(height: 24),
+      const Text(
+        'Wi-Fi password · saved on this phone',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
+      if (revealedWifi != null) SelectableText(revealedWifi!),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          TextButton.icon(
+            icon: Icon(
+              revealedWifi == null
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+            ),
+            label: Text(
+              revealedWifi == null
+                  ? 'Show saved Wi-Fi password'
+                  : 'Hide Wi-Fi password',
+            ),
+            onPressed: busy || c.hardware.rememberedId.isEmpty
+                ? null
+                : () => operation(() async {
+                    if (revealedWifi != null) {
+                      setState(() => revealedWifi = null);
+                      return;
+                    }
+                    final secret = await c.port.savedDisplayPassword(
+                      'wifi:${c.hardware.rememberedId}',
+                    );
+                    if (mounted)
+                      setState(() {
+                        revealedWifi = secret;
+                        status = secret == null
+                            ? 'No Wi-Fi password saved on this phone.'
+                            : null;
+                      });
+                  }),
+          ),
+          TextButton(
+            onPressed: busy || c.hardware.rememberedId.isEmpty
+                ? null
+                : saveKnownWifiPassword,
+            child: const Text('Save known password'),
+          ),
+        ],
+      ),
+      const Divider(height: 24),
+      const Text(
+        'Device connection password · saved on this phone',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
       if (c.hardware.profile != null)
         Text(
           '${c.hardware.profile!['firmware']} · ${c.hardware.profile!['width']} × ${c.hardware.profile!['height']}',
         ),
-      const SizedBox(height: 16),
+      const SizedBox(height: 8),
       const Text(
-        'Connection password saved on this phone',
-        style: TextStyle(fontWeight: FontWeight.w700),
-      ),
-      const Text(
-        'Viewing shows only an optionally saved credential. It does not read the sign’s current password.',
+        'Only a password saved on this phone can be shown. The controller does not provide its existing device password in readable form.',
       ),
       if (revealed != null)
         Padding(
@@ -219,7 +394,10 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
                 ? null
                 : () => operation(() async {
                     if (revealed != null) {
-                      setState(() => revealed = null);
+                      setState(() {
+                        revealed = null;
+                        revealedWifi = null;
+                      });
                       return;
                     }
                     final secret = await c.port.savedDisplayPassword(
@@ -264,15 +442,68 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
         style: TextStyle(fontWeight: FontWeight.w700),
       ),
       const SizedBox(height: 8),
-      Text(
-        adminSupported
-            ? 'W2 administration available. Changes disconnect the controller; make them between services.'
-            : 'Connect the supported W2 display to manage its Wi-Fi and device password.',
+      const Text(
+        'To change these settings, connect this phone to the sign’s Wi-Fi and connect the display in the app. End the service and stop sharing with paired devices first.',
       ),
-      if (c.state.session.active || c.pairing.hosting)
-        const Text(
-          'End the active service and stop sharing before changing controller settings.',
+      const SizedBox(height: 12),
+      LayoutBuilder(
+        builder: (context, space) => Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            SizedBox(
+              width: space.maxWidth < 280
+                  ? space.maxWidth
+                  : (space.maxWidth - 10) / 2,
+              child: OutlinedButton.icon(
+                onPressed: busy
+                    ? null
+                    : () => operation(() => c.port.openWifiSettings()),
+                icon: const Icon(Icons.wifi),
+                label: const Text('Open Wi-Fi', textAlign: TextAlign.center),
+              ),
+            ),
+            SizedBox(
+              width: space.maxWidth < 280
+                  ? space.maxWidth
+                  : (space.maxWidth - 10) / 2,
+              child: FilledButton.tonalIcon(
+                onPressed: busy || c.hardware.busy || c.hardware.sending
+                    ? null
+                    : connectFromSettings,
+                icon: const Icon(Icons.connected_tv),
+                label: Text(
+                  c.hardware.connected
+                      ? 'Connection details'
+                      : c.hardware.rememberedId.isEmpty
+                      ? 'Connect display'
+                      : 'Reconnect display',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
         ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        !c.hardware.connected
+            ? 'Connect the display to enable changes.'
+            : !wifiConnected
+            ? 'Wi-Fi is unavailable. Reconnect to the sign’s Wi-Fi.'
+            : !adminSupported
+            ? 'This controller does not report the supported administration capability.'
+            : c.state.session.active
+            ? 'End the current service to enable changes.'
+            : c.pairing.hosting
+            ? 'Stop sharing this service to enable changes.'
+            : 'Ready to manage this W2 controller.',
+      ),
+      TextButton.icon(
+        onPressed: busy ? null : () => readNetwork(),
+        icon: const Icon(Icons.refresh),
+        label: const Text('Refresh connection details'),
+      ),
       for (final item in [
         ('ssid', 'Wi-Fi name', Icons.wifi),
         ('wifiPassword', 'Wi-Fi password', Icons.wifi_password),
@@ -285,6 +516,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
           trailing: const Icon(Icons.chevron_right),
           enabled:
               adminSupported &&
+              wifiConnected &&
               !c.state.session.active &&
               !c.pairing.hosting &&
               !busy,
@@ -292,38 +524,48 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
         ),
       if (status != null) Text(status!),
       const SizedBox(height: 16),
-      OutlinedButton(
-        onPressed: busy || c.hardware.rememberedId.isEmpty
-            ? null
-            : () async {
-                final yes = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Forget this display?'),
-                    content: const Text(
-                      'Disconnect, remove its saved credential and return to the simulator. The physical sign retains its current output.',
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(
+          onPressed: busy || c.hardware.rememberedId.isEmpty
+              ? null
+              : () async {
+                  final yes = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Forget this display?'),
+                      content: const Text(
+                        'Disconnect, remove its saved credential and return to the simulator. The physical sign retains its current output.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Forget display'),
+                        ),
+                      ],
                     ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Forget display'),
-                      ),
-                    ],
-                  ),
-                );
-                if (yes == true)
-                  await operation(() async {
-                    await c.hardware.disconnect(simulator: true);
-                    await c.port.forgetDisplay();
-                    await c.hardware.initialize();
-                    if (mounted) setState(() => revealed = null);
-                  });
-              },
-        child: const Text('Forget display'),
+                  );
+                  if (yes == true)
+                    await operation(() async {
+                      await c.hardware.disconnect(simulator: true);
+                      await c.port.forgetDisplayPassword(
+                        'wifi:${c.hardware.rememberedId}',
+                      );
+                      await c.port.forgetDisplay();
+                      await c.hardware.initialize();
+                      if (mounted)
+                        setState(() {
+                          revealed = null;
+                          revealedWifi = null;
+                        });
+                    });
+                },
+          child: const Text('Forget display'),
+        ),
       ),
     ],
   );

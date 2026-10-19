@@ -4,6 +4,8 @@ import 'domain.dart';
 import 'package:nsd/nsd.dart' as nsd;
 
 abstract class DevicePort {
+  Future<void> setDisplayAutoReconnect(bool enabled) async {}
+  Future<Json> displayNetworkInfo({bool requestName = false}) async => {};
   Future<void> advertisePairHost(int port) async {}
   Future<void> stopPairAdvertisement() async {}
   Future<Json> administerDisplay(
@@ -62,6 +64,14 @@ abstract class DevicePort {
 }
 
 class AndroidPort extends DevicePort {
+  @override
+  Future<void> setDisplayAutoReconnect(bool enabled) =>
+      channel.invokeMethod<void>('w2AutoReconnect', enabled);
+  @override
+  Future<Json> displayNetworkInfo({bool requestName = false}) async =>
+      Map<String, dynamic>.from(
+        (await channel.invokeMethod<Map>('w2NetworkInfo', requestName)) ?? {},
+      );
   nsd.Registration? _pairRegistration;
   int _pairAdvertisementGeneration = 0;
   @override

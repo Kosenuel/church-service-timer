@@ -233,9 +233,9 @@ void main() {
       await t.pumpAndSettle();
       expect(c.state.session.paused, false);
       await tap(t, 'Cancel');
-      await tap(t, 'Blank sign');
+      await tap(t, 'Blank screen');
       expect(c.state.session.outputBlank, false);
-      await tap(t, 'Blank simulator');
+      await tap(t, 'Confirm blank');
       expect(c.state.session.outputBlank, true);
       await tap(t, 'Show timer');
       expect(c.state.session.outputBlank, false);

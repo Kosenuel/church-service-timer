@@ -164,13 +164,15 @@ void main() {
       expect(c.state.session.timeline!.display.warnings, isEmpty);
     },
   );
-  test('Offline cues are refused and never become pending output', () async {
+  test('Offline LED sign does not block service and paired-screen cues', () async {
     final p = W2Port();
     final c = await setup(p);
     addTearDown(c.dispose);
     await c.hardware.disconnect();
-    expect(await c.act('cue', value: const TextLayout('AMEN')), false);
-    expect(c.state.session.alert, isNull);
+    expect(await c.act('cue', value: const TextLayout('AMEN')), true);
+    expect(c.state.session.alert!.text, 'AMEN');
+    expect(c.pairedSnapshot(false)['displayText'], 'AMEN');
+    expect(p.sent.length, 1);
   });
   test('Font labels change while persisted font IDs remain compatible', () {
     expect(displayFontNames['cuekeeper_matrix'], 'I-Proton Matrix');
@@ -273,7 +275,7 @@ void main() {
       expect(host.localControl, false);
       expect(operator.snapshot!['notes'], 'PRIVATE');
       await operator.sendCommand('pause', null, expectedRevision: 2);
-      await until(() => operator.requestResult.startsWith('Command not'));
+      await until(() => operator.requestResult.startsWith('Action unavailable'));
       expect(commands, 0);
       await operator.sendCommand('pause', null);
       await until(() => commands == 1);

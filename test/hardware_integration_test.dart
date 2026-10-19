@@ -191,14 +191,9 @@ void main() {
       });
       await tester.pumpWidget(TimerApp(controller: c));
       await tester.pumpAndSettle();
-      expect(find.textContaining('WARN · 09:30 remaining'), findsOneWidget);
-      expect(find.textContaining('stage cue for 8 seconds'), findsOneWidget);
-      expect(
-        find.text(
-          'Stage warnings return to the current countdown. Updates may blink briefly.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Dismiss warning'), findsNothing);
+      expect(c.hardware.accepted!.layout?.text, 'WARN');
+      expect(c.hardware.accepted!.reason, HardwareOutputReason.automaticCue);
       expect(port.sent.length, 2);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
@@ -292,8 +287,8 @@ void main() {
       await flush();
       expect(c.hardware.connected, false);
       expect(c.hardware.held, true);
-      for (var i = 1; i < 5; i++) {
-        port.at = after(i);
+      for (var i = 1; i < 10; i++) {
+        port.at = Stamp(start.mono + i * 100, start.wall + i * 100, start.boot);
         await c.tick();
       }
       expect(port.sent.length, 2);
@@ -333,6 +328,8 @@ void main() {
     port.reachable = false;
     port.at = after(10);
     await c.hardware.check(port.at);
+    await c.hardware.check(after(12));
+    await c.hardware.check(after(14));
     expect(c.hardware.connected, false);
     port.reachable = true;
     await c.hardware.discover();

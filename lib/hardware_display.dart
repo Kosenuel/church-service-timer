@@ -15,6 +15,21 @@ class HardwareDisplay extends ChangeNotifier {
   final DevicePort port;
   bool enabled = false, connected = false, held = true;
   bool busy = false, sending = false, _checking = false, _disposed = false;
+  bool autoReconnect = true, interrupted = false, credentialsNeeded = false;
+  int _failures = 0, _attempt = 0, _nextRetry = 0, _intent = 0;
+  String? _sessionPassword, _restoreSession;
+  Stamp? _lostAt;
+  final List<String> diagnostics = [];
+  bool get retryEnabled =>
+      enabled && autoReconnect && !credentialsNeeded && rememberedId.isNotEmpty;
+  void record(String message) {
+    diagnostics.insert(
+      0,
+      '${DateTime.now().toIso8601String().substring(11, 19)} · $message',
+    );
+    if (diagnostics.length > 20) diagnostics.removeLast();
+  }
+
   int generation = 0, _epoch = 0, _lastCheck = -10000;
   String rememberedId = '',
       rememberedName = '',
@@ -48,6 +63,7 @@ class HardwareDisplay extends ChangeNotifier {
     enabled = p['hardware'] == true;
     rememberedId = p['id'] as String? ?? '';
     rememberedName = p['name'] as String? ?? '';
+    autoReconnect = p['autoReconnect'] != false;
     if (enabled) status = 'Reconnect and review before restoring output';
     changed();
   }
@@ -70,7 +86,11 @@ class HardwareDisplay extends ChangeNotifier {
     }
   }
 
-  Future<bool> connect(String id, String password) async {
+  Future<bool> connect(
+    String id,
+    String password, {
+    bool recovering = false,
+  }) async {
     if (busy || sending) return false;
     busy = true;
     connected = false;
@@ -79,11 +99,12 @@ class HardwareDisplay extends ChangeNotifier {
     accepted = null;
     timingApprovedSession = null;
     final epoch = ++_epoch;
+    final intent = _intent;
     status = 'Connecting…';
     changed();
     try {
       final p = await port.connectDisplay(id, password);
-      if (epoch != _epoch || _disposed) {
+      if (epoch != _epoch || intent != _intent || _disposed) {
         await port.disconnectDisplay();
         return false;
       }
@@ -92,20 +113,63 @@ class HardwareDisplay extends ChangeNotifier {
       enabled = connected = true;
       rememberedId = id;
       rememberedName = p['name'] as String;
+      _sessionPassword = password;
+      autoReconnect = true;
+      credentialsNeeded = interrupted = false;
+      _failures = _attempt = 0;
+      await port.setDisplayAutoReconnect(true);
+      if (intent != _intent || _disposed) return false;
       status = 'Connected · output held for review';
-      event('connection', 'Display connected · output held for review');
+      final latest = _latest;
+      if (recovering &&
+          latest != null &&
+          latest.active &&
+          latest.id == _restoreSession &&
+          !latest.held &&
+          !latest.uncertain &&
+          _lostAt != null &&
+          _now != null &&
+          _now!.sameBoot(_lostAt!) &&
+          _now!.since(_lostAt!) < recoveryLimitMs) {
+        held = false;
+        status = 'Reconnected · restoring current output';
+      }
+      _restoreSession = null;
+      _lostAt = null;
+      record(recovering ? 'LED sign reconnected' : 'LED sign connected');
+      event('connection', status);
       _lastCheck = -10000;
       return true;
     } catch (e) {
-      status = 'Connection failed: $e';
+      if (intent != _intent || _disposed) return false;
+      final rejected = e.toString().toLowerCase().contains('password');
+      if (rejected) {
+        credentialsNeeded = true;
+        _sessionPassword = null;
+      }
+      status = rejected
+          ? 'Password rejected · enter the current device password'
+          : 'LED sign unavailable · retrying connection';
+      record(
+        rejected
+            ? 'Authentication rejected; automatic retries stopped'
+            : 'LED sign connection attempt failed',
+      );
       return false;
     } finally {
       busy = false;
       changed();
+      if (!_disposed && _latest != null && _now != null)
+        reconcile(_latest!, _now!);
     }
   }
 
   Future<void> disconnect({bool simulator = false}) async {
+    _intent++;
+    autoReconnect = false;
+    credentialsNeeded = interrupted = false;
+    _sessionPassword = _restoreSession = null;
+    _lostAt = null;
     ++_epoch;
     connected = false;
     held = true;
@@ -113,8 +177,10 @@ class HardwareDisplay extends ChangeNotifier {
     timingApprovedSession = null;
     status = 'Disconnected · the sign may retain its last accepted output';
     event('connection', 'Display disconnected · last output may remain');
+    record('Disconnected by operator · automatic retries stopped');
     changed();
     try {
+      await port.setDisplayAutoReconnect(false);
       if (simulator) {
         await port.useSimulator();
         enabled = false;
@@ -133,6 +199,7 @@ class HardwareDisplay extends ChangeNotifier {
     held = true;
     _confirmed = null;
     timingApprovedSession = null;
+    _restoreSession = null;
     status = reason;
     event('hold', reason);
     changed();
@@ -148,12 +215,23 @@ class HardwareDisplay extends ChangeNotifier {
   }
 
   Future<void> check(Stamp at) async {
+    _now = at;
+    if (!connected) {
+      if (retryEnabled &&
+          !busy &&
+          !sending &&
+          !_checking &&
+          at.mono >= _nextRetry) {
+        await reconnectSaved(automatic: true);
+      }
+      return;
+    }
     if (!enabled ||
         !connected ||
         busy ||
         sending ||
         _checking ||
-        at.mono - _lastCheck < 5000)
+        at.mono - _lastCheck < (interrupted ? 2000 : 5000))
       return;
     _checking = true;
     _lastCheck = at.mono;
@@ -162,19 +240,99 @@ class HardwareDisplay extends ChangeNotifier {
       final result = await port.checkDisplay();
       if (epoch != _epoch || _disposed) return;
       if (result['connected'] != true || result['generation'] != generation) {
-        connected = false;
-        hold(
-          'Connection lost · the sign may still show its last accepted output. Reconnect and restore the timer.',
+        await _missedCheck(
+          result['reason'] as String? ?? 'Controller reply missing',
         );
+      } else if (interrupted) {
+        interrupted = false;
+        _failures = 0;
+        status = 'Display connected';
+        record('LED sign responded during connection grace period');
+        changed();
       }
     } catch (_) {
       if (epoch == _epoch && !_disposed) {
-        connected = false;
-        hold('Display unreachable · reconnect and review output');
+        await _missedCheck('Controller health check failed');
       }
     } finally {
       _checking = false;
+    }
+  }
+
+  Future<void> _missedCheck(String reason) async {
+    interrupted = true;
+    _failures++;
+    status = 'Connection interrupted · checking display…';
+    if (_failures == 1) record(reason);
+    if (_failures >= 3) {
+      _loseConnection('LED sign unreachable');
+      await port.disconnectDisplay();
+    }
+    changed();
+  }
+
+  void _loseConnection(String reason) {
+    if (!held && _latest?.active == true) _restoreSession = _latest!.id;
+    _lostAt ??= _now;
+    connected = false;
+    held = true;
+    interrupted = false;
+    _confirmed = null;
+    ++_epoch;
+    _nextRetry = (_now?.mono ?? 0) + 2000;
+    status = autoReconnect ? '$reason · retrying…' : reason;
+    record(status);
+    event('connection', reason);
+  }
+
+  /// Re-authenticate only the remembered controller. Never replay a saved upload.
+  Future<bool> reconnectSaved({bool automatic = false}) async {
+    if (_disposed || busy || sending || _checking || rememberedId.isEmpty)
+      return false;
+    if (automatic && !retryEnabled) return false;
+    if (!automatic) {
+      _intent++;
+      autoReconnect = true;
+      credentialsNeeded = false;
+    }
+    final intent = _intent;
+    _checking = true;
+    status = 'Reconnecting display…';
+    changed();
+    try {
+      // Reserve the operation before persistence can yield to a clock tick.
+      // Otherwise a background retry can race a manual reconnection.
+      if (!automatic) await port.setDisplayAutoReconnect(true);
+      if (intent != _intent || _disposed) return false;
+      final secret =
+          _sessionPassword ?? await port.savedDisplayPassword(rememberedId);
+      if (intent != _intent || _disposed) return false;
+      if (secret == null) {
+        credentialsNeeded = true;
+        status = 'Enter the device password to reconnect';
+        return false;
+      }
+      final found = await port.discoverDisplays();
+      if (intent != _intent || _disposed) return false;
+      if (!found.any(
+        (d) => d['id'] == rememberedId && d['supported'] == true,
+      )) {
+        status = 'Remembered display unavailable · retrying…';
+        return false;
+      }
+      devices = found;
+      return await connect(rememberedId, secret, recovering: true);
+    } catch (_) {
+      if (intent == _intent) status = 'LED sign unavailable · retrying…';
+      return false;
+    } finally {
+      _checking = false;
+      _attempt = (_attempt + 1).clamp(1, 5);
+      _nextRetry =
+          (_now?.mono ?? 0) + [0, 2000, 4000, 8000, 16000, 30000][_attempt];
       changed();
+      if (!_disposed && _latest != null && _now != null)
+        reconcile(_latest!, _now!);
     }
   }
 
@@ -245,7 +403,14 @@ class HardwareDisplay extends ChangeNotifier {
   void reconcile(Session s, Stamp at) {
     _latest = s;
     _now = at;
-    if (!enabled || !connected || held || busy || sending || _disposed) return;
+    if (!enabled ||
+        !connected ||
+        interrupted ||
+        held ||
+        busy ||
+        sending ||
+        _disposed)
+      return;
     final p = _plan(s, at);
     if (p.kind == HardwareOutputKind.blocked) {
       hold(
@@ -353,10 +518,7 @@ class HardwareDisplay extends ChangeNotifier {
     } catch (e) {
       if (epoch == _epoch && !_disposed) {
         _confirmed = null;
-        connected = false;
-        held = true;
-        ++_epoch;
-        status = 'Update not confirmed: $e';
+        _loseConnection('Display update not confirmed');
         event(
           'failed',
           'Display update not confirmed · reconnect and review',
@@ -377,6 +539,8 @@ class HardwareDisplay extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _intent++;
+    _sessionPassword = null;
     ++_epoch;
     unawaited(port.disconnectDisplay().catchError((_) {}));
     super.dispose();

@@ -23,7 +23,7 @@ class SettingsPort extends FakePort {
   }
 
   @override
-  Future<String> installedVersion() async => '0.13.0 (13)';
+  Future<String> installedVersion() async => '0.14.0 (14)';
   @override
   Future<Map<String, dynamic>?> pickBackup() async => backup;
   @override
@@ -71,9 +71,9 @@ void main() {
     () {
       expect(
         File('pubspec.yaml').readAsStringSync(),
-        contains('version: 0.13.0+13'),
+        contains('version: 0.14.0+14'),
       );
-      expect(appVersion, '0.13.0 (13)');
+      expect(appVersion, '0.14.0 (14)');
       expect(
         File('android/app/src/main/AndroidManifest.xml').readAsStringSync(),
         contains('android:label="$appName"'),
@@ -217,7 +217,7 @@ void main() {
       await t.tap(find.text('About'));
       await t.pumpAndSettle();
       expect(find.text('Created by I-Proton'), findsOneWidget);
-      expect(find.text('Version 0.13.0 (13)'), findsOneWidget);
+      expect(find.text('Version 0.14.0 (14)'), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/about-phone.png'),

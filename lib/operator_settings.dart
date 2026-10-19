@@ -4,14 +4,18 @@ extension OperatorSettings on _HomeState {
   Widget deviceManagement() => DeviceManagementPanel(controller: c);
 
   Future<void> sendPreparedCue(TextLayout cue) async {
-    if (c.hardware.enabled && (!c.hardware.connected || c.hardware.held)) {
-      await showError(
-        'Reconnect and restore the display before sending a cue. Nothing was queued.',
-      );
-      return;
-    }
     if (!await c.act('cue', value: cue) && mounted) {
       await showError(c.error ?? 'The cue could not be sent.');
+    } else if (mounted &&
+        c.hardware.enabled &&
+        (!c.hardware.connected || c.hardware.held)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cue applied to the service and paired screens · LED sign unavailable or held',
+          ),
+        ),
+      );
     }
   }
 
@@ -62,7 +66,9 @@ extension OperatorSettings on _HomeState {
         padding: EdgeInsets.zero,
         child: Column(
           children: [
-            for (final e in c.state.stageCues.asMap().entries)
+            for (final e in c.state.stageCues.asMap().entries) ...[
+              if (e.key > 0)
+                const Divider(height: 1, indent: 16, endIndent: 16),
               ListTile(
                 title: Text(e.value.text),
                 subtitle: Text(
@@ -118,6 +124,7 @@ extension OperatorSettings on _HomeState {
                   ],
                 ),
               ),
+            ],
           ],
         ),
       ),

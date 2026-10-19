@@ -1,7 +1,7 @@
 part of 'domain.dart';
 
 const appName = 'Church Service Timer';
-const appVersion = '0.13.0 (13)';
+const appVersion = '0.14.0 (14)';
 const themeIds = {
   'midnight_lime',
   'royal_navy',

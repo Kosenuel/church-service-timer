@@ -201,17 +201,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> startFirst() async {
     final s = c.state.session, revision = c.state.session.revision;
-    final stageWarnings = s.timeline!.display.warnings.where(
-      (w) => w.enabled && w.destination == 'stage',
-    );
-    final warningSummary = stageWarnings.isEmpty
-        ? ''
-        : '\n\nAutomatic stage warnings:\n${stageWarnings.map((w) => '${formatTime(w.seconds * 1000)} — ${styleSummary(w.cue)}').join('\n')}';
     if (await confirm(
       'Start ${s.timeline!.segments.first.name}?',
       c.hardware.enabled
-          ? '${c.hardware.connected ? 'Send the countdown to ${c.hardware.rememberedName}.' : 'The display is disconnected. Timing will start locally; connect and restore the timer to send it.'}\n\nNormal speed and up to 59:59 remaining are supported. Updates may blink briefly. Automatic stage warnings return to the current countdown. A persistent notification keeps connected-display timing active when the phone locks. Connection loss or stopping the app requires review; a cue may remain until restored.'
-          : '${s.rehearsal ? 'REHEARSAL: time will run ${s.rate}× faster. Reports will be marked as rehearsal.\n\n' : ''}This session uses the simulator only.$warningSummary\n\n${s.disconnected ? 'The simulator is disconnected. Timing will start, but its output will stay unchanged.\n\n' : ''}Accept these layouts for this simulated service?',
+          ? (c.hardware.connected
+                ? 'Start the countdown on ${c.hardware.rememberedName}.'
+                : 'Start timing on this phone. The LED sign is disconnected.')
+          : '${s.rehearsal ? 'Rehearsal · ${s.rate}× speed. ' : ''}${s.disconnected ? 'Start timing on this phone. The simulator is disconnected.' : 'Start timing with the display simulator.'}',
       'Start first segment',
     ))
       await c.act('start', revision: revision);
@@ -513,7 +509,27 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           label: Text(text),
         );
 
-  Widget live() {
+  Widget live() => AnimatedBuilder(
+    animation: c.liveClock,
+    builder: (context, _) => liveContent(),
+  );
+
+  Widget liveMatrix() => RepaintBoundary(
+    child: AnimatedBuilder(
+      animation: c.previewClock,
+      builder: (context, _) => LedMatrix(
+        pixels: c.hardware.enabled
+            ? c.hardware.preview(c.now)
+            : c.simulator.pixels,
+        hardware: c.hardware.enabled,
+        stale: c.hardware.enabled
+            ? c.hardware.held || !c.hardware.connected || c.hardware.interrupted
+            : c.state.session.held || c.state.session.disconnected,
+      ),
+    ),
+  );
+
+  Widget liveContent() {
     final s = c.state.session, t = s.timeline;
     final enabled =
         s.active &&
@@ -686,15 +702,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         children: [
           DisplayPreviewHeader(connection: c.displayConnection),
           const SizedBox(height: 14),
-          LedMatrix(
-            pixels: c.hardware.enabled
-                ? c.hardware.preview(c.now)
-                : c.simulator.pixels,
-            hardware: c.hardware.enabled,
-            stale: c.hardware.enabled
-                ? c.hardware.held || !c.hardware.connected
-                : s.held || s.disconnected,
-          ),
+          liveMatrix(),
           const SizedBox(height: 12),
           Text(
             '32 × 16 · ${c.state.pixelShape == 'square' ? 'Square' : 'Circular'} LEDs',
@@ -754,6 +762,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           Row(
             children: [
               Expanded(child: label('Stage cues')),
+              TextButton(
+                onPressed: controlsLocked
+                    ? null
+                    : () => openSettingsDetail('Stage cues', stageCueSettings),
+                child: const Text(
+                  'Manage cues',
+                  style: TextStyle(decoration: TextDecoration.underline),
+                ),
+              ),
               if (s.alert != null)
                 Icon(
                   Icons.chat_bubble_outline,
@@ -785,35 +802,46 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             style: TextStyle(color: appColors(context).muted, fontSize: 13),
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          ControlGrid(
             children: c.state.stageCues
                 .asMap()
                 .entries
                 .map(
-                  (e) => button(
-                    e.value.text,
-                    Icons.chat_bubble_outline,
-                    enabled && !c.hardware.sending
-                        ? () => sendPreparedCue(e.value)
-                        : null,
+                  (e) => Tooltip(
+                    message: e.value.text,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 60),
+                        backgroundColor:
+                            s.alert?.toJson().toString() ==
+                                e.value.toJson().toString()
+                            ? appColors(context).accent.withValues(alpha: .16)
+                            : null,
+                      ),
+                      icon: Icon(
+                        s.alert?.toJson().toString() ==
+                                e.value.toJson().toString()
+                            ? Icons.check_circle_outline
+                            : Icons.chat_bubble_outline,
+                        size: 20,
+                      ),
+                      label: Text(
+                        e.value.text,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                      onPressed: enabled && !c.hardware.sending
+                          ? () => sendPreparedCue(e.value)
+                          : null,
+                    ),
                   ),
                 )
                 .toList(),
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          ControlGrid(
             children: [
-              button(
-                'Manage cues',
-                Icons.edit_outlined,
-                controlsLocked
-                    ? null
-                    : () => openSettingsDetail('Stage cues', stageCueSettings),
-              ),
               button(
                 'Show timer',
                 Icons.timer_outlined,
@@ -826,24 +854,27 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 primary: s.alert != null || s.outputBlank,
               ),
               button(
-                'Show cue',
-                Icons.chat_bubble_outline,
-                enabled ? chooseStageCue : null,
-              ),
-              button(
-                'Blank sign',
-                Icons.tv_off_outlined,
-                enabled && !s.outputBlank
+                s.outputBlank ? 'Unblank screen' : 'Blank screen',
+                s.outputBlank ? Icons.tv_outlined : Icons.tv_off_outlined,
+                (s.active || s.phase == 'ended') &&
+                        !c.busy &&
+                        !c.corrupt &&
+                        !controlsLocked &&
+                        c.pairing.localControl
                     ? () async {
                         final revision = s.revision;
                         if (await confirmTimer(
                           revision: revision,
-                          title: 'Blank the display?',
-                          action: c.hardware.enabled
-                              ? 'Blank display'
-                              : 'Blank simulator',
+                          title: s.outputBlank
+                              ? 'Unblank the display?'
+                              : 'Blank the display?',
+                          action: s.outputBlank
+                              ? 'Confirm unblank'
+                              : 'Confirm blank',
                           content: () => Text(
-                            'Clear the ${c.hardware.enabled ? 'display' : 'simulator'} while timing continues. Automatic stage cues stay hidden until you choose Show timer or send a cue. Phone warnings remain enabled.',
+                            s.outputBlank
+                                ? 'Show the current cue, countdown or service end screen again.'
+                                : 'Blank the screen. Timing and phone warnings continue; tap Unblank screen to restore the current output.',
                           ),
                         ))
                           await c.act('blank', revision: revision);
@@ -922,7 +953,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               ],
             ),
           ),
-          if (c.displayConnection == DisplayConnection.disconnected &&
+          if (!c.hardware.enabled &&
+              c.displayConnection == DisplayConnection.disconnected &&
               (s.active || s.phase == 'ended'))
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
@@ -948,13 +980,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                               color: appColors(context).error,
                               fontWeight: FontWeight.w600,
                             ),
-                          ),
-                          Text(
-                            '${c.hardware.enabled ? 'The sign may retain its last accepted output.' : 'Simulator output is paused.'} ${s.active
-                                ? s.paused
-                                      ? 'The timer is paused.'
-                                      : 'Timing continues.'
-                                : 'The service has ended.'}',
                           ),
                         ],
                       ),
@@ -1029,15 +1054,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 320),
-                      child: LedMatrix(
-                        pixels: c.hardware.enabled
-                            ? c.hardware.preview(c.now)
-                            : c.simulator.pixels,
-                        hardware: c.hardware.enabled,
-                        stale: c.hardware.enabled
-                            ? c.hardware.held || !c.hardware.connected
-                            : s.held || s.disconnected,
-                      ),
+                      child: liveMatrix(),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1072,32 +1089,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             timingOverview(),
             const SizedBox(height: 16),
           ],
-          if (s.warningNotice != null) ...[
-            panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  label('Automatic warning'),
-                  const SizedBox(height: 8),
-                  Text(
-                    s.warningNotice!,
-                    style: TextStyle(color: appColors(context).warning),
-                  ),
-                  if (c.hardware.enabled)
-                    Text(
-                      c.hardware.held || !c.hardware.connected
-                          ? 'Stage output is held. Reconnect and review before restoring.'
-                          : 'Stage warnings return to the current countdown. Updates may blink briefly.',
-                    ),
-                  TextButton(
-                    onPressed: c.busy ? null : () => c.act('dismissWarning'),
-                    child: const Text('Dismiss warning'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
           cuePanel,
           if (t != null) ...[
             const SizedBox(height: 20),
@@ -1106,29 +1097,24 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   label('Service rundown · snapshot'),
-                  if (s.active)
-                    Wrap(
-                      spacing: 8,
-                      children: [
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      if (s.active)
                         TextButton.icon(
                           onPressed: enabled ? editUpcoming : null,
                           icon: const Icon(Icons.edit_calendar_outlined),
                           label: const Text('Edit upcoming'),
                         ),
-                        TextButton.icon(
-                          onPressed: enabled ? finishPlanning : null,
-                          icon: const Icon(Icons.schedule),
-                          label: const Text('Plan finish'),
-                        ),
-                        TextButton.icon(
-                          onPressed: controlsLocked
-                              ? null
-                              : () => printServiceSheet(t),
-                          icon: const Icon(Icons.print_outlined),
-                          label: const Text('Service sheet'),
-                        ),
-                      ],
-                    ),
+                      TextButton.icon(
+                        onPressed: controlsLocked
+                            ? null
+                            : () => printServiceSheet(t),
+                        icon: const Icon(Icons.print_outlined),
+                        label: const Text('Print Service'),
+                      ),
+                    ],
+                  ),
                   if (s.targetFinishWall != null)
                     Text(
                       'Target finish ${clockLabel(s.targetFinishWall!)} · actual finish depends on manual advances',
@@ -1272,7 +1258,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       bottom: Radius.circular(26),
                     ),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -1563,6 +1549,7 @@ class _TextComposerState extends State<TextComposer> {
   String? fontRequest, fontError;
   late int height, speed;
   final watch = Stopwatch()..start();
+  final previewTick = ValueNotifier<int>(0);
   Timer? ticker;
   @override
   void initState() {
@@ -1577,13 +1564,14 @@ class _TextComposerState extends State<TextComposer> {
     speed = l.speed;
     font = l.font;
     ticker = Timer.periodic(const Duration(milliseconds: 80), (_) {
-      if (mounted) setState(() {});
+      if (mounted) previewTick.value++;
     });
   }
 
   @override
   void dispose() {
     ticker?.cancel();
+    previewTick.dispose();
     text.dispose();
     super.dispose();
   }
@@ -1631,10 +1619,15 @@ class _TextComposerState extends State<TextComposer> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              LedMatrix(
-                pixels: error == null
-                    ? renderPixels(layout, watch.elapsedMilliseconds)
-                    : List.filled(512, false),
+              RepaintBoundary(
+                child: ValueListenableBuilder<int>(
+                  valueListenable: previewTick,
+                  builder: (context, _, child) => LedMatrix(
+                    pixels: error == null
+                        ? renderPixels(layout, watch.elapsedMilliseconds)
+                        : List.filled(512, false),
+                  ),
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -2135,5 +2128,38 @@ class _TemplateEditorState extends State<TemplateEditor> {
         ],
       ),
     ),
+  );
+}
+
+/// Equal-width controls that wrap cleanly at narrow widths and large text sizes.
+class ControlGrid extends StatelessWidget {
+  final List<Widget> children;
+  const ControlGrid({super.key, required this.children});
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, space) {
+      final minimum = MediaQuery.textScalerOf(
+        context,
+      ).scale(118).clamp(118.0, 220.0);
+      final columns = ((space.maxWidth + 10) / (minimum + 10)).floor().clamp(
+        1,
+        3,
+      );
+      final width = (space.maxWidth - 10 * (columns - 1)) / columns;
+      return Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          for (final child in children)
+            SizedBox(
+              width: width,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 52),
+                child: child,
+              ),
+            ),
+        ],
+      );
+    },
   );
 }

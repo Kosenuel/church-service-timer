@@ -59,6 +59,9 @@ class AppController extends ChangeNotifier {
   late AppState state;
   Stamp now = const Stamp(0, 0, 'unknown');
   final simulator = Simulator();
+  final liveClock = ChangeNotifier();
+  final previewClock = ChangeNotifier();
+  int _lastVisibleSecond = -1;
   late final HardwareDisplay hardware;
   bool ready = false,
       busy = false,
@@ -93,9 +96,15 @@ class AppController extends ChangeNotifier {
 
   Future<void> syncActiveService() async {
     final desired =
-        state.session.active &&
-        ((hardware.enabled && hardware.connected && !hardware.held) ||
-            pairing.hosting);
+        pairing.hosting ||
+        pairing.joined ||
+        (state.session.active &&
+            hardware.enabled &&
+            ((hardware.connected && !hardware.held) ||
+                (!hardware.connected &&
+                    hardware.retryEnabled &&
+                    !state.session.held &&
+                    !_needsRecovery)));
     if (desired == backgroundActive) return;
     try {
       backgroundActive = await port.setActiveService(desired);
@@ -124,6 +133,7 @@ class AppController extends ChangeNotifier {
     final display = s.intended(now);
     return {
       'revision': s.revision,
+      'session': s.id,
       'service': t?.name ?? 'Standing by',
       'church': state.churchName,
       'segment': t == null ? '' : t.segments[s.index].name,
@@ -151,6 +161,10 @@ class AppController extends ChangeNotifier {
           },
       ],
       if (privateNotes) 'cues': [for (final cue in state.stageCues) cue.text],
+      if (privateNotes)
+        'cueVersions': [
+          for (final cue in state.stageCues) jsonEncode(cue.toJson()),
+        ],
     };
   }
 
@@ -201,17 +215,46 @@ class AppController extends ChangeNotifier {
             'blank',
             'end',
           }.contains(action) ||
-          busy)
+          busy) {
+        error = busy
+            ? 'Host is saving another action. Try again.'
+            : 'This action is unavailable.';
         return false;
+      }
       if (action == 'adjust' && (value is! int || value.abs() > 3600))
         return false;
       if (action == 'cue') {
+        if (value is Map) {
+          if (value['session'] != state.session.id ||
+              value['segment'] != state.session.index) {
+            error =
+                'The service or segment changed. Review the current service.';
+            return false;
+          }
+          final i = value['index'];
+          if (i is! int ||
+              i < 0 ||
+              i >= state.stageCues.length ||
+              value['version'] != jsonEncode(state.stageCues[i].toJson())) {
+            error = 'This prepared cue changed. Select its updated button.';
+            return false;
+          }
+          value = i;
+          revision = state.session.revision;
+        }
         if (value is! int || value < 0 || value >= state.stageCues.length)
           return false;
         value = state.stageCues[value];
       }
       return await act(action, value: value, revision: revision, remote: true);
     };
+    pairing.commandMessage = (ok, action) => !ok
+        ? (error ?? 'Action unavailable. Review the host service.')
+        : action == 'cue' &&
+              hardware.enabled &&
+              (!hardware.connected || hardware.held || hardware.interrupted)
+        ? 'Cue applied to the service and paired screens · LED sign unavailable or held'
+        : 'Command applied';
     hardware = HardwareDisplay(port)..addListener(_hardwareChanged);
     hardware.onEvent = (session, kind, message) {
       if (_events.length < 2000)
@@ -238,14 +281,7 @@ class AppController extends ChangeNotifier {
     });
   }
   void _hardwareChanged() {
-    if (backgroundActive &&
-        !pairing.hosting &&
-        (!hardware.connected || hardware.held)) {
-      backgroundActive = false;
-      if (!_foreground) _needsRecovery = true;
-      unawaited(port.setActiveService(false));
-      if (ready && !busy) unawaited(checkpoint());
-    }
+    if (ready) unawaited(syncActiveService());
     if (!_disposed) notifyListeners();
   }
 
@@ -373,7 +409,14 @@ class AppController extends ChangeNotifier {
             (state.session.active || state.session.phase == 'ended'))
           await checkpoint();
       }
-      if (!_disposed) notifyListeners();
+      if (!_disposed) {
+        previewClock.notifyListeners();
+        final second = now.mono ~/ 1000;
+        if (second != _lastVisibleSecond) {
+          _lastVisibleSecond = second;
+          liveClock.notifyListeners();
+        }
+      }
     } catch (e) {
       error = 'Clock or activity checkpoint unavailable: $e';
     } finally {
@@ -472,14 +515,6 @@ class AppController extends ChangeNotifier {
       return false;
     }
     final controlEpoch = pairing.epoch;
-    if (action == 'cue' &&
-        hardware.enabled &&
-        (!hardware.connected || hardware.held)) {
-      error =
-          'Reconnect and restore output before sending a cue. Nothing was queued.';
-      notifyListeners();
-      return false;
-    }
     final saved = await commit((draft, at) {
       require(
         controlEpoch == pairing.epoch &&
@@ -853,6 +888,8 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
+    liveClock.dispose();
+    previewClock.dispose();
     _disposed = true;
     pairing.dispose();
     port.setBackgroundHandler(null);

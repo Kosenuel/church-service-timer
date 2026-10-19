@@ -52,7 +52,7 @@ extension PairingViews on _HomeState {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Keep this host phone running. Pairing codes expire after 10 minutes; approved connections last until disconnected.',
+                'Keep this host phone running. Pairing codes expire after 10 minutes. Approved devices reconnect automatically during this host session; control must be granted again after a lost link.',
               ),
               const SizedBox(height: 12),
               Semantics(
@@ -94,6 +94,7 @@ extension PairingViews on _HomeState {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
               if (!c.pairing.localControl)
                 FilledButton(
                   onPressed: () async {
@@ -583,9 +584,104 @@ class _PairScannerPageState extends State<PairScannerPage> {
   );
 }
 
-class PairedScreen extends StatelessWidget {
+class PairedScreen extends StatefulWidget {
   final AppController controller;
   const PairedScreen({super.key, required this.controller});
+  @override
+  State<PairedScreen> createState() => _PairedScreenState();
+}
+
+class _PairedScreenState extends State<PairedScreen> {
+  AppController get controller => widget.controller;
+  bool _stage = false, _showTools = true;
+  Timer? _hideTools;
+  @override
+  void initState() {
+    super.initState();
+    controller.pairing.addListener(updateMode);
+    updateMode();
+  }
+
+  void updateMode() {
+    final next = controller.pairing.mode == 'stage';
+    if (_stage == next) return;
+    _stage = next;
+    unawaited(
+      SystemChrome.setPreferredOrientations(
+        next
+            ? [
+                DeviceOrientation.landscapeLeft,
+                DeviceOrientation.landscapeRight,
+              ]
+            : [],
+      ),
+    );
+    unawaited(
+      SystemChrome.setEnabledSystemUIMode(
+        next ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+      ),
+    );
+    if (next) revealTools();
+  }
+
+  void revealTools() {
+    _hideTools?.cancel();
+    if (mounted) setState(() => _showTools = true);
+    _hideTools = Timer(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _showTools = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    controller.pairing.removeListener(updateMode);
+    _hideTools?.cancel();
+    if (_stage) {
+      unawaited(SystemChrome.setPreferredOrientations([]));
+      unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
+    }
+    super.dispose();
+  }
+
+  Future<void> leave() async {
+    if (controller.pairing.canControl) {
+      final yes = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Leave paired service?'),
+          content: const Text(
+            'Control returns to the host. Its service keeps running.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Stay'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Leave'),
+            ),
+          ],
+        ),
+      );
+      if (yes != true) return;
+    }
+    await controller.pairing.stop();
+  }
+
+  Widget leaveButton() => Tooltip(
+    message: 'Leave paired service',
+    child: TextButton(
+      onPressed: leave,
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.close, size: 22),
+          Text('Leave', style: TextStyle(fontSize: 11)),
+        ],
+      ),
+    ),
+  );
   Future<void> action(
     BuildContext context,
     String label,
@@ -635,6 +731,69 @@ class PairedScreen extends StatelessWidget {
     final hub = controller.pairing, data = controller.pairing.snapshot;
     final stage = hub.mode == 'stage', stale = hub.stale;
     final rows = (data?['rundown'] as List?) ?? [];
+    if (stage)
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: revealTools,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: data == null
+                      ? Text(
+                          hub.status,
+                          style: const TextStyle(color: Colors.white),
+                        )
+                      : data['blank'] == true
+                      ? const SizedBox.expand()
+                      : StageMessage(
+                          data: data,
+                          stale: stale,
+                          fullscreen: true,
+                        ),
+                ),
+              ),
+              if (_showTools || stale)
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 12),
+                        FilledButton.tonalIcon(
+                          onPressed: () => hub.showStage(false),
+                          icon: const Icon(Icons.view_list),
+                          label: const Text('Back to service overview'),
+                        ),
+                        const Spacer(),
+                        leaveButton(),
+                        const SizedBox(width: 12),
+                      ],
+                    ),
+                  ),
+                ),
+              if (stale)
+                const Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text(
+                      'Host disconnected · last received display',
+                      style: TextStyle(
+                        color: Colors.amber,
+                        backgroundColor: Colors.black,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
     Widget content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -714,7 +873,7 @@ class PairedScreen extends StatelessWidget {
         ),
         if (!stage && data != null) ...[
           Text(
-            'Stage connection: ${data['connection'] ?? 'Unknown'}',
+            'LED sign: ${data['connection'] ?? 'Unknown'}',
             textAlign: TextAlign.center,
           ),
           if (hub.mode == 'operator' && !hub.canControl)
@@ -726,44 +885,120 @@ class PairedScreen extends StatelessWidget {
             const Text(
               'You control this service. The host phone must stay connected.',
             ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final item in [
-                  ('−2 min', 'adjust', -120),
-                  (data['paused'] == true ? 'Resume' : 'Pause', 'pause', null),
-                  ('+2 min', 'adjust', 120),
-                  ('Next segment', 'advance', false),
-                  ('Show timer', 'timer', null),
-                  ('Blank sign', 'blank', null),
-                  ('End service', 'end', null),
-                ])
-                  OutlinedButton(
-                    onPressed: data['phase'] == 'active'
-                        ? () => action(context, item.$1, item.$2, item.$3)
-                        : null,
-                    child: Text(item.$1),
-                  ),
-              ],
+            const SizedBox(height: 12),
+            LayoutBuilder(
+              builder: (context, constraints) => Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final item in [
+                    ('−2 min', 'adjust', -120),
+                    (
+                      data['paused'] == true ? 'Resume' : 'Pause',
+                      'pause',
+                      null,
+                    ),
+                    ('+2 min', 'adjust', 120),
+                    ('Next segment', 'advance', false),
+                    ('Show timer', 'timer', null),
+                    (
+                      data['blank'] == true ? 'Unblank screen' : 'Blank screen',
+                      'blank',
+                      null,
+                    ),
+                  ])
+                    SizedBox(
+                      width: (constraints.maxWidth - 10) / 2,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 52),
+                        ),
+                        onPressed:
+                            data['phase'] == 'active' ||
+                                (item.$2 == 'blank' && data['phase'] == 'ended')
+                            ? () => action(context, item.$1, item.$2, item.$3)
+                            : null,
+                        child: item.$2 == 'pause'
+                            ? Tooltip(
+                                message: item.$1,
+                                child: Icon(
+                                  data['paused'] == true
+                                      ? Icons.play_arrow
+                                      : Icons.pause,
+                                  semanticLabel: item.$1,
+                                ),
+                              )
+                            : Text(item.$1, textAlign: TextAlign.center),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Stage cues',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            LayoutBuilder(
+              builder: (context, constraints) => Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final e
+                      in ((data['cues'] as List?) ?? []).asMap().entries)
+                    SizedBox(
+                      width: (constraints.maxWidth - 10) / 2,
+                      child: FilledButton.tonal(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 52),
+                        ),
+                        onPressed: data['phase'] == 'active'
+                            ? () async {
+                                try {
+                                  await hub.sendCommand('cue', {
+                                    'session': data['session'],
+                                    'segment': data['index'],
+                                    'index': e.key,
+                                    'version':
+                                        (data['cueVersions'] as List? ??
+                                        [])[e.key],
+                                  });
+                                } catch (_) {
+                                  if (context.mounted)
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Cue not sent. Check the host connection and request control.',
+                                        ),
+                                      ),
+                                    );
+                                }
+                              }
+                            : null,
+                        child: Text(
+                          e.value as String,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: appColors(context).error,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(0, 52),
+              ),
+              onPressed: data['phase'] == 'active'
+                  ? () => action(context, 'End service', 'end')
+                  : null,
+              icon: const Icon(Icons.stop_circle_outlined),
+              label: const Text('End service'),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final e in ((data['cues'] as List?) ?? []).asMap().entries)
-                  FilledButton(
-                    onPressed: data['phase'] == 'active'
-                        ? () async {
-                            try {
-                              await hub.sendCommand('cue', e.key);
-                            } catch (_) {}
-                          }
-                        : null,
-                    child: Text(e.value as String),
-                  ),
-              ],
-            ),
             Text(hub.requestResult),
           ],
           for (final e in rows.asMap().entries)
@@ -790,6 +1025,7 @@ class PairedScreen extends StatelessWidget {
               title: Text(
                 hub.mode == 'operator' ? 'Paired operator' : 'Service viewer',
               ),
+              actions: [leaveButton()],
             ),
       body: SafeArea(
         child: ListView(
@@ -798,15 +1034,13 @@ class PairedScreen extends StatelessWidget {
             content,
             const SizedBox(height: 24),
             if (hub.mode != 'operator')
-              TextButton.icon(
+              FilledButton.icon(
                 onPressed: () => hub.showStage(!stage),
                 icon: Icon(stage ? Icons.view_list : Icons.fullscreen),
-                label: Text(stage ? 'Service view' : 'Use as stage display'),
+                label: Text(
+                  stage ? 'Back to service overview' : 'Open stage display',
+                ),
               ),
-            OutlinedButton(
-              onPressed: () => hub.stop(),
-              child: const Text('Leave paired service'),
-            ),
           ],
         ),
       ),
@@ -817,8 +1051,13 @@ class PairedScreen extends StatelessWidget {
 /// Smooth local animation between host snapshots; freezes when the link is stale.
 class StageMessage extends StatefulWidget {
   final Json data;
-  final bool stale;
-  const StageMessage({super.key, required this.data, required this.stale});
+  final bool stale, fullscreen;
+  const StageMessage({
+    super.key,
+    required this.data,
+    required this.stale,
+    this.fullscreen = false,
+  });
   @override
   State<StageMessage> createState() => _StageMessageState();
 }
@@ -828,6 +1067,18 @@ class _StageMessageState extends State<StageMessage>
   late final AnimationController ticker;
   double elapsed = 0;
   int previousTick = 0;
+  bool get animates =>
+      !widget.stale &&
+      (widget.data['effect'] == 'scroll' || widget.data['effect'] == 'flash');
+  void syncTicker() {
+    if (animates && !ticker.isAnimating) {
+      previousTick = 0;
+      ticker.repeat();
+    } else if (!animates && ticker.isAnimating) {
+      ticker.stop();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -838,8 +1089,8 @@ class _StageMessageState extends State<StageMessage>
             if (!widget.stale) elapsed += (tick - previousTick) / 1000;
             previousTick = tick;
             if (mounted) setState(() {});
-          })
-          ..repeat();
+          });
+    syncTicker();
   }
 
   @override
@@ -848,6 +1099,7 @@ class _StageMessageState extends State<StageMessage>
     if (old.data['displayText'] != widget.data['displayText'] ||
         old.data['effect'] != widget.data['effect'])
       elapsed = 0;
+    syncTicker();
   }
 
   @override
@@ -861,8 +1113,16 @@ class _StageMessageState extends State<StageMessage>
     builder: (context, space) {
       final text = widget.data['displayText'] as String? ?? '';
       final effect = widget.data['effect'];
+      final fullHeight = widget.fullscreen && space.maxHeight.isFinite;
+      final previewSize = (space.maxWidth / 7).clamp(
+        42.0,
+        widget.fullscreen ? 260.0 : 130.0,
+      );
       final style = TextStyle(
-        fontSize: (space.maxWidth / 7).clamp(42.0, 130.0),
+        // Start at screen height; static text then fits proportionally to width.
+        // This keeps short cues large without cropping a long countdown.
+        fontSize: fullHeight ? space.maxHeight * .9 : previewSize,
+        height: fullHeight ? 1.1 : null,
         color: Colors.white,
         fontWeight: widget.data['bold'] == true
             ? FontWeight.bold
@@ -877,9 +1137,13 @@ class _StageMessageState extends State<StageMessage>
           textDirection: TextDirection.ltr,
         )..layout();
         final travel = space.maxWidth + painter.width;
-        final speed = ((widget.data['speed'] as num?) ?? 12).toDouble() * 6;
+        final speed =
+            ((widget.data['speed'] as num?) ?? 12).toDouble() *
+            6 *
+            (style.fontSize! / previewSize);
         final x = space.maxWidth - (elapsed * speed) % travel;
-        final height = painter.height + 24;
+        final height = fullHeight ? space.maxHeight : painter.height + 24;
+        final top = (height - painter.height) / 2;
         painter.dispose();
         return SizedBox(
           height: height,
@@ -889,8 +1153,13 @@ class _StageMessageState extends State<StageMessage>
               children: [
                 Positioned(
                   left: x,
-                  top: 12,
-                  child: Text(text, style: style, softWrap: false),
+                  top: top,
+                  child: Text(
+                    text,
+                    style: style,
+                    softWrap: false,
+                    textScaler: TextScaler.noScaling,
+                  ),
                 ),
               ],
             ),
@@ -900,11 +1169,17 @@ class _StageMessageState extends State<StageMessage>
       return Opacity(
         opacity: effect == 'flash' && (elapsed * 2).floor() % 2 == 1 ? 0 : 1,
         child: SizedBox(
-          height: 170,
+          height: fullHeight ? space.maxHeight : 170,
           width: space.maxWidth,
           child: FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(text, style: style, textAlign: TextAlign.center),
+            child: Text(
+              text,
+              style: style,
+              softWrap: false,
+              textScaler: TextScaler.noScaling,
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       );

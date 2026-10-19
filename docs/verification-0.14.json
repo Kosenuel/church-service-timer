@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-19",
+  "version": "0.14.0+14",
+  "apkSha256": "49c03c3a73d4b90bd1f8b79573946529aa29b5091b235ddabd5d3f470eb59c62",
+  "automated": {
+    "analysis": "flutter analyze: no issues",
+    "flutterTests": 315,
+    "result": "Full suite passed, including approved golden comparisons and manual/background reconnect race regression",
+    "reviewedChangedScreenshots": 21,
+    "androidBuild": "flutter build apk --release; APK Signature Scheme v2 verified",
+    "identity": "org.kosenuel.cuekeeper, versionName 0.14.0, versionCode 14",
+    "signingCertificateSha256": "7447b222512d8002f5ba5d7e985f7fdeca0cbc176b167fe240e790147a336afd",
+    "signing": "Existing local prototype Android debug certificate, with release-optimized Flutter code",
+    "matrixFonts": "lib/matrix_font.dart and lib/square_matrix_font.dart unchanged",
+    "stageText": "Fullscreen static countdown, overtime and long text fit centered within margins; scrolling text fills available height without vertical clipping; static output stops animation",
+    "recovery": "Missed-response grace, remembered credential recovery with original deadline, latest paused changes, explicit-disconnect cancellation/persistence, startup hold, missing credentials and manual/background exclusion",
+    "pairing": "Cue identity validation, encrypted approved-session resume after invitation expiry, no control regrant, revocation and Leave cancellation"
+  },
+  "physical": {
+    "devices": "Samsung SM-A266B Android 16 and itel S667LN Android 13; release APK installed with app data retained",
+    "pairedCue": "On the shared router, the approved itel operator was granted control and sent AMEN successfully with the LED sign offline. Host state and the mobile stage display received AMEN.",
+    "pairedRecovery": "Disabled itel Wi-Fi for more than 12 seconds. Its countdown froze, command buttons and private notes were removed, and host regained control. Re-enabling Wi-Fi automatically resumed the approved session without another approval dialog or control regrant.",
+    "stageMode": "Joining as Stage display forced landscape immersive output. AMEN scrolled. Tap revealed overview/Leave tools, and leaving returned to ordinary portrait UI. Enlarged final typography was additionally reviewed in the fullscreen golden and tested for fit.",
+    "ledRecovery": "Samsung returned to the W2 hotspot and reauthenticated using remembered credentials. During a new Quick rehearsal countdown, Wi-Fi was disabled from 02:08:35 to approximately 02:08:57 local time. The app detected disconnection, automatically reconnected and restored the lower current time against the original deadline. Subsequent warning and countdown uploads were acknowledged; this check used app/controller evidence, not an optical observation.",
+    "explicitDisconnect": "After explicit Disconnect, the app remained disconnected despite available sign Wi-Fi, including across an APK upgrade/app restart.",
+    "administration": "While connected to sign Wi-Fi, authenticated, ended and not sharing, the panel showed Ready to manage this W2 controller. Read Wi-Fi name requested foreground Android location permission and displayed the correct sign SSID. Aligned Open Wi-Fi and Connection details shortcuts opened their destinations.",
+    "administrationWrites": "No Wi-Fi name, Wi-Fi password, device password, scan settings or firmware were changed. Setter acknowledgement and reconnection still require controlled tests with intentional new values.",
+    "startConfirmation": "Final short confirmation observed on Samsung: Start the countdown on GloryArenaTimer. Hardware limits/checklist removed.",
+    "blankAfterEnd": "After End service, Blank screen and Unblank screen were available, confirmed in sequence and returned the end output. No service restart was required.",
+    "printing": "After End service, Print Service opened Android printing with Include church banner checked and private notes unchecked. Saved a fresh one-page A4 PDF and rendered it for visual review: cropped banner, dark gradient, legible headings and clean rundown. The personal photo/PDF remains outside the repository.",
+    "network": "Sign hotspot still prevents phone-to-phone pairing; both-phone tests used a normal router. Router-only pairing does not create a route to the sign.",
+    "postTest": "Sharing stopped, test services ended, peer left, Samsung restored to sign Wi-Fi, itel remained on the normal router. Existing reports were retained.",
+    "manualReconnect": "Final APK: after explicit Disconnect, Live Reconnect display reused the saved credential and showed the animated Display connected confirmation with Return to Live; no password re-entry or setup navigation was required."
+  },
+  "performance": {
+    "device": "itel S667LN, Flutter profile mode, eight scripted Live-screen swipes",
+    "baselineVersion": "0.13",
+    "updatedVersion": "0.14 before final text/reconnect-only edits",
+    "frameworkBuildP95Ms": {
+      "before": 6.19,
+      "after": 1.67
+    },
+    "frameworkFrameP95Ms": {
+      "before": 15.55,
+      "after": 8.8
+    },
+    "gpuRasterP95Ms": {
+      "before": 12.31,
+      "after": 15.26
+    },
+    "interpretation": "Indicative traces show reduced framework rebuild/layout work. They are not a controlled benchmark: screen content changed, GPU slow frames remain, and no universal smoothness guarantee is made. Distribution now uses release mode."
+  },
+  "remainingLimits": [
+    "Controller program changes still briefly blink; the autonomous countdown itself remains smooth.",
+    "Automatic recovery requires the app/native service to remain running and the sign network to be reachable. Force-stop, power loss and prolonged/uncertain sessions require review.",
+    "Pairing needs peer-reachable Wi-Fi; app changes cannot override the sign hotspot's forwarding restrictions.",
+    "Controller administration mutations and long-duration endurance remain physically unverified.",
+    "Installed prototype signing key is retained for upgrade compatibility and is not a production distribution identity."
+  ]
+}

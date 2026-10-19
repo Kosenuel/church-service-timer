@@ -222,9 +222,9 @@ void main() {
     );
     await c.act('start');
     await t.pumpAndSettle();
-    await t.ensureVisible(find.text('Service sheet'));
+    await t.ensureVisible(find.text('Print Service'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Service sheet'));
+    await t.tap(find.text('Print Service'));
     await t.pumpAndSettle();
     await expectLater(
       find.byType(MaterialApp),
@@ -233,6 +233,7 @@ void main() {
     await t.tap(find.text('Continue'));
     await t.pumpAndSettle();
     expect(p.html, isNot(contains('SECRET')));
+    expect(p.html, contains('<header class="banner">'));
     await t.pumpWidget(const SizedBox());
   });
   testWidgets(
@@ -263,7 +264,7 @@ void main() {
       c.pairing.lastSnapshot = 1;
       c.pairing.changed();
       await t.pump();
-      expect(find.textContaining('Connection stale'), findsOneWidget);
+      expect(find.textContaining('Host disconnected'), findsOneWidget);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
     },

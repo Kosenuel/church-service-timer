@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'domain.dart';
 import 'matrix_font.dart';
@@ -231,5 +232,9 @@ class _MatrixPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _MatrixPainter old) => true;
+  bool shouldRepaint(covariant _MatrixPainter old) =>
+      stale != old.stale ||
+      shape != old.shape ||
+      hardware != old.hardware ||
+      !listEquals(pixels, old.pixels);
 }

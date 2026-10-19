@@ -401,8 +401,9 @@ class WarningSettingsPanel extends StatelessWidget {
               'Triggers once per segment at the selected time remaining. A stage cue returns to the timer after its duration. Blank sign suppresses stage cues; phone alerts follow Android sound and Do Not Disturb settings.',
               style: TextStyle(color: appColors(context).muted),
             ),
-            ...d.warnings.asMap().entries.map(
-              (e) => ListTile(
+            for (final e in d.warnings.asMap().entries) ...[
+              if (e.key > 0) const Divider(height: 1),
+              ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
                   '${e.value.enabled ? '' : 'Off · '}${formatTime(e.value.seconds * 1000)} · ${e.value.cue.text}',
@@ -470,7 +471,7 @@ class WarningSettingsPanel extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
+            ],
             const SizedBox(height: 8),
             if (d.warnings.isEmpty)
               button(

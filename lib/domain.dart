@@ -713,7 +713,10 @@ Session transition(
     s.outage = null;
     s.checkpoint = now;
   } else {
-    require(s.active, 'Start the first segment to use live controls.');
+    require(
+      s.active || (action == 'blank' && s.phase == 'ended'),
+      'Start the first segment to use live controls.',
+    );
     switch (action) {
       case 'pause':
         s.baseMs = s.balance(now);
@@ -786,7 +789,7 @@ Session transition(
         s.anchor = now;
         s.undo = null;
       case 'blank':
-        s.outputBlank = true;
+        s.outputBlank = !s.outputBlank;
         s.automaticCue = null;
       case 'cue':
         s.outputBlank = false;

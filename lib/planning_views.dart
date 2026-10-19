@@ -96,16 +96,23 @@ extension PlanningViews on _HomeState {
 
   Future<void> printServiceSheet(Timeline timeline) async {
     var includeNotes = false;
+    var includeBanner = true;
     final yes = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
-          title: const Text('Print service sheet'),
+          title: const Text('Print Service'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 'Print or choose Save as PDF in Android’s print screen. Includes segment order, duration and speakers.',
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Include church banner'),
+                value: includeBanner,
+                onChanged: (v) => update(() => includeBanner = v!),
               ),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -136,6 +143,8 @@ extension PlanningViews on _HomeState {
           timeline,
           c.state.churchName,
           privateNotes: includeNotes,
+          banner: c.state.churchBanner,
+          includeBanner: includeBanner,
         ),
       );
     } catch (e) {

@@ -82,6 +82,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
     private var exportContent: String? = null
     private var importLimit = 1048576
     private var notificationRequest: MethodChannel.Result? = null
+    private var networkRequest: MethodChannel.Result? = null
     private val bundledFonts by lazy { BundledFonts(context) }
     private val vault by lazy { DisplayCredentialVault(context) }
     private val printer by lazy { ServiceSheetPrinter() }
@@ -112,6 +113,17 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                     } else { ActiveService.stop(context); result.success(false) }
                 }
                 "w2Preferences" -> displayBackground(result) { w2.preferences() }
+                "w2AutoReconnect" -> displayBackground(result) { w2.autoReconnect(call.arguments == true); null }
+                "w2NetworkInfo" -> {
+                    if (call.arguments == true && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        if (networkRequest != null) result.error("BUSY", "A permission request is open", null)
+                        else {
+                            networkRequest = result
+                            try { requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 45) }
+                            catch (_: Exception) { networkRequest = null; result.error("WIFI", "Open the app to read its Wi-Fi name", null) }
+                        }
+                    } else background(result) { networkInfo() }
+                }
                 "w2Discover" -> displayBackground(result) { w2.discover() }
                 "w2Connect" -> displayBackground(result) {
                     w2.connect(call.argument<String>("id") ?: "", (call.argument<String>("password") ?: "").toCharArray())
@@ -126,6 +138,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                     val id = w2.preferences()["id"] as String
                     val outcome = w2.administer(kind, (call.argument<String>("value") ?: "").toCharArray(), call.argument<Int>("generation") ?: -1)
                     if (kind == "devicePassword") vault.forget(id)
+                    if (kind == "wifiPassword") vault.forget("wifi:$id")
                     outcome
                 }
                 "w2Send" -> displayBackground(result) {
@@ -329,7 +342,22 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
         }
     }
 
+    @Suppress("DEPRECATION")
+    private fun networkInfo(): Map<String, Any> {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val net = cm.allNetworks.firstOrNull { cm.getNetworkCapabilities(it)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true }
+        val manager = context.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+        val ssid = if (net != null && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+            manager.connectionInfo?.ssid?.removeSurrounding("\"")?.takeUnless { it == "<unknown ssid>" } else null
+        return mapOf("wifiConnected" to (net != null), "ssid" to (ssid ?: ""))
+    }
+
     fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode == 45) {
+            val result = networkRequest
+            networkRequest = null
+            if (result != null) background(result) { networkInfo() }
+        }
         if (requestCode == 44) {
             notificationRequest?.success(null)
             notificationRequest = null

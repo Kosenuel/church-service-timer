@@ -83,9 +83,18 @@ String serviceSheetHtml(
   Timeline timeline,
   String church, {
   bool privateNotes = false,
+  bool includeBanner = true,
+  String banner = '',
 }) {
   String esc(String s) =>
       const HtmlEscape().convert(s).replaceAll('\n', '<br>');
+  churchBannerValue(banner);
+  final image = banner.isEmpty
+      ? ''
+      : '<img alt="Church banner" src="data:image/jpeg;base64,$banner">';
+  final heading = includeBanner
+      ? '<header class="banner">$image<div class="shade"></div><div class="heading"><p>${esc(church)}</p><h1>${esc(timeline.name)}</h1></div></header>'
+      : '<p>${esc(church)}</p><h1>${esc(timeline.name)}</h1>';
   var elapsed = 0;
   final rows = <String>[];
   for (final e in timeline.segments) {
@@ -94,5 +103,5 @@ String serviceSheetHtml(
     );
     elapsed += e.minutes;
   }
-  return '<!doctype html><html><head><meta charset="utf-8"><style>@page{size:A4;margin:18mm}body{font:12pt sans-serif;color:#172c25}h1{margin:8px 0}p{color:#43534c}table{border-collapse:collapse;width:100%}th,td{text-align:left;border-bottom:1px solid #ccd5ce;padding:10px;vertical-align:top}thead{display:table-header-group}tr{break-inside:avoid}.speaker{font-size:10pt;color:#52635b;margin-top:4px}.note{font-size:10pt;margin-top:8px;white-space:normal;overflow-wrap:anywhere}</style></head><body><p>${esc(church)}</p><h1>${esc(timeline.name)}</h1><p>Service sheet · $elapsed minutes · ${privateNotes ? 'Includes private operator notes' : 'Private notes excluded'}</p><table><thead><tr><th>#</th><th>Segment / speaker</th><th>Duration</th><th>Planned start</th></tr></thead><tbody>${rows.join()}</tbody></table><p>Church Service Timer · I-Proton</p></body></html>';
+  return '<!doctype html><html><head><meta charset="utf-8"><style>@page{size:A4;margin:18mm}body{font:12pt sans-serif;color:#172c25}h1{margin:8px 0}p{color:#43534c}table{border-collapse:collapse;width:100%}th,td{text-align:left;border-bottom:1px solid #ccd5ce;padding:10px;vertical-align:top}thead{display:table-header-group}tr{break-inside:avoid}.speaker{font-size:10pt;color:#52635b;margin-top:4px}.note{font-size:10pt;margin-top:8px;white-space:normal;overflow-wrap:anywhere}.banner{position:relative;height:58mm;border-radius:5mm;overflow:hidden;background:linear-gradient(120deg,#214e48,#476e80);-webkit-print-color-adjust:exact;print-color-adjust:exact;break-inside:avoid}.banner img{width:100%;height:100%;object-fit:cover}.shade{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.78),rgba(0,0,0,.05))}.heading{position:absolute;bottom:7mm;left:7mm;right:7mm;color:white}.heading p{color:white;margin:0}.heading h1{font-size:24pt;overflow-wrap:anywhere}</style></head><body>$heading<p>Service sheet · $elapsed minutes · ${privateNotes ? 'Includes private operator notes' : 'Private notes excluded'}</p><table><thead><tr><th>#</th><th>Segment / speaker</th><th>Duration</th><th>Planned start</th></tr></thead><tbody>${rows.join()}</tbody></table><p>Church Service Timer · I-Proton</p></body></html>';
 }

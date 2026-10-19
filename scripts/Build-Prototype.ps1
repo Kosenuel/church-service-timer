@@ -2,6 +2,7 @@ param(
     [string]$Toolchain = 'C:\Users\x1\Documents\Codex\android-toolchain',
     [switch]$BuildOnly,
     [switch]$UpdateGoldens,
+    [ValidateSet('release', 'profile', 'debug')][string]$BuildMode = 'release',
     [switch]$PushAfterBuild
 )
 $ErrorActionPreference = 'Stop'
@@ -53,8 +54,8 @@ try {
         else { Invoke-Flutter -ToolArgs @('test') }
         $checksPassed = $true
     } else { Write-Host 'Build-only mode: existing analysis/test evidence must be checked separately.' }
-    Invoke-Flutter -ToolArgs @('build', 'apk', '--debug')
-    $apk = Join-Path $repo 'build\app\outputs\flutter-apk\app-debug.apk'
+    Invoke-Flutter -ToolArgs @('build', 'apk', "--$BuildMode")
+    $apk = Join-Path $repo "build\app\outputs\flutter-apk\app-$BuildMode.apk"
     if (-not (Test-Path -LiteralPath $apk)) { throw 'Build did not produce the expected APK.' }
     $signatureTool = Join-Path $env:ANDROID_HOME 'build-tools\36.0.0\apksigner.bat'
     & $signatureTool verify --verbose $apk
@@ -64,7 +65,7 @@ try {
     Copy-Item -LiteralPath $apk -Destination $target -Force
     Copy-Item -LiteralPath $apk -Destination (Join-Path $deliverables 'Church-Service-Timer-prototype.apk') -Force
     $result = [ordered]@{
-        status='built'; apk=$target; sha256=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+        status='built'; buildMode=$BuildMode; signing='Local prototype key'; apk=$target; sha256=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
         completedAt=(Get-Date).ToString('o'); version=$versionLine; flutter='3.47.7'; tests=$(if ($BuildOnly) { 'Not rerun in this build-only invocation' } elseif ($UpdateGoldens) { 'flutter test --update-goldens passed; review updated images' } else { 'flutter test passed' })
         physicalHardware='W2 protocol verified on a 32x16 red sign; see docs/w2-protocol-evidence.json for scope and app test status'; nativeRuntime='Requires installation test of this build on Android'
     }

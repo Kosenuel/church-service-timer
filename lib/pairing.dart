@@ -164,6 +164,15 @@ class PairHub extends ChangeNotifier {
   Json? snapshot;
   Json Function(bool privateNotes)? snapshotFor;
   Future<bool> Function(String action, dynamic value, int revision)? command;
+  String Function(bool ok, String action)? commandMessage;
+  final _approvals = <String, ({String secret, String name, String role})>{};
+  PairCode? _resumeCode;
+  String? _resumeId, _sourceAddress;
+  String _joinName = '', _joinRole = '';
+  Timer? _retry;
+  int _lifecycle = 0, _retryCount = 0;
+  bool get reconnecting => joined && _client == null && _resumeCode != null;
+
   void Function()? onOwnershipChanged;
   void Function(String message)? onControlChanged;
   bool get hosting => _server != null;
@@ -229,9 +238,7 @@ class PairHub extends ChangeNotifier {
   Future<void> _accept(Socket socket) async {
     final invitation = code;
     final pinInvitation = _pinInvitation;
-    if (invitation == null ||
-        invitation.expires < DateTime.now().millisecondsSinceEpoch ||
-        _sockets.length >= 8) {
+    if (invitation == null || _sockets.length >= 8) {
       socket.destroy();
       return;
     }
@@ -252,14 +259,31 @@ class PairHub extends ChangeNotifier {
       );
       late final PairWire wire;
       late final Json hello;
-      if (input.current.startsWith('{')) {
+      String? resumedId;
+      var secret = invitation.secret;
+      var first = input.current;
+      if (first.startsWith('{')) {
+        final request = jsonDecode(first) as Map;
+        if (request['type'] == 'resume') {
+          resumedId = request['id'] as String?;
+          final approval = _approvals[resumedId];
+          require(approval != null, 'Approval expired. Pair again.');
+          secret = approval!.secret;
+          require(
+            await input.moveNext().timeout(const Duration(seconds: 8)),
+            'Missing resume proof.',
+          );
+          first = input.current;
+        }
+      }
+      if (first.startsWith('{')) {
         require(
           pinAvailable && identical(code, invitation),
           'Generate a new code.',
         );
         pinAttempts++;
         changed();
-        final request = jsonDecode(input.current) as Map;
+        final request = jsonDecode(first) as Map;
         require(request['type'] == 'pin', 'Invalid pairing method.');
         final a = pairNumber(request['a']);
         final srp = pinInvitation.server();
@@ -289,10 +313,10 @@ class PairHub extends ChangeNotifier {
       } else {
         final helloWire = PairWire(
           socket,
-          SecretKey(base64Url.decode(invitation.secret)),
+          SecretKey(base64Url.decode(secret)),
           challenge,
         );
-        hello = await helloWire.decode(input.current);
+        hello = await helloWire.decode(first);
         final shared = await exchange.sharedSecretKey(
           keyPair: kp,
           remotePublicKey: SimplePublicKey(
@@ -302,7 +326,7 @@ class PairHub extends ChangeNotifier {
         );
         final key = await pairSessionKey(
           shared,
-          invitation.secret,
+          secret,
           challenge,
           base64Encode(public.bytes),
           hello['public'] as String,
@@ -310,8 +334,9 @@ class PairHub extends ChangeNotifier {
         wire = PairWire(socket, key, challenge);
       }
       require(
-        identical(code, invitation) &&
-            invitation.expires > DateTime.now().millisecondsSinceEpoch,
+        (resumedId != null && _approvals[resumedId]?.secret == secret) ||
+            (identical(code, invitation) &&
+                invitation.expires > DateTime.now().millisecondsSinceEpoch),
         'This invitation expired or was replaced.',
       );
       require(
@@ -321,18 +346,35 @@ class PairHub extends ChangeNotifier {
             (hello['name'] as String).length <= 60,
         'Invalid pairing hello.',
       );
+      final approval = _approvals[resumedId];
+      if (resumedId != null) {
+        require(
+          approval != null &&
+              approval.name == hello['name'] &&
+              approval.role == hello['role'],
+          'Approval changed.',
+        );
+        for (final old in peers.where((p) => p.id == resumedId).toList()) {
+          _drop(old);
+        }
+      }
       peer = PairPeer(
-        pairRandom(12),
+        resumedId ?? pairRandom(12),
         nameValue(hello['name'], 'Device name'),
         hello['role'],
         wire,
       );
+      peer.approved = approval != null;
       peers.add(peer);
       changed();
       await wire.send({'type': 'pending', 'id': peer.id});
       while (await input.moveNext().timeout(const Duration(seconds: 10))) {
         final message = await wire.decode(input.current);
         peer.lastSeen = DateTime.now().millisecondsSinceEpoch;
+        if (message['type'] == 'leave') {
+          remove(peer);
+          break;
+        }
         if (message['type'] == 'heartbeat') continue;
         if (!peer.approved) {
           await peer.wire.send({'type': 'pending', 'id': peer.id});
@@ -361,7 +403,16 @@ class PairHub extends ChangeNotifier {
               ok = false;
             }
           }
-          await wire.send({'type': 'result', 'ok': ok});
+          await wire.send({
+            'type': 'result',
+            'ok': ok,
+            'message': permitted
+                ? commandMessage?.call(ok, message['action'] as String) ??
+                      (ok
+                          ? 'Command applied'
+                          : 'Action unavailable. Review the host service.')
+                : 'Control changed. Request control from the host.',
+          });
           await publish();
         }
       }
@@ -372,7 +423,7 @@ class PairHub extends ChangeNotifier {
       socket.destroy();
       if (peer != null) {
         peers.remove(peer);
-        if (owner == peer.id) {
+        if (owner == peer.id && !peers.any((p) => p.id == peer!.id)) {
           owner = '';
           epoch++;
           onControlChanged?.call(
@@ -388,11 +439,28 @@ class PairHub extends ChangeNotifier {
   void approve(PairPeer peer) {
     if (!peers.contains(peer) || peer.wire.closed) return;
     peer.approved = true;
+    _approvals[peer.id] = (
+      secret: pairRandom(32),
+      name: peer.name,
+      role: peer.role,
+    );
     changed();
     unawaited(publish());
   }
 
   void remove(PairPeer peer) {
+    _approvals.remove(peer.id);
+    peer.approved = false;
+    if (owner == peer.id) reclaim();
+    unawaited(
+      peer.wire
+          .send({'type': 'removed'})
+          .catchError((_) {})
+          .whenComplete(() => _drop(peer)),
+    );
+  }
+
+  void _drop(PairPeer peer) {
     peer.wire.close();
     peers.remove(peer);
     if (owner == peer.id) reclaim();
@@ -429,7 +497,7 @@ class PairHub extends ChangeNotifier {
     try {
       for (final peer in List.of(peers)) {
         if (DateTime.now().millisecondsSinceEpoch - peer.lastSeen > 10000) {
-          remove(peer);
+          _drop(peer);
           continue;
         }
         try {
@@ -442,6 +510,7 @@ class PairHub extends ChangeNotifier {
             'id': peer.id,
             'owner': owner,
             'epoch': epoch,
+            'resume': _approvals[peer.id]?.secret,
             'snapshot':
                 snapshotFor?.call(
                   peer.role == 'operator' && peer.id == owner,
@@ -449,7 +518,7 @@ class PairHub extends ChangeNotifier {
                 {},
           });
         } catch (_) {
-          remove(peer);
+          _drop(peer);
         }
       }
     } finally {
@@ -495,15 +564,21 @@ class PairHub extends ChangeNotifier {
     String role, {
     String? sourceAddress,
     String? pin,
+    String? resumeId,
   }) async {
     require(
       ['viewer', 'stage', 'operator'].contains(role),
       'Choose a device role.',
     );
     name = nameValue(name, 'Device name');
-    await stop();
-    mode = role;
-    status = 'Connecting…';
+    if (resumeId == null) await stop();
+    final lifecycle = _lifecycle;
+    final secret = invitation.secret;
+    _joinName = name;
+    _joinRole = role;
+    _sourceAddress = sourceAddress;
+    if (resumeId == null) mode = role;
+    status = resumeId == null ? 'Connecting…' : 'Reconnecting to host…';
     changed();
     Socket? connecting;
     try {
@@ -514,6 +589,10 @@ class PairHub extends ChangeNotifier {
         sourceAddress: sourceAddress,
       );
       connecting = socket;
+      if (lifecycle != _lifecycle || _disposed) {
+        socket.destroy();
+        return;
+      }
       final input = StreamIterator(pairLines(socket));
       require(
         await input.moveNext().timeout(const Duration(seconds: 8)),
@@ -525,6 +604,8 @@ class PairHub extends ChangeNotifier {
             (challenge['challenge'] as String).length <= 100,
         'Invalid host.',
       );
+      if (resumeId != null)
+        socket.write('${jsonEncode({'type': 'resume', 'id': resumeId})}\n');
       if (pin != null) {
         final srp = PairPinClient();
         final a = srp.start(challenge['salt'], pin);
@@ -542,6 +623,7 @@ class PairHub extends ChangeNotifier {
         );
         final verified = jsonDecode(input.current) as Map;
         final key = await srp.finish(verified['proof'], challenge['challenge']);
+        require(lifecycle == _lifecycle && !_disposed, 'Pairing cancelled.');
         _client = PairWire(socket, key, challenge['challenge']);
         await _client!.send({'type': 'hello', 'name': name, 'role': role});
       } else {
@@ -550,7 +632,7 @@ class PairHub extends ChangeNotifier {
         final public = await kp.extractPublicKey();
         final hello = PairWire(
           socket,
-          SecretKey(base64Url.decode(invitation.secret)),
+          SecretKey(base64Url.decode(secret)),
           challenge['challenge'],
         );
         await hello.send({
@@ -573,6 +655,7 @@ class PairHub extends ChangeNotifier {
           challenge['public'] as String,
           base64Encode(public.bytes),
         );
+        require(lifecycle == _lifecycle && !_disposed, 'Pairing cancelled.');
         _client = PairWire(socket, key, challenge['challenge']);
       }
       // Do not show a successful join until the host accepts the handshake.
@@ -582,8 +665,17 @@ class PairHub extends ChangeNotifier {
       );
       final pending = await _client!.decode(input.current);
       require(pending['type'] == 'pending', 'Invalid pairing acknowledgement.');
+      if (lifecycle != _lifecycle || _disposed) {
+        socket.destroy();
+        return;
+      }
       clientId = pending['id'];
-      status = 'Waiting for host approval';
+      _retryCount = 0;
+      _retry?.cancel();
+      _timer?.cancel();
+      status = resumeId == null
+          ? 'Waiting for host approval'
+          : 'Reconnected · waiting for current state';
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         unawaited(
           _client?.send({'type': 'heartbeat'}).catchError((_) {}) ??
@@ -591,11 +683,18 @@ class PairHub extends ChangeNotifier {
         );
         changed();
       });
-      unawaited(_receive(input));
+      unawaited(_receive(input, invitation));
       onOwnershipChanged?.call();
       changed();
     } catch (_) {
       connecting?.destroy();
+      if (lifecycle != _lifecycle || _disposed) return;
+      _client?.close();
+      _client = null;
+      if (resumeId != null) {
+        _scheduleReconnect();
+        return;
+      }
       await stop();
       status =
           'Could not pair. Check the code and that Wi-Fi allows devices to reach each other.';
@@ -604,12 +703,21 @@ class PairHub extends ChangeNotifier {
     }
   }
 
-  Future<void> _receive(StreamIterator<String> input) async {
+  Future<void> _receive(
+    StreamIterator<String> input,
+    PairCode invitation,
+  ) async {
     final wire = _client;
     try {
       while (wire != null &&
           await input.moveNext().timeout(const Duration(seconds: 12))) {
         final msg = await wire.decode(input.current);
+        if (msg['type'] == 'removed') {
+          _resumeCode = null;
+          _resumeId = null;
+          requestResult = 'Host removed this device. Pair again for approval.';
+          break;
+        }
         if (msg['type'] == 'pending') {
           clientId = msg['id'];
         }
@@ -620,11 +728,23 @@ class PairHub extends ChangeNotifier {
           snapshot = Map<String, dynamic>.from(msg['snapshot']);
           lastSnapshot = DateTime.now().millisecondsSinceEpoch;
           status = 'Connected';
+          if (msg['resume'] is String &&
+              base64Url.decode(msg['resume']).length == 32) {
+            _resumeId = clientId;
+            _resumeCode = PairCode(
+              invitation.address,
+              invitation.port,
+              msg['resume'],
+              0,
+            );
+          }
         }
         if (msg['type'] == 'result')
-          requestResult = msg['ok'] == true
-              ? 'Command applied'
-              : 'Command not applied. Review the current service.';
+          requestResult =
+              msg['message'] as String? ??
+              (msg['ok'] == true
+                  ? 'Command applied'
+                  : 'Command not applied. Review the current service.');
         changed();
       }
     } catch (_) {
@@ -635,10 +755,45 @@ class PairHub extends ChangeNotifier {
         _client = null;
         lastSnapshot = 0;
         owner = '';
+        // Never retain private notes or a control grant after a lost link.
+        if (snapshot != null) {
+          snapshot = Map<String, dynamic>.from(snapshot!)
+            ..remove('cues')
+            ..remove('cueVersions');
+          snapshot!['rundown'] = [
+            for (final row in (snapshot!['rundown'] as List? ?? []))
+              Map<String, dynamic>.from(row)..remove('notes'),
+          ];
+        }
         status = 'Disconnected · last received state';
+        _scheduleReconnect();
         changed();
       }
     }
+  }
+
+  void _scheduleReconnect() {
+    if (_disposed || !joined || _resumeCode == null || _resumeId == null)
+      return;
+    _retry?.cancel();
+    _timer?.cancel();
+    _retryCount = (_retryCount + 1).clamp(1, 5);
+    status = 'Host disconnected · reconnecting…';
+    final lifecycle = _lifecycle;
+    _retry = Timer(Duration(seconds: [0, 2, 4, 8, 16, 30][_retryCount]), () {
+      if (lifecycle == _lifecycle && joined && !_disposed) {
+        unawaited(
+          _join(
+            _resumeCode!,
+            _joinName,
+            _joinRole,
+            sourceAddress: _sourceAddress,
+            resumeId: _resumeId,
+          ),
+        );
+      }
+    });
+    changed();
   }
 
   Future<void> requestControl() async {
@@ -663,6 +818,17 @@ class PairHub extends ChangeNotifier {
   }
 
   Future<void> stop() async {
+    _lifecycle++;
+    _retry?.cancel();
+    _retry = null;
+    _resumeCode = null;
+    _resumeId = null;
+    _approvals.clear();
+    try {
+      await _client
+          ?.send({'type': 'leave'})
+          .timeout(const Duration(milliseconds: 250));
+    } catch (_) {}
     _timer?.cancel();
     _timer = null;
     try {

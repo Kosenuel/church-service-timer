@@ -59,7 +59,9 @@ extension HardwareViews on _HomeState {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                c.hardware.status,
+                c.hardware.connected
+                    ? c.hardware.status
+                    : 'Display disconnected',
                 key: const ValueKey('hardware-delivery-status'),
                 style: TextStyle(
                   color: c.hardware.connected
@@ -67,10 +69,7 @@ extension HardwareViews on _HomeState {
                       : appColors(context).warning,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Sign updates may blink briefly. A countdown runs on the sign; a static cue can remain there if the connection is lost.',
-              ),
+
               if (c.hardware.held &&
                   c.hardware.connected &&
                   (c.state.session.active ||
@@ -90,21 +89,94 @@ extension HardwareViews on _HomeState {
                       ? 'Connect display'
                       : 'Reconnect display',
                   Icons.wifi,
-                  () => openHardwareConnection(),
+                  reconnectDisplay,
                 ),
               ],
             ],
           ),
         );
 
-  Future<void> openHardwareConnection() => Navigator.of(context).push<void>(
-    MaterialPageRoute(builder: (_) => HardwareConnectionPage(controller: c)),
-  );
+  Future<void> reconnectDisplay() async {
+    if (c.hardware.rememberedId.isNotEmpty &&
+        await c.hardware.reconnectSaved()) {
+      if (mounted)
+        await connectionSuccess(
+          context,
+          c.hardware.rememberedName,
+          c.hardware.held,
+        );
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        navigatePage(0);
+      }
+      return;
+    }
+    if (mounted) await openHardwareConnection();
+  }
+
+  Future<void> openHardwareConnection() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => HardwareConnectionPage(controller: c)),
+    );
+    if (mounted && c.hardware.connected) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      navigatePage(0);
+    }
+  }
 }
+
+Future<void> connectionSuccess(
+  BuildContext context,
+  String name,
+  bool held, {
+  String actionLabel = 'Return to Live',
+}) => showDialog<void>(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    title: const Text('Display connected'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.5, end: 1),
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeOutBack,
+          builder: (_, scale, child) =>
+              Transform.scale(scale: scale, child: child),
+          child: Icon(
+            Icons.check_circle,
+            size: 72,
+            color: appColors(ctx).accent,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(name, textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        Text(
+          held
+              ? 'Output unchanged. Start a service or restore the current output from Live.'
+              : 'Current service output restored.',
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+    actions: [
+      FilledButton(
+        onPressed: () => Navigator.pop(ctx),
+        child: Text(actionLabel),
+      ),
+    ],
+  ),
+);
 
 class HardwareConnectionPage extends StatefulWidget {
   final AppController controller;
-  const HardwareConnectionPage({super.key, required this.controller});
+  final bool returnToLive;
+  const HardwareConnectionPage({
+    super.key,
+    required this.controller,
+    this.returnToLive = true,
+  });
   @override
   State<HardwareConnectionPage> createState() => _HardwareConnectionPageState();
 }
@@ -264,6 +336,18 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                           final ok = await h.connect(id, secret);
                           if (ok && rememberPassword && !useSaved)
                             await c.port.saveDisplayPassword(id, secret);
+                          if (ok && context.mounted) {
+                            password.clear();
+                            await connectionSuccess(
+                              context,
+                              h.rememberedName,
+                              h.held,
+                              actionLabel: widget.returnToLive
+                                  ? 'Return to Live'
+                                  : 'Continue',
+                            );
+                            if (context.mounted) Navigator.pop(context);
+                          }
                         } catch (_) {
                           if (context.mounted)
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -294,6 +378,18 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
             if (h.busy || h.sending) const LinearProgressIndicator(),
             const SizedBox(height: 8),
             Text(h.status, key: const ValueKey('connection-result')),
+            const SizedBox(height: 12),
+            const Text(
+              'Connection recovery retries the remembered display while this app is running. Disconnect or switch to Simulator to stop retries. After an app restart, review the output before restoring it.',
+            ),
+            if (h.diagnostics.isNotEmpty)
+              ExpansionTile(
+                title: const Text('Connection diagnostics'),
+                children: [
+                  for (final entry in h.diagnostics)
+                    ListTile(dense: true, title: Text(entry)),
+                ],
+              ),
             if (h.connected) ...[
               const SizedBox(height: 12),
               const Text(

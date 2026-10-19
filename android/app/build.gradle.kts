@@ -18,8 +18,13 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
-    // This repository builds a debug-signed prototype only. Production release
-    // signing must be configured explicitly before shipping a release.
+    // Optimized local prototype; preserve the existing install identity.
+    // Store distribution still requires a separate production signing setup.
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
 }
 kotlin { compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 } }
 flutter { source = "../.." }
