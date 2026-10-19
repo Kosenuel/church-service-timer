@@ -167,25 +167,25 @@ void main() {
       await c.act('load', value: c.state.templates.first);
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.text('Templates'));
+      await t.tap(find.text('Programs'));
       await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('template-row:Sunday Service')));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.text('Edit template'));
-      await t.tap(find.widgetWithText(FilledButton, 'Edit template'));
+      await t.ensureVisible(find.text('Edit Program'));
+      await t.tap(find.widgetWithText(FilledButton, 'Edit Program'));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.text('Edit template end screen'));
-      await t.tap(find.text('Edit template end screen'));
+      await t.ensureVisible(find.text('Edit program end screen'));
+      await t.tap(find.text('Edit program end screen'));
       await t.pump(const Duration(milliseconds: 300));
       await t.enterText(find.widgetWithText(TextField, 'Display text'), 'AMEN');
       await t.tap(find.widgetWithText(FilledButton, 'Use end screen'));
       await t.pumpAndSettle();
       await t.scrollUntilVisible(
-        find.text('Save timeline'),
+        find.text('Save changes'),
         300,
         scrollable: find.byType(Scrollable).first,
       );
-      await t.tap(find.text('Save timeline'));
+      await t.tap(find.text('Save changes'));
       await t.pumpAndSettle();
       expect(c.state.templates.first.display.end.text, 'AMEN');
       expect(c.state.templates.first.display.end.bold, true);

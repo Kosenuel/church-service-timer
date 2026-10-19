@@ -54,6 +54,218 @@ class Simulator {
 }
 
 class AppController extends ChangeNotifier {
+  Session? _pendingEnd;
+  int? _pendingEndRevision;
+  bool _preparingEnd = false;
+  bool get reportSavePending => _pendingEnd != null;
+  Session get liveSession => _pendingEnd ?? state.session;
+  String get destination =>
+      state.outputDestination ?? (hardware.enabled ? 'led' : 'simulator');
+  bool get stageConnected =>
+      destination == 'mobile' &&
+      pairing.hosting &&
+      pairing.syncedStagePeers.isNotEmpty;
+  bool get destinationConnected => destination == 'mobile'
+      ? stageConnected
+      : destination == 'led'
+      ? hardware.connected
+      : !state.session.disconnected;
+  String get destinationName => destination == 'mobile'
+      ? 'Stage screen'
+      : destination == 'led'
+      ? (hardware.rememberedName.isEmpty ? 'LED sign' : hardware.rememberedName)
+      : 'Simulator';
+  QuickMessage? _quickMessage;
+  int? _quickUntil;
+  String? _quickSession;
+  int? _quickSegment;
+  QuickMessage? get currentQuickMessage =>
+      _quickMessage != null &&
+          stageConnected &&
+          state.session.active &&
+          !state.session.outputBlank &&
+          state.session.id == _quickSession &&
+          state.session.index == _quickSegment &&
+          (_quickUntil == null || now.mono < _quickUntil!)
+      ? _quickMessage
+      : null;
+  void clearQuickMessage() {
+    _quickMessage = null;
+    _quickUntil = null;
+    _quickSession = null;
+    _quickSegment = null;
+  }
+
+  Future<bool> sendQuickMessage(
+    QuickMessage message, {
+    bool test = false,
+  }) async {
+    if (busy ||
+        reportSavePending ||
+        !pairing.localControl ||
+        !stageConnected ||
+        (!test && !state.session.active)) {
+      error =
+          'Connect an approved stage screen and start a service before sending.';
+      notifyListeners();
+      return false;
+    }
+    try {
+      message.validate();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+      return false;
+    }
+    if (!test &&
+        !await commit((draft, at) {
+          require(
+            stageConnected && pairing.localControl,
+            'Stage screen disconnected or control changed.',
+          );
+          draft.session.alert = null;
+          draft.session.automaticCue = null;
+          draft.session.outputBlank = false;
+          draft.session.revision++;
+          addServiceEvent(
+            draft.session.events,
+            ServiceEvent(
+              at.wall,
+              'message',
+              'Quick message sent to stage screen',
+            ),
+          );
+        }))
+      return false;
+    if (test) {
+      _testMessage = message;
+      _testUntil = now.mono + 5000;
+    } else {
+      _testMessage = null;
+      _quickMessage = message;
+      _quickSession = state.session.id;
+      _quickSegment = state.session.index;
+      _quickUntil = message.seconds == 0
+          ? null
+          : now.mono + message.seconds * 1000;
+    }
+    await pairing.publish();
+    notifyListeners();
+    return true;
+  }
+
+  QuickMessage? _testMessage;
+  int _testUntil = 0;
+  Future<bool> saveQuickPreset(QuickMessage message, {int? index}) =>
+      commit((draft, _) {
+        message.validate();
+        if (index == null) {
+          require(draft.quickMessages.length < 50, 'Keep at most 50 presets.');
+          draft.quickMessages.add(message);
+        } else {
+          require(
+            index >= 0 && index < draft.quickMessages.length,
+            'This preset changed.',
+          );
+          draft.quickMessages[index] = message;
+        }
+      });
+  Future<bool> selectDestination(String target) async {
+    if (!{'led', 'mobile', 'simulator'}.contains(target) ||
+        !pairing.localControl ||
+        pairing.joined ||
+        busy ||
+        reportSavePending)
+      return false;
+    if (!await commit((draft, _) {
+      draft.outputDestination = target;
+    }))
+      return false;
+    clearQuickMessage();
+    _testMessage = null;
+    pairing.setStageSharing(target == 'mobile');
+    if (target != 'led') await hardware.disconnect(simulator: true);
+    await syncActiveService();
+    _publish();
+    notifyListeners();
+    return true;
+  }
+
+  Future<bool> blankBeforeSwitch() async {
+    if (destination != 'led' ||
+        !hardware.connected ||
+        hardware.held ||
+        hardware.sending)
+      return false;
+    final wasBlank = state.session.outputBlank;
+    if (!wasBlank && !await act('blank')) return false;
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (DateTime.now().isBefore(deadline) && hardware.connected) {
+      if (!hardware.sending && hardware.accepted?.kind.name == 'blank')
+        return true;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    error =
+        'Blanking was not acknowledged. The previous sign may still show its last output.';
+    return false;
+  }
+
+  Future<bool> stopStageSharing() async {
+    clearQuickMessage();
+    _testMessage = null;
+    pairing.setStageSharing(false);
+    await pairing.publish();
+    return true;
+  }
+
+  Future<bool> _finishService({int? revision}) async {
+    if (busy || reportSavePending || _preparingEnd) return false;
+    _preparingEnd = true;
+    final controlEpoch = pairing.epoch;
+    try {
+      final at = await port.clock();
+      require(
+        controlEpoch == pairing.epoch,
+        'Operator control changed. Review the action again.',
+      );
+      _pendingEnd = transition(
+        state.session,
+        'end',
+        at,
+        expectedRevision: revision,
+      );
+      _pendingEndRevision = state.session.revision;
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+      return false;
+    } finally {
+      _preparingEnd = false;
+    }
+    return _saveEndedService();
+  }
+
+  Future<bool> _saveEndedService() async {
+    final ended = _pendingEnd;
+    if (ended == null) return false;
+    final saved = await commit(
+      (draft, _) {
+        draft.session = ended.copy();
+        draft.reports.removeWhere((r) => r.id == ended.id);
+        draft.reports.add(ServiceReport.fromSession(ended, ended.anchor));
+      },
+      revision: _pendingEndRevision,
+      ending: true,
+    );
+    if (!saved) {
+      error =
+          'The service has finished, but its report could not be saved. Retry saving to return to Standing by.';
+      retry = _saveEndedService;
+      notifyListeners();
+    }
+    return saved;
+  }
+
   final DevicePort port;
   final pairing = PairHub();
   late AppState state;
@@ -131,6 +343,10 @@ class AppController extends ChangeNotifier {
     if (!ready) return {};
     final s = state.session, t = state.session.timeline;
     final display = s.intended(now);
+    final quick =
+        _testMessage != null && stageConnected && now.mono < _testUntil
+        ? _testMessage
+        : currentQuickMessage;
     return {
       'revision': s.revision,
       'session': s.id,
@@ -145,6 +361,8 @@ class AppController extends ChangeNotifier {
           : s.formatted(now),
       'overtime': s.overtime(now) > 0,
       'blank': s.outputBlank,
+      'stageSharing': destination == 'mobile' && pairing.stageSharingEnabled,
+      if (quick != null && !s.outputBlank) 'quickMessage': quick.toJson(),
       'displayText': s.outputBlank ? '' : display?.text ?? '',
       'effect': display?.effect ?? 'static',
       'speed': display?.speed ?? 12,
@@ -188,6 +406,10 @@ class AppController extends ChangeNotifier {
     pairing.advertise = port.advertisePairHost;
     pairing.unadvertise = port.stopPairAdvertisement;
     pairing.addListener(() {
+      if (ready && !stageConnected) {
+        clearQuickMessage();
+        _testMessage = null;
+      }
       if (!_disposed) notifyListeners();
     });
     pairing.snapshotFor = pairedSnapshot;
@@ -285,12 +507,18 @@ class AppController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  DisplayConnection get displayConnection => DisplayConnection.fromAdapter(
-    simulated: !hardware.enabled,
-    connected: hardware.enabled
-        ? hardware.connected
-        : !state.session.disconnected,
-  );
+  DisplayConnection get displayConnection => destination == 'mobile'
+      ? stageConnected
+            ? DisplayConnection.stageConnected
+            : pairing.stagePeers.isNotEmpty
+            ? DisplayConnection.stageDisconnected
+            : DisplayConnection.stageWaiting
+      : DisplayConnection.fromAdapter(
+          simulated: !hardware.enabled,
+          connected: hardware.enabled
+              ? hardware.connected
+              : !state.session.disconnected,
+        );
   void _beginWrite() {
     busy = true;
     _writeDone = Completer<void>();
@@ -308,8 +536,10 @@ class AppController extends ChangeNotifier {
         !_needsRecovery &&
         !corrupt &&
         !_disposed) {
-      simulator.update(state.session, now);
-      if (!storageUncertain) hardware.reconcile(state.session, now);
+      if (reportSavePending) return;
+      if (destination == 'simulator') simulator.update(state.session, now);
+      if (!storageUncertain && destination == 'led')
+        hardware.reconcile(state.session, now);
     }
   }
 
@@ -351,6 +581,9 @@ class AppController extends ChangeNotifier {
     ready = true;
     try {
       await hardware.initialize();
+      if (state.outputDestination != null && destination != 'led')
+        await hardware.disconnect(simulator: true);
+      pairing.stageSharingEnabled = destination == 'mobile';
     } catch (_) {
       hardware.status = 'Display preferences unavailable · scan to connect';
     }
@@ -379,7 +612,11 @@ class AppController extends ChangeNotifier {
       now = await port.clock();
       if ((!_foreground && !backgroundActive) || _needsRecovery || _disposed)
         return;
-      if (!corrupt) {
+      if (!corrupt && !reportSavePending) {
+        if (_quickMessage != null && currentQuickMessage == null)
+          clearQuickMessage();
+        if (_testMessage != null && (!stageConnected || now.mono >= _testUntil))
+          _testMessage = null;
         if (!busy && _warningAccepted != null && retry == null) {
           final accepted = _warningAccepted!;
           final saved = await commit((draft, _) {
@@ -401,7 +638,7 @@ class AppController extends ChangeNotifier {
           await act('warnings');
         }
         _publish();
-        unawaited(hardware.check(now));
+        if (destination == 'led') unawaited(hardware.check(now));
         if (!busy &&
             !storageUncertain &&
             (now.since(state.session.checkpoint) >= 55000 ||
@@ -427,8 +664,11 @@ class AppController extends ChangeNotifier {
   Future<bool> commit(
     void Function(AppState draft, Stamp at) mutation, {
     int? revision,
+    bool ending = false,
+    bool clearMessage = false,
   }) async {
     if (busy ||
+        (reportSavePending && !ending) ||
         corrupt ||
         _needsRecovery ||
         (!_foreground && !backgroundActive) ||
@@ -473,6 +713,16 @@ class AppController extends ChangeNotifier {
       final logged = _mergeEvents(draft);
       await port.save(jsonEncode(draft.toJson()));
       state = draft;
+      if (clearMessage) {
+        clearQuickMessage();
+        _testMessage = null;
+      }
+      if (ending) {
+        _pendingEnd = null;
+        _pendingEndRevision = null;
+        clearQuickMessage();
+        _testMessage = null;
+      }
       _events.removeRange(0, logged.length);
       if (state.session.phase == 'idle' && state.session.id != previous.id)
         simulator.clear();
@@ -496,7 +746,12 @@ class AppController extends ChangeNotifier {
       _retryIsCheckpoint = false;
       retry = e is RuleError
           ? null
-          : () => commit(mutation, revision: baseRevision);
+          : () => commit(
+              mutation,
+              revision: baseRevision,
+              ending: ending,
+              clearMessage: clearMessage,
+            );
       return false;
     } finally {
       _finishWrite();
@@ -514,45 +769,75 @@ class AppController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+    if (action == 'end') return _finishService(revision: revision);
     final controlEpoch = pairing.epoch;
-    final saved = await commit((draft, at) {
-      require(
-        controlEpoch == pairing.epoch &&
-            (remote
-                ? pairing.hosting && !pairing.localControl
-                : pairing.localControl),
-        'Operator control changed. Review the action again.',
-      );
-      if (action == 'cue') validateLayout(value as TextLayout);
-      draft.session = transition(
-        draft.session,
-        action,
-        at,
-        value: value,
-        expectedRevision: revision,
-      );
-      if ([
+    final saved = await commit(
+      (draft, at) {
+        require(
+          controlEpoch == pairing.epoch &&
+              (remote
+                  ? pairing.hosting && !pairing.localControl
+                  : pairing.localControl),
+          'Operator control changed. Review the action again.',
+        );
+        if (action == 'cue') validateLayout(value as TextLayout);
+        draft.session = transition(
+          draft.session,
+          action,
+          at,
+          value: value,
+          expectedRevision: revision,
+        );
+        if (action == 'warnings' && currentQuickMessage != null)
+          draft.session.automaticCue = null;
+        if ([
+          'start',
+          'pause',
+          'adjust',
+          'advance',
+          'undo',
+          'rate',
+          'cue',
+        ].contains(action)) {
+          hardware.validateAction(
+            draft.session,
+            at,
+            cue: action == 'cue' ? value as TextLayout : null,
+          );
+        }
+        if (action == 'load') draft.session.churchName = draft.churchName;
+        if ((action == 'start' || action == 'advance') && hardware.connected)
+          draft.session.disconnected = false;
+        if (action == 'end') {
+          draft.reports.add(ServiceReport.fromSession(draft.session, at));
+        }
+      },
+      revision: revision,
+      clearMessage: {
+        'load',
         'start',
-        'pause',
-        'adjust',
         'advance',
         'undo',
-        'rate',
         'cue',
-      ].contains(action)) {
-        hardware.validateAction(
-          draft.session,
-          at,
-          cue: action == 'cue' ? value as TextLayout : null,
-        );
-      }
-      if (action == 'load') draft.session.churchName = draft.churchName;
-      if ((action == 'start' || action == 'advance') && hardware.connected)
-        draft.session.disconnected = false;
-      if (action == 'end') {
-        draft.reports.add(ServiceReport.fromSession(draft.session, at));
-      }
-    }, revision: revision);
+        'timer',
+        'blank',
+        'cancelReady',
+      }.contains(action),
+    );
+    if (saved &&
+        {
+          'load',
+          'start',
+          'advance',
+          'cue',
+          'timer',
+          'blank',
+          'cancelReady',
+        }.contains(action)) {
+      clearQuickMessage();
+      _testMessage = null;
+      unawaited(pairing.publish());
+    }
     if (saved && action == 'advance' && hardware.connected) {
       hardware.release(state.session, timingVerified: true);
       await syncActiveService();
@@ -635,6 +920,7 @@ class AppController extends ChangeNotifier {
       draft.defaults = restored.defaults;
       draft.reports = restored.reports;
       draft.stageCues = restored.stageCues;
+      draft.quickMessages = restored.quickMessages;
       draft.pixelShape = restored.pixelShape;
       draft.groupTemplates = restored.groupTemplates;
       draft.churchName = restored.churchName;

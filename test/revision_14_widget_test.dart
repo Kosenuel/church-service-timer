@@ -95,7 +95,7 @@ void main() {
       expect(p.wifiOpened, 1);
       final left = t.getRect(find.widgetWithText(OutlinedButton, 'Open Wi-Fi'));
       final right = t.getRect(
-        find.widgetWithText(FilledButton, 'Connect display'),
+        find.widgetWithText(FilledButton, 'Connect LED display'),
       );
       expect(left.width, right.width);
       expect(left.top, right.top);
@@ -103,7 +103,7 @@ void main() {
         t.widget<ListTile>(find.widgetWithText(ListTile, 'Wi-Fi name')).enabled,
         false,
       );
-      await t.tap(find.text('Connect display'));
+      await t.tap(find.text('Connect LED display'));
       await t.pumpAndSettle();
       expect(find.byType(HardwareConnectionPage), findsOneWidget);
       expect(t.takeException(), isNull);

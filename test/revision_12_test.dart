@@ -111,7 +111,7 @@ void main() {
       await flush();
       expect(c.state.session.alert, isNull);
       expect(c.state.session.index, 1);
-      expect(c.simulator.delivered!.text, '05:00');
+      expect(c.simulator.delivered, isNull); // Only the selected output is driven.
       expect(c.hardware.held, false);
       expect(c.hardware.accepted!.segmentIndex, 1);
       expect(p.sent.last.deadline, after(920).wall);
@@ -358,7 +358,7 @@ void main() {
     await c.act('blank');
     await t.pumpAndSettle();
     expect(find.text('DISPLAY PREVIEW'), findsOneWidget);
-    expect(find.text('Blanked · timing continues'), findsOneWidget);
+    expect(find.text('Screen intentionally blanked'), findsOneWidget);
     await t.tap(find.byKey(const ValueKey('control-lock')));
     await t.pumpAndSettle();
     expect(

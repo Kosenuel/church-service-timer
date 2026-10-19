@@ -32,6 +32,7 @@ part 'operator_settings.dart';
 part 'planning_views.dart';
 part 'pairing_views.dart';
 part 'device_management.dart';
+part 'mobile_display_views.dart';
 
 String styleSummary(TextLayout l) =>
     '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
@@ -78,7 +79,28 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> with WidgetsBindingObserver {
   AppController get c => widget.controller;
   int page = 0;
+  QuickMessage quickDraft = const QuickMessage(body: '');
   bool focused = false, controlsLocked = false;
+  final homeScroll = ScrollController();
+  bool? _completedService;
+
+  void _followServiceCompletion() {
+    if (!c.ready) return;
+    final completed = c.state.session.phase == 'ended' && !c.reportSavePending;
+    final showWelcome = _completedService == false && completed && page == 0;
+    _completedService = completed;
+    if (!showWelcome || !mounted) return;
+    setState(() => focused = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && homeScroll.hasClients)
+        homeScroll.animateTo(
+          0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+    });
+  }
+
   void setFocused(bool value) => setState(() {
     focused = value;
     page = 0;
@@ -93,6 +115,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _followServiceCompletion();
+    c.addListener(_followServiceCompletion);
     if (!c.ready) {
       c.initialize().catchError((Object e) {
         if (mounted) showError('Could not initialize Android services: $e');
@@ -103,6 +127,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    c.removeListener(_followServiceCompletion);
+    homeScroll.dispose();
     settingsRefresh.dispose();
     c.dispose();
     super.dispose();
@@ -159,7 +185,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Choose a timeline to load into Ready. Timing begins only when you start the first segment.',
+                  'Choose a program to load into Ready. Timing begins only when you start the first segment.',
                 ),
                 const SizedBox(height: 16),
                 ...c.state.templates.asMap().entries.map(
@@ -176,7 +202,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 OutlinedButton.icon(
                   onPressed: () => Navigator.pop(ctx, -1),
                   icon: const Icon(Icons.add),
-                  label: const Text('Create timeline'),
+                  label: const Text('Create Program'),
                 ),
               ],
             ),
@@ -201,16 +227,55 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> startFirst() async {
     final s = c.state.session, revision = c.state.session.revision;
-    if (await confirm(
-      'Start ${s.timeline!.segments.first.name}?',
-      c.hardware.enabled
-          ? (c.hardware.connected
-                ? 'Start the countdown on ${c.hardware.rememberedName}.'
-                : 'Start timing on this phone. The LED sign is disconnected.')
-          : '${s.rehearsal ? 'Rehearsal · ${s.rate}× speed. ' : ''}${s.disconnected ? 'Start timing on this phone. The simulator is disconnected.' : 'Start timing with the display simulator.'}',
-      'Start first segment',
-    ))
-      await c.act('start', revision: revision);
+    final start = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AnimatedBuilder(
+        animation: c,
+        builder: (ctx, _) => AlertDialog(
+          title: Text('Start ${s.timeline!.segments.first.name}?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(connectionIcon(c.displayConnection)),
+                title: Text('Display: ${c.destinationName}'),
+                subtitle: Text(c.displayConnection.label),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  Navigator.pop(ctx, false);
+                  await chooseDisplay();
+                },
+              ),
+              if (s.rehearsal) Text('Rehearsal · ${s.rate}× speed'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            if (!c.destinationConnected)
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx, false);
+                  await chooseDisplay();
+                },
+                child: const Text('Connect display'),
+              ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(
+                c.destinationConnected
+                    ? 'Start first segment'
+                    : 'Start without a display',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (start == true) await c.act('start', revision: revision);
   }
 
   Future<void> advance() async {
@@ -322,7 +387,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     );
     if (!ok) {
       if (mounted)
-        await showError(c.error ?? 'The template could not be saved.');
+        await showError(c.error ?? 'The program could not be saved.');
       return null;
     }
     return result;
@@ -350,12 +415,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       String? error;
       bool validName() {
         try {
-          final n = nameValue(name.text, 'Template name');
+          final n = nameValue(name.text, 'Program name');
           require(
             !c.state.templates.any(
               (e) => e.name.toLowerCase() == n.toLowerCase(),
             ),
-            'This name already exists. Rename the incoming template.',
+            'This name already exists. Rename the incoming program.',
           );
           error = null;
           return true;
@@ -381,7 +446,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     TextField(
                       controller: name,
                       decoration: const InputDecoration(
-                        labelText: 'Template name',
+                        labelText: 'Program name',
                       ),
                       onChanged: (_) => update(() {
                         validName();
@@ -393,7 +458,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     ),
                     Text(
                       (file['name'] as String).toLowerCase().endsWith('.csv')
-                          ? 'CSV supplies the timeline only. These current defaults have been captured for this import:'
+                          ? 'CSV supplies the program only. These current defaults have been captured for this import:'
                           : 'JSON includes these display settings:',
                     ),
                     const SizedBox(height: 8),
@@ -429,7 +494,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                               (e) =>
                                   e.name.toLowerCase() == t.name.toLowerCase(),
                             ),
-                            'This name already exists. Rename the incoming template.',
+                            'This name already exists. Rename the incoming program.',
                           );
                           Navigator.pop(ctx, t);
                         } catch (e) {
@@ -457,7 +522,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     if (type == 'csv' &&
         !await confirm(
           'Export segments only?',
-          'CSV includes names, order and durations. Cue formatting, zero and end screens are omitted. Choose JSON to preserve the full template.',
+          'CSV includes names, order and durations. Cue formatting, zero and end screens are omitted. Choose JSON to preserve the full program.',
           'Export CSV',
         ))
       return;
@@ -530,14 +595,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   );
 
   Widget liveContent() {
-    final s = c.state.session, t = s.timeline;
+    final s = c.liveSession;
+    final standingBy =
+        s.phase == 'idle' || (s.phase == 'ended' && !c.reportSavePending);
+    final t = standingBy ? null : s.timeline;
     final enabled =
         s.active &&
+        !c.reportSavePending &&
         !c.busy &&
         !c.corrupt &&
         !controlsLocked &&
         c.pairing.localControl;
-    final phase = s.phase == 'active'
+    final phase = standingBy
+        ? 'Standing by'
+        : s.phase == 'active'
         ? (s.paused ? 'Paused' : 'Live')
         : s.phase == 'ready'
         ? 'Ready'
@@ -553,7 +624,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             children: [
               Expanded(child: label(t?.name ?? 'Live production')),
               Chip(
-                label: Text(s.rehearsal ? '$phase · ${s.rate}×' : phase),
+                label: Text(
+                  !standingBy && s.rehearsal ? '$phase · ${s.rate}×' : phase,
+                ),
                 avatar: Icon(
                   s.active && !s.paused ? Icons.circle : Icons.circle_outlined,
                   size: 12,
@@ -586,32 +659,31 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 child: Text('Speaker: ${t.segments[s.index].speaker}'),
               ),
             if (t.segments[s.index].notes.isNotEmpty)
-              ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                leading: const Icon(Icons.lock_outline, size: 18),
-                title: const Text('Private operator notes'),
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(t.segments[s.index].notes),
-                  ),
-                ],
+              OperatorNotes(
+                key: ValueKey('${s.id}-${s.index}'),
+                notes: t.segments[s.index].notes,
               ),
             SegmentGauge(session: s, now: c.now),
           ] else ...[
             const SizedBox(height: 18),
             Text(
-              'Load a timeline, keep the room on time, and send discreet cues to the stage.',
+              'Load a program, keep the room on time, and send discreet cues to the stage.',
               style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 24),
           ],
-          if (!s.active && s.phase != 'ready')
+          if (!s.active && s.phase != 'ready' && !c.reportSavePending)
             button(
               'Start service',
               Icons.play_arrow,
               c.busy || c.corrupt ? null : chooseService,
               primary: true,
+            ),
+          if (standingBy && c.state.reports.isNotEmpty)
+            TextButton.icon(
+              onPressed: () => openReport(c.state.reports.last),
+              icon: const Icon(Icons.assessment_outlined),
+              label: const Text('View last report'),
             ),
           if (s.phase == 'ready') ...[
             DropdownButtonFormField<int>(
@@ -696,65 +768,78 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         ],
       ),
     );
-    final displayPanel = panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          DisplayPreviewHeader(connection: c.displayConnection),
-          const SizedBox(height: 14),
-          liveMatrix(),
-          const SizedBox(height: 12),
-          Text(
-            '32 × 16 · ${c.state.pixelShape == 'square' ? 'Square' : 'Circular'} LEDs',
-            style: TextStyle(color: appColors(context).muted, fontSize: 12),
-          ),
-          if (s.held || s.disconnected) ...[
-            const SizedBox(height: 8),
-            Text(
-              s.disconnected
-                  ? 'Output unavailable · showing the last simulated frame'
-                  : 'Output held · review before restoring',
-              style: TextStyle(color: appColors(context).error),
+    final displayPanel = c.destination == 'mobile'
+        ? panel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DisplayPreviewHeader(connection: c.displayConnection),
+                const SizedBox(height: 14),
+                mobileStagePreview(),
+                const SizedBox(height: 12),
+                stageSharingControls(),
+              ],
             ),
-          ],
-          const SizedBox(height: 8),
-          Text(
-            'Intended: ${s.outputBlank ? 'Blank' : s.intended(c.now)?.text ?? 'No new output'}',
-            style: TextStyle(color: appColors(context).muted),
-          ),
-          Text(
-            c.hardware.enabled
-                ? 'Last accepted: ${c.hardware.acceptedLabel}'
-                : 'Simulated: ${c.simulator.delivered?.text ?? 'Blank'}',
-            style: TextStyle(color: appColors(context).muted),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            c.hardware.enabled
-                ? 'Preview is an estimate of the last accepted program, not a live camera view of the sign.'
-                : 'Simulator only · connect a display in Settings for physical output.',
-            style: TextStyle(color: appColors(context).muted, fontSize: 12),
-          ),
-          const SizedBox(height: 12),
-          button(
-            c.hardware.enabled
-                ? 'Display connection'
-                : s.disconnected
-                ? 'Reconnect simulator'
-                : 'Disconnect simulator',
-            s.disconnected ? Icons.link : Icons.link_off,
-            c.busy || c.corrupt
-                ? null
-                : c.hardware.enabled
-                ? () => openSettingsDetail(
-                    'Display connection',
-                    connectionSettings,
-                  )
-                : () => c.act(s.disconnected ? 'connect' : 'disconnect'),
-          ),
-        ],
-      ),
-    );
+          )
+        : panel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DisplayPreviewHeader(connection: c.displayConnection),
+                const SizedBox(height: 14),
+                liveMatrix(),
+                if (s.outputBlank)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text('Screen intentionally blanked'),
+                  ),
+                const SizedBox(height: 12),
+                Text(
+                  '32 × 16 · ${c.state.pixelShape == 'square' ? 'Square' : 'Circular'} LEDs',
+                  style: TextStyle(
+                    color: appColors(context).muted,
+                    fontSize: 12,
+                  ),
+                ),
+                if (s.held || s.disconnected) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    s.disconnected
+                        ? 'Output unavailable · showing the last simulated frame'
+                        : 'Output held · review before restoring',
+                    style: TextStyle(color: appColors(context).error),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Text(
+                  'Intended: ${s.outputBlank ? 'Blank' : s.intended(c.now)?.text ?? 'No new output'}',
+                  style: TextStyle(color: appColors(context).muted),
+                ),
+                Text(
+                  c.hardware.enabled
+                      ? 'Last accepted: ${c.hardware.acceptedLabel}'
+                      : 'Simulated: ${c.simulator.delivered?.text ?? 'Blank'}',
+                  style: TextStyle(color: appColors(context).muted),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  c.hardware.enabled
+                      ? 'Preview is an estimate of the last accepted program, not a live camera view of the sign.'
+                      : 'Simulator only · connect a display in Settings for physical output.',
+                  style: TextStyle(
+                    color: appColors(context).muted,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                button(
+                  'Change display',
+                  Icons.devices,
+                  c.busy || c.corrupt ? null : chooseDisplay,
+                ),
+              ],
+            ),
+          );
     final cuePanel = panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -848,7 +933,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 enabled &&
                         (s.outputBlank ||
                             s.alert != null ||
-                            s.hasAutomaticCue(c.now))
+                            s.hasAutomaticCue(c.now) ||
+                            c.currentQuickMessage != null)
                     ? () => c.act('timer')
                     : null,
                 primary: s.alert != null || s.outputBlank,
@@ -993,7 +1079,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               padding: const EdgeInsets.only(bottom: 16),
               child: hardwareStatusPanel(),
             ),
-          if (!c.hardware.enabled && s.held && (s.active || s.phase == 'ended'))
+          if (c.destination == 'simulator' &&
+              s.held &&
+              (s.active || s.phase == 'ended'))
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: panel(
@@ -1010,7 +1098,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${t!.name}\nLast activity: ${DateTime.fromMillisecondsSinceEpoch(s.checkpoint.wall).toLocal()}\n${s.uncertain ? 'Elapsed time is uncertain after a reboot or clock change. ' : ''}The timer continues locally. Confirm before replacing the simulator output.',
+                      '${s.timeline!.name}\nLast activity: ${DateTime.fromMillisecondsSinceEpoch(s.checkpoint.wall).toLocal()}\n${s.uncertain ? 'Elapsed time is uncertain after a reboot or clock change. ' : ''}${s.phase == 'ended' ? 'The service has ended.' : 'The timer continues locally.'} Confirm before replacing the simulator output.',
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -1054,19 +1142,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 320),
-                      child: liveMatrix(),
+                      child: c.destination == 'mobile'
+                          ? mobileStagePreview()
+                          : liveMatrix(),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    s.outputBlank
-                        ? (s.paused
-                              ? 'Blanked · timer paused'
-                              : 'Blanked · timing continues')
-                        : c.hardware.enabled
-                        ? c.hardware.acceptedLabel
-                        : 'Simulator · ${s.intended(c.now)?.text ?? 'No new output'}',
-                  ),
+                  if (c.destination == 'mobile')
+                    stageSharingControls()
+                  else
+                    Text(
+                      s.outputBlank
+                          ? 'Screen intentionally blanked'
+                          : c.hardware.enabled
+                          ? c.hardware.acceptedLabel
+                          : 'Simulator · ${s.intended(c.now)?.text ?? 'No new output'}',
+                    ),
                 ],
               ),
             ),
@@ -1085,12 +1176,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             displayPanel,
           ],
           const SizedBox(height: 20),
-          if (!focused && (s.active || s.phase == 'ended')) ...[
+          if (!focused && s.active) ...[
             timingOverview(),
             const SizedBox(height: 16),
           ],
           cuePanel,
-          if (t != null) ...[
+          if (c.destination == 'mobile') ...[
+            const SizedBox(height: 20),
+            quickMessagePanel(),
+          ],
+          if (t != null && !c.reportSavePending) ...[
             const SizedBox(height: 20),
             panel(
               child: Column(
@@ -1241,6 +1336,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         ? PairedScreen(controller: c)
         : Scaffold(
             body: CustomScrollView(
+              controller: homeScroll,
               slivers: [
                 SliverAppBar(
                   pinned: true,
@@ -1288,10 +1384,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                         onPressed: () =>
                             (controlsLocked || !c.pairing.localControl)
                             ? null
-                            : openSettingsDetail(
-                                'Display connection',
-                                connectionSettings,
-                              ),
+                            : chooseDisplay(),
                         icon: Icon(
                           connectionIcon(c.displayConnection),
                           color:
@@ -1447,8 +1540,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                               onPressed: c.busy
                                                   ? null
                                                   : () => c.retry!(),
-                                              child: const Text(
-                                                'Retry failed action',
+                                              child: Text(
+                                                c.reportSavePending
+                                                    ? 'Retry saving report'
+                                                    : 'Retry failed action',
                                               ),
                                             ),
                                           if (c.corrupt)
@@ -1456,7 +1551,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                               onPressed: () async {
                                                 if (await confirm(
                                                   'Reset local state?',
-                                                  'This replaces unreadable local service and template data with starter templates. No physical display is connected.',
+                                                  'This replaces unreadable local service and program data with starter programs. No physical display is connected.',
                                                   'Reset local data',
                                                 ))
                                                   await c.resetCorrupt();
@@ -1477,8 +1572,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                       : page == 1
                                       ? templates()
                                       : page == 2
-                                      ? settingsHub()
-                                      : reports(),
+                                      ? reports()
+                                      : settingsHub(),
                                 ),
                               ],
                             ),
@@ -1510,15 +1605,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       ),
                       NavigationDestination(
                         icon: Icon(Icons.view_timeline_outlined),
-                        label: 'Templates',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.settings_outlined),
-                        label: 'Settings',
+                        label: 'Programs',
                       ),
                       NavigationDestination(
                         icon: Icon(Icons.assessment_outlined),
                         label: 'Reports',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.settings_outlined),
+                        label: 'Settings',
                       ),
                     ],
                   ),
@@ -1887,7 +1982,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
                 decoration: const InputDecoration(
                   labelText: 'Private operator notes',
                   helperText:
-                      'Never shown on the sign. Included in template backups.',
+                      'Never shown on the sign. Included in program backups.',
                 ),
               ),
               if (issue != null)
@@ -1941,9 +2036,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text(
-        widget.upcomingOnly ? 'Upcoming segments' : 'Timeline editor',
-      ),
+      title: Text(widget.upcomingOnly ? 'Upcoming segments' : 'Program editor'),
     ),
     body: SafeArea(
       child: ListView(
@@ -1952,13 +2045,16 @@ class _TemplateEditorState extends State<TemplateEditor> {
           if (!widget.upcomingOnly) ...[
             TextField(
               controller: name,
-              decoration: const InputDecoration(labelText: 'Template name'),
+              decoration: const InputDecoration(
+                labelText: 'Program name',
+                hintText: 'Youth sunday',
+              ),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: templateType,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Template group'),
+              decoration: const InputDecoration(labelText: 'Program group'),
               items: const [
                 DropdownMenuItem(value: 'service', child: Text('Service')),
                 DropdownMenuItem(value: 'rehearsal', child: Text('Rehearsal')),
@@ -1967,13 +2063,13 @@ class _TemplateEditorState extends State<TemplateEditor> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Grouping organizes templates. Choose rehearsal speed when starting a service.',
+              'Grouping organizes programs. Choose rehearsal speed when starting a service.',
               style: TextStyle(color: appColors(context).muted, fontSize: 12),
             ),
           ],
           if (widget.upcomingOnly)
             const Text(
-              'Edit only the upcoming segments. Current and completed segments, saved templates and end screens stay unchanged.',
+              'Edit only the upcoming segments. Current and completed segments, saved programs and end screens stay unchanged.',
             ),
           const SizedBox(height: 16),
           Text(
@@ -2025,7 +2121,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'End screen · this template',
+                      'End screen · this program',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 12),
@@ -2039,13 +2135,13 @@ class _TemplateEditorState extends State<TemplateEditor> {
                       children: [
                         OutlinedButton.icon(
                           icon: const Icon(Icons.edit_outlined),
-                          label: const Text('Edit template end screen'),
+                          label: const Text('Edit program end screen'),
                           onPressed: () async {
                             final next = await showDialog<TextLayout>(
                               context: context,
                               builder: (_) => TextComposer(
                                 initial: endScreen,
-                                title: 'Template end screen',
+                                title: 'Program end screen',
                                 button: 'Use end screen',
                               ),
                             );
@@ -2060,17 +2156,9 @@ class _TemplateEditorState extends State<TemplateEditor> {
                         ),
                       ],
                     ),
-                    Text(
-                      'Saved with this template. At Zero is shared across all services and can be changed in Settings → Display settings.',
-                      style: TextStyle(color: appColors(context).muted),
-                    ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Warnings are shared across all services. Edit them in Settings → Warnings & alerts.',
             ),
             const SizedBox(height: 24),
           ],
@@ -2106,7 +2194,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
                 );
                 require(
                   !widget.existingNames.contains(t.name.toLowerCase()),
-                  'A template with this name already exists.',
+                  'A program with this name already exists.',
                 );
                 validateTimelinePixels(t);
                 Navigator.pop(context, t);
@@ -2116,13 +2204,17 @@ class _TemplateEditorState extends State<TemplateEditor> {
             },
             icon: const Icon(Icons.check),
             label: Text(
-              widget.upcomingOnly ? 'Review rundown changes' : 'Save timeline',
+              widget.upcomingOnly
+                  ? 'Review rundown changes'
+                  : (widget.initial.name.isEmpty
+                        ? 'Create Program'
+                        : 'Save changes'),
             ),
           ),
           const SizedBox(height: 12),
           if (!widget.upcomingOnly)
             Text(
-              'Template edits apply the next time you load this service. Default end screens are available in Settings → Display settings. Warnings are shared through Settings → Warnings & alerts.',
+              'Program edits apply the next time you load it.',
               style: TextStyle(color: appColors(context).muted),
             ),
         ],

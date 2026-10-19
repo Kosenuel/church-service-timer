@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-19",
+  "version": "0.15.0+15",
+  "apkSha256": "35bc9131de5cac5e4234b596a32424b09a2b605e028c8b144cee58608aed26bf",
+  "automated": {
+    "analysis": "flutter analyze: no issues",
+    "flutterTests": 328,
+    "result": "Full suite passed, including golden comparisons",
+    "reviewedChangedScreenshots": 39,
+    "endService": "One durable report with the original finish time, retry without duplication, immutable program snapshot, clean welcome and hidden rundown, return to the top after successful completion or retry, and restart of a held ended session",
+    "destinations": "Persisted exclusive selection; switching away cancels an in-flight LED reconnect; draft remains available without a mobile receiver",
+    "mobileMessages": "Encrypted loopback host, stage and operator sessions; acknowledgement-gated preview; warning precedence, expiry, stop sharing without stopping operators, disconnect clearing and no replay after rejoining",
+    "printing": "Recorded date, escaped content, private notes opt-in, historical snapshot and legacy report handling",
+    "identity": "org.kosenuel.cuekeeper, versionName 0.15.0, versionCode 15",
+    "androidBuild": "flutter build apk --release; final APK signature verified with apksigner",
+    "signingCertificateSha256": "7447b222512d8002f5ba5d7e985f7fdeca0cbc176b167fe240e790147a336afd",
+    "matrixFonts": "lib/matrix_font.dart and lib/square_matrix_font.dart unchanged"
+  },
+  "physical": {
+    "devices": "Samsung SM-A266B and itel S667LN, USB debugging; existing app data retained",
+    "network": "Both phones used the same ordinary Wi-Fi router; the LED sign was not used for these checks",
+    "pairing": "Samsung selected Phone or tablet and started stage sharing. The itel discovered it, joined using six digits as Stage display, and received output only after host approval. Stage mode was landscape and immersive.",
+    "preview": "The host displayed Stage screen / Connected, the receiving device name and Synced. Its landscape preview matched the receiver's rendered output.",
+    "quickMessage": "The MICROPHONE CHECK preset arrived with a headline, two-line body and sky palette. A 15-second message expired and the receiver returned to the current countdown at 01:15. Next segment also restored the countdown after overtime.",
+    "recovery": "Sent an Until cleared message, disabled receiver Wi-Fi for 14 seconds, then enabled it. Host Send was disabled while offline and the editable draft remained. The receiver visibly marked its last output as disconnected, automatically resumed the approved session after network recovery, and showed the current countdown without replaying the old message.",
+    "stopSharing": "Stop sharing from Live showed Stage sharing stopped on the receiver while the host's service remained active. End service subsequently saved the report and restored Standing by with View last report.",
+    "printing": "Opened Print Service from the new report, with Monday 19 October 2026, church banner included and private notes excluded. Saved a fresh one-page A4 PDF and rendered it with Poppler. Reviewed the cropped banner, gradient, date, planned/actual/paused columns and footer. The personal photo and PDF remain outside the repository.",
+    "runtime": "No Flutter or AndroidRuntime errors found in the inspected app-specific logs after the corrected APK was installed",
+    "finalInstall": "Final release APK installed on both phones with existing data retained; initial launch and the welcome view checked. The final return-to-top and focus reset changes passed automated normal-completion and save-retry regressions; these specific transitions were not repeated physically after the final install.",
+    "postTest": "Test service ended and stage sharing stopped; existing programs and reports retained. Samsung stay_on_while_plugged_in restored to its original value 0 and verified. Network selection left under user control after the shared-router checks."
+  },
+  "remainingLimits": [
+    "The receiver acknowledgement confirms receipt by the app, not optical confirmation or that its screen is unobstructed.",
+    "The W2 hotspot's client isolation still prevents phone-to-phone pairing. Hosting the service on the same phone providing a hotspot is not verified and current address detection expects a Wi-Fi client interface.",
+    "Existing W2 countdown and brief-blink behaviour is unchanged; this release's new physical checks target the mobile-display workflow. No controller configuration was modified.",
+    "Long-duration endurance, process death and force-stop recovery are not continuous-operation guarantees.",
+    "The existing local prototype signing key is retained for upgrade compatibility."
+  ]
+}

@@ -1,7 +1,7 @@
 part of 'domain.dart';
 
 const appName = 'Church Service Timer';
-const appVersion = '0.14.0 (14)';
+const appVersion = '0.15.0 (15)';
 const themeIds = {
   'midnight_lime',
   'royal_navy',
@@ -104,10 +104,11 @@ bool boolSetting(dynamic value) {
 String exportBackup(AppState state, Stamp now) {
   final data = state.toJson()
     ..remove('session')
+    ..remove('outputDestination')
     ..remove('version');
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    'schemaVersion': 3,
+    'schemaVersion': 4,
     'createdUtc': DateTime.fromMillisecondsSinceEpoch(
       now.wall,
       isUtc: true,
@@ -131,7 +132,7 @@ AppState importBackup(String raw, Stamp now) {
     keys(envelope, {'type', 'schemaVersion', 'createdUtc', 'data'}, 'Backup');
     require(
       envelope['type'] == 'church-service-timer-backup' &&
-          {1, 2, 3}.contains(envelope['schemaVersion']),
+          {1, 2, 3, 4}.contains(envelope['schemaVersion']),
       'Choose a supported Church Service Timer backup.',
     );
     final data = Map<String, dynamic>.from(envelope['data']);
@@ -140,6 +141,7 @@ AppState importBackup(String raw, Stamp now) {
       'defaults',
       'reports',
       'stageCues',
+      if (envelope['schemaVersion'] >= 4) 'quickMessages',
       'pixelShape',
       'groupTemplates',
       'churchName',
@@ -148,7 +150,12 @@ AppState importBackup(String raw, Stamp now) {
       if (envelope['schemaVersion'] >= 2) 'churchBanner',
     }, 'Backup data');
     require(
-      data.length == (envelope['schemaVersion'] >= 2 ? 10 : 9) &&
+      data.length ==
+              (envelope['schemaVersion'] >= 4
+                  ? 11
+                  : envelope['schemaVersion'] >= 2
+                  ? 10
+                  : 9) &&
           data.values.every((v) => v != null),
       'Backup is missing saved preferences.',
     );
@@ -156,11 +163,15 @@ AppState importBackup(String raw, Stamp now) {
       data['templates'] is List &&
           data['reports'] is List &&
           data['stageCues'] is List,
-      'Backup is missing templates, reports or cues.',
+      'Backup is missing programs, reports or cues.',
     );
     final restored = AppState.fromJson({
       ...data,
-      'version': envelope['schemaVersion'] == 3 ? 9 : 8,
+      'version': envelope['schemaVersion'] >= 4
+          ? 10
+          : envelope['schemaVersion'] == 3
+          ? 9
+          : 8,
       'session': Session(id: 'restored', anchor: now, held: true).toJson(),
     });
     require(

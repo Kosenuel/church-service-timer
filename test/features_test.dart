@@ -63,11 +63,11 @@ void main() {
       port.at = at(60);
       port.fail = false;
       expect(await c.retry!(), true);
-      expect(c.state.reports.single.totalMs, 60000);
+      expect(c.state.reports.single.totalMs, 50000);
       final restarted = AppController(port);
       await restarted.initialize(startTicker: false);
       expect(restarted.state.reports.length, 1);
-      expect(restarted.state.reports.single.totalMs, 60000);
+      expect(restarted.state.reports.single.totalMs, 50000);
       expect(await restarted.act('end'), false);
       expect(restarted.state.reports.length, 1);
       restarted.dispose();

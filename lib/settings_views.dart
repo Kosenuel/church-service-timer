@@ -160,6 +160,15 @@ extension SettingsViews on _HomeState {
         ]),
         group('Service tools', [
           entry(
+            Icons.message_outlined,
+            'Quick message presets',
+            'Saved messages for phone or tablet stage screens',
+            () => openSettingsDetail(
+              'Quick message presets',
+              quickPresetSettings,
+            ),
+          ),
+          entry(
             Icons.chat_bubble_outline,
             'Stage cues',
             'Create, format and reorder your Live buttons',
@@ -173,16 +182,16 @@ extension SettingsViews on _HomeState {
           ),
           entry(
             Icons.router_outlined,
-            'Device management',
-            'Display identity and saved connection credentials',
-            () => openSettingsDetail('Device management', deviceManagement),
+            'LED device management',
+            'LED sign Wi-Fi and connection credentials',
+            () => openSettingsDetail('LED device management', deviceManagement),
           ),
         ]),
         group('Data & app', [
           entry(
             Icons.backup_outlined,
             'Backup & restore',
-            'Templates, stage cues, reports and preferences',
+            'Programs, stage cues, reports and preferences',
             () => openSettingsDetail('Backup & restore', backupSettings),
           ),
           entry(
@@ -221,11 +230,11 @@ extension SettingsViews on _HomeState {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Save your templates, cue formatting, display defaults, service reports, church profile and appearance in one JSON file. You choose where it is stored.',
+              'Save your programs, cue formatting, display defaults, service reports, church profile and appearance in one JSON file. You choose where it is stored.',
             ),
             const SizedBox(height: 12),
             Text(
-              'Backups exclude the current running service and phone permissions. Tinos and both Matrix fonts are built in on every installation. Private operator notes are included in templates.',
+              'Backups exclude the current running service and phone permissions. Tinos and both Matrix fonts are built in on every installation. Private operator notes are included in programs.',
               style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 20),
@@ -292,7 +301,7 @@ extension SettingsViews on _HomeState {
       await NativeDisplayFonts.prepareState(restored);
       final okay = await confirm(
         'Replace this phone’s saved setup?',
-        '${file['name']}\n\n${restored.templates.length} templates · ${restored.stageCues.length} stage cues · ${restored.reports.length} reports\nChurch: ${restored.churchName.isEmpty ? 'Not set' : restored.churchName}\nTheme: ${paletteFor(restored.themeId).name}\n\nThis replaces your current saved templates, cues, reports and preferences. The timer returns to idle. This cannot be undone without another backup.',
+        '${file['name']}\n\n${restored.templates.length} programs · ${restored.stageCues.length} stage cues · ${restored.reports.length} reports\nChurch: ${restored.churchName.isEmpty ? 'Not set' : restored.churchName}\nTheme: ${paletteFor(restored.themeId).name}\n\nThis replaces your current saved programs, cues, reports and preferences. The timer returns to idle. This cannot be undone without another backup.',
         'Restore and replace',
       );
       if (!okay || !mounted) return;

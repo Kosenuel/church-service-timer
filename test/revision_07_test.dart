@@ -23,7 +23,7 @@ class SettingsPort extends FakePort {
   }
 
   @override
-  Future<String> installedVersion() async => '0.14.0 (14)';
+  Future<String> installedVersion() async => '0.15.0 (15)';
   @override
   Future<Map<String, dynamic>?> pickBackup() async => backup;
   @override
@@ -62,7 +62,7 @@ void main() {
   }
 
   Future<void> settings(WidgetTester t) async {
-    await t.tap(find.byType(NavigationDestination).at(2));
+    await t.tap(find.byType(NavigationDestination).at(3));
     await t.pumpAndSettle();
   }
 
@@ -71,9 +71,9 @@ void main() {
     () {
       expect(
         File('pubspec.yaml').readAsStringSync(),
-        contains('version: 0.14.0+14'),
+        contains('version: 0.15.0+15'),
       );
-      expect(appVersion, '0.14.0 (14)');
+      expect(appVersion, '0.15.0 (15)');
       expect(
         File('android/app/src/main/AndroidManifest.xml').readAsStringSync(),
         contains('android:label="$appName"'),
@@ -217,7 +217,7 @@ void main() {
       await t.tap(find.text('About'));
       await t.pumpAndSettle();
       expect(find.text('Created by I-Proton'), findsOneWidget);
-      expect(find.text('Version 0.14.0 (14)'), findsOneWidget);
+      expect(find.text('Version 0.15.0 (15)'), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/about-phone.png'),
@@ -350,7 +350,7 @@ void main() {
         expect(t.takeException(), isNull);
         port.at = at(60);
         await c.act('end');
-        await t.tap(find.byType(NavigationDestination).at(3));
+        await t.tap(find.byType(NavigationDestination).at(2));
         await t.pumpAndSettle();
         expect(t.takeException(), isNull);
         await t.pumpWidget(const SizedBox());

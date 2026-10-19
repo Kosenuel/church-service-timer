@@ -20,7 +20,7 @@ extension PlanningViews on _HomeState {
     if (result == null || !mounted) return;
     if (!await confirm(
       'Update upcoming segments?',
-      'Keep the current and completed segments unchanged. Apply ${result.segments.length} upcoming segments to this running service only. The saved template is unchanged.',
+      'Keep the current and completed segments unchanged. Apply ${result.segments.length} upcoming segments to this running service only. The saved program is unchanged.',
       'Update rundown',
     ))
       return;
@@ -94,33 +94,93 @@ extension PlanningViews on _HomeState {
     }
   }
 
-  Future<void> printServiceSheet(Timeline timeline) async {
-    var includeNotes = false;
-    var includeBanner = true;
+  Future<void> printServiceSheet(
+    Timeline? timeline, {
+    ServiceReport? report,
+  }) async {
+    var includeNotes = false, includeBanner = true;
+    var fullReport = report != null;
+    final session = c.state.session;
+    final actualDate =
+        report?.startedWall ??
+        (report == null && identical(timeline, session.timeline)
+            ? session.run?.startedWall
+            : null) ??
+        report?.endedWall;
+    var selectedDate = DateTime.fromMillisecondsSinceEpoch(
+      actualDate ?? c.now.wall,
+    );
     final yes = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
           title: const Text('Print Service'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Print or choose Save as PDF in Android’s print screen. Includes segment order, duration and speakers.',
-              ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Include church banner'),
-                value: includeBanner,
-                onChanged: (v) => update(() => includeBanner = v!),
-              ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Include private operator notes'),
-                value: includeNotes,
-                onChanged: (v) => update(() => includeNotes = v!),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Print or choose Save as PDF in Android’s print screen.',
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.event_outlined),
+                  title: const Text('Service date'),
+                  subtitle: Text(
+                    serviceDateLabel(selectedDate.millisecondsSinceEpoch),
+                  ),
+                  trailing: actualDate == null
+                      ? const Icon(Icons.edit_calendar_outlined)
+                      : null,
+                  onTap: actualDate != null
+                      ? null
+                      : () async {
+                          final date = await showDatePicker(
+                            context: ctx,
+                            initialDate: selectedDate,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (date != null && ctx.mounted)
+                            update(() => selectedDate = date);
+                        },
+                ),
+                if (report != null)
+                  DropdownButtonFormField<bool>(
+                    initialValue: fullReport,
+                    decoration: const InputDecoration(labelText: 'Document'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: true,
+                        child: Text('Service report'),
+                      ),
+                      DropdownMenuItem(
+                        value: false,
+                        child: Text('Service rundown'),
+                      ),
+                    ],
+                    onChanged: (value) => update(() => fullReport = value!),
+                  ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Include church banner'),
+                  value: includeBanner,
+                  onChanged: (v) => update(() => includeBanner = v!),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Include private operator notes'),
+                  subtitle: report != null && report.program == null
+                      ? const Text('Not recorded in this older report')
+                      : null,
+                  value: includeNotes,
+                  onChanged: report != null && report.program == null
+                      ? null
+                      : (v) => update(() => includeNotes = v!),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -137,16 +197,23 @@ extension PlanningViews on _HomeState {
     );
     if (yes != true) return;
     try {
-      await c.port.printServiceSheet(
-        timeline.name,
-        serviceSheetHtml(
-          timeline,
-          c.state.churchName,
-          privateNotes: includeNotes,
-          banner: c.state.churchBanner,
-          includeBanner: includeBanner,
-        ),
-      );
+      final html = report != null
+          ? reportServiceHtml(
+              report,
+              fullReport: fullReport,
+              privateNotes: includeNotes,
+              banner: c.state.churchBanner,
+              includeBanner: includeBanner,
+            )
+          : serviceSheetHtml(
+              timeline!,
+              c.state.churchName,
+              privateNotes: includeNotes,
+              banner: c.state.churchBanner,
+              includeBanner: includeBanner,
+              serviceDate: selectedDate.millisecondsSinceEpoch,
+            );
+      await c.port.printServiceSheet(report?.name ?? timeline!.name, html);
     } catch (e) {
       if (mounted) await showError('Printing failed: $e');
     }

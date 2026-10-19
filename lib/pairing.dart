@@ -132,12 +132,37 @@ class PairPeer {
   final String id, name, role;
   final PairWire wire;
   bool approved = false, requestedControl = false;
+  bool viewingStage;
+  int lastAck = 0, lastAckId = 0;
+  final Map<int, Json> pendingSnapshots = {};
+  Json? acknowledgedSnapshot;
   int lastSeen = DateTime.now().millisecondsSinceEpoch;
-  PairPeer(this.id, this.name, this.role, this.wire);
+  PairPeer(this.id, this.name, this.role, this.wire)
+    : viewingStage = role == 'stage';
 }
 
 /// Local encrypted links. The host remains the single timer/output authority.
 class PairHub extends ChangeNotifier {
+  bool stageSharingEnabled = true;
+  int _snapshotSequence = 0;
+  List<PairPeer> get stagePeers => peers
+      .where((p) => p.approved && p.viewingStage && !p.wire.closed)
+      .toList();
+  List<PairPeer> get syncedStagePeers => stageSharingEnabled
+      ? stagePeers
+            .where(
+              (p) =>
+                  p.lastAck > 0 &&
+                  DateTime.now().millisecondsSinceEpoch - p.lastAck < 3500,
+            )
+            .toList()
+      : [];
+  void setStageSharing(bool enabled) {
+    stageSharingEnabled = enabled;
+    changed();
+    unawaited(publish());
+  }
+
   ServerSocket? _server;
   PairWire? _client;
   final peers = <PairPeer>[];
@@ -186,6 +211,10 @@ class PairHub extends ChangeNotifier {
   void showStage(bool stage) {
     if (!joined || mode == 'operator') return;
     mode = stage ? 'stage' : 'viewer';
+    unawaited(
+      _client?.send({'type': 'viewMode', 'stage': stage}).catchError((_) {}) ??
+          Future.value(),
+    );
     onOwnershipChanged?.call();
     changed();
   }
@@ -380,6 +409,29 @@ class PairHub extends ChangeNotifier {
           await peer.wire.send({'type': 'pending', 'id': peer.id});
           continue;
         }
+        if (message['type'] == 'viewMode' && peer.role != 'operator') {
+          final stage = message['stage'] == true;
+          if (peer.viewingStage != stage) {
+            peer.viewingStage = stage;
+            changed();
+          }
+          continue;
+        }
+        if (message['type'] == 'ack' && message['id'] is int) {
+          final id = message['id'] as int;
+          final accepted = peer.pendingSnapshots.remove(id);
+          if (accepted != null && id > peer.lastAckId) {
+            final wasStale =
+                peer.lastAck == 0 ||
+                DateTime.now().millisecondsSinceEpoch - peer.lastAck >= 3500;
+            peer.lastAckId = id;
+            peer.lastAck = DateTime.now().millisecondsSinceEpoch;
+            peer.acknowledgedSnapshot = accepted;
+            peer.pendingSnapshots.removeWhere((key, _) => key < id);
+            if (wasStale) changed();
+          }
+          continue;
+        }
         if (message['type'] == 'requestControl' && peer.role == 'operator') {
           peer.requestedControl = true;
           changed();
@@ -505,17 +557,28 @@ class PairHub extends ChangeNotifier {
             await peer.wire.send({'type': 'pending', 'id': peer.id});
             continue;
           }
+          final snapshotId = ++_snapshotSequence;
+          final data =
+              snapshotFor?.call(peer.role == 'operator' && peer.id == owner) ??
+              <String, dynamic>{};
+          // Older viewers do not understand stageSharing; explicitly blank their output.
+          if (peer.viewingStage && data['stageSharing'] == false) {
+            data['blank'] = true;
+            data['displayText'] = '';
+            data.remove('quickMessage');
+          }
+          peer.pendingSnapshots[snapshotId] = data;
+          while (peer.pendingSnapshots.length > 12) {
+            peer.pendingSnapshots.remove(peer.pendingSnapshots.keys.first);
+          }
           await peer.wire.send({
             'type': 'state',
+            'snapshotId': snapshotId,
             'id': peer.id,
             'owner': owner,
             'epoch': epoch,
             'resume': _approvals[peer.id]?.secret,
-            'snapshot':
-                snapshotFor?.call(
-                  peer.role == 'operator' && peer.id == owner,
-                ) ??
-                {},
+            'snapshot': data,
           });
         } catch (_) {
           _drop(peer);
@@ -727,6 +790,10 @@ class PairHub extends ChangeNotifier {
           epoch = msg['epoch'];
           snapshot = Map<String, dynamic>.from(msg['snapshot']);
           lastSnapshot = DateTime.now().millisecondsSinceEpoch;
+          if (msg['snapshotId'] is int) {
+            await wire.send({'type': 'ack', 'id': msg['snapshotId']});
+            await wire.send({'type': 'viewMode', 'stage': mode == 'stage'});
+          }
           status = 'Connected';
           if (msg['resume'] is String &&
               base64Url.decode(msg['resume']).length == 32) {

@@ -4,6 +4,9 @@ IconData connectionIcon(DisplayConnection state) => switch (state) {
   DisplayConnection.simulator => Icons.monitor_outlined,
   DisplayConnection.connected => Icons.wifi,
   DisplayConnection.disconnected => Icons.wifi_off,
+  DisplayConnection.stageConnected => Icons.tablet_mac,
+  DisplayConnection.stageWaiting => Icons.add_to_queue,
+  DisplayConnection.stageDisconnected => Icons.portable_wifi_off,
 };
 
 extension RefinedSettings on _HomeState {
@@ -55,7 +58,7 @@ extension RefinedSettings on _HomeState {
           connectionIcon(c.displayConnection),
           'Display connection',
           c.displayConnection.label,
-          () => openSettingsDetail('Display connection', connectionSettings),
+          chooseDisplay,
         ),
         settingsRow(
           Icons.grid_on_outlined,
@@ -88,12 +91,12 @@ extension RefinedSettings on _HomeState {
         settingsRow(
           Icons.flag_outlined,
           'Default end screen',
-          '${c.state.defaults.end.text} · for new templates',
+          '${c.state.defaults.end.text} · for new programs',
           () => openSettingsDetail('Default end screen', defaultEndSettings),
         ),
       ]),
       Text(
-        'Each template keeps its own end screen. Manage shared warnings under Warnings & alerts in Settings.',
+        'Each program keeps its own end screen. Manage shared warnings under Warnings & alerts in Settings.',
         style: TextStyle(color: appColors(context).muted),
       ),
     ],
@@ -108,7 +111,7 @@ extension RefinedSettings on _HomeState {
         Text(styleSummary(c.state.defaults.end)),
         const SizedBox(height: 12),
         const Text(
-          'Used when creating a new template. Existing templates and the loaded service retain their end screens.',
+          'Used when creating a new program. Existing programs and the loaded service retain their end screens.',
         ),
         const SizedBox(height: 16),
         button(
@@ -271,7 +274,7 @@ extension RefinedSettings on _HomeState {
         button(
           'Connect a display',
           Icons.wifi,
-          c.busy ? null : openHardwareConnection,
+          c.busy ? null : chooseDisplay,
           primary: true,
         ),
         const SizedBox(height: 12),
@@ -313,7 +316,7 @@ extension RefinedSettings on _HomeState {
             Icons.view_timeline_outlined,
             'Selected service',
             s.timeline == null
-                ? 'Choose a template from Live or Templates'
+                ? 'Choose a program from Live or Programs'
                 : '${s.timeline!.name} · ${s.timeline!.segments.length} segments',
             null,
           ),

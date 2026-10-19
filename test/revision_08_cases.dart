@@ -12,20 +12,21 @@ final revision08Cases = <String, void Function()>{
     old.remove('churchBanner');
     final state = AppState.fromJson(old);
     equal(state.churchBanner, '');
-    equal(state.toJson()['version'], 9);
+    equal(state.toJson()['version'], 10);
     equal(state.templates.map((t) => t.toJson()).toList(), old['templates']);
   },
   'Banner survives saved-state and portable-backup round trips': () {
     final state = AppState.fresh(epoch)..churchBanner = bannerFixture();
     equal(AppState.fromJson(state.toJson()).churchBanner, state.churchBanner);
     final raw = exportBackup(state, epoch);
-    equal(jsonDecode(raw)['schemaVersion'], 3);
+    equal(jsonDecode(raw)['schemaVersion'], 4);
     equal(importBackup(raw, epoch).churchBanner, state.churchBanner);
   },
   'Older schema 1 backups restore using the built-in banner': () {
     final raw = jsonDecode(exportBackup(AppState.fresh(epoch), epoch)) as Json;
     raw['schemaVersion'] = 1;
     (raw['data'] as Map).remove('churchBanner');
+    (raw['data'] as Map).remove('quickMessages');
     equal(importBackup(jsonEncode(raw), epoch).churchBanner, '');
   },
   'Schema 2 rejects missing or malformed banners': () {

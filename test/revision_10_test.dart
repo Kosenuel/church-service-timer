@@ -167,16 +167,13 @@ void main() {
       );
       await t.tap(status);
       await t.pumpAndSettle();
-      expect(find.text('Physical delivery'), findsOneWidget);
-      expect(
-        find.text('Available after connecting a supported W2 display'),
-        findsOneWidget,
-      );
+      expect(find.text('Choose display'), findsOneWidget);
+      expect(find.text('Phone or tablet'), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/connection-phone.png'),
       );
-      await tap(t, 'Disconnect simulator');
+      await c.act('disconnect');
       await t.pageBack();
       await t.pumpAndSettle();
       expect(
@@ -257,7 +254,7 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('template-row:Quick rehearsal')));
       await t.pumpAndSettle();
-      await tap(t, 'Edit template');
+      await tap(t, 'Edit Program');
       await tap(t, 'Welcome');
       await t.enterText(
         find.widgetWithText(TextField, 'Speaker (optional)'),
@@ -270,7 +267,7 @@ void main() {
       t.testTextInput.hide();
       await tap(t, 'Save segment');
       await t.scrollUntilVisible(
-        find.text('Save timeline'),
+        find.text('Save changes'),
         300,
         scrollable: find
             .descendant(
@@ -279,7 +276,7 @@ void main() {
             )
             .first,
       );
-      await tap(t, 'Save timeline');
+      await tap(t, 'Save changes');
       expect(c.state.templates.last.segments.first.speaker, 'Pastor Grace');
       expect(
         c.state.templates.last.segments.first.notes,
@@ -299,7 +296,7 @@ void main() {
       final c = await setup(port);
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(2));
+      await t.tap(find.byType(NavigationDestination).at(3));
       await t.pumpAndSettle();
       await tap(t, 'Feedback Center');
       await t.enterText(find.byKey(const ValueKey('feedback-title')), 'Test');
@@ -358,7 +355,7 @@ void main() {
         ),
       );
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(2));
+      await t.tap(find.byType(NavigationDestination).at(3));
       await t.pumpAndSettle();
       await tap(t, 'Display settings');
       expect(t.takeException(), isNull);

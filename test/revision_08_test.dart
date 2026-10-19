@@ -52,7 +52,7 @@ void main() {
   }
 
   Future<void> profile(WidgetTester t) async {
-    await t.tap(find.byType(NavigationDestination).at(2));
+    await t.tap(find.byType(NavigationDestination).at(3));
     await t.pumpAndSettle();
     await t.tap(find.text('Church profile'));
     await t.pumpAndSettle();
@@ -102,8 +102,8 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.byKey(const ValueKey('template-row:Sunday Service')));
     await t.pumpAndSettle();
-    await t.ensureVisible(find.text('Edit template'));
-    await t.tap(find.text('Edit template'));
+    await t.ensureVisible(find.text('Edit Program'));
+    await t.tap(find.text('Edit Program'));
     await t.pumpAndSettle();
   }
 
@@ -143,7 +143,7 @@ void main() {
       await c.act('load', value: c.state.templates.first);
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(2));
+      await t.tap(find.byType(NavigationDestination).at(3));
       await t.pumpAndSettle();
       await t.tap(find.text('Warnings & alerts'));
       await t.pumpAndSettle();
@@ -175,7 +175,7 @@ void main() {
       final c = await setup(FakePort());
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(2));
+      await t.tap(find.byType(NavigationDestination).at(3));
       await t.pumpAndSettle();
       await t.tap(find.text('Display settings'));
       await t.pumpAndSettle();
@@ -327,7 +327,7 @@ void main() {
       await c.commit((a, _) => a.reports = reportFixtures());
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(3));
+      await t.tap(find.byType(NavigationDestination).at(2));
       await t.pumpAndSettle();
       expect(find.byType(ReportListRow), findsNWidgets(3));
       expect(find.byIcon(Icons.delete_outline), findsNothing);
@@ -361,7 +361,7 @@ void main() {
         ),
       );
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(2));
+      await t.tap(find.byType(NavigationDestination).at(3));
       await t.pumpAndSettle();
       expect(t.takeException(), isNull);
       await t.tap(find.text('Church profile'));
@@ -370,7 +370,7 @@ void main() {
       expect(t.takeException(), isNull);
       await t.pageBack();
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(3));
+      await t.tap(find.byType(NavigationDestination).at(2));
       await t.pumpAndSettle();
       await t.ensureVisible(find.byKey(const ValueKey('open-report-sunday')));
       expect(t.takeException(), isNull);

@@ -69,12 +69,12 @@ extension TemplateViews on _HomeState {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Templates',
+                    'Programs',
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${items.length} saved ${items.length == 1 ? 'template' : 'templates'}',
+                    '${items.length} saved ${items.length == 1 ? 'program' : 'programs'}',
                     style: TextStyle(
                       color: appColors(context).muted,
                       fontSize: 13,
@@ -99,7 +99,7 @@ extension TemplateViews on _HomeState {
         Align(
           alignment: Alignment.centerRight,
           child: PopupMenuButton<bool>(
-            tooltip: 'Template list options',
+            tooltip: 'Program list options',
             enabled: !disabled,
             initialValue: c.state.groupTemplates,
             onSelected: (value) async {
@@ -139,7 +139,7 @@ extension TemplateViews on _HomeState {
         if (items.isEmpty)
           panel(
             child: const Text(
-              'No templates yet. Create one with New, or import a CSV or JSON file.',
+              'No programs yet. Create one with New, or import a CSV or JSON file.',
             ),
           )
         else if (!c.state.groupTemplates)
@@ -181,7 +181,7 @@ extension TemplateViews on _HomeState {
               final t = index < 0 ? null : c.state.templates[index];
               final disabled = c.busy || c.corrupt;
               return Scaffold(
-                appBar: AppBar(title: const Text('Template details')),
+                appBar: AppBar(title: const Text('Program details')),
                 body: SafeArea(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(20),
@@ -190,7 +190,7 @@ extension TemplateViews on _HomeState {
                         constraints: const BoxConstraints(maxWidth: 760),
                         child: t == null
                             ? const Text(
-                                'This template is no longer available. Return to Templates.',
+                                'This program is no longer available. Return to Programs.',
                               )
                             : Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -208,6 +208,55 @@ extension TemplateViews on _HomeState {
                                     style: TextStyle(
                                       color: appColors(context).muted,
                                     ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 10,
+                                    children: [
+                                      FilledButton.icon(
+                                        onPressed: disabled
+                                            ? null
+                                            : () async {
+                                                final result =
+                                                    await editTemplate(
+                                                      index: index,
+                                                    );
+                                                if (result != null &&
+                                                    pageContext.mounted)
+                                                  update(
+                                                    () => selectedName =
+                                                        result.name,
+                                                  );
+                                              },
+                                        icon: const Icon(Icons.edit_outlined),
+                                        label: const Text('Edit Program'),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: disabled
+                                            ? null
+                                            : () async {
+                                                Timeline? copy;
+                                                final ok = await c.commit(
+                                                  (draft, _) => copy = draft
+                                                      .duplicateTemplate(t),
+                                                );
+                                                if (ok && pageContext.mounted) {
+                                                  update(
+                                                    () => selectedName =
+                                                        copy!.name,
+                                                  );
+                                                } else if (!ok && mounted) {
+                                                  await showError(
+                                                    c.error ??
+                                                        'The duplicate could not be saved.',
+                                                  );
+                                                }
+                                              },
+                                        icon: const Icon(Icons.copy_outlined),
+                                        label: const Text('Duplicate'),
+                                      ),
+                                    ],
                                   ),
                                   const SizedBox(height: 24),
                                   label('Segments'),
@@ -334,54 +383,6 @@ extension TemplateViews on _HomeState {
                                     ),
                                   ),
                                   const SizedBox(height: 20),
-                                  Wrap(
-                                    spacing: 10,
-                                    runSpacing: 10,
-                                    children: [
-                                      FilledButton.icon(
-                                        onPressed: disabled
-                                            ? null
-                                            : () async {
-                                                final result =
-                                                    await editTemplate(
-                                                      index: index,
-                                                    );
-                                                if (result != null &&
-                                                    pageContext.mounted)
-                                                  update(
-                                                    () => selectedName =
-                                                        result.name,
-                                                  );
-                                              },
-                                        icon: const Icon(Icons.edit_outlined),
-                                        label: const Text('Edit template'),
-                                      ),
-                                      OutlinedButton.icon(
-                                        onPressed: disabled
-                                            ? null
-                                            : () async {
-                                                Timeline? copy;
-                                                final ok = await c.commit(
-                                                  (draft, _) => copy = draft
-                                                      .duplicateTemplate(t),
-                                                );
-                                                if (ok && pageContext.mounted) {
-                                                  update(
-                                                    () => selectedName =
-                                                        copy!.name,
-                                                  );
-                                                } else if (!ok && mounted) {
-                                                  await showError(
-                                                    c.error ??
-                                                        'The duplicate could not be saved.',
-                                                  );
-                                                }
-                                              },
-                                        icon: const Icon(Icons.copy_outlined),
-                                        label: const Text('Duplicate'),
-                                      ),
-                                    ],
-                                  ),
                                   const SizedBox(height: 16),
                                   Wrap(
                                     spacing: 8,
@@ -406,9 +407,7 @@ extension TemplateViews on _HomeState {
                                             ? null
                                             : () => printServiceSheet(t),
                                         icon: const Icon(Icons.print_outlined),
-                                        label: const Text(
-                                          'Print service sheet',
-                                        ),
+                                        label: const Text('Print Service'),
                                       ),
                                     ],
                                   ),
@@ -418,6 +417,15 @@ extension TemplateViews on _HomeState {
                                     style: TextStyle(fontSize: 12),
                                   ),
                                   const SizedBox(height: 16),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Edits apply the next time you load this program. Your current service stays unchanged.',
+                                    style: TextStyle(
+                                      color: appColors(context).muted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const Divider(height: 40),
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: TextButton.icon(
@@ -431,8 +439,8 @@ extension TemplateViews on _HomeState {
                                           : () async {
                                               if (!await confirm(
                                                 'Delete ${t.name}?',
-                                                'Delete this saved template? Any loaded service and its report remain unchanged.',
-                                                'Delete template',
+                                                'Delete this saved program? Any loaded service and its report remain unchanged.',
+                                                'Delete program',
                                               ))
                                                 return;
                                               final ok = await c.commit(
@@ -445,20 +453,12 @@ extension TemplateViews on _HomeState {
                                               } else if (mounted) {
                                                 await showError(
                                                   c.error ??
-                                                      'The template could not be deleted.',
+                                                      'The program could not be deleted.',
                                                 );
                                               }
                                             },
                                       icon: const Icon(Icons.delete_outline),
-                                      label: const Text('Delete template'),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Edits apply the next time you load this template. Your current service stays unchanged.',
-                                    style: TextStyle(
-                                      color: appColors(context).muted,
-                                      fontSize: 13,
+                                      label: const Text('Delete program'),
                                     ),
                                   ),
                                 ],

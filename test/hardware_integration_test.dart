@@ -136,8 +136,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('header-connection')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Connect a display'));
-    await tester.tap(find.text('Connect a display'));
+    await tester.tap(find.byKey(const ValueKey('destination-led')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Scan for displays'));
     await tester.pumpAndSettle();

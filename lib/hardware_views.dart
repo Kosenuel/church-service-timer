@@ -97,6 +97,7 @@ extension HardwareViews on _HomeState {
         );
 
   Future<void> reconnectDisplay() async {
+    if (c.destination != 'led' && !await c.selectDestination('led')) return;
     if (c.hardware.rememberedId.isNotEmpty &&
         await c.hardware.reconnectSaved()) {
       if (mounted)
@@ -333,6 +334,9 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                             throw RuleError(
                               'Saved password unavailable. Enter it again.',
                             );
+                          if (c.destination != 'led' &&
+                              !await c.selectDestination('led'))
+                            return;
                           final ok = await h.connect(id, secret);
                           if (ok && rememberPassword && !useSaved)
                             await c.port.saveDisplayPassword(id, secret);
@@ -426,7 +430,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                         ),
                       );
                       if (confirmed != true) return;
-                      await h.disconnect(simulator: true);
+                      if (!await c.selectDestination('simulator')) return;
                       if (c.state.session.disconnected) await c.act('connect');
                       if (context.mounted) Navigator.pop(context);
                     },

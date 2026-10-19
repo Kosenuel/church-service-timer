@@ -4,6 +4,7 @@ import 'dart:math' as math;
 part 'service_features.dart';
 part 'app_settings.dart';
 part 'service_planning.dart';
+part 'quick_message.dart';
 
 typedef Json = Map<String, dynamic>;
 const maxRemainingMs = 5999000;
@@ -172,7 +173,7 @@ class DisplaySettings {
     final c = (j['cues'] as List)
         .map((e) => TextLayout.fromJson(Map<String, dynamic>.from(e)))
         .toList();
-    require(c.length <= 6, 'Configure at most 6 template cues.');
+    require(c.length <= 6, 'Configure at most 6 program cues.');
     return DisplaySettings(
       zero: j['zero'] == null
           ? null
@@ -259,10 +260,10 @@ class Timeline {
       'segments',
       'display',
       'type',
-    }, 'Template');
+    }, 'Program');
     require(
       j['schemaVersion'] is int && {1, 2, 3, 4}.contains(j['schemaVersion']),
-      'Supported template schema versions are 1–4.',
+      'Supported program schema versions are 1–4.',
     );
     final type =
         j['type'] ??
@@ -273,13 +274,13 @@ class Timeline {
             : 'service');
     require(
       {'service', 'rehearsal'}.contains(type),
-      'Template type must be service or rehearsal.',
+      'Program type must be service or rehearsal.',
     );
     require(j['segments'] is List, 'segments must be a list.');
     final entries = j['segments'] as List;
     require(
       entries.isNotEmpty && entries.length <= 200,
-      'A timeline needs 1–200 segments.',
+      'A program needs 1–200 segments.',
     );
     final segs = <Segment>[];
     for (var i = 0; i < entries.length; i++) {
@@ -290,14 +291,14 @@ class Timeline {
       }
     }
     return Timeline(
-      nameValue(j['name'], 'Template name'),
+      nameValue(j['name'], 'Program name'),
       segs,
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['display'])),
       type: type as String,
     );
   }
   Timeline renamed(String n) =>
-      Timeline(nameValue(n, 'Template name'), segments, display, type: type);
+      Timeline(nameValue(n, 'Program name'), segments, display, type: type);
   Timeline withDisplay(DisplaySettings value) =>
       Timeline(name, segments, value, type: type);
   Json toJson() => {
@@ -585,7 +586,7 @@ class Session {
           (s.timeline != null &&
               s.index >= 0 &&
               s.index < s.timeline!.segments.length),
-      'Invalid saved timeline position.',
+      'Invalid saved program position.',
     );
     require(
       s.phase != 'ended' || s.alert == null,
@@ -853,6 +854,8 @@ Session recover(Session original, Stamp now) {
 }
 
 class AppState {
+  String? outputDestination;
+  List<QuickMessage> quickMessages;
   List<Timeline> templates;
   DisplaySettings defaults;
   Session session;
@@ -874,7 +877,10 @@ class AppState {
     this.churchBanner = '',
     this.themeId = 'midnight_lime',
     this.keepScreenAwake = true,
+    this.outputDestination,
+    List<QuickMessage>? quickMessages,
   }) : reports = reports ?? [],
+       quickMessages = quickMessages ?? [...defaultQuickMessages],
        stageCues = stageCues ?? [...defaults.cues];
   factory AppState.fresh(Stamp now) => AppState(
     [
@@ -900,7 +906,7 @@ class AppState {
   );
   factory AppState.fromJson(Json j, {Stamp? now}) {
     require(
-      {1, 2, 3, 4, 5, 6, 7, 8, 9}.contains(j['version']),
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -909,7 +915,7 @@ class AppState {
     );
     require(
       j['groupTemplates'] == null || j['groupTemplates'] is bool,
-      'Invalid template grouping preference.',
+      'Invalid program grouping preference.',
     );
     final a = AppState(
       (j['templates'] as List)
@@ -917,6 +923,10 @@ class AppState {
           .toList(),
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['defaults'])),
       Session.fromJson(Map<String, dynamic>.from(j['session'])),
+      outputDestination: j['outputDestination'] as String?,
+      quickMessages: (j['quickMessages'] as List?)
+          ?.map((e) => QuickMessage.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
       pixelShape: j['pixelShape'] ?? 'square',
       groupTemplates: (j['version'] as int) < 9
           ? true
@@ -935,9 +945,18 @@ class AppState {
                 .toList(),
     );
     require(
+      a.outputDestination == null ||
+          {'led', 'mobile', 'simulator'}.contains(a.outputDestination),
+      'Invalid display destination.',
+    );
+    require(
+      a.quickMessages.length <= 50,
+      'Keep at most 50 quick message presets.',
+    );
+    require(
       a.templates.map((t) => t.name.toLowerCase()).toSet().length ==
           a.templates.length,
-      'Saved templates contain duplicate names.',
+      'Saved programs contain duplicate names.',
     );
     if (j['stageCues'] == null) {
       // Keep customized cues from every old location, including the old library.
@@ -1022,7 +1041,9 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 9,
+    'version': 10,
+    'outputDestination': outputDestination,
+    'quickMessages': quickMessages.map((e) => e.toJson()).toList(),
     'templates': templates.map((t) => t.toJson()).toList(),
     'defaults': defaults.toJson(),
     'session': session.toJson(),
@@ -1113,7 +1134,7 @@ class AppState {
             e.key != replacing &&
             e.value.name.toLowerCase() == t.name.toLowerCase(),
       ),
-      'A template named "${t.name}" already exists. Rename it before saving.',
+      'A program named "${t.name}" already exists. Rename it before saving.',
     );
     if (replacing == null) {
       templates.add(t);
@@ -1129,7 +1150,7 @@ class AppState {
       index >= 0 &&
           jsonEncode(templates[index].toJson()) ==
               jsonEncode(expected.toJson()),
-      'This template changed. Return to Templates and review it again.',
+      'This program changed. Return to Programs and review it again.',
     );
     return index;
   }
@@ -1227,7 +1248,7 @@ Timeline importTemplate(
       rethrow;
     } catch (_) {
       throw RuleError(
-        'Invalid JSON structure. Select a version 1, 2 or 3 template file.',
+        'Invalid JSON structure. Select a version 1, 2 or 3 program file.',
       );
     }
   }
@@ -1282,7 +1303,7 @@ Timeline importTemplate(
     'Import must contain 1–200 segments.',
   );
   return Timeline(
-    nameValue(filename.replaceFirst(RegExp(r'\.[^.]+$'), ''), 'Template name'),
+    nameValue(filename.replaceFirst(RegExp(r'\.[^.]+$'), ''), 'Program name'),
     segs,
     DisplaySettings.fromJson(defaults.toJson()),
   );

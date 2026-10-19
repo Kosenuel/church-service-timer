@@ -51,7 +51,7 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  for (final title in ['Stage cues', 'Paired devices', 'Device management']) {
+  for (final title in ['Stage cues', 'Paired devices', 'LED device management']) {
     testWidgets('$title settings preview', (t) async {
       size(t);
       await open(t);

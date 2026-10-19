@@ -15,7 +15,7 @@ final revision07Cases = <String, void Function()>{
         equal(a.keepScreenAwake, true);
         equal(a.templates.map((t) => t.toJson()).toList(), old['templates']);
         equal(a.stageCues.map((t) => t.toJson()).toList(), old['stageCues']);
-        equal(a.toJson()['version'], 9);
+        equal(a.toJson()['version'], 10);
       },
   'Church and appearance preferences survive state round trip': () {
     for (final theme in themeIds) {

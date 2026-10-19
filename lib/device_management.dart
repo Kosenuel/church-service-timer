@@ -291,6 +291,15 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      const Text(
+        'LED sign settings',
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        'Manage the LED sign’s Wi-Fi and connection credentials here. Phone and tablet screens are managed under Stage screens / Paired devices.',
+      ),
+      const SizedBox(height: 20),
       Text(
         c.hardware.rememberedName.isEmpty
             ? 'No remembered display'
@@ -438,7 +447,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
       ),
       const Divider(height: 32),
       const Text(
-        'Controller administration',
+        'LED controller administration',
         style: TextStyle(fontWeight: FontWeight.w700),
       ),
       const SizedBox(height: 8),
@@ -476,8 +485,8 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
                   c.hardware.connected
                       ? 'Connection details'
                       : c.hardware.rememberedId.isEmpty
-                      ? 'Connect display'
-                      : 'Reconnect display',
+                      ? 'Connect LED display'
+                      : 'Reconnect LED display',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -488,7 +497,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
       const SizedBox(height: 8),
       Text(
         !c.hardware.connected
-            ? 'Connect the display to enable changes.'
+            ? 'Connect the LED display to enable changes.'
             : !wifiConnected
             ? 'Wi-Fi is unavailable. Reconnect to the sign’s Wi-Fi.'
             : !adminSupported

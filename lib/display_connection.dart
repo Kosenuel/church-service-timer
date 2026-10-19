@@ -2,6 +2,9 @@
 enum DisplayConnection {
   simulator('Simulator'),
   connected('Display connected'),
+  stageConnected('Stage screen · Connected'),
+  stageWaiting('Waiting for a screen'),
+  stageDisconnected('Stage screen · Disconnected'),
   disconnected('Disconnected');
 
   final String label;

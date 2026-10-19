@@ -97,7 +97,9 @@ void main() {
         await centered();
         expect(find.text('OVERTIME'), findsOneWidget);
         await c.act('end');
-        await centered();
+        await t.pumpAndSettle();
+        expect(find.byType(SegmentGauge), findsNothing);
+        expect(find.text('Standing by'), findsOneWidget);
         await t.pumpWidget(const SizedBox());
       },
     );
@@ -174,7 +176,7 @@ void main() {
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
     await templates(t);
-    expect(find.text('Edit template'), findsNothing);
+    expect(find.text('Edit Program'), findsNothing);
     final row = find.byKey(const ValueKey('template-row:Sunday Service'));
     expect(t.getSize(row).height, lessThan(85));
     expect(find.text('4 segments · 55 min'), findsOneWidget);
@@ -184,7 +186,7 @@ void main() {
     );
     await t.tap(row);
     await t.pumpAndSettle();
-    expect(find.text('Template details'), findsOneWidget);
+    expect(find.text('Program details'), findsOneWidget);
     expect(find.text('Praise & Worship'), findsOneWidget);
     expect(find.text('Hallelujah'), findsOneWidget);
     await expectLater(
@@ -222,15 +224,15 @@ void main() {
       await t.pumpAndSettle();
       expect(find.text('Quick rehearsal (copy)'), findsOneWidget);
       expect(c.state.templates.last.type, 'rehearsal');
-      await t.ensureVisible(find.text('Delete template'));
-      await t.tap(find.text('Delete template'));
+      await t.ensureVisible(find.text('Delete program'));
+      await t.tap(find.text('Delete program'));
       await t.pumpAndSettle();
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
       expect(c.state.templates.length, 3);
-      await t.tap(find.text('Delete template'));
+      await t.tap(find.text('Delete program'));
       await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(FilledButton, 'Delete template'));
+      await t.tap(find.widgetWithText(FilledButton, 'Delete program'));
       await t.pumpAndSettle();
       expect(c.state.templates.length, 2);
       expect(c.state.session.timeline!.name, 'Quick rehearsal');
@@ -272,14 +274,14 @@ void main() {
       await templates(t);
       expect(t.takeException(), isNull);
       expect(c.state.groupTemplates, true);
-      await t.tap(find.byTooltip('Template list options'));
+      await t.tap(find.byTooltip('Program list options'));
       await t.pumpAndSettle();
       await t.tap(
         find.widgetWithText(CheckedPopupMenuItem<bool>, 'Single list'),
       );
       await t.pumpAndSettle();
       expect(c.state.groupTemplates, false);
-      await t.tap(find.byTooltip('Template list options'));
+      await t.tap(find.byTooltip('Program list options'));
       await t.pumpAndSettle();
       await t.tap(
         find.widgetWithText(
@@ -298,11 +300,11 @@ void main() {
       await t.tap(find.byKey(const ValueKey('template-row:Quick rehearsal')));
       await t.pumpAndSettle();
       expect(t.takeException(), isNull);
-      await t.ensureVisible(find.text('Edit template'));
-      await t.tap(find.text('Edit template'));
+      await t.ensureVisible(find.text('Edit Program'));
+      await t.tap(find.text('Edit Program'));
       await t.pumpAndSettle();
       await t.enterText(
-        find.widgetWithText(TextField, 'Template name'),
+        find.widgetWithText(TextField, 'Program name'),
         'Practice night',
       );
       await t.tap(find.byType(DropdownButtonFormField<String>));
@@ -310,7 +312,7 @@ void main() {
       await t.tap(find.text('Service').last);
       await t.pumpAndSettle();
       await t.scrollUntilVisible(
-        find.text('Save timeline'),
+        find.text('Save changes'),
         300,
         scrollable: find
             .descendant(
@@ -319,7 +321,7 @@ void main() {
             )
             .first,
       );
-      await t.tap(find.text('Save timeline'));
+      await t.tap(find.text('Save changes'));
       await t.pumpAndSettle();
       expect(c.state.templates[1].type, 'service');
       expect(find.text('Practice night'), findsOneWidget);

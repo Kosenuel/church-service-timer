@@ -748,13 +748,7 @@ class _PairedScreenState extends State<PairedScreen> {
                           hub.status,
                           style: const TextStyle(color: Colors.white),
                         )
-                      : data['blank'] == true
-                      ? const SizedBox.expand()
-                      : StageMessage(
-                          data: data,
-                          stale: stale,
-                          fullscreen: true,
-                        ),
+                      : StageSurface(data: data, stale: stale),
                 ),
               ),
               if (_showTools || stale)

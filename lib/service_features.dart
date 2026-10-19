@@ -240,6 +240,7 @@ class ReportRow {
 }
 
 class ServiceReport {
+  final Timeline? program;
   final String id, name;
   final String churchName;
   final int? startedWall, totalMs;
@@ -257,6 +258,7 @@ class ServiceReport {
     this.uncertain,
     List<ReportRow> rows, {
     this.churchName = '',
+    this.program,
     List<ServiceEvent> events = const [],
   }) : rows = List.unmodifiable(rows),
        events = List.of(events);
@@ -284,6 +286,7 @@ class ServiceReport {
           )
           .toList(),
       churchName: s.churchName,
+      program: s.timeline,
       events: s.events,
     );
   }
@@ -308,12 +311,16 @@ class ServiceReport {
         .map((e) => ReportRow.fromJson(Map<String, dynamic>.from(e)))
         .toList(),
     churchName: churchNameValue(j['churchName'] ?? ''),
+    program: j['program'] == null
+        ? null
+        : Timeline.fromJson(Map<String, dynamic>.from(j['program'])),
     events: readServiceEvents(j['events']),
   );
   Json toJson() => {
     'id': id,
     'name': name,
     'churchName': churchName,
+    if (program != null) 'program': program!.toJson(),
     'startedWall': startedWall,
     'endedWall': endedWall,
     'totalMs': totalMs,

@@ -1,5 +1,29 @@
 part of 'main.dart';
 
+class OperatorNotes extends StatefulWidget {
+  final String notes;
+  const OperatorNotes({super.key, required this.notes});
+  @override
+  State<OperatorNotes> createState() => _OperatorNotesState();
+}
+
+class _OperatorNotesState extends State<OperatorNotes> {
+  bool expanded = false;
+  @override
+  Widget build(BuildContext context) => ExpansionTile(
+    tilePadding: EdgeInsets.zero,
+    onExpansionChanged: (value) => setState(() => expanded = value),
+    leading: const Icon(Icons.lock_outline, size: 18),
+    title: Text(
+      expanded ? 'Hide operator notes' : 'View operator notes',
+      style: const TextStyle(decoration: TextDecoration.underline),
+    ),
+    children: [
+      Align(alignment: Alignment.centerLeft, child: Text(widget.notes)),
+    ],
+  );
+}
+
 String operatorTime(int balance) => balance < 0
     ? '+${formatTime((-balance ~/ 1000) * 1000)}'
     : formatTime(balance);
@@ -254,9 +278,12 @@ class DisplayConnectionBadge extends StatelessWidget {
   const DisplayConnectionBadge({super.key, required this.connection});
   @override
   Widget build(BuildContext context) {
-    final color = connection == DisplayConnection.disconnected
+    final color =
+        connection == DisplayConnection.disconnected ||
+            connection == DisplayConnection.stageDisconnected
         ? appColors(context).error
-        : connection == DisplayConnection.connected
+        : connection == DisplayConnection.connected ||
+              connection == DisplayConnection.stageConnected
         ? appColors(context).accent
         : appColors(context).muted;
     return Container(
@@ -268,15 +295,7 @@ class DisplayConnectionBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            connection == DisplayConnection.simulator
-                ? Icons.monitor
-                : connection == DisplayConnection.connected
-                ? Icons.wifi
-                : Icons.wifi_off,
-            size: 16,
-            color: color,
-          ),
+          Icon(connectionIcon(connection), size: 16, color: color),
           const SizedBox(width: 6),
           Flexible(
             child: Text(

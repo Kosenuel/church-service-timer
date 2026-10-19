@@ -291,7 +291,7 @@ extension FeatureViews on _HomeState {
           ],
           if (s.phase == 'ended')
             TextButton.icon(
-              onPressed: () => navigatePage(3),
+              onPressed: () => navigatePage(2),
               icon: const Icon(Icons.assessment_outlined),
               label: const Text('Open reports'),
             ),

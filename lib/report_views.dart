@@ -105,6 +105,7 @@ extension ReportViews on _HomeState {
         builder: (_) => ReportDetailPage(
           report: r,
           onExport: (format) => exportReport(r, format),
+          onPrint: () => printServiceSheet(r.program, report: r),
           onDelete: () => confirmClearReports(record: r),
         ),
       ),
@@ -640,6 +641,7 @@ class DurationChart extends StatelessWidget {
 }
 
 class ReportDetailPage extends StatefulWidget {
+  final Future<void> Function()? onPrint;
   final ServiceReport report;
   final Future<void> Function(String) onExport;
   final Future<bool> Function() onDelete;
@@ -648,6 +650,7 @@ class ReportDetailPage extends StatefulWidget {
     required this.report,
     required this.onExport,
     required this.onDelete,
+    this.onPrint,
   });
   @override
   State<ReportDetailPage> createState() => _ReportDetailPageState();
@@ -687,6 +690,18 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (widget.onPrint != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: FilledButton.icon(
+                            onPressed: busy ? null : () => run(widget.onPrint!),
+                            icon: const Icon(Icons.print_outlined),
+                            label: const Text('Print Service'),
+                          ),
+                        ),
+                      ),
                     block(
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
