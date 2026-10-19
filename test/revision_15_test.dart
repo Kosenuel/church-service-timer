@@ -185,7 +185,7 @@ void main() {
       await stage.join(host.pairing.code!.encode(), 'Stage phone', 'stage');
       await until(() => host.pairing.peers.isNotEmpty);
       expect(host.stageConnected, false);
-      host.pairing.approve(host.pairing.peers.single);
+      await host.pairing.approve(host.pairing.peers.single);
       await until(() => host.stageConnected);
       expect(host.displayConnection, DisplayConnection.stageConnected);
       expect(
@@ -216,7 +216,7 @@ void main() {
       expect(stage.snapshot!['displayText'], '09:54');
       await operator.join(host.pairing.code!.encode(), 'Operator', 'operator');
       await until(() => host.pairing.peers.length == 2);
-      host.pairing.approve(host.pairing.peers.last);
+      await host.pairing.approve(host.pairing.peers.last);
       await until(() => operator.snapshot != null);
       await host.stopStageSharing();
       await until(() => stage.snapshot?['stageSharing'] == false);
@@ -244,7 +244,7 @@ void main() {
       await host.pairing.host('127.0.0.1');
       await stage.join(host.pairing.code!.encode(), 'Stage', 'stage');
       await until(() => host.pairing.peers.isNotEmpty);
-      host.pairing.approve(host.pairing.peers.single);
+      await host.pairing.approve(host.pairing.peers.single);
       await until(() => host.stageConnected);
       await host.sendQuickMessage(
         const QuickMessage(body: 'Do not replay', seconds: 0),
@@ -253,7 +253,7 @@ void main() {
       await until(() => host.pairing.peers.isEmpty);
       await stage.join(host.pairing.code!.encode(), 'Stage', 'stage');
       await until(() => host.pairing.peers.isNotEmpty);
-      host.pairing.approve(host.pairing.peers.single);
+      await host.pairing.approve(host.pairing.peers.single);
       await until(() => host.stageConnected);
       expect(host.currentQuickMessage, isNull);
       expect(stage.snapshot?.containsKey('quickMessage'), false);

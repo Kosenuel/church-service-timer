@@ -403,7 +403,12 @@ class AppController extends ChangeNotifier {
   Future<bool> Function()? retry;
   Timer? _timer;
   AppController(this.port) {
-    pairing.advertise = port.advertisePairHost;
+    pairing.readMemory = port.loadPairing;
+    pairing.writeMemory = port.savePairing;
+    pairing.discoverHosts = port.discoverPairHosts;
+    pairing.currentAddress = port.localNetworkAddress;
+    pairing.advertise = (portNumber) =>
+        port.advertisePairHost(portNumber, hostId: pairing.hostId);
     pairing.unadvertise = port.stopPairAdvertisement;
     pairing.addListener(() {
       if (ready && !stageConnected) {
@@ -579,6 +584,7 @@ class AppController extends ChangeNotifier {
       error = 'Saved state could not be recovered. Output is held. $e';
     }
     ready = true;
+    await pairing.restoreMemory();
     try {
       await hardware.initialize();
       if (state.outputDestination != null && destination != 'led')
@@ -593,6 +599,15 @@ class AppController extends ChangeNotifier {
       /* Source build fallback. */
     }
     await syncDeviceSettings();
+    if (!corrupt && !state.session.active) {
+      unawaited(
+        pairing.resumeSavedHost(automatic: true).catchError((_) {
+          pairing.memoryNotice =
+              'Could not restore the saved connection. Open Paired devices to retry.';
+          pairing.changed();
+        }),
+      );
+    }
     if (_foreground && _needsRecovery) await resume();
     _publish();
     notifyListeners();

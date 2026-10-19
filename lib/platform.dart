@@ -1,12 +1,16 @@
 import 'package:flutter/services.dart';
+import 'dart:convert';
 
 import 'domain.dart';
 import 'package:nsd/nsd.dart' as nsd;
 
 abstract class DevicePort {
+  Future<String?> loadPairing() async => null;
+  Future<void> savePairing(String value) async {}
+  Future<List<Json>> discoverPairHosts() async => [];
   Future<void> setDisplayAutoReconnect(bool enabled) async {}
   Future<Json> displayNetworkInfo({bool requestName = false}) async => {};
-  Future<void> advertisePairHost(int port) async {}
+  Future<void> advertisePairHost(int port, {String? hostId}) async {}
   Future<void> stopPairAdvertisement() async {}
   Future<Json> administerDisplay(
     String kind,
@@ -65,6 +69,34 @@ abstract class DevicePort {
 
 class AndroidPort extends DevicePort {
   @override
+  Future<String?> loadPairing() => channel.invokeMethod<String>('loadPairing');
+  @override
+  Future<void> savePairing(String value) =>
+      channel.invokeMethod<void>('savePairing', value);
+  @override
+  Future<List<Json>> discoverPairHosts() async {
+    final discovery = await nsd.startDiscovery(
+      '_cstimer._tcp',
+      ipLookupType: nsd.IpLookupType.v4,
+    );
+    try {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      return [
+        for (final service in discovery.services)
+          if (service.port != null && service.txt?['id'] != null)
+            for (final address in service.addresses ?? [])
+              {
+                'id': utf8.decode(service.txt!['id']!),
+                'address': address.address,
+                'port': service.port,
+              },
+      ];
+    } finally {
+      await nsd.stopDiscovery(discovery);
+    }
+  }
+
+  @override
   Future<void> setDisplayAutoReconnect(bool enabled) =>
       channel.invokeMethod<void>('w2AutoReconnect', enabled);
   @override
@@ -75,7 +107,7 @@ class AndroidPort extends DevicePort {
   nsd.Registration? _pairRegistration;
   int _pairAdvertisementGeneration = 0;
   @override
-  Future<void> advertisePairHost(int port) async {
+  Future<void> advertisePairHost(int port, {String? hostId}) async {
     await stopPairAdvertisement();
     final generation = _pairAdvertisementGeneration;
     final registration = await nsd.register(
@@ -83,6 +115,9 @@ class AndroidPort extends DevicePort {
         name: 'Church Service Timer',
         type: '_cstimer._tcp',
         port: port,
+        txt: hostId == null
+            ? null
+            : {'id': Uint8List.fromList(utf8.encode(hostId))},
       ),
     );
     if (generation != _pairAdvertisementGeneration) {

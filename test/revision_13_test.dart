@@ -37,7 +37,7 @@ void main() {
     await client.join(c.pairing.code!.encode(), 'Operator', 'operator');
     await until(() => c.pairing.peers.isNotEmpty);
     final peer = c.pairing.peers.single;
-    c.pairing.approve(peer);
+    await c.pairing.approve(peer);
     c.pairing.grant(peer);
     await until(() => client.canControl);
     expect(await c.act('pause'), false);
@@ -259,14 +259,14 @@ void main() {
       await viewer.join(host.code!.encode(), 'Observer', 'viewer');
       await until(() => host.peers.length == 1);
       expect(viewer.snapshot, isNull);
-      host.approve(host.peers.first);
+      await host.approve(host.peers.first);
       await until(() => viewer.snapshot != null);
       expect(viewer.snapshot!.containsKey('notes'), false);
       expect(() => host.grant(host.peers.first), throwsA(isA<RuleError>()));
       await operator.join(host.code!.encode(), 'Operator', 'operator');
       await until(() => host.peers.length == 2);
       final peer = host.peers.last;
-      host.approve(peer);
+      await host.approve(peer);
       await until(() => operator.snapshot != null);
       expect(operator.canControl, false);
       expect(operator.snapshot!.containsKey('notes'), false);
@@ -306,7 +306,7 @@ void main() {
       await Future<void>.delayed(const Duration(seconds: 13));
       expect(client.status, 'Waiting for host approval');
       expect(host.peers.length, 1);
-      host.approve(host.peers.single);
+      await host.approve(host.peers.single);
       await until(() => client.snapshot != null);
     },
   );

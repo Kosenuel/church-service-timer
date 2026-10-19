@@ -216,37 +216,7 @@ extension MobileDisplayViews on _HomeState {
           ),
         ),
         const SizedBox(height: 16),
-        for (final peer in c.pairing.peers.where(
-          (p) => p.role != 'operator',
-        )) ...[
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.tablet_mac),
-            title: Text(peer.name),
-            subtitle: Text(
-              !peer.approved
-                  ? 'Waiting for your approval'
-                  : peer.viewingStage
-                  ? 'Stage screen'
-                  : 'Service viewer',
-            ),
-            trailing: peer.approved
-                ? IconButton(
-                    tooltip: 'Disconnect screen',
-                    icon: const Icon(Icons.close),
-                    onPressed: () => c.pairing.remove(peer),
-                  )
-                : FilledButton(
-                    onPressed: () => c.pairing.approve(peer),
-                    child: const Text('Approve'),
-                  ),
-          ),
-          const Divider(),
-        ],
-        if (c.pairing.stagePeers.isEmpty)
-          const Text(
-            'Waiting for a stage screen. Paired operators remain separate.',
-          ),
+        pairedDeviceList(screensOnly: true),
         const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: c.stageConnected ? testStageScreen : null,
@@ -258,6 +228,8 @@ extension MobileDisplayViews on _HomeState {
           child: const Text('Stop stage sharing'),
         ),
       ],
+      if (!c.pairing.hosting || !c.pairing.stageSharingEnabled)
+        pairedDeviceList(screensOnly: true),
     ],
   );
 
@@ -292,6 +264,16 @@ extension MobileDisplayViews on _HomeState {
       await c.stopStageSharing();
   }
 
+  ButtonStyle stopSharingButtonStyle() => FilledButton.styleFrom(
+    backgroundColor: Theme.of(context).colorScheme.errorContainer,
+    foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+    minimumSize: const Size(0, 48),
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+    textStyle: Theme.of(
+      context,
+    ).textTheme.labelLarge?.copyWith(fontSize: 16, fontWeight: FontWeight.w700),
+  );
+
   Widget stageSharingControls() => Wrap(
     spacing: 8,
     runSpacing: 8,
@@ -306,9 +288,11 @@ extension MobileDisplayViews on _HomeState {
         ),
       ),
       if (c.pairing.hosting && c.pairing.stageSharingEnabled)
-        TextButton(
+        FilledButton.icon(
+          style: stopSharingButtonStyle(),
           onPressed: controlsLocked ? null : stopStageSharing,
-          child: const Text('Stop sharing'),
+          icon: const Icon(Icons.stop_screen_share_outlined),
+          label: const Text('Stop sharing'),
         ),
       if (c.pairing.hosting && !c.pairing.stageSharingEnabled)
         TextButton(

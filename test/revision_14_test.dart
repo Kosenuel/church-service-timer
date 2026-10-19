@@ -289,7 +289,7 @@ void main() {
       await client.join(host.code!.encode(), 'Operator', 'operator');
       await until(() => host.peers.isNotEmpty);
       final id = host.peers.single.id;
-      host.approve(host.peers.single);
+      await host.approve(host.peers.single);
       host.grant(host.peers.single);
       await until(() => client.canControl);
       expect(jsonEncode(client.snapshot), contains('SECRET'));
@@ -323,7 +323,7 @@ void main() {
     await host.host('127.0.0.1');
     await client.join(host.code!.encode(), 'Viewer', 'viewer');
     await until(() => host.peers.isNotEmpty);
-    host.approve(host.peers.single);
+    await host.approve(host.peers.single);
     await until(() => !client.stale);
     host.peers.single.wire.close();
     await until(() => client.stale);

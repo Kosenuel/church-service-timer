@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-19",
+  "version": "0.16.0+16",
+  "apkSha256": "63ced18b0d7772b4344c4f90fde07c501a9e09f508b2bd98f3c472d65b46447a",
+  "automated": {
+    "analysis": "flutter analyze: no issues",
+    "flutterTests": 338,
+    "result": "Full suite passed with updated goldens; all six changed or new screenshots visually reviewed",
+    "rememberedDevices": "Real encrypted loopback sessions verify retained device rows, paused sessions, host-side reconnect with current state, explicit operator re-grant, restart persistence, host rediscovery after address/port changes, intentional leave, revocation, and storage failure handling",
+    "multipleScreens": "One host with three simultaneous stage receivers passed; disconnecting and reconnecting one preserved current output on the other two",
+    "widgets": "Saved rows before hosting, confirmed Forget with cancellation and persistence, and Disconnect/Reconnect list transitions without a new approval",
+    "connectionCleanup": "Socket sink completion errors are observed and close the transport; receive-loop cleanup and normal reconnection remain responsible for session recovery",
+    "identity": "org.kosenuel.cuekeeper, versionName 0.16.0, versionCode 16",
+    "androidBuild": "flutter build apk --release; APK signature verified with apksigner",
+    "signingCertificateSha256": "7447b222512d8002f5ba5d7e985f7fdeca0cbc176b167fe240e790147a336afd",
+    "matrixFonts": "lib/matrix_font.dart and lib/square_matrix_font.dart unchanged",
+    "stopSharing": "Prominent icon button with bold 16px label and theme-aware contrasting background; existing confirmations retained"
+  },
+  "physical": {
+    "installation": "ADB install -r succeeded on Samsung SM-A266B (Android API 36) and itel S667LN (API 33), retaining app data. Package metadata on both devices confirms versionName 0.16.0 and versionCode 16.",
+    "manualTesting": "Left to the user at their explicit request. No reconnect, timer, cue, or control-handover test was performed on phones for this release.",
+    "network": "Both phones were observed on the same ordinary Wi-Fi router before installation. Network selection was not changed by the agent.",
+    "deviceSettings": "No temporary stay-awake, lock, or network settings were changed."
+  },
+  "remainingLimits": [
+    "The three-receiver check used automated loopback clients; four physical phones have not been tested together.",
+    "A saved device must be reachable with the app available. The host cannot launch an app or power on an offline phone remotely.",
+    "An intentionally disconnected receiver may retain or recover its encrypted availability channel, but service output stays paused until the host reconnects it.",
+    "The tested W2 hotspot isolates Wi-Fi clients. Hosting from a phone providing its own hotspot remains unverified; current host address detection expects a Wi-Fi client interface.",
+    "Starting hosting remains explicit after host app restart; returning operator control always requires a fresh handover.",
+    "The LED-controller protocol is unchanged; no sign output or controller configuration was modified.",
+    "Long-duration endurance and Android process-death recovery have not been established by this update.",
+    "The existing local prototype signing key is retained for upgrade compatibility."
+  ]
+}

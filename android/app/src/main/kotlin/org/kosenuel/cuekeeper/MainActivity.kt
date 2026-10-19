@@ -85,6 +85,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
     private var networkRequest: MethodChannel.Result? = null
     private val bundledFonts by lazy { BundledFonts(context) }
     private val vault by lazy { DisplayCredentialVault(context) }
+    private val pairingVault by lazy { DisplayCredentialVault(context, "pairing-vault", "church-timer-pairing-v1", 65536) }
     private val printer by lazy { ServiceSheetPrinter() }
     private val stateFile get() = AtomicFile(File(filesDir, "service-state.json"))
 
@@ -92,6 +93,8 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
         WarningNotifications.ensureChannel(context)
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "loadPairing" -> background(result) { pairingVault.read("registry") }
+                "savePairing" -> background(result) { pairingVault.save("registry", call.arguments as String); null }
                 "printSheet" -> try { printer.print(activity(), call.argument<String>("name")!!, call.argument<String>("html")!!); result.success(null) } catch(e: Exception) { result.error("PRINT", "Could not open the print screen", null) }
                 "localAddress" -> background(result) {
                     val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager

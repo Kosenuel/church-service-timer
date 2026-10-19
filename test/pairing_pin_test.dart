@@ -91,7 +91,7 @@ void main() {
       expect(client.snapshot, null);
       expect(client.canControl, false);
       expect(host.peers.length, 1);
-      host.approve(host.peers.single);
+      await host.approve(host.peers.single);
       await until(() => client.snapshot != null);
       expect(client.snapshot!.containsKey('note'), false);
       host.grant(host.peers.single);

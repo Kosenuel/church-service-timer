@@ -1,6 +1,211 @@
 part of 'main.dart';
 
 extension PairingViews on _HomeState {
+  Future<void> changePairedDevice(String id, String action) async {
+    final hub = c.pairing;
+    if (!hub.changingDevices.add(id)) return;
+    hub.changed();
+    try {
+      switch (action) {
+        case 'approve':
+          final peer = hub.peerFor(id);
+          if (peer != null) await hub.approve(peer);
+        case 'disconnect':
+          await hub.disconnectDevice(id);
+        case 'reconnect':
+          if (!hub.hosting) await hub.host(await c.port.localNetworkAddress());
+          final available = await hub.reconnectDevice(id);
+          if (!available && mounted)
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Open Church Service Timer on the saved device and connect it to the same Wi-Fi.',
+                ),
+              ),
+            );
+        case 'forget':
+          if (await confirm(
+            'Forget device?',
+            'Remove its saved approval? It will need to pair again with a new code and your approval.',
+            'Forget device',
+          )) {
+            await hub.forgetDevice(id);
+          }
+        case 'reject':
+          await hub.forgetDevice(id);
+        case 'control':
+          final peer = hub.peerFor(id);
+          if (peer != null &&
+              await confirm(
+                'Give ${peer.name} control?',
+                'This operator can run the timer, send cues and end the service. Private notes become visible. You can take control back at any time.',
+                'Give control',
+              ))
+            hub.grant(peer);
+      }
+    } catch (_) {
+      if (mounted)
+        await showError(
+          'Could not update this connection. Check Wi-Fi and try again.',
+        );
+    } finally {
+      hub.changingDevices.remove(id);
+      hub.changed();
+    }
+  }
+
+  Widget pairedDeviceList({bool screensOnly = false}) {
+    final hub = c.pairing;
+    bool included(String role) => !screensOnly || role != 'operator';
+    final pending = hub.peers
+        .where((p) => !p.approved && included(p.role))
+        .toList();
+    final saved = hub.savedDevices.where((p) => included(p.role)).toList();
+    String roleName(String role) => switch (role) {
+      'stage' => 'Stage screen',
+      'operator' => 'Operator',
+      _ => 'Viewer',
+    };
+    Widget button(String id, String text, String action, IconData icon) =>
+        TextButton.icon(
+          onPressed: hub.changingDevices.contains(id)
+              ? null
+              : () => changePairedDevice(id, action),
+          icon: Icon(icon, size: 18),
+          label: Text(text),
+        );
+    Widget device(SavedPairDevice d) {
+      final connected = hub.connectedDevice(d.id), peer = hub.peerFor(d.id);
+      final seen = DateTime.fromMillisecondsSinceEpoch(d.lastSeen).toLocal();
+      final stamp =
+          '${seen.day}/${seen.month} ${seen.hour.toString().padLeft(2, '0')}:${seen.minute.toString().padLeft(2, '0')}';
+      return panel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  d.role == 'operator'
+                      ? Icons.person_outline
+                      : Icons.tablet_mac,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    d.name,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (hub.changingDevices.contains(d.id))
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: Icon(Icons.hourglass_top, size: 18),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${roleName(d.role)} · ${connected ? (hub.owner == d.id ? 'Controls service' : 'Connected') : (d.suspended ? 'Disconnected' : 'Unavailable')}',
+            ),
+            if (!connected)
+              Text(
+                'Last seen $stamp',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            if (peer?.requestedControl == true && connected)
+              const Text('This operator requests control.'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                if (connected)
+                  button(d.id, 'Disconnect', 'disconnect', Icons.link_off)
+                else
+                  button(d.id, 'Reconnect', 'reconnect', Icons.refresh),
+                if (connected && d.role == 'operator' && hub.owner != d.id)
+                  button(
+                    d.id,
+                    'Give control',
+                    'control',
+                    Icons.pan_tool_alt_outlined,
+                  ),
+                button(d.id, 'Forget device', 'forget', Icons.delete_outline),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (hub.memoryNotice.isNotEmpty) ...[
+          Text(hub.memoryNotice),
+          TextButton(
+            onPressed: () async {
+              try {
+                await hub.retrySavingDevices();
+              } catch (_) {
+                if (mounted)
+                  await showError('Could not save paired devices. Try again.');
+              }
+            },
+            child: const Text('Retry saving devices'),
+          ),
+        ],
+        for (final p in pending)
+          panel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  p.name,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                Text('${roleName(p.role)} · Awaiting your approval'),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    button(p.id, 'Approve', 'approve', Icons.check),
+                    button(p.id, 'Reject', 'reject', Icons.close),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        if (saved.any((d) => hub.connectedDevice(d.id))) ...[
+          label('Connected devices'),
+          const SizedBox(height: 10),
+          for (final d in saved.where((d) => hub.connectedDevice(d.id)))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: device(d),
+            ),
+        ],
+        if (saved.any((d) => !hub.connectedDevice(d.id))) ...[
+          label('Saved devices'),
+          const SizedBox(height: 10),
+          for (final d in saved.where((d) => !hub.connectedDevice(d.id)))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: device(d),
+            ),
+          const Text(
+            'Disconnect keeps a device saved. Reconnect restores its session; Forget device removes its approval.',
+          ),
+        ],
+        if (pending.isEmpty && saved.isEmpty && hub.hosting)
+          const Text(
+            'Waiting for a device. Join this host on the other phone using the six-digit code or QR code.',
+          ),
+      ],
+    );
+  }
+
   Widget pairedDeviceSettings() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
@@ -52,7 +257,7 @@ extension PairingViews on _HomeState {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Keep this host phone running. Pairing codes expire after 10 minutes. Approved devices reconnect automatically during this host session; control must be granted again after a lost link.',
+                'Pairing codes expire after 10 minutes. Saved devices recover after a lost link. Disconnect pauses their session until you tap Reconnect. Operator control always needs a new handover.',
               ),
               const SizedBox(height: 12),
               Semantics(
@@ -111,56 +316,10 @@ extension PairingViews on _HomeState {
           ),
         ),
         const SizedBox(height: 12),
-        if (c.pairing.peers.isEmpty)
-          const Text(
-            'Waiting for a device. On its Paired devices page, choose Join another operator and enter the six-digit code or scan the QR code.',
-          ),
-        for (final peer in List<PairPeer>.of(c.pairing.peers))
-          panel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  peer.name,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                Text(
-                  '${peer.role} · ${peer.approved ? (c.pairing.owner == peer.id ? 'Controls service' : 'Approved') : 'Awaiting your approval'}',
-                ),
-                if (peer.requestedControl)
-                  const Text('This operator requests control.'),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    if (!peer.approved)
-                      FilledButton(
-                        onPressed: () => c.pairing.approve(peer),
-                        child: const Text('Approve'),
-                      ),
-                    if (peer.approved &&
-                        peer.role == 'operator' &&
-                        c.pairing.owner != peer.id)
-                      OutlinedButton(
-                        onPressed: () async {
-                          if (await confirm(
-                            'Give ${peer.name} control?',
-                            'This device can operate timer, cues and End service. Private rundown notes become visible. This host continues running the service and may take control back.',
-                            'Give control',
-                          ))
-                            c.pairing.grant(peer);
-                        },
-                        child: const Text('Give control'),
-                      ),
-                    TextButton(
-                      onPressed: () => c.pairing.remove(peer),
-                      child: Text(peer.approved ? 'Disconnect' : 'Reject'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        TextButton(
+        pairedDeviceList(),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          style: stopSharingButtonStyle(),
           onPressed: () async {
             if (await confirm(
               'Stop sharing?',
@@ -169,9 +328,12 @@ extension PairingViews on _HomeState {
             ))
               await c.pairing.stop();
           },
-          child: const Text('Stop sharing'),
+          icon: const Icon(Icons.stop_screen_share_outlined),
+          label: const Text('Stop sharing'),
         ),
       ],
+      const SizedBox(height: 12),
+      if (!c.pairing.hosting) pairedDeviceList(),
     ],
   );
 }
@@ -343,6 +505,21 @@ class _JoinDevicePageState extends State<JoinDevicePage>
           'Use the same Wi-Fi as the host. Choose it below and enter its six-digit code, or scan its QR code. The host approves every new device.',
         ),
         const SizedBox(height: 16),
+        if (widget.controller.pairing.hasSavedHost) ...[
+          OutlinedButton.icon(
+            onPressed: busy
+                ? null
+                : () async {
+                    await stopDiscovery();
+                    await widget.controller.hardware.disconnect();
+                    await widget.controller.pairing.resumeSavedHost();
+                    if (mounted) Navigator.of(context).pop();
+                  },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Reconnect saved host'),
+          ),
+          const SizedBox(height: 12),
+        ],
         TextField(
           controller: name,
           maxLength: 60,
@@ -771,12 +948,14 @@ class _PairedScreenState extends State<PairedScreen> {
                   ),
                 ),
               if (stale)
-                const Align(
+                Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
                     padding: EdgeInsets.all(12),
                     child: Text(
-                      'Host disconnected · last received display',
+                      hub.pausedByHost
+                          ? 'Session paused by host'
+                          : 'Host disconnected · last received display',
                       style: TextStyle(
                         color: Colors.amber,
                         backgroundColor: Colors.black,

@@ -11,9 +11,9 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** Opt-in local credential storage. Never exported in app backups or diagnostics. */
-class DisplayCredentialVault(context: Context) {
-    private val prefs = context.getSharedPreferences("display-vault", Context.MODE_PRIVATE)
-    private val alias = "church-timer-display-v1"
+class DisplayCredentialVault(context: Context, store: String = "display-vault",
+    private val alias: String = "church-timer-display-v1", private val maxLength: Int = 128) {
+    private val prefs = context.getSharedPreferences(store, Context.MODE_PRIVATE)
     private fun key(): SecretKey {
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (ks.getKey(alias, null) as? SecretKey)?.let { return it }
@@ -25,7 +25,7 @@ class DisplayCredentialVault(context: Context) {
         }
     }
     fun save(id: String, password: String) {
-        require(id.isNotBlank() && id.length <= 200 && password.isNotEmpty() && password.length <= 128)
+        require(id.isNotBlank() && id.length <= 200 && password.isNotEmpty() && password.length <= maxLength)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()); updateAAD(id.toByteArray(Charsets.UTF_8)) }
         val raw = password.toByteArray(Charsets.UTF_8)
         try {
