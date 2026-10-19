@@ -82,10 +82,16 @@ void main() {
       await tester.tap(find.text('Bold'));
       await tester.tap(find.text('Italic'));
       await tester.tap(find.text('I-Proton Matrix'));
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.ensureVisible(find.text('I-Proton Sq-Matrix').last);
       await tester.tap(find.text('I-Proton Sq-Matrix').last);
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.ensureVisible(find.text('Tall · 14 px'));
       await tester.tap(find.text('Tall · 14 px'));
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save cue'));
+      await tester.pump();
       await tester.tap(find.widgetWithText(FilledButton, 'Save cue'));
       await tester.pumpAndSettle();
       final saved = c.state.stageCues.first;

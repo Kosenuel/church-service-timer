@@ -82,8 +82,8 @@ class AppController extends ChangeNotifier {
   QuickMessage? get currentQuickMessage =>
       _quickMessage != null &&
           stageConnected &&
-          state.session.active &&
-          !state.session.outputBlank &&
+          (state.session.active || state.session.phase == 'ended') &&
+          (!state.session.outputBlank || state.session.phase == 'ended') &&
           state.session.id == _quickSession &&
           state.session.index == _quickSegment &&
           (_quickUntil == null || now.mono < _quickUntil!)
@@ -99,14 +99,19 @@ class AppController extends ChangeNotifier {
   Future<bool> sendQuickMessage(
     QuickMessage message, {
     bool test = false,
+    String? confirmedEndedSession,
   }) async {
+    final ended = state.session.phase == 'ended';
     if (busy ||
+        corrupt ||
         reportSavePending ||
         !pairing.localControl ||
         !stageConnected ||
-        (!test && !state.session.active)) {
+        (!test &&
+            !state.session.active &&
+            !(ended && confirmedEndedSession == state.session.id))) {
       error =
-          'Connect an approved stage screen and start a service before sending.';
+          'Connect an approved stage screen. After a service ends, confirm before sending.';
       notifyListeners();
       return false;
     }
@@ -118,6 +123,7 @@ class AppController extends ChangeNotifier {
       return false;
     }
     if (!test &&
+        !ended &&
         !await commit((draft, at) {
           require(
             stageConnected && pairing.localControl,
@@ -149,9 +155,17 @@ class AppController extends ChangeNotifier {
           ? null
           : now.mono + message.seconds * 1000;
     }
+    error = null;
     await pairing.publish();
     notifyListeners();
     return true;
+  }
+
+  Future<void> dismissQuickMessage() async {
+    if (!pairing.localControl || busy || reportSavePending) return;
+    clearQuickMessage();
+    await pairing.publish();
+    notifyListeners();
   }
 
   QuickMessage? _testMessage;
@@ -360,9 +374,9 @@ class AppController extends ChangeNotifier {
           ? '+${formatTime(s.overtime(now))}'
           : s.formatted(now),
       'overtime': s.overtime(now) > 0,
-      'blank': s.outputBlank,
+      'blank': s.outputBlank && quick == null,
       'stageSharing': destination == 'mobile' && pairing.stageSharingEnabled,
-      if (quick != null && !s.outputBlank) 'quickMessage': quick.toJson(),
+      if (quick != null) 'quickMessage': quick.toJson(),
       'displayText': s.outputBlank ? '' : display?.text ?? '',
       'effect': display?.effect ?? 'static',
       'speed': display?.speed ?? 12,

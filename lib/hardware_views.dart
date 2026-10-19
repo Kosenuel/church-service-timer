@@ -185,7 +185,9 @@ class HardwareConnectionPage extends StatefulWidget {
 class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
   final password = TextEditingController();
   String? selected;
-  bool rememberPassword = false, hasSaved = false, useSaved = false;
+  bool rememberPassword = true, hasSaved = false, useSaved = false;
+  bool credentialBusy = false;
+  String? cachedSavedPassword;
   @override
   void initState() {
     super.initState();
@@ -198,6 +200,8 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
     setState(() {
       selected = id;
       hasSaved = useSaved = false;
+      rememberPassword = true;
+      cachedSavedPassword = null;
       password.clear();
     });
     try {
@@ -206,6 +210,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
         setState(() {
           hasSaved = saved != null;
           useSaved = hasSaved;
+          cachedSavedPassword = saved;
         });
     } catch (_) {
       if (mounted)
@@ -224,8 +229,31 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
   }
 
   AppController get c => widget.controller;
+  Future<void> setRememberPassword(bool remember) async {
+    final id = selected;
+    if (id == null || credentialBusy) return;
+    setState(() => credentialBusy = true);
+    try {
+      if (!remember) await c.port.forgetDisplayPassword(id);
+      if (mounted && selected == id)
+        setState(() => rememberPassword = remember);
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not remove the saved password. Please try again.',
+            ),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => credentialBusy = false);
+    }
+  }
+
   @override
   void dispose() {
+    cachedSavedPassword = null;
     password.clear();
     password.dispose();
     super.dispose();
@@ -236,7 +264,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
     animation: c,
     builder: (context, _) {
       final h = c.hardware;
-      final disabled = h.busy || h.sending || c.busy;
+      final disabled = h.busy || h.sending || c.busy || credentialBusy;
       return Scaffold(
         appBar: AppBar(title: const Text('Connect a display')),
         body: ListView(
@@ -320,14 +348,26 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                   ),
                 ),
               const SizedBox(height: 8),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Remember password on this phone'),
+                subtitle: const Text(
+                  'Stored securely for easier reconnection.',
+                ),
+                value: rememberPassword,
+                onChanged: disabled ? null : (v) => setRememberPassword(v!),
+              ),
+              const SizedBox(height: 12),
               FilledButton(
                 onPressed: disabled
                     ? null
                     : () async {
                         final id = selected!;
+                        setState(() => credentialBusy = true);
                         try {
                           final secret = useSaved
-                              ? await c.port.savedDisplayPassword(id)
+                              ? cachedSavedPassword
                               : password.text;
                           password.clear();
                           if (secret == null)
@@ -338,7 +378,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                               !await c.selectDestination('led'))
                             return;
                           final ok = await h.connect(id, secret);
-                          if (ok && rememberPassword && !useSaved)
+                          if (ok && rememberPassword)
                             await c.port.saveDisplayPassword(id, secret);
                           if (ok && context.mounted) {
                             password.clear();
@@ -361,22 +401,12 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                                 ),
                               ),
                             );
+                        } finally {
+                          if (mounted) setState(() => credentialBusy = false);
                         }
                       },
                 child: const Text('Connect selected display'),
               ),
-              if (!useSaved)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Remember password on this phone'),
-                  subtitle: const Text(
-                    'Encrypted locally. Excluded from backups.',
-                  ),
-                  value: rememberPassword,
-                  onChanged: disabled
-                      ? null
-                      : (v) => setState(() => rememberPassword = v!),
-                ),
             ],
             const SizedBox(height: 20),
             if (h.busy || h.sending) const LinearProgressIndicator(),

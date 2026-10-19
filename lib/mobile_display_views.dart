@@ -55,7 +55,11 @@ extension MobileDisplayViews on _HomeState {
     if (target == 'led') {
       await reconnectDisplay();
     } else if (target == 'mobile') {
-      await openSettingsDetail('Stage screens', stageScreenSettings);
+      await openSettingsDetail(
+        'Stage screens',
+        stageScreenSettings,
+        showLiveShortcut: true,
+      );
     } else {
       await c.act('connect');
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
@@ -165,14 +169,14 @@ extension MobileDisplayViews on _HomeState {
       ),
       const SizedBox(height: 10),
       const Text(
-        'Put both devices on the same Wi-Fi. On the second device, open Paired devices, join this host and choose Stage display. Some sign hotspots isolate phones.',
+        'Put both devices on the same Wi-Fi. On the second device, tap Join as stage screen on Live. Some sign hotspots isolate phones.',
       ),
       const SizedBox(height: 16),
       if (!c.pairing.hosting || !c.pairing.stageSharingEnabled)
         FilledButton.icon(
           onPressed: startStageSharing,
           icon: const Icon(Icons.cast),
-          label: const Text('Start stage sharing'),
+          label: const Text('Share to stage screens'),
         ),
       if (c.pairing.hosting && c.pairing.stageSharingEnabled) ...[
         panel(
@@ -223,9 +227,11 @@ extension MobileDisplayViews on _HomeState {
           icon: const Icon(Icons.connected_tv),
           label: const Text('Test screen'),
         ),
-        TextButton(
+        FilledButton.icon(
+          style: stopSharingButtonStyle(),
           onPressed: stopStageSharing,
-          child: const Text('Stop stage sharing'),
+          icon: const Icon(Icons.stop_screen_share_outlined),
+          label: const Text('Stop sharing'),
         ),
       ],
       if (!c.pairing.hosting || !c.pairing.stageSharingEnabled)
@@ -281,10 +287,18 @@ extension MobileDisplayViews on _HomeState {
       OutlinedButton.icon(
         onPressed: controlsLocked
             ? null
-            : () => openSettingsDetail('Stage screens', stageScreenSettings),
+            : () => openSettingsDetail(
+                'Stage screens',
+                stageScreenSettings,
+                showLiveShortcut: true,
+              ),
         icon: const Icon(Icons.devices),
         label: Text(
-          c.pairing.stagePeers.isEmpty ? 'Pair screen' : 'Manage screens',
+          !c.pairing.hosting
+              ? 'Share to stage screens'
+              : c.pairing.stagePeers.isEmpty
+              ? 'Pair screen'
+              : 'Manage screens',
         ),
       ),
       if (c.pairing.hosting && c.pairing.stageSharingEnabled)
@@ -297,7 +311,7 @@ extension MobileDisplayViews on _HomeState {
       if (c.pairing.hosting && !c.pairing.stageSharingEnabled)
         TextButton(
           onPressed: controlsLocked ? null : startStageSharing,
-          child: const Text('Start sharing'),
+          child: const Text('Share to stage screens'),
         ),
       TextButton(
         onPressed: controlsLocked ? null : chooseDisplay,
@@ -345,12 +359,46 @@ extension MobileDisplayViews on _HomeState {
               : 'Pair and approve a stage screen',
           style: TextStyle(fontSize: 12, color: appColors(context).muted),
         ),
-        if (c.state.session.outputBlank)
+        if (c.state.session.outputBlank && c.currentQuickMessage == null)
           const Padding(
             padding: EdgeInsets.only(top: 8),
             child: Text('Screen intentionally blanked'),
           ),
       ],
+    );
+  }
+
+  String get stageRecipientSummary {
+    final count = c.pairing.syncedStagePeers.length;
+    return count == 0
+        ? 'No stage screens connected'
+        : 'Sending to $count stage ${count == 1 ? 'screen' : 'screens'}';
+  }
+
+  Future<bool?> sendLiveQuickMessage(QuickMessage message) async {
+    final ended = c.state.session.phase == 'ended';
+    final id = c.state.session.id, epoch = c.pairing.epoch;
+    if (ended) {
+      if (!await confirm(
+        'Send message after service?',
+        'This service has ended. Send this message to the connected stage screens?\n\n$stageRecipientSummary',
+        'Send message',
+      ))
+        return null;
+      if (!mounted ||
+          c.state.session.phase != 'ended' ||
+          c.state.session.id != id ||
+          c.pairing.epoch != epoch) {
+        if (mounted)
+          await showError(
+            'The service or operator control changed. Review the message again.',
+          );
+        return false;
+      }
+    }
+    return c.sendQuickMessage(
+      message,
+      confirmedEndedSession: ended ? id : null,
     );
   }
 
@@ -375,7 +423,10 @@ extension MobileDisplayViews on _HomeState {
             ),
           ],
         ),
-        const Text('For your stage screen · keep it short and easy to read.'),
+        Text(
+          stageRecipientSummary,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 16),
         QuickMessageComposer(
           key: const ValueKey('live-quick-message'),
@@ -387,12 +438,13 @@ extension MobileDisplayViews on _HomeState {
               : (message) => c.saveQuickPreset(message),
           onSend:
               c.stageConnected &&
-                  c.state.session.active &&
+                  (c.state.session.active ||
+                      c.state.session.phase == 'ended') &&
                   !c.busy &&
                   !controlsLocked &&
                   !c.reportSavePending &&
                   c.pairing.localControl
-              ? c.sendQuickMessage
+              ? sendLiveQuickMessage
               : null,
         ),
         if (!c.stageConnected)
@@ -404,9 +456,17 @@ extension MobileDisplayViews on _HomeState {
           ),
         if (c.currentQuickMessage != null)
           TextButton.icon(
-            onPressed: controlsLocked ? null : () => c.act('timer'),
-            icon: const Icon(Icons.timer_outlined),
-            label: const Text('Return to timer'),
+            onPressed: controlsLocked ? null : c.dismissQuickMessage,
+            icon: Icon(
+              c.state.session.phase == 'ended'
+                  ? Icons.clear
+                  : Icons.timer_outlined,
+            ),
+            label: Text(
+              c.state.session.phase == 'ended'
+                  ? 'Clear message'
+                  : 'Return to timer',
+            ),
           ),
       ],
     ),
@@ -625,7 +685,8 @@ class QuickMessageComposer extends StatefulWidget {
   final QuickMessage initial;
   final List<QuickMessage> presets;
   final ValueChanged<QuickMessage>? onChanged;
-  final Future<bool> Function(QuickMessage)? onSend, onSavePreset;
+  final Future<bool?> Function(QuickMessage)? onSend;
+  final Future<bool> Function(QuickMessage)? onSavePreset;
   final String saveLabel;
   const QuickMessageComposer({
     super.key,
@@ -644,6 +705,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
   late final TextEditingController headline, body;
   late QuickMessage style;
   bool busy = false;
+  int? selectedPreset;
   String? error;
   QuickMessage get value => QuickMessage(
     headline: headline.text.trim(),
@@ -679,6 +741,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
     double? scale,
   }) {
     setState(() {
+      selectedPreset = null;
       style = QuickMessage(
         body: body.text,
         bold: bold ?? style.bold,
@@ -694,7 +757,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
   }
 
   Future<void> run(
-    Future<bool> Function(QuickMessage) action,
+    Future<bool?> Function(QuickMessage) action,
     String success,
   ) async {
     try {
@@ -711,7 +774,9 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
       final ok = await action(value);
       if (mounted)
         setState(
-          () => error = ok
+          () => error = ok == null
+              ? null
+              : ok
               ? success
               : 'Could not complete the action. Check the connection or storage and try again.',
         );
@@ -730,24 +795,18 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       if (widget.presets.isNotEmpty) ...[
-        DropdownButtonFormField<int>(
+        ChoiceField<int>(
           key: ValueKey(widget.presets.length),
-          isExpanded: true,
+          value: selectedPreset,
           decoration: const InputDecoration(labelText: 'Choose a preset'),
-          items: [
+          options: [
             for (var i = 0; i < widget.presets.length; i++)
-              DropdownMenuItem(
-                value: i,
-                child: Text(
-                  widget.presets[i].name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+              ChoiceOption(value: i, label: widget.presets[i].name),
           ],
           onChanged: (i) {
             if (i == null) return;
             setState(() {
+              selectedPreset = i;
               style = widget.presets[i];
               headline.text = style.headline;
               body.text = style.body;
@@ -834,27 +893,27 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
         ],
       ),
       const SizedBox(height: 12),
-      DropdownButtonFormField<double>(
+      ChoiceField<double>(
         key: ValueKey('size-${style.scale}'),
-        initialValue: style.scale,
+        value: style.scale,
         decoration: const InputDecoration(labelText: 'Text size'),
-        items: const [
-          DropdownMenuItem(value: .85, child: Text('Comfortable')),
-          DropdownMenuItem(value: 1.0, child: Text('Large')),
-          DropdownMenuItem(value: 1.15, child: Text('Extra large')),
+        options: const [
+          ChoiceOption(value: .85, label: 'Comfortable'),
+          ChoiceOption(value: 1.0, label: 'Large'),
+          ChoiceOption(value: 1.15, label: 'Extra large'),
         ],
         onChanged: (v) => changed(scale: v),
       ),
       const SizedBox(height: 12),
-      DropdownButtonFormField<int>(
+      ChoiceField<int>(
         key: ValueKey('duration-${style.seconds}'),
-        initialValue: style.seconds,
+        value: style.seconds,
         decoration: const InputDecoration(labelText: 'Show for'),
-        items: [
+        options: [
           for (final d in [5, 10, 15, 30, 0])
-            DropdownMenuItem(
+            ChoiceOption(
               value: d,
-              child: Text(d == 0 ? 'Until cleared' : '$d seconds'),
+              label: d == 0 ? 'Until cleared' : '$d seconds',
             ),
         ],
         onChanged: (v) => changed(seconds: v),

@@ -147,18 +147,12 @@ extension PlanningViews on _HomeState {
                         },
                 ),
                 if (report != null)
-                  DropdownButtonFormField<bool>(
-                    initialValue: fullReport,
+                  ChoiceField<bool>(
+                    value: fullReport,
                     decoration: const InputDecoration(labelText: 'Document'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: true,
-                        child: Text('Service report'),
-                      ),
-                      DropdownMenuItem(
-                        value: false,
-                        child: Text('Service rundown'),
-                      ),
+                    options: const [
+                      ChoiceOption(value: true, label: 'Service report'),
+                      ChoiceOption(value: false, label: 'Service rundown'),
                     ],
                     onChanged: (value) => update(() => fullReport = value!),
                   ),

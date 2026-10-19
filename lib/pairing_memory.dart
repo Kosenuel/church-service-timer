@@ -62,6 +62,8 @@ extension PairMemory on PairHub {
 
   bool connectedDevice(String id) => peerFor(id)?.connected == true;
   bool get hasSavedHost => _savedClient != null;
+  bool get canResumeAsStage =>
+      hasSavedHost && _savedClient!['role'] != 'operator';
 
   Future<void> _saveMemory() {
     final encoded = jsonEncode({

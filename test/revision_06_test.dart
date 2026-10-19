@@ -307,9 +307,9 @@ void main() {
         find.widgetWithText(TextField, 'Program name'),
         'Practice night',
       );
-      await t.tap(find.byType(DropdownButtonFormField<String>));
+      await t.ensureVisible(find.widgetWithText(ChoiceChip, 'Service'));
       await t.pumpAndSettle();
-      await t.tap(find.text('Service').last);
+      await t.tap(find.widgetWithText(ChoiceChip, 'Service'));
       await t.pumpAndSettle();
       await t.scrollUntilVisible(
         find.text('Save changes'),

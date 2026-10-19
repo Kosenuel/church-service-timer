@@ -570,19 +570,15 @@ class _WarningEditorState extends State<WarningEditor> {
               ],
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: destination,
-              isExpanded: true,
+            ChoiceField<String>(
+              value: destination,
               decoration: const InputDecoration(labelText: 'Where to show'),
-              items: const [
-                DropdownMenuItem(
+              options: const [
+                ChoiceOption(
                   value: 'operator',
-                  child: Text('Operator + phone notification'),
+                  label: 'Operator + phone notification',
                 ),
-                DropdownMenuItem(
-                  value: 'stage',
-                  child: Text('Operator + stage display'),
-                ),
+                ChoiceOption(value: 'stage', label: 'Operator + stage display'),
               ],
               onChanged: (v) => setState(() => destination = v!),
             ),

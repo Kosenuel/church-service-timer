@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
+import 'choice_field.dart';
 import 'church_banner.dart';
 import 'feedback_page.dart';
 import 'controller.dart';
@@ -679,6 +680,21 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               c.busy || c.corrupt ? null : chooseService,
               primary: true,
             ),
+          if (standingBy) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed:
+                  c.busy ||
+                      c.corrupt ||
+                      c.reportSavePending ||
+                      controlsLocked ||
+                      !c.pairing.localControl
+                  ? null
+                  : joinAsStageScreen,
+              icon: const Icon(Icons.tablet_mac_outlined),
+              label: const Text('Join as stage screen'),
+            ),
+          ],
           if (standingBy && c.state.reports.isNotEmpty)
             TextButton.icon(
               onPressed: () => openReport(c.state.reports.last),
@@ -686,20 +702,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               label: const Text('View last report'),
             ),
           if (s.phase == 'ready') ...[
-            DropdownButtonFormField<int>(
+            ChoiceField<int>(
               key: ValueKey('speed-${s.id}'),
-              initialValue: s.rate,
-              isExpanded: true,
+              value: s.rate,
               decoration: const InputDecoration(labelText: 'Service mode'),
-              items: [1, 5, 10, 30, 60]
+              options: [1, 5, 10, 30, 60]
                   .map(
-                    (rate) => DropdownMenuItem(
+                    (rate) => ChoiceOption(
                       value: rate,
-                      child: Text(
-                        rate == 1
-                            ? 'Live timing · 1×'
-                            : 'Fast rehearsal · $rate×',
-                      ),
+                      label: rate == 1
+                          ? 'Live timing · 1×'
+                          : 'Fast rehearsal · $rate×',
                     ),
                   )
                   .toList(),
@@ -1766,15 +1779,11 @@ class _TextComposerState extends State<TextComposer> {
                 ],
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: font,
-                isExpanded: true,
+              ChoiceField<String>(
+                value: font,
                 decoration: const InputDecoration(labelText: 'Display font'),
-                items: displayFontNames.entries
-                    .map(
-                      (e) =>
-                          DropdownMenuItem(value: e.key, child: Text(e.value)),
-                    )
+                options: displayFontNames.entries
+                    .map((e) => ChoiceOption(value: e.key, label: e.value))
                     .toList(),
                 onChanged: (v) => setState(() {
                   font = v!;
@@ -1792,22 +1801,13 @@ class _TextComposerState extends State<TextComposer> {
                   ),
                 ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: effect,
+              ChoiceField<String>(
+                value: effect,
                 decoration: const InputDecoration(labelText: 'Effect'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'static',
-                    child: Text('Static · must fit'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'scroll',
-                    child: Text('Scroll long text'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'flash',
-                    child: Text('Flash · must fit'),
-                  ),
+                options: const [
+                  ChoiceOption(value: 'static', label: 'Static · must fit'),
+                  ChoiceOption(value: 'scroll', label: 'Scroll long text'),
+                  ChoiceOption(value: 'flash', label: 'Flash · must fit'),
                 ],
                 onChanged: (v) => setState(() {
                   effect = v!;
@@ -1815,15 +1815,15 @@ class _TextComposerState extends State<TextComposer> {
                 }),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: align,
+              ChoiceField<String>(
+                value: align,
                 decoration: const InputDecoration(
                   labelText: 'Alignment (text that fits)',
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'left', child: Text('Left')),
-                  DropdownMenuItem(value: 'center', child: Text('Center')),
-                  DropdownMenuItem(value: 'right', child: Text('Right')),
+                options: const [
+                  ChoiceOption(value: 'left', label: 'Left'),
+                  ChoiceOption(value: 'center', label: 'Center'),
+                  ChoiceOption(value: 'right', label: 'Right'),
                 ],
                 onChanged: (v) => setState(() => align = v!),
               ),
@@ -2051,13 +2051,12 @@ class _TemplateEditorState extends State<TemplateEditor> {
               ),
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: templateType,
-              isExpanded: true,
+            ChoiceField<String>(
+              value: templateType,
               decoration: const InputDecoration(labelText: 'Program group'),
-              items: const [
-                DropdownMenuItem(value: 'service', child: Text('Service')),
-                DropdownMenuItem(value: 'rehearsal', child: Text('Rehearsal')),
+              options: const [
+                ChoiceOption(value: 'service', label: 'Service'),
+                ChoiceOption(value: 'rehearsal', label: 'Rehearsal'),
               ],
               onChanged: (value) => setState(() => templateType = value!),
             ),

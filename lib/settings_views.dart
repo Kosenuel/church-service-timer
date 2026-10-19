@@ -1,28 +1,46 @@
 part of 'main.dart';
 
 extension SettingsViews on _HomeState {
-  Future<void> openSettingsDetail(String title, Widget Function() content) =>
-      Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (context) => Scaffold(
-            appBar: AppBar(title: Text(title)),
-            body: SafeArea(
-              child: AnimatedBuilder(
-                animation: Listenable.merge([c, settingsRefresh]),
-                builder: (context, _) => SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1000),
-                      child: content(),
-                    ),
+  Future<void> openSettingsDetail(
+    String title,
+    Widget Function() content, {
+    bool showLiveShortcut = false,
+  }) => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (context) => Scaffold(
+        appBar: AppBar(
+          title: Text(title),
+          actions: showLiveShortcut
+              ? [
+                  TextButton.icon(
+                    onPressed: () {
+                      navigatePage(0);
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                    icon: const Icon(Icons.sensors, size: 20),
+                    label: const Text('Go to Live'),
                   ),
+                  const SizedBox(width: 8),
+                ]
+              : null,
+        ),
+        body: SafeArea(
+          child: AnimatedBuilder(
+            animation: Listenable.merge([c, settingsRefresh]),
+            builder: (context, _) => SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: content(),
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   Widget settingsHub() {
     Widget entry(
@@ -178,7 +196,11 @@ extension SettingsViews on _HomeState {
             Icons.devices,
             'Paired devices',
             'View, operate or use a second screen',
-            () => openSettingsDetail('Paired devices', pairedDeviceSettings),
+            () => openSettingsDetail(
+              'Paired devices',
+              pairedDeviceSettings,
+              showLiveShortcut: true,
+            ),
           ),
           entry(
             Icons.router_outlined,

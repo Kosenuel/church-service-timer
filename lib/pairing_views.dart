@@ -1,6 +1,28 @@
 part of 'main.dart';
 
 extension PairingViews on _HomeState {
+  Future<void> joinAsStageScreen() async {
+    if (c.state.session.active || c.reportSavePending) {
+      await showError(
+        'End this phone’s current service before joining a host.',
+      );
+      return;
+    }
+    if (c.pairing.hosting &&
+        !await confirm(
+          'Join another host?',
+          'This phone will stop sharing with its paired devices when you join.',
+          'Continue',
+        ))
+      return;
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => JoinDevicePage(controller: c, initialRole: 'stage'),
+      ),
+    );
+  }
+
   Future<void> changePairedDevice(String id, String action) async {
     final hub = c.pairing;
     if (!hub.changingDevices.add(id)) return;
@@ -216,14 +238,25 @@ extension PairingViews on _HomeState {
       if (!c.pairing.hosting) ...[
         FilledButton.icon(
           onPressed: () async {
-            try {
-              await c.pairing.host(await c.port.localNetworkAddress());
-            } catch (e) {
-              if (mounted) await showError('Could not share: $e');
+            if (c.destination == 'mobile') {
+              await startStageSharing();
+            } else {
+              try {
+                await c.pairing.host(await c.port.localNetworkAddress());
+              } catch (_) {
+                if (mounted)
+                  await showError(
+                    'Could not share. Check your Wi-Fi connection.',
+                  );
+              }
             }
           },
           icon: const Icon(Icons.cast_connected),
-          label: const Text('Share this service'),
+          label: Text(
+            c.destination == 'mobile'
+                ? 'Share to stage screens'
+                : 'Share this service',
+          ),
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
@@ -340,7 +373,12 @@ extension PairingViews on _HomeState {
 
 class JoinDevicePage extends StatefulWidget {
   final AppController controller;
-  const JoinDevicePage({super.key, required this.controller});
+  final String initialRole;
+  const JoinDevicePage({
+    super.key,
+    required this.controller,
+    this.initialRole = 'viewer',
+  });
   @override
   State<JoinDevicePage> createState() => _JoinDevicePageState();
 }
@@ -349,7 +387,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
     with WidgetsBindingObserver {
   final code = TextEditingController(),
       name = TextEditingController(text: 'Second device');
-  String role = 'viewer';
+  late String role;
   bool busy = false, discovering = false;
   String? error, discoveryError, selected;
   nsd.Discovery? discovery;
@@ -375,6 +413,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
   @override
   void initState() {
     super.initState();
+    role = widget.initialRole;
     WidgetsBinding.instance.addObserver(this);
     unawaited(findHosts());
   }
@@ -454,7 +493,8 @@ class _JoinDevicePageState extends State<JoinDevicePage>
     });
     try {
       require(
-        !widget.controller.state.session.active,
+        !widget.controller.state.session.active &&
+            !widget.controller.reportSavePending,
         'End this phone’s local service first.',
       );
       final host = hosts.where((s) => serviceKey(s) == selected).firstOrNull;
@@ -463,8 +503,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
         'Choose a nearby host and enter its six-digit code.',
       );
       final address = await widget.controller.port.localNetworkAddress();
-      if (widget.controller.hardware.connected)
-        await widget.controller.hardware.disconnect();
+      await widget.controller.hardware.disconnect();
       if (qr != null) {
         await widget.controller.pairing.join(
           qr,
@@ -497,7 +536,13 @@ class _JoinDevicePageState extends State<JoinDevicePage>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Join a service')),
+    appBar: AppBar(
+      title: Text(
+        widget.initialRole == 'stage'
+            ? 'Join as stage screen'
+            : 'Join a service',
+      ),
+    ),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -505,7 +550,9 @@ class _JoinDevicePageState extends State<JoinDevicePage>
           'Use the same Wi-Fi as the host. Choose it below and enter its six-digit code, or scan its QR code. The host approves every new device.',
         ),
         const SizedBox(height: 16),
-        if (widget.controller.pairing.hasSavedHost) ...[
+        if (widget.controller.pairing.hasSavedHost &&
+            (widget.initialRole != 'stage' ||
+                widget.controller.pairing.canResumeAsStage)) ...[
           OutlinedButton.icon(
             onPressed: busy
                 ? null
@@ -513,6 +560,8 @@ class _JoinDevicePageState extends State<JoinDevicePage>
                     await stopDiscovery();
                     await widget.controller.hardware.disconnect();
                     await widget.controller.pairing.resumeSavedHost();
+                    if (widget.initialRole == 'stage')
+                      widget.controller.pairing.showStage(true);
                     if (mounted) Navigator.of(context).pop();
                   },
             icon: const Icon(Icons.refresh),
@@ -526,16 +575,13 @@ class _JoinDevicePageState extends State<JoinDevicePage>
           enabled: !busy,
           decoration: const InputDecoration(labelText: 'Device name'),
         ),
-        DropdownButtonFormField<String>(
-          initialValue: role,
+        ChoiceField<String>(
+          value: role,
           decoration: const InputDecoration(labelText: 'Use this device as'),
-          items: const [
-            DropdownMenuItem(value: 'viewer', child: Text('Service viewer')),
-            DropdownMenuItem(value: 'stage', child: Text('Stage display')),
-            DropdownMenuItem(
-              value: 'operator',
-              child: Text('Additional operator'),
-            ),
+          options: const [
+            ChoiceOption(value: 'viewer', label: 'Service viewer'),
+            ChoiceOption(value: 'stage', label: 'Stage display'),
+            ChoiceOption(value: 'operator', label: 'Additional operator'),
           ],
           onChanged: busy ? null : (v) => setState(() => role = v!),
         ),
@@ -559,7 +605,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
         if (hosts.isEmpty)
           Text(
             discoveryError ??
-                'Looking for a host… Tap Share this service on the other phone. If it does not appear, try QR pairing.',
+                'Looking for a host… Tap Share to stage screens on the host phone. If it does not appear, try QR pairing.',
           ),
         for (final host in hosts)
           ListTile(
