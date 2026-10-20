@@ -99,6 +99,9 @@ extension PlanningViews on _HomeState {
     ServiceReport? report,
   }) async {
     var includeNotes = false, includeBanner = true;
+    var audience = 'stage';
+    var watermark = c.state.printPreferences.watermark;
+    var inkSaving = c.state.printPreferences.inkSaving;
     var fullReport = report != null;
     final session = c.state.session;
     final actualDate =
@@ -156,11 +159,42 @@ extension PlanningViews on _HomeState {
                     ],
                     onChanged: (value) => update(() => fullReport = value!),
                   ),
+                ChoiceField<String>(
+                  value: audience,
+                  decoration: const InputDecoration(labelText: 'Print copy'),
+                  options: const [
+                    ChoiceOption(value: 'stage', label: 'Stage copy'),
+                    ChoiceOption(value: 'operator', label: 'Operator copy'),
+                  ],
+                  onChanged: (v) => update(() {
+                    audience = v!;
+                    includeNotes =
+                        v == 'operator' &&
+                        (report == null || report.program != null);
+                  }),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Ink-saving'),
+                  subtitle: const Text('Omit banner and watermark'),
+                  value: inkSaving,
+                  onChanged: (v) => update(() => inkSaving = v!),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Church-name watermark'),
+                  value: watermark,
+                  onChanged: inkSaving
+                      ? null
+                      : (v) => update(() => watermark = v!),
+                ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Include church banner'),
                   value: includeBanner,
-                  onChanged: (v) => update(() => includeBanner = v!),
+                  onChanged: inkSaving
+                      ? null
+                      : (v) => update(() => includeBanner = v!),
                 ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
@@ -169,7 +203,9 @@ extension PlanningViews on _HomeState {
                       ? const Text('Not recorded in this older report')
                       : null,
                   value: includeNotes,
-                  onChanged: report != null && report.program == null
+                  onChanged:
+                      audience == 'stage' ||
+                          (report != null && report.program == null)
                       ? null
                       : (v) => update(() => includeNotes = v!),
                 ),
@@ -191,23 +227,53 @@ extension PlanningViews on _HomeState {
     );
     if (yes != true) return;
     try {
-      final html = report != null
-          ? reportServiceHtml(
-              report,
-              fullReport: fullReport,
-              privateNotes: includeNotes,
-              banner: c.state.churchBanner,
-              includeBanner: includeBanner,
-            )
-          : serviceSheetHtml(
-              timeline!,
-              c.state.churchName,
-              privateNotes: includeNotes,
-              banner: c.state.churchBanner,
-              includeBanner: includeBanner,
-              serviceDate: selectedDate.millisecondsSinceEpoch,
-            );
-      await c.port.printServiceSheet(report?.name ?? timeline!.name, html);
+      if (!await c.commit(
+        (draft, _) => draft.printPreferences = PrintPreferences(
+          watermark: watermark,
+          inkSaving: inkSaving,
+        ),
+      )) {
+        throw RuleError(c.error ?? 'Could not save print preferences.');
+      }
+      final printProgram =
+          report?.program ??
+          timeline ??
+          Timeline(
+            report!.name,
+            report.rows
+                .map(
+                  (row) =>
+                      Segment(row.name, (row.plannedMs ~/ 60000).clamp(1, 99)),
+                )
+                .toList(),
+            DisplaySettings(),
+          );
+      final document = ServicePrintDocument(
+        audience: audience,
+        program: printProgram,
+        report: report,
+        church: report?.churchName ?? c.state.churchName,
+        serviceDate: selectedDate.millisecondsSinceEpoch,
+        preparedAt: c.now.wall,
+        banner: c.state.churchBanner,
+        includeBanner: includeBanner,
+        includeNotes: audience == 'operator' && includeNotes,
+        fullReport: fullReport,
+        watermark: watermark,
+        inkSaving: inkSaving,
+      );
+      final regular = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+      final bold = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
+      await c.port.printServicePdf(
+        report?.name ?? printProgram.name,
+        (width, height) => createServicePdf(
+          document,
+          regularFont: regular,
+          boldFont: bold,
+          width: width,
+          height: height,
+        ),
+      );
     } catch (e) {
       if (mounted) await showError('Printing failed: $e');
     }

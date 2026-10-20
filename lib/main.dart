@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
 import 'choice_field.dart';
+import 'service_pdf.dart';
 import 'church_banner.dart';
 import 'feedback_page.dart';
 import 'controller.dart';
@@ -34,6 +35,7 @@ part 'planning_views.dart';
 part 'pairing_views.dart';
 part 'device_management.dart';
 part 'mobile_display_views.dart';
+part 'improvement_views.dart';
 
 String styleSummary(TextLayout l) =>
     '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
@@ -81,6 +83,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   AppController get c => widget.controller;
   int page = 0;
   QuickMessage quickDraft = const QuickMessage(body: '');
+  bool quickDraftReviewed = false;
+  int quickDraftGeneration = 0;
+  String quickAudience = 'all';
+  String? previewScreenId;
+  void refreshHome(VoidCallback change) => setState(change);
   bool focused = false, controlsLocked = false;
   final homeScroll = ScrollController();
   bool? _completedService;
@@ -365,10 +372,37 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final initial = index == null
         ? Timeline('', [], c.state.defaults)
         : c.state.templates[index];
+    final draftKey = index == null ? 'program:new' : 'program:${initial.name}';
+    await c.flushEditDrafts();
+    var editorInitial = initial;
+    final savedDraft = c.state.editDrafts[draftKey];
+    if (savedDraft != null) {
+      final restore = await reviewSavedDraft(context);
+      if (restore == null) return null;
+      if (restore) {
+        try {
+          editorInitial = programFromDraft(savedDraft, initial.display);
+        } catch (_) {
+          if (mounted)
+            await showError(
+              'This draft could not be opened. The saved program is unchanged.',
+            );
+          return null;
+        }
+      } else {
+        c.queueEditDraft(draftKey, null);
+        await c.flushEditDrafts();
+      }
+    }
+    if (!mounted) return null;
     final result = await Navigator.of(context).push<Timeline>(
       MaterialPageRoute(
         builder: (_) => TemplateEditor(
-          initial: initial,
+          initial: editorInitial,
+          creating: index == null,
+          reports: c.state.reports,
+          onDraftChanged: (value) => c.queueEditDraft(draftKey, value),
+          draftController: c,
           defaultEnd: c.state.defaults.end,
           existingNames: c.state.templates
               .asMap()
@@ -379,13 +413,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         ),
       ),
     );
+    await c.flushEditDrafts();
     if (result == null) return null;
-    final ok = await c.commit(
-      (draft, _) => draft.saveTemplate(
+    final ok = await c.commit((draft, _) {
+      draft.saveTemplate(
         result,
         replacing: index == null ? null : draft.templateIndex(initial),
-      ),
-    );
+      );
+      draft.editDrafts.remove(draftKey);
+    });
     if (!ok) {
       if (mounted)
         await showError(c.error ?? 'The program could not be saved.');
@@ -1214,6 +1250,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           icon: const Icon(Icons.edit_calendar_outlined),
                           label: const Text('Edit upcoming'),
                         ),
+                      if (s.active)
+                        TextButton.icon(
+                          onPressed: enabled ? recoverTime : null,
+                          icon: const Icon(Icons.auto_fix_high_outlined),
+                          label: const Text('Recover time'),
+                        ),
                       TextButton.icon(
                         onPressed: controlsLocked
                             ? null
@@ -1898,12 +1940,20 @@ class TemplateEditor extends StatefulWidget {
   final Set<String> existingNames;
   final TextLayout defaultEnd;
   final bool upcomingOnly;
+  final bool? creating;
+  final ValueChanged<Json>? onDraftChanged;
+  final AppController? draftController;
+  final List<ServiceReport> reports;
   const TemplateEditor({
     super.key,
     required this.initial,
     required this.existingNames,
     this.defaultEnd = defaultEndScreen,
     this.upcomingOnly = false,
+    this.creating,
+    this.onDraftChanged,
+    this.draftController,
+    this.reports = const [],
   });
   @override
   State<TemplateEditor> createState() => _TemplateEditorState();
@@ -1915,6 +1965,17 @@ class _TemplateEditorState extends State<TemplateEditor> {
   late TextLayout endScreen;
   late String templateType;
   String? error;
+  void saveDraft() => widget.onDraftChanged?.call({
+    'name': name.text,
+    'type': templateType,
+    'segments': [for (final s in segments) s.toJson()],
+    'end': endScreen.toJson(),
+  });
+  void change(VoidCallback action) {
+    setState(action);
+    saveDraft();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1922,10 +1983,12 @@ class _TemplateEditorState extends State<TemplateEditor> {
     segments = [...widget.initial.segments];
     endScreen = widget.initial.display.end;
     templateType = widget.initial.type;
+    name.addListener(saveDraft);
   }
 
   @override
   void dispose() {
+    name.removeListener(saveDraft);
     name.dispose();
     super.dispose();
   }
@@ -1943,6 +2006,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
     final notes = TextEditingController(
       text: index == null ? '' : segments[index].notes,
     );
+    var protected = index == null ? false : segments[index].protected;
     String? issue;
     final result = await showDialog<Segment>(
       context: context,
@@ -1985,6 +2049,15 @@ class _TemplateEditorState extends State<TemplateEditor> {
                       'Never shown on the sign. Included in program backups.',
                 ),
               ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Protect duration'),
+                subtitle: const Text(
+                  'Time recovery will not shorten this segment.',
+                ),
+                value: protected,
+                onChanged: (v) => update(() => protected = v),
+              ),
               if (issue != null)
                 Text(
                   issue!,
@@ -2005,6 +2078,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
                     'minutes': int.tryParse(duration.text),
                     'speaker': speaker.text,
                     'notes': notes.text,
+                    'protected': protected,
                   });
                   Navigator.pop(ctx, s);
                 } catch (e) {
@@ -2024,7 +2098,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
       notes.dispose();
     });
     if (result != null && mounted)
-      setState(() {
+      change(() {
         if (index == null) {
           segments.add(result);
         } else {
@@ -2058,7 +2132,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
                 ChoiceOption(value: 'service', label: 'Service'),
                 ChoiceOption(value: 'rehearsal', label: 'Rehearsal'),
               ],
-              onChanged: (value) => setState(() => templateType = value!),
+              onChanged: (value) => change(() => templateType = value!),
             ),
             const SizedBox(height: 8),
             Text(
@@ -2066,6 +2140,26 @@ class _TemplateEditorState extends State<TemplateEditor> {
               style: TextStyle(color: appColors(context).muted, fontSize: 12),
             ),
           ],
+          if (widget.draftController != null)
+            AnimatedBuilder(
+              animation: widget.draftController!,
+              builder: (context, _) =>
+                  widget.draftController!.draftError == null
+                  ? const Text(
+                      'Unfinished edits are saved on this phone.',
+                      style: TextStyle(fontSize: 12),
+                    )
+                  : TextButton(
+                      onPressed: widget.draftController!.flushEditDrafts,
+                      child: Text(widget.draftController!.draftError!),
+                    ),
+            ),
+          if (!widget.upcomingOnly && widget.reports.isNotEmpty)
+            OutlinedButton.icon(
+              onPressed: reviewDurationSuggestions,
+              icon: const Icon(Icons.insights_outlined),
+              label: const Text('Learn from previous services'),
+            ),
           if (widget.upcomingOnly)
             const Text(
               'Edit only the upcoming segments. Current and completed segments, saved programs and end screens stay unchanged.',
@@ -2085,7 +2179,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: segments.length,
-            onReorderItem: (a, b) => setState(() {
+            onReorderItem: (a, b) => change(() {
               segments.insert(b, segments.removeAt(a));
             }),
             itemBuilder: (context, i) => Card(
@@ -2099,7 +2193,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
                 onTap: () => segment(index: i),
                 trailing: IconButton(
                   tooltip: 'Remove segment',
-                  onPressed: () => setState(() => segments.removeAt(i)),
+                  onPressed: () => change(() => segments.removeAt(i)),
                   icon: const Icon(Icons.close),
                 ),
               ),
@@ -2145,12 +2239,12 @@ class _TemplateEditorState extends State<TemplateEditor> {
                               ),
                             );
                             if (next != null && mounted)
-                              setState(() => endScreen = next);
+                              change(() => endScreen = next);
                           },
                         ),
                         TextButton(
                           onPressed: () =>
-                              setState(() => endScreen = widget.defaultEnd),
+                              change(() => endScreen = widget.defaultEnd),
                           child: const Text('Use current default'),
                         ),
                       ],
@@ -2198,14 +2292,14 @@ class _TemplateEditorState extends State<TemplateEditor> {
                 validateTimelinePixels(t);
                 Navigator.pop(context, t);
               } catch (e) {
-                setState(() => error = e.toString());
+                change(() => error = e.toString());
               }
             },
             icon: const Icon(Icons.check),
             label: Text(
               widget.upcomingOnly
                   ? 'Review rundown changes'
-                  : (widget.initial.name.isEmpty
+                  : ((widget.creating ?? widget.initial.name.isEmpty)
                         ? 'Create Program'
                         : 'Save changes'),
             ),

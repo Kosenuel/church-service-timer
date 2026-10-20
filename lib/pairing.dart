@@ -172,6 +172,22 @@ class PairHub extends ChangeNotifier {
             )
             .toList()
       : [];
+  Future<void> acknowledgeMessage() async {
+    final data = snapshot;
+    require(
+      mode == 'stage' &&
+          !stale &&
+          data != null &&
+          data['stageSharing'] == true &&
+          data['blank'] != true &&
+          data['quickMessage'] is Map &&
+          data['quickMessage']['requestSeen'] == true &&
+          data['messageId'] is String,
+      'This message is no longer available.',
+    );
+    await _client?.send({'type': 'seen', 'messageId': data!['messageId']});
+  }
+
   void setStageSharing(bool enabled) {
     stageSharingEnabled = enabled;
     changed();
@@ -204,6 +220,8 @@ class PairHub extends ChangeNotifier {
   int epoch = 0, lastSnapshot = 0;
   Json? snapshot;
   Json Function(bool privateNotes)? snapshotFor;
+  Json Function(PairPeer peer, Json data)? decorateSnapshot;
+  void Function(PairPeer peer, String messageId)? onMessageSeen;
   Future<bool> Function(String action, dynamic value, int revision)? command;
   String Function(bool ok, String action)? commandMessage;
   final _approvals = <String, SavedPairDevice>{};
@@ -482,6 +500,12 @@ class PairHub extends ChangeNotifier {
           }
           continue;
         }
+        if (message['type'] == 'seen' &&
+            peer.viewingStage &&
+            message['messageId'] is String) {
+          onMessageSeen?.call(peer, message['messageId']);
+          continue;
+        }
         if (message['type'] == 'requestControl' && peer.role == 'operator') {
           peer.requestedControl = true;
           changed();
@@ -636,9 +660,10 @@ class PairHub extends ChangeNotifier {
             continue;
           }
           final snapshotId = ++_snapshotSequence;
-          final data =
+          var data =
               snapshotFor?.call(peer.role == 'operator' && peer.id == owner) ??
               <String, dynamic>{};
+          data = decorateSnapshot?.call(peer, data) ?? data;
           // Older viewers do not understand stageSharing; explicitly blank their output.
           if (peer.viewingStage && data['stageSharing'] == false) {
             data['blank'] = true;

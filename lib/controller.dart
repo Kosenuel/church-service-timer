@@ -54,6 +54,57 @@ class Simulator {
 }
 
 class AppController extends ChangeNotifier {
+  final Map<String, Json?> _draftWrites = {};
+  Timer? _draftTimer;
+  String? draftError;
+  void queueEditDraft(String key, Json? value) {
+    _draftWrites[key] = value;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 600), flushEditDrafts);
+  }
+
+  Future<void>? _draftFlush;
+  Future<void> flushEditDrafts() {
+    _draftTimer?.cancel();
+    return _draftFlush ??= _flushDrafts().whenComplete(
+      () => _draftFlush = null,
+    );
+  }
+
+  Future<void> _flushDrafts() async {
+    while (_draftWrites.isNotEmpty && !_disposed && ready) {
+      if (busy) await _writeDone?.future;
+      if (_disposed) return;
+      if (reportSavePending) {
+        _draftTimer = Timer(const Duration(milliseconds: 600), flushEditDrafts);
+        return;
+      }
+      final pending = Map<String, Json?>.from(_draftWrites);
+      final ok = await commit((draft, _) {
+        for (final entry in pending.entries) {
+          if (entry.value == null) {
+            draft.editDrafts.remove(entry.key);
+          } else {
+            draft.editDrafts[entry.key] = entry.value!;
+          }
+        }
+        readEditDrafts(draft.editDrafts);
+      });
+      if (!ok) {
+        draftError =
+            'Draft could not be saved. Keep this screen open and retry.';
+        if (!_disposed) notifyListeners();
+        return;
+      }
+      for (final entry in pending.entries) {
+        if (identical(_draftWrites[entry.key], entry.value))
+          _draftWrites.remove(entry.key);
+      }
+      draftError = null;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
   Session? _pendingEnd;
   int? _pendingEndRevision;
   bool _preparingEnd = false;
@@ -76,6 +127,41 @@ class AppController extends ChangeNotifier {
       ? (hardware.rememberedName.isEmpty ? 'LED sign' : hardware.rememberedName)
       : 'Simulator';
   QuickMessage? _quickMessage;
+  String? quickMessageId;
+  final Set<String> _quickRecipients = {}, quickSeen = {};
+  final Map<String, String> quickRecipientNames = {};
+  Set<String> get quickRecipients => Set.unmodifiable(_quickRecipients);
+
+  Json decoratePairedSnapshot(PairPeer peer, Json data) {
+    final profile = pairing.savedDevices
+        .where((d) => d.id == peer.id)
+        .firstOrNull;
+    data['stageLayout'] = profile?.layout ?? 'timer';
+    if (!peer.viewingStage || !_quickRecipients.contains(peer.id)) {
+      data.remove('quickMessage');
+      data['blank'] = state.session.outputBlank;
+    } else if (data['quickMessage'] != null) {
+      data['messageId'] = quickMessageId;
+      data['messageSeen'] = quickSeen.contains(peer.id);
+    }
+    return data;
+  }
+
+  void receiveMessageSeen(PairPeer peer, String id) {
+    if (!peer.connected ||
+        !peer.viewingStage ||
+        currentQuickMessage?.requestSeen != true ||
+        id != quickMessageId ||
+        !_quickRecipients.contains(peer.id) ||
+        peer.acknowledgedSnapshot?['messageId'] != id ||
+        !pairing.syncedStagePeers.contains(peer))
+      return;
+    if (quickSeen.add(peer.id)) {
+      unawaited(pairing.publish());
+      notifyListeners();
+    }
+  }
+
   int? _quickUntil;
   String? _quickSession;
   int? _quickSegment;
@@ -83,7 +169,6 @@ class AppController extends ChangeNotifier {
       _quickMessage != null &&
           stageConnected &&
           (state.session.active || state.session.phase == 'ended') &&
-          (!state.session.outputBlank || state.session.phase == 'ended') &&
           state.session.id == _quickSession &&
           state.session.index == _quickSegment &&
           (_quickUntil == null || now.mono < _quickUntil!)
@@ -91,6 +176,10 @@ class AppController extends ChangeNotifier {
       : null;
   void clearQuickMessage() {
     _quickMessage = null;
+    quickMessageId = null;
+    _quickRecipients.clear();
+    quickSeen.clear();
+    quickRecipientNames.clear();
     _quickUntil = null;
     _quickSession = null;
     _quickSegment = null;
@@ -100,6 +189,7 @@ class AppController extends ChangeNotifier {
     QuickMessage message, {
     bool test = false,
     String? confirmedEndedSession,
+    Set<String>? recipientIds,
   }) async {
     final ended = state.session.phase == 'ended';
     if (busy ||
@@ -115,7 +205,16 @@ class AppController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+    final eligible = pairing.syncedStagePeers.map((p) => p.id).toSet();
+    final recipients = Set<String>.from(recipientIds ?? eligible);
+    final sessionId = state.session.id,
+        segmentIndex = state.session.index,
+        epoch = pairing.epoch;
     try {
+      require(
+        recipients.isNotEmpty && eligible.containsAll(recipients),
+        'Selected screens are unavailable. Review the recipients.',
+      );
       message.validate();
     } catch (e) {
       error = '$e';
@@ -129,9 +228,6 @@ class AppController extends ChangeNotifier {
             stageConnected && pairing.localControl,
             'Stage screen disconnected or control changed.',
           );
-          draft.session.alert = null;
-          draft.session.automaticCue = null;
-          draft.session.outputBlank = false;
           draft.session.revision++;
           addServiceEvent(
             draft.session.events,
@@ -143,6 +239,28 @@ class AppController extends ChangeNotifier {
           );
         }))
       return false;
+    if (state.session.id != sessionId ||
+        state.session.index != segmentIndex ||
+        pairing.epoch != epoch ||
+        !pairing.localControl ||
+        !pairing.syncedStagePeers
+            .map((p) => p.id)
+            .toSet()
+            .containsAll(recipients)) {
+      error =
+          'Service, control or selected screens changed. Review the message again.';
+      notifyListeners();
+      return false;
+    }
+    clearQuickMessage();
+    _quickRecipients.addAll(recipients);
+    quickRecipientNames.addAll({
+      for (final peer in pairing.syncedStagePeers.where(
+        (p) => recipients.contains(p.id),
+      ))
+        peer.id: peer.name,
+    });
+    quickMessageId = pairRandom(16);
     if (test) {
       _testMessage = message;
       _testUntil = now.mono + 5000;
@@ -367,6 +485,15 @@ class AppController extends ChangeNotifier {
       'service': t?.name ?? 'Standing by',
       'church': state.churchName,
       'segment': t == null ? '' : t.segments[s.index].name,
+      'nextSegment': t != null && s.index + 1 < t.segments.length
+          ? t.segments[s.index + 1].name
+          : '',
+      'displayIsTimer':
+          s.active &&
+          !s.outputBlank &&
+          s.alert == null &&
+          s.automaticCue == null &&
+          (s.remaining(now) > 0 || s.timeline?.display.zero == null),
       'index': s.index,
       'phase': s.phase,
       'paused': s.paused,
@@ -425,6 +552,10 @@ class AppController extends ChangeNotifier {
         port.advertisePairHost(portNumber, hostId: pairing.hostId);
     pairing.unadvertise = port.stopPairAdvertisement;
     pairing.addListener(() {
+      if (ready) {
+        final available = pairing.syncedStagePeers.map((p) => p.id).toSet();
+        _quickRecipients.removeWhere((id) => !available.contains(id));
+      }
       if (ready && !stageConnected) {
         clearQuickMessage();
         _testMessage = null;
@@ -432,6 +563,8 @@ class AppController extends ChangeNotifier {
       if (!_disposed) notifyListeners();
     });
     pairing.snapshotFor = pairedSnapshot;
+    pairing.decorateSnapshot = decoratePairedSnapshot;
+    pairing.onMessageSeen = receiveMessageSeen;
     pairing.onControlChanged = (message) {
       if (ready && state.session.active && _events.length < 2000) {
         _events.add((
@@ -817,8 +950,15 @@ class AppController extends ChangeNotifier {
           value: value,
           expectedRevision: revision,
         );
-        if (action == 'warnings' && currentQuickMessage != null)
+        // A message already covering every stage screen consumes an automatic
+        // cue, as before. Targeted messages must not suppress other screens.
+        if (action == 'warnings' &&
+            currentQuickMessage != null &&
+            pairing.syncedStagePeers.every(
+              (peer) => _quickRecipients.contains(peer.id),
+            )) {
           draft.session.automaticCue = null;
+        }
         if ([
           'start',
           'pause',
@@ -956,6 +1096,9 @@ class AppController extends ChangeNotifier {
       draft.churchBanner = restored.churchBanner;
       draft.themeId = restored.themeId;
       draft.keepScreenAwake = restored.keepScreenAwake;
+      draft.notificationClearSeconds = restored.notificationClearSeconds;
+      draft.printPreferences = restored.printPreferences;
+      draft.editDrafts.clear();
       draft.session = Session(
         id: 'restored-${at.wall}',
         anchor: at,
@@ -987,7 +1130,12 @@ class AppController extends ChangeNotifier {
           ? s.warningSeen.toSet().difference(previous.warningSeen.toSet())
           : <int>{};
       await port.syncWarnings(
-        warningNotificationPlan(s, now, newlySeen: newlySeen),
+        warningNotificationPlan(
+          s,
+          now,
+          newlySeen: newlySeen,
+          clearSeconds: state.notificationClearSeconds,
+        ),
       );
       notificationState = await port.notificationStatus();
       notificationError = null;
@@ -1112,6 +1260,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> suspend() async {
+    await flushEditDrafts();
     if (backgroundActive && await port.activeServiceRunning()) {
       _foreground = false;
       await checkpoint();
@@ -1203,6 +1352,7 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
     liveClock.dispose();
     previewClock.dispose();
     _disposed = true;

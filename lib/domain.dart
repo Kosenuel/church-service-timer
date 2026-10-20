@@ -5,6 +5,7 @@ part 'service_features.dart';
 part 'app_settings.dart';
 part 'service_planning.dart';
 part 'quick_message.dart';
+part 'service_improvements.dart';
 
 typedef Json = Map<String, dynamic>;
 const maxRemainingMs = 5999000;
@@ -202,9 +203,16 @@ class DisplaySettings {
 class Segment {
   final String name, speaker, notes;
   final int minutes;
-  const Segment(this.name, this.minutes, {this.speaker = '', this.notes = ''});
+  final bool protected;
+  const Segment(
+    this.name,
+    this.minutes, {
+    this.speaker = '',
+    this.notes = '',
+    this.protected = false,
+  });
   factory Segment.fromJson(Json j) {
-    keys(j, {'name', 'minutes', 'speaker', 'notes'}, 'Segment');
+    keys(j, {'name', 'minutes', 'speaker', 'notes', 'protected'}, 'Segment');
     require(
       j['minutes'] is int && j['minutes'] >= 1 && j['minutes'] <= 99,
       'Segment duration must be an integer from 1 to 99 minutes.',
@@ -232,6 +240,7 @@ class Segment {
       j['minutes'],
       speaker: optional(j['speaker'], 80, 'Speaker'),
       notes: optional(j['notes'], 1000, 'Private notes', multiline: true),
+      protected: boolSetting(j['protected'] ?? false),
     );
   }
   Json toJson() => {
@@ -239,6 +248,7 @@ class Segment {
     'minutes': minutes,
     if (speaker.isNotEmpty) 'speaker': speaker,
     if (notes.isNotEmpty) 'notes': notes,
+    if (protected) 'protected': true,
   };
 }
 
@@ -854,6 +864,9 @@ Session recover(Session original, Stamp now) {
 }
 
 class AppState {
+  int notificationClearSeconds;
+  PrintPreferences printPreferences;
+  Map<String, Json> editDrafts;
   String? outputDestination;
   List<QuickMessage> quickMessages;
   List<Timeline> templates;
@@ -879,7 +892,11 @@ class AppState {
     this.keepScreenAwake = true,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
-  }) : reports = reports ?? [],
+    this.notificationClearSeconds = 30,
+    this.printPreferences = const PrintPreferences(),
+    Map<String, Json>? editDrafts,
+  }) : editDrafts = editDrafts ?? {},
+       reports = reports ?? [],
        quickMessages = quickMessages ?? [...defaultQuickMessages],
        stageCues = stageCues ?? [...defaults.cues];
   factory AppState.fresh(Stamp now) => AppState(
@@ -906,7 +923,7 @@ class AppState {
   );
   factory AppState.fromJson(Json j, {Stamp? now}) {
     require(
-      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}.contains(j['version']),
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -924,6 +941,13 @@ class AppState {
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['defaults'])),
       Session.fromJson(Map<String, dynamic>.from(j['session'])),
       outputDestination: j['outputDestination'] as String?,
+      notificationClearSeconds: notificationTimeoutValue(
+        j['notificationClearSeconds'] ?? 30,
+      ),
+      printPreferences: PrintPreferences.fromJson(
+        Map<String, dynamic>.from(j['printPreferences'] ?? {}),
+      ),
+      editDrafts: readEditDrafts(j['editDrafts']),
       quickMessages: (j['quickMessages'] as List?)
           ?.map((e) => QuickMessage.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1041,7 +1065,10 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 10,
+    'version': 11,
+    'notificationClearSeconds': notificationClearSeconds,
+    'printPreferences': printPreferences.toJson(),
+    'editDrafts': editDrafts,
     'outputDestination': outputDestination,
     'quickMessages': quickMessages.map((e) => e.toJson()).toList(),
     'templates': templates.map((t) => t.toJson()).toList(),

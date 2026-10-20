@@ -4,6 +4,7 @@ part of 'pairing.dart';
 class SavedPairDevice {
   final String id, name, role, secret;
   bool suspended;
+  String group, layout;
   int lastSeen;
   SavedPairDevice(
     this.id,
@@ -11,6 +12,8 @@ class SavedPairDevice {
     this.role,
     this.secret, {
     this.suspended = false,
+    this.group = 'general',
+    this.layout = 'timer',
     required this.lastSeen,
   });
 
@@ -21,6 +24,8 @@ class SavedPairDevice {
     'secret': secret,
     'suspended': suspended,
     'lastSeen': lastSeen,
+    'group': group,
+    'layout': layout,
   };
 
   factory SavedPairDevice.fromJson(Json j) {
@@ -40,11 +45,54 @@ class SavedPairDevice {
       j['secret'],
       suspended: j['suspended'] == true,
       lastSeen: j['lastSeen'],
+      group: screenGroups.containsKey(j['group']) ? j['group'] : 'general',
+      layout: screenLayouts.containsKey(j['layout']) ? j['layout'] : 'timer',
     );
   }
 }
 
+const screenGroups = {
+  'general': 'General',
+  'preacher': 'Preacher',
+  'choir': 'Choir',
+  'media': 'Media desk',
+};
+const screenLayouts = {
+  'timer': 'Timer only',
+  'current': 'Timer + current segment',
+  'next': 'Timer + next segment',
+};
+
 extension PairMemory on PairHub {
+  Future<void> configureScreen(
+    String id, {
+    required String group,
+    required String layout,
+  }) async {
+    require(localControl, 'Take control before changing screen options.');
+    final device = _approvals[id];
+    require(
+      device != null && device.role != 'operator',
+      'Choose a saved stage screen.',
+    );
+    require(
+      screenGroups.containsKey(group) && screenLayouts.containsKey(layout),
+      'Choose valid screen options.',
+    );
+    final oldGroup = device!.group, oldLayout = device.layout;
+    device.group = group;
+    device.layout = layout;
+    try {
+      await _saveMemory();
+    } catch (_) {
+      device.group = oldGroup;
+      device.layout = oldLayout;
+      rethrow;
+    }
+    changed();
+    await publish();
+  }
+
   Future<void> retrySavingDevices() async {
     await _saveMemory();
     memoryNotice = '';

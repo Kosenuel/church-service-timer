@@ -43,6 +43,8 @@ class SegmentGauge extends StatelessWidget {
         ? appColors(context).error
         : warning
         ? appColors(context).warning
+        : appColors(context).id == 'royal_navy'
+        ? const Color(0xff7ee090)
         : appColors(context).accent;
     final progress = (session.remaining(now) / math.max(1, session.allocatedMs))
         .clamp(0.0, 1.0);

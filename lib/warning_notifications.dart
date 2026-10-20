@@ -5,6 +5,7 @@ Json warningNotificationPlan(
   Session s,
   Stamp now, {
   Set<int> newlySeen = const {},
+  int clearSeconds = 30,
 }) {
   final alarms = <Json>[];
   Json? notice;
@@ -32,5 +33,11 @@ Json warningNotificationPlan(
       }
     }
   }
-  return {'session': s.id, 'alarms': alarms, 'notice': notice};
+  return {
+    'session': s.id,
+    'scope': '${s.id}/${s.index}/${s.phase}',
+    'clearSeconds': notificationTimeoutValue(clearSeconds),
+    'alarms': alarms,
+    'notice': notice,
+  };
 }

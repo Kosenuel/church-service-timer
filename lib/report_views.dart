@@ -125,6 +125,15 @@ extension ReportViews on _HomeState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () =>
+                openSettingsDetail('Timing insights', timingInsightsPage),
+            icon: const Icon(Icons.insights_outlined),
+            label: const Text('Timing insights'),
+          ),
+        ),
         Stack(
           children: [
             ChurchProfileBanner(image: c.state.churchBanner),

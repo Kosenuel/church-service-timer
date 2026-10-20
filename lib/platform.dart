@@ -2,9 +2,14 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 
 import 'domain.dart';
+import 'package:printing/printing.dart';
 import 'package:nsd/nsd.dart' as nsd;
 
 abstract class DevicePort {
+  Future<void> printServicePdf(
+    String name,
+    Future<Uint8List> Function(double, double) layout,
+  ) async => throw RuleError('Printing requires Android.');
   Future<String?> loadPairing() async => null;
   Future<void> savePairing(String value) async {}
   Future<List<Json>> discoverPairHosts() async => [];
@@ -68,6 +73,17 @@ abstract class DevicePort {
 }
 
 class AndroidPort extends DevicePort {
+  @override
+  Future<void> printServicePdf(
+    String name,
+    Future<Uint8List> Function(double, double) layout,
+  ) async {
+    await Printing.layoutPdf(
+      name: name,
+      onLayout: (format) => layout(format.width, format.height),
+    );
+  }
+
   @override
   Future<String?> loadPairing() => channel.invokeMethod<String>('loadPairing');
   @override

@@ -322,15 +322,27 @@ extension MobileDisplayViews on _HomeState {
 
   Widget mobileStagePreview() {
     final peers = c.pairing.stagePeers;
-    final acknowledged =
-        peers.where((p) => p.acknowledgedSnapshot != null).toList()
-          ..sort((a, b) => b.lastAck.compareTo(a.lastAck));
-    final data = acknowledged.isEmpty
-        ? null
-        : acknowledged.first.acknowledgedSnapshot;
+    final selected =
+        peers.where((p) => p.id == previewScreenId).firstOrNull ??
+        peers.firstOrNull;
+    final data = selected?.acknowledgedSnapshot;
+    final fresh =
+        selected != null && c.pairing.syncedStagePeers.contains(selected);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (peers.length > 1) ...[
+          ChoiceField<String>(
+            value: selected?.id,
+            decoration: const InputDecoration(labelText: 'Preview screen'),
+            options: [
+              for (final peer in peers)
+                ChoiceOption(value: peer.id, label: peer.name),
+            ],
+            onChanged: (id) => refreshHome(() => previewScreenId = id),
+          ),
+          const SizedBox(height: 12),
+        ],
         AspectRatio(
           aspectRatio: 16 / 9,
           child: ClipRRect(
@@ -344,14 +356,14 @@ extension MobileDisplayViews on _HomeState {
                         style: TextStyle(color: Colors.white70),
                       ),
                     )
-                  : StageSurface(data: data, stale: !c.stageConnected),
+                  : StageSurface(data: data, stale: !fresh),
             ),
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          c.stageConnected
-              ? '${c.pairing.syncedStagePeers.map((p) => p.name).join(', ')} · Synced'
+          fresh
+              ? '${selected.name} · Synced'
               : !c.pairing.stageSharingEnabled
               ? 'Sharing stopped'
               : data != null
@@ -368,14 +380,32 @@ extension MobileDisplayViews on _HomeState {
     );
   }
 
+  Set<String> get selectedMessageRecipients => c.pairing.syncedStagePeers
+      .where((p) {
+        if (quickAudience == 'all') return true;
+        if (quickAudience.startsWith('device:'))
+          return p.id == quickAudience.substring(7);
+        final profile = c.pairing.savedDevices
+            .where((d) => d.id == p.id)
+            .firstOrNull;
+        return quickAudience == 'group:${profile?.group ?? 'general'}';
+      })
+      .map((p) => p.id)
+      .toSet();
+
   String get stageRecipientSummary {
-    final count = c.pairing.syncedStagePeers.length;
-    return count == 0
-        ? 'No stage screens connected'
-        : 'Sending to $count stage ${count == 1 ? 'screen' : 'screens'}';
+    final ids = selectedMessageRecipients;
+    final names = c.pairing.syncedStagePeers
+        .where((p) => ids.contains(p.id))
+        .map((p) => p.name)
+        .join(', ');
+    return ids.isEmpty
+        ? 'No selected stage screens are connected'
+        : 'Sending to ${ids.length}: $names';
   }
 
   Future<bool?> sendLiveQuickMessage(QuickMessage message) async {
+    final recipients = selectedMessageRecipients;
     final ended = c.state.session.phase == 'ended';
     final id = c.state.session.id, epoch = c.pairing.epoch;
     if (ended) {
@@ -396,10 +426,14 @@ extension MobileDisplayViews on _HomeState {
         return false;
       }
     }
-    return c.sendQuickMessage(
+    await c.flushEditDrafts();
+    final ok = await c.sendQuickMessage(
       message,
       confirmedEndedSession: ended ? id : null,
+      recipientIds: recipients,
     );
+    if (ok) c.queueEditDraft('quick-message', null);
+    return ok;
   }
 
   Widget quickMessagePanel() => panel(
@@ -423,21 +457,84 @@ extension MobileDisplayViews on _HomeState {
             ),
           ],
         ),
+        if (!quickDraftReviewed &&
+            c.state.editDrafts.containsKey('quick-message'))
+          MaterialBanner(
+            content: const Text(
+              'An unsent message draft is saved on this phone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  refreshHome(() {
+                    quickDraft = messageFromDraft(
+                      c.state.editDrafts['quick-message']!,
+                    );
+                    quickDraftReviewed = true;
+                    quickDraftGeneration++;
+                  });
+                },
+                child: const Text('Restore draft'),
+              ),
+              TextButton(
+                onPressed: () {
+                  refreshHome(() => quickDraftReviewed = true);
+                  c.queueEditDraft('quick-message', null);
+                },
+                child: const Text('Discard'),
+              ),
+            ],
+          ),
+        if (c.draftError != null)
+          TextButton(onPressed: c.flushEditDrafts, child: Text(c.draftError!)),
+        ChoiceField<String>(
+          value: quickAudience,
+          decoration: const InputDecoration(labelText: 'Send to'),
+          options: [
+            const ChoiceOption(
+              value: 'all',
+              label: 'All connected stage screens',
+            ),
+            for (final group in screenGroups.entries)
+              ChoiceOption(
+                value: 'group:${group.key}',
+                label: '${group.value} screens',
+              ),
+            for (final d in c.pairing.savedDevices.where(
+              (d) => d.role != 'operator',
+            ))
+              ChoiceOption(value: 'device:${d.id}', label: d.name),
+            if (quickAudience.startsWith('device:') &&
+                !c.pairing.savedDevices.any(
+                  (d) => quickAudience == 'device:${d.id}',
+                ))
+              ChoiceOption(value: quickAudience, label: 'Unavailable screen'),
+          ],
+          onChanged: controlsLocked
+              ? null
+              : (v) => refreshHome(() => quickAudience = v ?? 'all'),
+        ),
+        const SizedBox(height: 10),
         Text(
           stageRecipientSummary,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
         QuickMessageComposer(
-          key: const ValueKey('live-quick-message'),
+          key: ValueKey('live-quick-message-$quickDraftGeneration'),
           initial: quickDraft,
           presets: c.state.quickMessages,
-          onChanged: (value) => quickDraft = value,
+          onChanged: (value) {
+            quickDraft = value;
+            quickDraftReviewed = true;
+            c.queueEditDraft('quick-message', value.toJson());
+          },
           onSavePreset: controlsLocked
               ? null
               : (message) => c.saveQuickPreset(message),
           onSend:
               c.stageConnected &&
+                  selectedMessageRecipients.isNotEmpty &&
                   (c.state.session.active ||
                       c.state.session.phase == 'ended') &&
                   !c.busy &&
@@ -454,6 +551,25 @@ extension MobileDisplayViews on _HomeState {
               'Connect a stage screen to send. Your draft stays here.',
             ),
           ),
+        if (c.currentQuickMessage?.requestSeen == true) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Seen ${c.quickSeen.length} of ${c.quickRecipientNames.length}',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          Text(
+            c.quickRecipientNames.entries
+                .map(
+                  (e) =>
+                      '${e.value}: ${c.quickSeen.contains(e.key)
+                          ? 'Seen'
+                          : c.quickRecipients.contains(e.key)
+                          ? 'Awaiting Seen'
+                          : 'Disconnected'}',
+                )
+                .join(' · '),
+          ),
+        ],
         if (c.currentQuickMessage != null)
           TextButton.icon(
             onPressed: controlsLocked ? null : c.dismissQuickMessage,
@@ -573,9 +689,38 @@ class StageSurface extends StatelessWidget {
           Map<String, dynamic>.from(data['quickMessage']),
         ),
       );
+    final layout = data['stageLayout'] ?? 'timer';
+    final timer = StageMessage(data: data, stale: stale, fullscreen: true);
+    final showSegment = data['displayIsTimer'] == true && layout != 'timer';
+    final text = layout == 'next'
+        ? (data['nextSegment'] == ''
+              ? 'Final segment'
+              : 'Next: ${data['nextSegment'] ?? ''}')
+        : '${data['segment'] ?? ''}';
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: StageMessage(data: data, stale: stale, fullscreen: true),
+      child: !showSegment
+          ? timer
+          : Column(
+              children: [
+                Expanded(child: timer),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 36,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      text,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -716,6 +861,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
     palette: style.palette,
     seconds: style.seconds,
     scale: style.scale,
+    requestSeen: style.requestSeen,
   );
   @override
   void initState() {
@@ -735,6 +881,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
   void changed({
     bool? bold,
     bool? italic,
+    bool? requestSeen,
     String? align,
     String? palette,
     int? seconds,
@@ -746,6 +893,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
         body: body.text,
         bold: bold ?? style.bold,
         italic: italic ?? style.italic,
+        requestSeen: requestSeen ?? style.requestSeen,
         align: align ?? style.align,
         palette: palette ?? style.palette,
         seconds: seconds ?? style.seconds,
@@ -917,6 +1065,13 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
             ),
         ],
         onChanged: (v) => changed(seconds: v),
+      ),
+      CheckboxListTile(
+        contentPadding: EdgeInsets.zero,
+        value: style.requestSeen,
+        onChanged: busy ? null : (v) => changed(requestSeen: v),
+        title: const Text('Request Seen acknowledgement'),
+        subtitle: const Text('The recipient taps Seen on their stage screen.'),
       ),
       if (value.length > 100 && style.seconds > 0 && style.seconds < 15)
         const Padding(

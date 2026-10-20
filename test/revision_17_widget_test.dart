@@ -42,6 +42,7 @@ class ConfirmationController extends AppController {
     QuickMessage message, {
     bool test = false,
     String? confirmedEndedSession,
+    Set<String>? recipientIds,
   }) async {
     sent = message;
     confirmedSession = confirmedEndedSession;
@@ -101,7 +102,7 @@ void main() {
       size(t);
       final c = AppController(FakePort());
       await c.initialize(startTicker: false);
-      final before = jsonEncode(c.state.toJson());
+      final before = jsonEncode(c.state.toJson()..remove('editDrafts'));
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await tap(t, 'Join as stage screen');
@@ -116,7 +117,7 @@ void main() {
       );
       await t.pageBack();
       await t.pumpAndSettle();
-      expect(jsonEncode(c.state.toJson()), before);
+      expect(jsonEncode(c.state.toJson()..remove('editDrafts')), before);
       await c.act('load', value: timeline());
       await c.act('start');
       await t.pumpAndSettle();
@@ -352,7 +353,7 @@ void main() {
         await pair(c.pairing, receiver);
         await c.act('end');
       });
-      final before = jsonEncode(c.state.toJson());
+      final before = jsonEncode(c.state.toJson()..remove('editDrafts'));
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await t.ensureVisible(find.widgetWithText(TextField, 'Message'));
@@ -362,14 +363,14 @@ void main() {
       );
       await tap(t, 'Send message');
       expect(find.text('Send message after service?'), findsOneWidget);
-      expect(find.textContaining('Sending to 1 stage screen'), findsWidgets);
+      expect(find.textContaining('Sending to 1:'), findsWidgets);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/ended-message-confirmation.png'),
       );
       await tap(t, 'Cancel');
       expect(c.currentQuickMessage, null);
-      expect(jsonEncode(c.state.toJson()), before);
+      expect(jsonEncode(c.state.toJson()..remove('editDrafts')), before);
       expect(find.text('Please remain seated'), findsWidgets);
       expect(find.textContaining('Could not complete'), findsNothing);
       await t.runAsync(() async {
@@ -388,7 +389,7 @@ void main() {
       await t.pumpAndSettle();
       expect(c.sent?.body, 'Please remain seated');
       expect(c.confirmedSession, c.state.session.id);
-      expect(jsonEncode(c.state.toJson()), before);
+      expect(jsonEncode(c.state.toJson()..remove('editDrafts')), before);
       expect(t.takeException(), isNull);
       await t.runAsync(() async {
         await receiver.stop();

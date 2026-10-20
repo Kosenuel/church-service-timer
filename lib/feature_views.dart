@@ -109,10 +109,7 @@ extension FeatureViews on _HomeState {
         scope:
             'All services and rehearsals. Changes affect future warnings; earlier thresholds are not replayed.',
         busy: c.busy,
-        onSave: (next) async {
-          if (!await c.setSharedWarnings(next.warnings) && mounted)
-            await showError(c.error ?? 'Could not save warnings.');
-        },
+        onSave: saveWarningsWithUndo,
       ),
       const SizedBox(height: 16),
       panel(
@@ -140,6 +137,34 @@ extension FeatureViews on _HomeState {
   Widget phoneWarningSettings() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+      ChoiceField<int>(
+        value: c.state.notificationClearSeconds,
+        decoration: const InputDecoration(
+          labelText: 'Clear phone warnings after',
+        ),
+        options: const [
+          ChoiceOption(value: 15, label: '15 seconds'),
+          ChoiceOption(value: 30, label: '30 seconds'),
+          ChoiceOption(value: 60, label: '60 seconds'),
+          ChoiceOption(value: 0, label: 'Until dismissed'),
+        ],
+        onChanged: c.busy
+            ? null
+            : (value) async {
+                if (!await c.commit(
+                      (draft, _) => draft.notificationClearSeconds = value!,
+                    ) &&
+                    mounted)
+                  await showError(
+                    c.error ?? 'Could not save notification preference.',
+                  );
+              },
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        'Clears phone warnings only. Stage cue duration and the silent active-service notification are unchanged.',
+      ),
+      const SizedBox(height: 16),
       Text(
         c.notificationState['enabled'] == true
             ? (c.notificationState['sound'] == true

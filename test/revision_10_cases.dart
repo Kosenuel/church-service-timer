@@ -217,8 +217,8 @@ final revision10Cases = <String, void Function()>{
     equal(restored.templates.first.display.zero!.text, 'STOP');
     equal(restored.templates.first.display.end.text, 'AMEN');
     equal(restored.templates.last.display.end.text, 'Hallelujah');
-    equal(restored.toJson()['version'], 10);
+    equal(restored.toJson()['version'], 11);
     equal(restored.templates.first.toJson()['schemaVersion'], 4);
-    equal(jsonDecode(exportBackup(state, epoch))['schemaVersion'], 4);
+    equal(jsonDecode(exportBackup(state, epoch))['schemaVersion'], 5);
   },
 };

@@ -76,6 +76,67 @@ extension PairingViews on _HomeState {
     }
   }
 
+  Future<void> screenOptions(SavedPairDevice device) async {
+    var group = device.group, layout = device.layout;
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, refresh) => AlertDialog(
+          title: Text(device.name),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ChoiceField<String>(
+                  value: group,
+                  decoration: const InputDecoration(labelText: 'Screen group'),
+                  options: [
+                    for (final e in screenGroups.entries)
+                      ChoiceOption(value: e.key, label: e.value),
+                  ],
+                  onChanged: (v) => refresh(() => group = v ?? group),
+                ),
+                const SizedBox(height: 16),
+                ChoiceField<String>(
+                  value: layout,
+                  decoration: const InputDecoration(labelText: 'Screen layout'),
+                  options: [
+                    for (final e in screenLayouts.entries)
+                      ChoiceOption(value: e.key, label: e.value),
+                  ],
+                  onChanged: (v) => refresh(() => layout = v ?? layout),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Messages temporarily replace this layout. Private notes are never shown.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (save != true) return;
+    try {
+      await c.pairing.configureScreen(device.id, group: group, layout: layout);
+    } catch (_) {
+      if (mounted)
+        await showError(
+          'Could not save screen options. Take control and try again.',
+        );
+    }
+  }
+
   Widget pairedDeviceList({bool screensOnly = false}) {
     final hub = c.pairing;
     bool included(String role) => !screensOnly || role != 'operator';
@@ -153,6 +214,15 @@ extension PairingViews on _HomeState {
                     'Give control',
                     'control',
                     Icons.pan_tool_alt_outlined,
+                  ),
+                if (d.role != 'operator')
+                  TextButton.icon(
+                    onPressed:
+                        hub.localControl && !hub.changingDevices.contains(d.id)
+                        ? () => screenOptions(d)
+                        : null,
+                    icon: const Icon(Icons.tune, size: 18),
+                    label: const Text('Screen options'),
                   ),
                 button(d.id, 'Forget device', 'forget', Icons.delete_outline),
               ],
@@ -974,6 +1044,44 @@ class _PairedScreenState extends State<PairedScreen> {
                       : StageSurface(data: data, stale: stale),
                 ),
               ),
+              if (data?['quickMessage'] is Map &&
+                  data!['quickMessage']['requestSeen'] == true &&
+                  data['blank'] != true &&
+                  data['stageSharing'] == true)
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.bottomRight,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: FilledButton.icon(
+                        onPressed: stale || data['messageSeen'] == true
+                            ? null
+                            : () async {
+                                try {
+                                  await hub.acknowledgeMessage();
+                                } catch (_) {
+                                  if (context.mounted)
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Message is no longer available.',
+                                        ),
+                                      ),
+                                    );
+                                }
+                              },
+                        icon: Icon(
+                          data['messageSeen'] == true
+                              ? Icons.done_all
+                              : Icons.check,
+                        ),
+                        label: Text(
+                          data['messageSeen'] == true ? 'Seen' : 'Mark Seen',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               if (_showTools || stale)
                 SafeArea(
                   child: Align(

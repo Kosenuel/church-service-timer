@@ -89,7 +89,7 @@ extension OperatorSettings on _HomeState {
                         'Remove “${e.value.text}” from every service’s Live buttons? Output already on stage stays unchanged.',
                         'Delete cue',
                       ))
-                        await c.deleteStageCue(e.key, e.value);
+                        await deleteCueWithUndo(e.key, e.value);
                       return;
                     }
                     await c.commit((draft, _) {

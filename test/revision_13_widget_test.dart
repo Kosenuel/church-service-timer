@@ -9,10 +9,13 @@ import 'package:church_service_timer/app_theme.dart';
 import 'domain_test.dart' show FakePort;
 
 class PrintPort extends FakePort {
-  String? html;
+  Uint8List? pdf;
   @override
-  Future<void> printServiceSheet(String name, String html) async {
-    this.html = html;
+  Future<void> printServicePdf(
+    String name,
+    Future<Uint8List> Function(double, double) layout,
+  ) async {
+    pdf = await layout(595.28, 841.89);
   }
 }
 
@@ -51,7 +54,11 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  for (final title in ['Stage cues', 'Paired devices', 'LED device management']) {
+  for (final title in [
+    'Stage cues',
+    'Paired devices',
+    'LED device management',
+  ]) {
     testWidgets('$title settings preview', (t) async {
       size(t);
       await open(t);
@@ -232,8 +239,8 @@ void main() {
     );
     await t.tap(find.text('Continue'));
     await t.pumpAndSettle();
-    expect(p.html, isNot(contains('SECRET')));
-    expect(p.html, contains('<header class="banner">'));
+    expect(p.pdf, isNotNull);
+    expect(String.fromCharCodes(p.pdf!.take(5)), '%PDF-');
     await t.pumpWidget(const SizedBox());
   });
   testWidgets(

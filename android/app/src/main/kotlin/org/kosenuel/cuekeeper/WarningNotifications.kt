@@ -20,6 +20,7 @@ import android.provider.Settings
 object WarningNotifications {
     private const val CHANNEL = "service_warnings_v1"
     private const val NOTICE = 4301
+    private const val CLEAR = "clear-warning"
     private fun prefs(c: Context) = c.getSharedPreferences("warning-delivery", Context.MODE_PRIVATE)
     private fun manager(c: Context) = c.getSystemService(NotificationManager::class.java)
     private fun alarms(c: Context) = c.getSystemService(AlarmManager::class.java)
@@ -60,6 +61,11 @@ object WarningNotifications {
         val entries = (plan["alarms"] as? List<*>)?.map { it as Map<*, *> } ?: emptyList()
         val ids = entries.map { it["id"] as String }.toSet()
         val edit = settings.edit().putStringSet("active", ids).putString("session", session)
+        val scope = plan["scope"] as? String ?: session
+        val clearSeconds = (plan["clearSeconds"] as? Number)?.toInt() ?: 30
+        check(clearSeconds in setOf(0, 15, 30, 60))
+        edit.putInt("clearSeconds", clearSeconds).putString("scope", scope)
+        if (settings.getString("scope", null) != scope) manager(c).cancel(NOTICE)
         if (settings.getString("session", null) != session) {
             edit.putStringSet("delivered", emptySet())
             manager(c).cancel(NOTICE)
@@ -103,7 +109,23 @@ object WarningNotifications {
             .setAutoCancel(true).setCategory(Notification.CATEGORY_REMINDER).setPriority(Notification.PRIORITY_HIGH)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
         if (Build.VERSION.SDK_INT < 26) builder.setSound(Settings.System.DEFAULT_NOTIFICATION_URI)
+        val seconds = prefs(c).getInt("clearSeconds", 30)
+        if (Build.VERSION.SDK_INT >= 26 && seconds > 0) builder.setTimeoutAfter(seconds * 1000L)
+        // API 24/25 fallback is keyed to this exact post; an old expiry cannot clear a newer warning.
+        val token = java.util.UUID.randomUUID().toString()
+        prefs(c).edit().putString("noticeToken", token).apply()
+        if (Build.VERSION.SDK_INT < 26 && seconds > 0) {
+            val expiry = Intent(c, WarningReceiver::class.java).setAction(CLEAR).putExtra("token", token)
+            val pending = PendingIntent.getBroadcast(c, NOTICE, expiry, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            alarms(c).setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + seconds * 1000L, pending)
+        }
         manager(c).notify(NOTICE, builder.build())
+    }
+
+    fun clearExpired(c: Context, intent: Intent): Boolean {
+        if (intent.action != CLEAR) return false
+        if (intent.getStringExtra("token") == prefs(c).getString("noticeToken", null)) manager(c).cancel(NOTICE)
+        return true
     }
 
     fun test(c: Context) {
@@ -114,6 +136,7 @@ object WarningNotifications {
 
 class WarningReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (WarningNotifications.clearExpired(context, intent)) return
         val id = intent.getStringExtra("id") ?: return
         try {
             WarningNotifications.deliver(context, id, intent.getStringExtra("title") ?: "Service warning", intent.getStringExtra("body") ?: "")

@@ -3,7 +3,7 @@ part of 'domain.dart';
 /// Mobile-stage content. Never converted to LED glyphs or hardware programs.
 class QuickMessage {
   final String headline, body, align, palette;
-  final bool bold, italic;
+  final bool bold, italic, requestSeen;
   final int seconds;
   final double scale;
   const QuickMessage({
@@ -11,6 +11,7 @@ class QuickMessage {
     required this.body,
     this.bold = false,
     this.italic = false,
+    this.requestSeen = false,
     this.align = 'center',
     this.palette = 'white',
     this.seconds = 10,
@@ -50,6 +51,7 @@ class QuickMessage {
       body: j['body'] as String,
       bold: boolSetting(j['bold'] ?? false),
       italic: boolSetting(j['italic'] ?? false),
+      requestSeen: boolSetting(j['requestSeen'] ?? false),
       align: j['align'] as String? ?? 'center',
       palette: j['palette'] as String? ?? 'white',
       seconds: j['seconds'] as int? ?? 10,
@@ -63,6 +65,7 @@ class QuickMessage {
     'body': body,
     'bold': bold,
     'italic': italic,
+    'requestSeen': requestSeen,
     'align': align,
     'palette': palette,
     'seconds': seconds,

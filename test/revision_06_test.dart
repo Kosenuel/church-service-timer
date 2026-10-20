@@ -321,7 +321,9 @@ void main() {
             )
             .first,
       );
-      await t.tap(find.text('Save changes'));
+      await t.ensureVisible(find.widgetWithText(FilledButton, 'Save changes'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(FilledButton, 'Save changes'));
       await t.pumpAndSettle();
       expect(c.state.templates[1].type, 'service');
       expect(find.text('Practice night'), findsOneWidget);
