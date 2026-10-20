@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-20",
+  "version": "0.18.0+18",
+  "sourceCommit": "098b0af",
+  "apkSha256": "dd4a96a78c50a1028095d7c32ef608354ddf0d34636b9dd5a607a4a80a5960a5",
+  "automated": {
+    "analysis": "dart analyze lib test scripts: no issues found",
+    "flutterTests": 363,
+    "result": "Full Flutter suite passed, including comparisons against reviewed golden screenshots",
+    "screenshotsReviewed": 21,
+    "pdfPagesReviewed": 10,
+    "printing": "Actual app PDF generator produced a four-page Operator fixture, three-page Stage fixture and three-page Ink-saving fixture. Every page has its footer, page count, repeated table headings and segment content. Private notes appear only on Operator copies. Ink-saving suppresses banner and watermark. Service and preparation dates are separate.",
+    "watermark": "Checked by default for new and migrated state; explicit opt-out persists. Ink-saving does not overwrite the stored choice.",
+    "drafts": "Restore/Discard, debounce, failed-write retry and no automatic program save or message send verified. Drafts are excluded from backups and paired snapshots.",
+    "recovery": "Protected segments, minimum remaining duration, stale review rejection and saved-program immutability verified.",
+    "insights": "Median active durations exclude pauses, rehearsals, uncertain/incomplete reports and ambiguous names; suggestions require at least three observations.",
+    "pairedMessages": "Three encrypted loopback receivers verified targeted isolation, explicit Seen acknowledgement, token replacement, per-screen layout persistence, disconnected-recipient handling and no replay to reconnected screens.",
+    "notifications": "Expiry preference defaults to 30 seconds; scope changes clear obsolete warnings while preserving the foreground-service notification.",
+    "matrixFonts": "Both existing Matrix font implementations are unchanged",
+    "hardwareProtocol": "W2 serializer and native controller implementation are unchanged",
+    "androidBuild": "flutter build apk --release succeeded; aapt identity and apksigner v2 signature verified",
+    "identity": "org.kosenuel.cuekeeper, versionName 0.18.0, versionCode 18",
+    "signingCertificateSha256": "7447b222512d8002f5ba5d7e985f7fdeca0cbc176b167fe240e790147a336afd"
+  },
+  "physical": {
+    "installation": "Pending; prompt the user to connect the available phone after APK verification.",
+    "manualTesting": "Left to the user at their explicit request. No phone UI, pairing, timer, cue or sign-output tests performed for this release.",
+    "deviceSettings": "No phone settings or Wi-Fi configuration changed"
+  },
+  "remainingLimits": [
+    "Receiving devices need version 0.18 for per-screen layouts and explicit Seen acknowledgement.",
+    "A process killed before its pending draft write completes can lose the newest keystrokes.",
+    "Timing insights require at least three comparable completed services and never change saved programs automatically.",
+    "Hands-on behavior on the user's devices awaits their testing.",
+    "The existing prototype signing certificate is retained for upgrade compatibility."
+  ]
+}
