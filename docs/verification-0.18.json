@@ -23,7 +23,7 @@
     "signingCertificateSha256": "7447b222512d8002f5ba5d7e985f7fdeca0cbc176b167fe240e790147a336afd"
   },
   "physical": {
-    "installation": "Pending; prompt the user to connect the available phone after APK verification.",
+    "installation": "ADB install -r succeeded on Samsung SM-A266B, retaining app data. Android package metadata confirms versionName 0.18.0 and versionCode 18.",
     "manualTesting": "Left to the user at their explicit request. No phone UI, pairing, timer, cue or sign-output tests performed for this release.",
     "deviceSettings": "No phone settings or Wi-Fi configuration changed"
   },
