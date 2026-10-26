@@ -101,6 +101,8 @@ CSV uses UTF-8 and exact headers `Segment Name,Duration (Minutes)`. New duration
 
 ## Physical hardware gate
 
+**Clock-colon limitation (0.20):** Blinking is available on the simulator and paired phone/tablet screens. The physical LED clock and its preview retain a steady colon: no supported blink setting was identified in the inspected W2 clock path. The app does not upload a new program every second to imitate blinking. See [the investigation and remaining unknowns](docs/w2-clock-020.md).
+
 The adapter is gated to the tested W2 firmware/profile. It does not change scan settings, polarities or firmware. Version 0.13 adds separately confirmed Wi-Fi/password administration for the observed W2 capability; these setters have code and packet checks but still need controlled physical write/reconnection tests. Countdown publication calibrates the controller clock to the phone and sends a fixed target. The PRD's 100-cue latency measurement, full-service endurance and power-loss acceptance remain outstanding. Simulator timing and automated fake-transport tests are not evidence of physical delivery.
 
 Version 0.16 keeps paired devices saved after Disconnect and app restarts. Reconnect resumes current output without a new code; Forget device requires confirmation and new approval. See the [remembered devices guide](docs/FEATURES-0.16.md).
