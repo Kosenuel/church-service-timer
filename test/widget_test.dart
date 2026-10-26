@@ -78,7 +78,7 @@ void main() {
       await tester.pumpWidget(TimerApp(controller: c));
       await tester.pumpAndSettle();
       expect(find.text('13:30'), findsOneWidget);
-      expect(find.text('On display: WRAP UP'), findsOneWidget);
+      expect(find.text('Selected cue: WRAP UP'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await expectLater(
         find.byType(MaterialApp),

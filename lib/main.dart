@@ -13,6 +13,8 @@ import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
 import 'app_menu.dart';
+import 'ui_tools.dart';
+import 'running_service_bar.dart';
 import 'clock_text.dart';
 import 'time_picker.dart';
 import 'choice_field.dart';
@@ -42,6 +44,8 @@ part 'pairing_views.dart';
 part 'device_management.dart';
 part 'mobile_display_views.dart';
 part 'improvement_views.dart';
+part 'update_21_views.dart';
+part 'wifi_reconnect_views.dart';
 
 String styleSummary(TextLayout l) =>
     '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
@@ -156,6 +160,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   final settingsRefresh = ValueNotifier<int>(0);
 
   String reportFilter = 'all', reportView = 'list';
+  bool selectingPrograms = false, selectingReports = false;
+  final selectedProgramExports = <String>{}, selectedReportExports = <String>{};
+  String reportQuery = '',
+      programQuery = '',
+      programFilter = 'all',
+      settingsQuery = '';
+  DateTimeRange? reportDates;
+  String? selectedProgram, selectedReport;
+  Offset? menuAnchor;
+  void returnToLive() {
+    navigatePage(0);
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   void selectReportFilter(String value) => setState(() => reportFilter = value);
   void selectReportView(String value) => setState(() => reportView = value);
   void navigatePage(int value) => setState(() => page = value);
@@ -165,6 +183,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _followServiceCompletion();
     c.addListener(_followServiceCompletion);
+    c.liveNavigation.addListener(returnToLive);
     if (!c.ready) {
       c.initialize().catchError((Object e) {
         if (mounted) showError('Could not initialize Android services: $e');
@@ -176,6 +195,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     c.removeListener(_followServiceCompletion);
+    c.liveNavigation.removeListener(returnToLive);
     homeScroll.dispose();
     settingsRefresh.dispose();
     c.dispose();
@@ -228,60 +248,24 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       false;
 
   Future<void> chooseService() async {
-    final picked = await showDialog<int>(
-      context: context,
-      animationStyle: reduceAppMotion(context)
-          ? AnimationStyle.noAnimation
-          : null,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Start a service'),
-        content: SizedBox(
-          width: 460,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Choose a program to load into Ready. Timing begins only when you start the first segment.',
-                ),
-                SizedBox(height: appLayout(ctx).gap),
-                AppMenuList(
-                  key: const ValueKey('start-service-programs'),
-                  children: [
-                    for (final e in c.state.templates.asMap().entries)
-                      ListTile(
-                        key: ValueKey('start-program:${e.value.name}'),
-                        title: Text(e.value.name),
-                        subtitle: Text(templateSummary(e.value)),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => Navigator.pop(ctx, e.key),
-                      ),
-                  ],
-                ),
-                SizedBox(height: appLayout(ctx).gap),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(ctx, -1),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create Program'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-        ],
+    final picked = await showAppSelection<Timeline>(
+      context,
+      title: 'Start a service',
+      builder: (ctx) => ProgramChooser(
+        controller: c,
+        onCreate: () async {
+          Navigator.pop(ctx);
+          await editTemplate();
+          if (mounted) await chooseService();
+        },
       ),
     );
     if (!mounted || picked == null) return;
-    if (picked == -1) {
-      await editTemplate();
-      if (mounted) await chooseService();
-    } else {
-      await c.act('load', value: c.state.templates[picked]);
+    try {
+      c.state.templateIndex(picked);
+      await c.act('load', value: picked);
+    } catch (e) {
+      if (mounted) await showError('$e');
     }
   }
 
@@ -676,17 +660,23 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     IconData icon,
     VoidCallback? action, {
     bool primary = false,
-  }) => primary
-      ? FilledButton.icon(
-          onPressed: controlsLocked ? null : action,
-          icon: Icon(icon, size: 20),
-          label: Text(text),
-        )
-      : OutlinedButton.icon(
-          onPressed: controlsLocked ? null : action,
-          icon: Icon(icon, size: 20),
-          label: Text(text),
-        );
+    String? disabledReason,
+  }) => UnavailableAction(
+    reason: controlsLocked || action == null
+        ? disabledReason ?? unavailableReason(text)
+        : null,
+    child: primary
+        ? FilledButton.icon(
+            onPressed: controlsLocked ? null : action,
+            icon: Icon(icon, size: 20),
+            label: Text(text),
+          )
+        : OutlinedButton.icon(
+            onPressed: controlsLocked ? null : action,
+            icon: Icon(icon, size: 20),
+            label: Text(text),
+          ),
+  );
 
   Widget live() => AnimatedBuilder(
     animation: c.liveClock,
@@ -1026,10 +1016,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       ? 'Display blank · timer paused'
                       : 'Display blank · timing continues')
                 : s.hasAutomaticCue(c.now)
-                ? 'Warning on display: ${s.automaticCue!.text}'
+                ? 'Selected warning: ${s.automaticCue!.text}'
                 : !s.hasManualCue(c.now)
                 ? 'The right words, at the right moment.'
-                : '${c.hardware.enabled ? 'Selected cue' : 'On display'}: ${s.alert!.text}',
+                : 'Selected cue: ${s.alert!.text}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
@@ -1043,6 +1033,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 : 'The countdown continues underneath this cue.',
             style: TextStyle(color: appColors(context).muted, fontSize: 13),
           ),
+          cueDeliveryFeedback(),
           const SizedBox(height: 16),
           ControlGrid(
             children: c.state.stageCues
@@ -1051,33 +1042,40 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 .map(
                   (e) => Tooltip(
                     message: e.value.text,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 60),
-                        backgroundColor:
-                            s.hasManualCue(c.now) &&
-                                s.alert?.toJson().toString() ==
-                                    e.value.toJson().toString()
-                            ? appColors(context).accent.withValues(alpha: .16)
+                    child: UnavailableAction(
+                      reason: outputControlsEnabled && !c.hardware.sending
+                          ? null
+                          : c.hardware.sending
+                          ? 'Wait for the current cue to finish sending.'
+                          : unavailableReason('Send cue'),
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 60),
+                          backgroundColor:
+                              s.hasManualCue(c.now) &&
+                                  s.alert?.toJson().toString() ==
+                                      e.value.toJson().toString()
+                              ? appColors(context).accent.withValues(alpha: .16)
+                              : null,
+                        ),
+                        icon: Icon(
+                          s.hasManualCue(c.now) &&
+                                  s.alert?.toJson().toString() ==
+                                      e.value.toJson().toString()
+                              ? Icons.check_circle_outline
+                              : Icons.chat_bubble_outline,
+                          size: 20,
+                        ),
+                        label: Text(
+                          e.value.text,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                        onPressed: outputControlsEnabled && !c.hardware.sending
+                            ? () => sendPreparedCue(e.value)
                             : null,
                       ),
-                      icon: Icon(
-                        s.hasManualCue(c.now) &&
-                                s.alert?.toJson().toString() ==
-                                    e.value.toJson().toString()
-                            ? Icons.check_circle_outline
-                            : Icons.chat_bubble_outline,
-                        size: 20,
-                      ),
-                      label: Text(
-                        e.value.text,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                      ),
-                      onPressed: outputControlsEnabled && !c.hardware.sending
-                          ? () => sendPreparedCue(e.value)
-                          : null,
                     ),
                   ),
                 )
@@ -1436,73 +1434,55 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 '${e.value.durationText}${current ? ' · Now' : ''}',
                               ),
                               trailing: const Icon(Icons.chevron_right),
-                              onTap: () => showModalBottomSheet<void>(
-                                context: context,
-                                sheetAnimationStyle: reduceAppMotion(context)
-                                    ? AnimationStyle.noAnimation
-                                    : null,
-                                isScrollControlled: true,
-                                builder: (context) => SafeArea(
-                                  child: SingleChildScrollView(
-                                    padding: EdgeInsets.all(
-                                      appLayout(context).panelPadding,
+                              onTap: () => showAppSelection<void>(
+                                context,
+                                title: 'Segment details',
+                                builder: (context) => Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      e.value.name,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.headlineSmall,
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          e.value.name,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.headlineSmall,
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          'Segment ${e.key + 1} of ${t.segments.length} · ${e.value.durationText} planned',
-                                        ),
-                                        if (current)
-                                          Text(
-                                            '${operatorTimeDescription(s.balance(c.now))} · ${formatTime(s.allocatedMs)} allocated',
-                                          ),
-                                        if (s.run?.actualMs[e.key] != null)
-                                          Text(
-                                            'Recorded duration: ${durationLabel(s.run!.actualMs[e.key]!)}',
-                                          ),
-                                        if (e.value.speaker.isNotEmpty)
-                                          Text('Speaker: ${e.value.speaker}'),
-                                        SizedBox(
-                                          height: appLayout(context).gap,
-                                        ),
-                                        const AppDivider(
-                                          indent: 0,
-                                          endIndent: 0,
-                                        ),
-                                        SizedBox(
-                                          height: appLayout(context).gap,
-                                        ),
-                                        const Text(
-                                          'Private operator note',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          e.value.notes.isEmpty
-                                              ? 'No private note for this segment.'
-                                              : e.value.notes,
-                                        ),
-                                        const SizedBox(height: 16),
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                          child: const Text('Close'),
-                                        ),
-                                      ],
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Segment ${e.key + 1} of ${t.segments.length} · ${e.value.durationText} planned',
                                     ),
-                                  ),
+                                    if (current)
+                                      Text(
+                                        '${operatorTimeDescription(s.balance(c.now))} · ${formatTime(s.allocatedMs)} allocated',
+                                      ),
+                                    if (s.run?.actualMs[e.key] != null)
+                                      Text(
+                                        'Recorded duration: ${durationLabel(s.run!.actualMs[e.key]!)}',
+                                      ),
+                                    if (e.value.speaker.isNotEmpty)
+                                      Text('Speaker: ${e.value.speaker}'),
+                                    SizedBox(height: appLayout(context).gap),
+                                    const AppDivider(indent: 0, endIndent: 0),
+                                    SizedBox(height: appLayout(context).gap),
+                                    const Text(
+                                      'Private operator note',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      e.value.notes.isEmpty
+                                          ? 'No private note for this segment.'
+                                          : e.value.notes,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Close'),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -1535,262 +1515,284 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     builder: (context, _) => c.pairing.joined
         ? PairedScreen(controller: c)
         : Scaffold(
-            body: CustomScrollView(
-              controller: homeScroll,
-              slivers: [
-                SliverAppBar(
-                  pinned: true,
-                  clipBehavior: Clip.antiAlias,
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  scrolledUnderElevation: 0,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(
-                      bottom: Radius.circular(26),
-                    ),
-                  ),
-                  flexibleSpace: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(26),
-                    ),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color.alphaBlend(
-                                appColors(
-                                  context,
-                                ).accent.withValues(alpha: .04),
-                                appColors(context).surface,
-                              ).withValues(
-                                alpha: appColors(context).highContrast
-                                    ? 1
-                                    : .84,
-                              ),
-                              appColors(context).surface.withValues(
-                                alpha: appColors(context).highContrast
-                                    ? 1
-                                    : .92,
-                              ),
-                            ],
-                          ),
-                        ),
-                        child: const SizedBox.expand(),
+            body: Listener(
+              onPointerDown: (e) => menuAnchor = e.position,
+              child: CustomScrollView(
+                controller: homeScroll,
+                slivers: [
+                  SliverAppBar(
+                    bottom: c.ready && page != 0 && c.liveSession.active
+                        ? RunningServiceBar.forContext(context, controller: c)
+                        : null,
+                    pinned: true,
+                    clipBehavior: Clip.antiAlias,
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    scrolledUnderElevation: 0,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(26),
                       ),
                     ),
-                  ),
-                  actions: [
-                    if (c.ready)
-                      IconButton(
-                        key: const ValueKey('header-connection'),
-                        tooltip:
-                            '${c.displayConnection.label} · connection details',
-                        onPressed: () =>
-                            (controlsLocked || !c.pairing.localControl)
-                            ? null
-                            : chooseDisplay(),
-                        icon: Icon(
-                          connectionIcon(c.displayConnection),
-                          color:
-                              c.displayConnection ==
-                                  DisplayConnection.disconnected
-                              ? appColors(context).error
-                              : appColors(context).accent,
-                        ),
+                    flexibleSpace: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(26),
                       ),
-                    const SizedBox(width: 8),
-                  ],
-                  toolbarHeight: headerHeight(context),
-                  title: Row(
-                    children: [
-                      const ChurchTimerMark(),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              appName,
-                              maxLines: 2,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            if ((c.ready
-                                    ? c.state.churchName
-                                    : c.loadingChurchName)
-                                .isNotEmpty)
-                              Tooltip(
-                                message: c.ready
-                                    ? c.state.churchName
-                                    : c.loadingChurchName,
-                                child: Text(
-                                  c.ready
-                                      ? c.state.churchName
-                                      : c.loadingChurchName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: appColors(context).muted,
-                                  ),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color.alphaBlend(
+                                  appColors(
+                                    context,
+                                  ).accent.withValues(alpha: .04),
+                                  appColors(context).surface,
+                                ).withValues(
+                                  alpha: appColors(context).highContrast
+                                      ? 1
+                                      : .84,
                                 ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!c.ready)
-                  SliverFillRemaining(
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const ChurchTimerMark(size: 84),
-                            const SizedBox(height: 20),
-                            const Text(
-                              appName,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            if (c.loadingChurchName.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  c.loadingChurchName,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            const SizedBox(height: 24),
-                            const CircularProgressIndicator(),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  SliverToBoxAdapter(
-                    child: SafeArea(
-                      top: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1200),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (c.pairing.hosting)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: panel(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          Text(
-                                            c.pairing.localControl
-                                                ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices'
-                                                : 'Control is with a paired operator. This phone remains the service host.',
-                                          ),
-                                          TextButton(
-                                            onPressed: () => openSettingsDetail(
-                                              'Paired devices',
-                                              pairedDeviceSettings,
-                                            ),
-                                            child: const Text(
-                                              'Manage devices and control',
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                if (c.backgroundError != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: Text(
-                                      c.backgroundError!,
-                                      style: TextStyle(
-                                        color: appColors(context).error,
-                                      ),
-                                    ),
-                                  ),
-                                if (c.error != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 16),
-                                    child: panel(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            c.error!,
-                                            style: TextStyle(
-                                              color: appColors(context).warning,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          if (c.retry != null)
-                                            TextButton(
-                                              onPressed: c.busy
-                                                  ? null
-                                                  : () => c.retry!(),
-                                              child: Text(
-                                                c.reportSavePending
-                                                    ? 'Retry saving report'
-                                                    : 'Retry failed action',
-                                              ),
-                                            ),
-                                          if (c.corrupt)
-                                            TextButton(
-                                              onPressed: () async {
-                                                if (await confirm(
-                                                  'Reset local state?',
-                                                  'This replaces unreadable local service and program data with starter programs. No physical display is connected.',
-                                                  'Reset local data',
-                                                ))
-                                                  await c.resetCorrupt();
-                                              },
-                                              child: const Text(
-                                                'Reset local data…',
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                AbsorbPointer(
-                                  absorbing:
-                                      c.corrupt || !c.pairing.localControl,
-                                  child: page == 0
-                                      ? live()
-                                      : page == 1
-                                      ? templates()
-                                      : page == 2
-                                      ? reports()
-                                      : settingsHub(),
+                                appColors(context).surface.withValues(
+                                  alpha: appColors(context).highContrast
+                                      ? 1
+                                      : .92,
                                 ),
                               ],
                             ),
                           ),
+                          child: const SizedBox.expand(),
                         ),
                       ),
                     ),
+                    actions: [
+                      if (c.ready)
+                        UnavailableAction(
+                          reason: controlsLocked
+                              ? 'Unlock the controls to change the display.'
+                              : !c.pairing.localControl
+                              ? 'Take back control to change the display.'
+                              : null,
+                          child: IconButton(
+                            key: const ValueKey('header-connection'),
+                            tooltip:
+                                '${c.displayConnection.label} · connection details',
+                            onPressed:
+                                (controlsLocked || !c.pairing.localControl)
+                                ? null
+                                : chooseDisplay,
+                            icon: Icon(
+                              connectionIcon(c.displayConnection),
+                              color:
+                                  c.displayConnection ==
+                                      DisplayConnection.disconnected
+                                  ? appColors(context).error
+                                  : appColors(context).accent,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                    ],
+                    toolbarHeight: headerHeight(context),
+                    title: Row(
+                      children: [
+                        const ChurchTimerMark(),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                appName,
+                                maxLines: 2,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if ((c.ready
+                                      ? c.state.churchName
+                                      : c.loadingChurchName)
+                                  .isNotEmpty)
+                                Tooltip(
+                                  message: c.ready
+                                      ? c.state.churchName
+                                      : c.loadingChurchName,
+                                  child: Text(
+                                    c.ready
+                                        ? c.state.churchName
+                                        : c.loadingChurchName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: appColors(context).muted,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-              ],
+                  if (!c.ready)
+                    SliverFillRemaining(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const ChurchTimerMark(size: 84),
+                              const SizedBox(height: 20),
+                              const Text(
+                                appName,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (c.loadingChurchName.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    c.loadingChurchName,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              const SizedBox(height: 24),
+                              const CircularProgressIndicator(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverToBoxAdapter(
+                      child: SafeArea(
+                        top: false,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 1200),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (c.pairing.hosting)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
+                                      child: panel(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            Text(
+                                              c.pairing.localControl
+                                                  ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices'
+                                                  : 'Control is with a paired operator. This phone remains the service host.',
+                                            ),
+                                            TextButton(
+                                              onPressed: () =>
+                                                  openSettingsDetail(
+                                                    'Paired devices',
+                                                    pairedDeviceSettings,
+                                                  ),
+                                              child: const Text(
+                                                'Manage devices and control',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  if (c.backgroundError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
+                                      child: Text(
+                                        c.backgroundError!,
+                                        style: TextStyle(
+                                          color: appColors(context).error,
+                                        ),
+                                      ),
+                                    ),
+                                  if (c.error != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 16,
+                                      ),
+                                      child: panel(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              c.error!,
+                                              style: TextStyle(
+                                                color: appColors(
+                                                  context,
+                                                ).warning,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            if (c.retry != null)
+                                              TextButton(
+                                                onPressed: c.busy
+                                                    ? null
+                                                    : () => c.retry!(),
+                                                child: Text(
+                                                  c.reportSavePending
+                                                      ? 'Retry saving report'
+                                                      : 'Retry failed action',
+                                                ),
+                                              ),
+                                            if (c.corrupt)
+                                              TextButton(
+                                                onPressed: () async {
+                                                  if (await confirm(
+                                                    'Reset local state?',
+                                                    'This replaces unreadable local service and program data with starter programs. No physical display is connected.',
+                                                    'Reset local data',
+                                                  ))
+                                                    await c.resetCorrupt();
+                                                },
+                                                child: const Text(
+                                                  'Reset local data…',
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  AbsorbPointer(
+                                    absorbing:
+                                        c.corrupt || !c.pairing.localControl,
+                                    child: page == 0
+                                        ? live()
+                                        : page == 1
+                                        ? programsResponsive()
+                                        : page == 2
+                                        ? reportsResponsive()
+                                        : settingsHub(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             bottomNavigationBar: focused
                 ? SafeArea(
@@ -2176,13 +2178,9 @@ class _TemplateEditorState extends State<TemplateEditor> {
                 decoration: const InputDecoration(labelText: 'Segment name'),
               ),
               const SizedBox(height: 12),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Duration'),
-                subtitle: Text(
-                  '${formatTime(durationSeconds * 1000)} · maximum 59:59',
-                ),
-                trailing: const Icon(Icons.expand_more),
+              DurationField(
+                key: const ValueKey('segment-duration-field'),
+                value: formatTime(durationSeconds * 1000),
                 onTap: () async {
                   final value = await showWheelTimePicker(
                     ctx,
@@ -2280,6 +2278,12 @@ class _TemplateEditorState extends State<TemplateEditor> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Text(widget.upcomingOnly ? 'Upcoming segments' : 'Program editor'),
+      bottom: widget.draftController?.liveSession.active == true
+          ? RunningServiceBar.forContext(
+              context,
+              controller: widget.draftController!,
+            )
+          : null,
     ),
     body: SafeArea(
       child: ListView(

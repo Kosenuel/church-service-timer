@@ -213,7 +213,7 @@ void main() {
           find.byType(MaterialApp),
           matchesGoldenFile('goldens/choice-sheet-$theme.png'),
         );
-        await t.tap(find.byTooltip('Close choices'));
+        await t.tap(find.byTooltip('Close Display font'));
         await t.pumpAndSettle();
         expect(value, 'Choice 3');
         await tap(t, 'Choice 3');
@@ -361,7 +361,16 @@ void main() {
         find.widgetWithText(TextField, 'Message'),
         'Please remain seated',
       );
-      await tap(t, 'Send message');
+      // Keep the real loopback peer fresh after scrolling; Flutter's fake
+      // frame clock does not advance the socket heartbeat on a busy machine.
+      await t.ensureVisible(find.text('Send message').last);
+      await t.pumpAndSettle();
+      await t.runAsync(() async {
+        await c.pairing.publish();
+        await eventually(() => c.stageConnected);
+      });
+      await t.tap(find.text('Send message').last);
+      await t.pumpAndSettle();
       expect(find.text('Send message after service?'), findsOneWidget);
       expect(find.textContaining('Sending to 1:'), findsWidgets);
       await expectLater(

@@ -335,18 +335,15 @@ void main() {
       await t.pumpAndSettle();
       expect(find.text('Export program'), findsOneWidget);
       expect(find.text('Delete program'), findsOneWidget);
-      final firstBounds = t.getRect(find.byType(SimpleDialog));
+      final firstBounds = t.getSize(find.byType(PopupMenuItem<String>).first);
       await shot(t, 'program-menu-020');
       await t.tapAt(const Offset(5, 5));
       await t.pumpAndSettle();
       await t.tap(find.byTooltip('Program actions').first);
       await t.pumpAndSettle();
-      expect(t.getRect(find.byType(SimpleDialog)), firstBounds);
+      expect(t.getSize(find.byType(PopupMenuItem<String>).first), firstBounds);
       expect(
-        find.descendant(
-          of: find.byType(SimpleDialog),
-          matching: find.byType(AppDivider),
-        ),
+        find.byWidgetPredicate((w) => w is AppDivider && w.essential),
         findsOneWidget,
       );
       await t.tapAt(const Offset(5, 5));
@@ -379,24 +376,24 @@ void main() {
       await tap(t, 'Jump to segment');
       expect(
         find.descendant(
-          of: find.byType(SimpleDialog),
+          of: find.byType(BottomSheet),
           matching: find.text('Second'),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: find.byType(SimpleDialog),
+          of: find.byType(BottomSheet),
           matching: find.text('Last'),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: find.byType(SimpleDialog),
+          of: find.byType(BottomSheet),
           matching: find.byType(AppDivider),
         ),
-        findsOneWidget,
+        findsNWidgets(2),
       );
       await shot(t, 'jump-menu-020');
       await t.tapAt(const Offset(5, 5));

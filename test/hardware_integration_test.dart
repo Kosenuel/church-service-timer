@@ -442,7 +442,12 @@ void main() {
     await tester.tap(find.text('Test sign'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'synthetic');
-    await tester.ensureVisible(find.text('Connect selected display'));
+    await tester.scrollUntilVisible(
+      find.text('Connect selected display'),
+      150,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Connect selected display'));
     await tester.pumpAndSettle();
     expect(c.hardware.connected, true);

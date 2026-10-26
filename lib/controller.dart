@@ -72,6 +72,19 @@ class Simulator {
 }
 
 class AppController extends ChangeNotifier {
+  final liveNavigation = ValueNotifier<int>(0);
+  int? get messageReturnSeconds {
+    final s = liveSession;
+    int? ms;
+    if (currentQuickMessage != null && _quickUntil != null)
+      ms = _quickUntil! - now.mono;
+    else if (s.hasAutomaticCue(now))
+      ms = s.automaticCueDurationMs - now.since(s.automaticCueAt!);
+    else if (s.hasManualCue(now) && s.alertDurationSeconds > 0)
+      ms = s.alertDurationSeconds * 1000 - now.since(s.alertAt!);
+    return ms == null ? null : (ms / 1000).ceil().clamp(0, 86400);
+  }
+
   final Map<String, Json?> _draftWrites = {};
   Timer? _draftTimer;
   String? draftError;
@@ -1031,7 +1044,12 @@ class AppController extends ChangeNotifier {
             cue: action == 'cue' ? value as TextLayout : null,
           );
         }
-        if (action == 'load') draft.session.churchName = draft.churchName;
+        if (action == 'load') {
+          draft.session.churchName = draft.churchName;
+          final name = draft.session.timeline?.name;
+          if (name != null && draft.templates.any((p) => p.name == name))
+            draft.programLibrary.recent[name] = at.wall;
+        }
         if ({
               'start',
               'advance',
@@ -1451,6 +1469,7 @@ class AppController extends ChangeNotifier {
     hardware.dispose();
     themeSelection.dispose();
     appearanceSelection.dispose();
+    liveNavigation.dispose();
     super.dispose();
   }
 }

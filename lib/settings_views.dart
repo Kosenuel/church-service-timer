@@ -10,6 +10,9 @@ extension SettingsViews on _HomeState {
       builder: (context) => Scaffold(
         appBar: AppBar(
           title: Text(title),
+          bottom: c.liveSession.active
+              ? RunningServiceBar.forContext(context, controller: c)
+              : null,
           actions: showLiveShortcut
               ? [
                   TextButton.icon(
@@ -94,148 +97,166 @@ extension SettingsViews on _HomeState {
           style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 20),
-        group('Personalization', [
-          entry(
-            Icons.church_outlined,
-            'Church profile',
-            c.state.churchName.isEmpty
-                ? 'Church name and banner'
-                : c.state.churchName,
-            () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ChurchProfilePage(controller: c),
-              ),
-            ),
+        TextFormField(
+          key: const ValueKey('settings-search'),
+          initialValue: settingsQuery,
+          decoration: const InputDecoration(
+            labelText: 'Search settings',
+            prefixIcon: Icon(Icons.search),
           ),
-          entry(
-            Icons.palette_outlined,
-            'Appearance',
-            paletteFor(c.state.themeId).name,
-            () async {
-              try {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AppearancePage(controller: c),
-                  ),
-                );
-              } finally {
-                if (mounted) {
-                  c.previewTheme(null);
-                  c.previewAppearance(null);
-                }
-              }
-            },
-          ),
-        ]),
-        group('Service & display', [
-          entry(
-            Icons.notifications_active_outlined,
-            'Warnings & alerts',
-            'Shared thresholds, phone notifications and sound',
-            () => openSettingsDetail('Warnings & alerts', warningsSettings),
-          ),
-          entry(
-            Icons.display_settings_outlined,
-            'Display settings',
-            'Connection, profile, end screens, fonts and LEDs',
-            () => openSettingsDetail('Display settings', displaySettings),
-          ),
-          Padding(
-            padding: appLayout(context).tileInsets,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    'Keep screen awake',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
-                  subtitle: const Text(
-                    'Prevent sleep while the app is visible.',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                  value: c.state.keepScreenAwake,
-                  onChanged: c.busy
-                      ? null
-                      : (value) => c.commit(
-                          (draft, _) => draft.keepScreenAwake = value,
-                        ),
+          onChanged: (v) => refreshHome(() => settingsQuery = v),
+        ),
+        const SizedBox(height: 16),
+        if (settingsQuery.trim().isNotEmpty)
+          settingsSearchResults()
+        else ...[
+          group('Personalization', [
+            entry(
+              Icons.church_outlined,
+              'Church profile',
+              c.state.churchName.isEmpty
+                  ? 'Church name and banner'
+                  : c.state.churchName,
+              () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChurchProfilePage(controller: c),
                 ),
-                if (c.deviceSettingsError != null) ...[
-                  Text(
-                    c.deviceSettingsError!,
-                    style: TextStyle(color: appColors(context).warning),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      await c.syncDeviceSettings();
-                      settingsRefresh.value++;
-                    },
-                    child: const Text('Retry screen setting'),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ]),
-        group('Service tools', [
-          entry(
-            Icons.message_outlined,
-            'Quick message presets',
-            'Saved messages for phone or tablet stage screens',
-            () => openSettingsDetail(
-              'Quick message presets',
-              quickPresetSettings,
-            ),
-          ),
-          entry(
-            Icons.chat_bubble_outline,
-            'Stage cues',
-            'Create, format and reorder your Live buttons',
-            () => openSettingsDetail('Stage cues', stageCueSettings),
-          ),
-          entry(
-            Icons.devices,
-            'Paired devices',
-            'View, operate or use a second screen',
-            () => openSettingsDetail(
-              'Paired devices',
-              pairedDeviceSettings,
-              showLiveShortcut: true,
-            ),
-          ),
-          entry(
-            Icons.router_outlined,
-            'LED device management',
-            'LED sign Wi-Fi and connection credentials',
-            () => openSettingsDetail('LED device management', deviceManagement),
-          ),
-        ]),
-        group('Data & app', [
-          entry(
-            Icons.backup_outlined,
-            'Backup & restore',
-            'Programs, stage cues, reports and preferences',
-            () => openSettingsDetail('Backup & restore', backupSettings),
-          ),
-          entry(
-            Icons.feedback_outlined,
-            'Feedback Center',
-            'Share a complaint or suggestion by email',
-            () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => FeedbackCenterPage(controller: c),
               ),
             ),
-          ),
-          entry(
-            Icons.info_outline,
-            'About',
-            '$appName · ${c.appVersion}',
-            () => openSettingsDetail('About', aboutSettings),
-          ),
-        ]),
+            entry(
+              Icons.palette_outlined,
+              'Appearance',
+              paletteFor(c.state.themeId).name,
+              () async {
+                try {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AppearancePage(controller: c),
+                    ),
+                  );
+                } finally {
+                  if (mounted) {
+                    c.previewTheme(null);
+                    c.previewAppearance(null);
+                  }
+                }
+              },
+            ),
+          ]),
+          group('Service & display', [
+            entry(
+              Icons.notifications_active_outlined,
+              'Warnings & alerts',
+              'Shared thresholds, phone notifications and sound',
+              () => openSettingsDetail('Warnings & alerts', warningsSettings),
+            ),
+            entry(
+              Icons.display_settings_outlined,
+              'Display settings',
+              'Connection, profile, end screens, fonts and LEDs',
+              () => openSettingsDetail('Display settings', displaySettings),
+            ),
+            Padding(
+              padding: appLayout(context).tileInsets,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Keep screen awake',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Prevent sleep while the app is visible.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    value: c.state.keepScreenAwake,
+                    onChanged: c.busy
+                        ? null
+                        : (value) => c.commit(
+                            (draft, _) => draft.keepScreenAwake = value,
+                          ),
+                  ),
+                  if (c.deviceSettingsError != null) ...[
+                    Text(
+                      c.deviceSettingsError!,
+                      style: TextStyle(color: appColors(context).warning),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await c.syncDeviceSettings();
+                        settingsRefresh.value++;
+                      },
+                      child: const Text('Retry screen setting'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ]),
+          group('Service tools', [
+            entry(
+              Icons.message_outlined,
+              'Quick message presets',
+              'Saved messages for phone or tablet stage screens',
+              () => openSettingsDetail(
+                'Quick message presets',
+                quickPresetSettings,
+              ),
+            ),
+            entry(
+              Icons.chat_bubble_outline,
+              'Stage cues',
+              'Create, format and reorder your Live buttons',
+              () => openSettingsDetail('Stage cues', stageCueSettings),
+            ),
+            entry(
+              Icons.devices,
+              'Paired devices',
+              'View, operate or use a second screen',
+              () => openSettingsDetail(
+                'Paired devices',
+                pairedDeviceSettings,
+                showLiveShortcut: true,
+              ),
+            ),
+            entry(
+              Icons.router_outlined,
+              'LED device management',
+              'LED sign Wi-Fi and connection credentials',
+              () =>
+                  openSettingsDetail('LED device management', deviceManagement),
+            ),
+          ]),
+          group('Data & app', [
+            entry(
+              Icons.backup_outlined,
+              'Backup & restore',
+              'Programs, stage cues, reports and preferences',
+              () => openSettingsDetail('Backup & restore', backupSettings),
+            ),
+            entry(
+              Icons.feedback_outlined,
+              'Feedback Center',
+              'Share a complaint or suggestion by email',
+              () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => FeedbackCenterPage(controller: c),
+                ),
+              ),
+            ),
+            entry(
+              Icons.info_outline,
+              'About',
+              '$appName · ${c.appVersion}',
+              () => openSettingsDetail('About', aboutSettings),
+            ),
+          ]),
+        ],
       ],
     );
   }
@@ -464,7 +485,12 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Church profile')),
+    appBar: AppBar(
+      title: const Text('Church profile'),
+      bottom: widget.controller.liveSession.active
+          ? RunningServiceBar.forContext(context, controller: widget.controller)
+          : null,
+    ),
     body: SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -611,7 +637,12 @@ class _AppearancePageState extends State<AppearancePage> {
   ];
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Appearance')),
+    appBar: AppBar(
+      title: const Text('Appearance'),
+      bottom: widget.controller.liveSession.active
+          ? RunningServiceBar.forContext(context, controller: widget.controller)
+          : null,
+    ),
     body: SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

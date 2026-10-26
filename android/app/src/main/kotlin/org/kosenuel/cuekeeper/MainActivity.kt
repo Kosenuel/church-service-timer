@@ -86,6 +86,15 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
     private val bundledFonts by lazy { BundledFonts(context) }
     private val vault by lazy { DisplayCredentialVault(context) }
     private val pairingVault by lazy { DisplayCredentialVault(context, "pairing-vault", "church-timer-pairing-v1", 65536) }
+    private val signWifi by lazy { SignWifi(context, vault) { w2.preferredNetwork = it } }
+    private val pickerFeedback by lazy { PickerFeedback(context) }
+    private var wifiPermissionResult: MethodChannel.Result? = null
+    private var wifiPermissionId: String? = null
+    private fun cancelSignWifi() {
+        wifiPermissionResult?.error("CANCELLED", "Wi-Fi connection cancelled.", null)
+        wifiPermissionResult = null; wifiPermissionId = null
+        signWifi.cancel()
+    }
     private val printer by lazy { ServiceSheetPrinter() }
     private val stateFile get() = AtomicFile(File(filesDir, "service-state.json"))
 
@@ -93,6 +102,25 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
         WarningNotifications.ensureChannel(context)
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "pickerTick" -> { host.get()?.window?.decorView?.let { pickerFeedback.tick(it, call.arguments as? String ?: "off") }; result.success(null) }
+                "signWifiProfile" -> background(result) { signWifi.info(call.arguments as String) }
+                "saveSignWifiProfile" -> background(result) {
+                    signWifi.save(call.argument<String>("id")!!, call.argument<String>("ssid")!!,
+                        call.argument<String>("security") ?: "wpa2", call.argument<String>("password"), call.argument<String>("bssid") ?: "")
+                    null
+                }
+                "cancelSignWifi" -> { cancelSignWifi(); result.success(null) }
+                "joinSignWifi" -> {
+                    val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION
+                    if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
+                        if (wifiPermissionResult != null) result.error("BUSY", "A Wi-Fi permission request is already open.", null)
+                        else {
+                            wifiPermissionResult = result; wifiPermissionId = call.arguments as String
+                            try { requestPermissions(if (Build.VERSION.SDK_INT >= 33) arrayOf(permission) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 46) }
+                            catch (_: Exception) { wifiPermissionResult = null; wifiPermissionId = null; result.error("WIFI", "Open the app to reconnect to Wi-Fi.", null) }
+                        }
+                    } else signWifi.request(call.arguments as String, result)
+                }
                 "loadPairing" -> background(result) { pairingVault.read("registry") }
                 "savePairing" -> background(result) { pairingVault.save("registry", call.arguments as String); null }
                 "printSheet" -> try { printer.print(activity(), call.argument<String>("name")!!, call.argument<String>("html")!!); result.success(null) } catch(e: Exception) { result.error("PRINT", "Could not open the print screen", null) }
@@ -104,7 +132,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                 "saveDisplayPassword" -> background(result) { vault.save(call.argument<String>("id")!!, call.argument<String>("password")!!); null }
                 "savedDisplayPassword" -> background(result) { vault.read(call.arguments as String) }
                 "forgetDisplayPassword" -> background(result) { vault.forget(call.arguments as String); null }
-                "forgetDisplay" -> displayBackground(result) { val id = w2.preferences()["id"] as String; vault.forget(id); w2.forget(); null }
+                "forgetDisplay" -> { cancelSignWifi(); displayBackground(result) { val id = w2.preferences()["id"] as String; vault.forget(id); signWifi.forget(id); w2.forget(); null } }
 
                 "activeServiceRunning" -> result.success(ActiveService.running)
                 "activeService" -> {
@@ -116,7 +144,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                     } else { ActiveService.stop(context); result.success(false) }
                 }
                 "w2Preferences" -> displayBackground(result) { w2.preferences() }
-                "w2AutoReconnect" -> displayBackground(result) { w2.autoReconnect(call.arguments == true); null }
+                "w2AutoReconnect" -> { if (call.arguments != true) cancelSignWifi(); displayBackground(result) { w2.autoReconnect(call.arguments == true); null } }
                 "w2NetworkInfo" -> {
                     if (call.arguments == true && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                         if (networkRequest != null) result.error("BUSY", "A permission request is open", null)
@@ -141,7 +169,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                     val id = w2.preferences()["id"] as String
                     val outcome = w2.administer(kind, (call.argument<String>("value") ?: "").toCharArray(), call.argument<Int>("generation") ?: -1)
                     if (kind == "devicePassword") vault.forget(id)
-                    if (kind == "wifiPassword") vault.forget("wifi:$id")
+                    if (kind == "wifiPassword" || kind == "ssid") signWifi.forget(id)
                     outcome
                 }
                 "w2Send" -> displayBackground(result) {
@@ -356,6 +384,15 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
     }
 
     fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode == 46) {
+            val result = wifiPermissionResult; val id = wifiPermissionId
+            wifiPermissionResult = null; wifiPermissionId = null
+            if (result != null && id != null) {
+                val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION
+                if (checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) signWifi.request(id, result)
+                else result.error("WIFI_PERMISSION", "Wi-Fi permission was not granted. Open Wi-Fi settings to connect manually.", null)
+            }
+        }
         if (requestCode == 45) {
             val result = networkRequest
             networkRequest = null

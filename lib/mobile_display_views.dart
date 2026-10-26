@@ -1106,12 +1106,19 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
         runSpacing: 8,
         children: [
           if (widget.saveLabel == 'Save as preset')
-            FilledButton.icon(
-              onPressed: busy || widget.onSend == null
-                  ? null
-                  : () => run(widget.onSend!, 'Message sent.'),
-              icon: const Icon(Icons.send),
-              label: const Text('Send message'),
+            UnavailableAction(
+              reason: busy
+                  ? 'Wait for the current message to finish.'
+                  : widget.onSend == null
+                  ? 'Connect a stage screen and enable operator controls first.'
+                  : null,
+              child: FilledButton.icon(
+                onPressed: busy || widget.onSend == null
+                    ? null
+                    : () => run(widget.onSend!, 'Message sent.'),
+                icon: const Icon(Icons.send),
+                label: const Text('Send message'),
+              ),
             ),
           OutlinedButton.icon(
             onPressed: busy || widget.onSavePreset == null

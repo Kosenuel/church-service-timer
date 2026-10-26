@@ -101,8 +101,9 @@ extension HardwareViews on _HomeState {
 
   Future<void> reconnectDisplay() async {
     if (c.destination != 'led' && !await c.selectDestination('led')) return;
-    if (c.hardware.rememberedId.isNotEmpty &&
-        await c.hardware.reconnectSaved()) {
+    final connected = await reconnectLedDisplay(context, c);
+    if (connected == null) return;
+    if (connected) {
       if (mounted)
         await connectionSuccess(
           context,
@@ -272,7 +273,12 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
       final h = c.hardware;
       final disabled = h.busy || h.sending || c.busy || credentialBusy;
       return Scaffold(
-        appBar: AppBar(title: const Text('Connect a display')),
+        appBar: AppBar(
+          title: const Text('Connect a display'),
+          bottom: c.liveSession.active
+              ? RunningServiceBar.forContext(context, controller: c)
+              : null,
+        ),
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: [
@@ -285,6 +291,30 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
               'Join the sign’s Wi-Fi, select your display and connect. Its current output stays unchanged.',
             ),
             const SizedBox(height: 16),
+            if (h.rememberedId.isNotEmpty) ...[
+              OutlinedButton.icon(
+                onPressed: disabled
+                    ? null
+                    : () async {
+                        final ok = await reconnectLedDisplay(context, c);
+                        if (ok == true && context.mounted)
+                          await connectionSuccess(
+                            context,
+                            h.rememberedName,
+                            h.held,
+                          );
+                      },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reconnect saved display'),
+              ),
+              TextButton.icon(
+                onPressed: disabled
+                    ? null
+                    : () => editSignWifiProfile(context, c),
+                icon: const Icon(Icons.wifi_password),
+                label: const Text('Wi-Fi reconnect details'),
+              ),
+            ],
             Wrap(
               spacing: 12,
               runSpacing: 8,

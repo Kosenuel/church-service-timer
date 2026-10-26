@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
+import 'ui_tools.dart';
 
 class ChoiceOption<T> {
   final T value;
@@ -66,20 +67,9 @@ class ChoiceField<T> extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           onTap: enabled
               ? () async {
-                  final result = await showModalBottomSheet<T>(
-                    context: context,
-                    sheetAnimationStyle: reduceAppMotion(context)
-                        ? AnimationStyle.noAnimation
-                        : null,
-                    isScrollControlled: true,
-                    useSafeArea: true,
-                    backgroundColor: colors.surface,
-                    showDragHandle: true,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(26),
-                      ),
-                    ),
+                  final result = await showAppSelection<T>(
+                    context,
+                    title: title,
                     builder: (_) => _ChoiceSheet<T>(
                       title: title,
                       options: options,
@@ -127,92 +117,46 @@ class _ChoiceSheetState<T> extends State<_ChoiceSheet<T>> {
     final filtered = widget.options
         .where((o) => o.label.toLowerCase().contains(query.toLowerCase()))
         .toList();
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        layout.panelPadding,
-        0,
-        layout.panelPadding,
-        layout.gap + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * .7,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Close choices',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.options.length > 8) ...[
+          TextField(
+            decoration: const InputDecoration(
+              labelText: 'Search options',
+              prefixIcon: Icon(Icons.search),
             ),
-            if (widget.options.length > 8) ...[
-              SizedBox(height: layout.gap),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Search options',
-                  prefixIcon: Icon(Icons.search),
-                ),
-                onChanged: (v) => setState(() => query = v),
+            onChanged: (v) => setState(() => query = v),
+          ),
+          SizedBox(height: layout.gap),
+        ],
+        if (filtered.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('No matching options'),
+          ),
+        for (var i = 0; i < filtered.length; i++) ...[
+          if (i > 0) const AppDivider(indent: 0, endIndent: 0),
+          ListTile(
+            selected: filtered[i].value == widget.value,
+            selectedTileColor: colors.accent.withValues(alpha: .12),
+            selectedColor: colors.text,
+            title: Text(
+              filtered[i].label,
+              style: TextStyle(
+                fontWeight: filtered[i].value == widget.value
+                    ? FontWeight.w700
+                    : FontWeight.w400,
               ),
-            ],
-            const SizedBox(height: 12),
-            Flexible(
-              child: filtered.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('No matching options'),
-                    )
-                  : ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, _) =>
-                          const AppDivider(indent: 0, endIndent: 0),
-                      itemBuilder: (context, index) {
-                        final option = filtered[index],
-                            selected = option.value == widget.value;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: ListTile(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            selected: selected,
-                            selectedTileColor: colors.accent.withValues(
-                              alpha: .12,
-                            ),
-                            selectedColor: colors.text,
-                            title: Text(
-                              option.label,
-                              style: TextStyle(
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w400,
-                              ),
-                            ),
-                            trailing: selected
-                                ? Icon(Icons.check_circle, color: colors.accent)
-                                : null,
-                            onTap: () => Navigator.pop(context, option.value),
-                          ),
-                        );
-                      },
-                    ),
             ),
-          ],
-        ),
-      ),
+            trailing: filtered[i].value == widget.value
+                ? Icon(Icons.check_circle, color: colors.accent)
+                : null,
+            onTap: () => Navigator.pop(context, filtered[i].value),
+          ),
+        ],
+      ],
     );
   }
 }

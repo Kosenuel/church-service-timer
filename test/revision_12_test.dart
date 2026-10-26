@@ -421,6 +421,7 @@ void main() {
     );
     await t.pumpAndSettle();
     await t.ensureVisible(find.text('Activity timeline'));
+    await t.tap(find.text('Activity timeline'));
     await t.pumpAndSettle();
     expect(find.text('Sending end screen'), findsOneWidget);
     expect(find.text('Controller accepted end screen'), findsOneWidget);

@@ -20,6 +20,8 @@ Version 0.18 adds targeted mobile messages with optional **Seen** acknowledgemen
 
 Version 0.19 adds **Show clock** with shared 12/24-hour formatting, post-service messages, **Jump to segment**, wheel time pickers with second precision, bulk program export/import, long-press item menus, focused timing overview and current-output resynchronization. New durations stay within **59:59**; old longer records remain readable. See [the 0.19 guide](docs/FEATURES-0.19.md). The new W2 clock serializer has automated/static checks; its physical firmware behavior still requires the operator's hands-on review.
 
+Version 0.21 adds a running-service navigation bar, searchable/pinned/recent programs, Settings search, clearer cue delivery feedback, a quieter Reports toolbar, flat expandable report details, tablet list/detail layouts, adaptive selection sheets, editable duration fields and optional time-wheel sound/haptics. Programs and Reports support **Select → Export selected** in JSON or CSV, including selections retained across filters. **Reconnect display** can request the saved sign Wi-Fi on Android 10+ before authenticating the remembered controller; Android approval and separate saved Wi-Fi credentials may be needed. See [the 0.21 guide and Wi-Fi limitations](docs/update-0.21.0.md).
+
 ## Try it
 
 1. Install the prototype APK on Android 7.0 (API 24) or newer.

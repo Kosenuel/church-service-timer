@@ -44,7 +44,26 @@ class AppearanceControls extends StatelessWidget {
             ? null
             : (v) => onChanged!(value.copyWith(dividers: v)),
       ),
+      const SizedBox(height: 16),
+      ChoiceField<String>(
+        key: const ValueKey('picker-feedback'),
+        value: value.pickerFeedback,
+        decoration: const InputDecoration(labelText: 'Picker feedback'),
+        options: const [
+          ChoiceOption(value: 'off', label: 'Off'),
+          ChoiceOption(value: 'haptics', label: 'Haptics only'),
+          ChoiceOption(value: 'sound', label: 'Sound only'),
+          ChoiceOption(value: 'both', label: 'Sound + haptics'),
+        ],
+        onChanged: onChanged == null
+            ? null
+            : (v) => onChanged!(value.copyWith(pickerFeedback: v)),
+      ),
       const SizedBox(height: 8),
+      const Text(
+        'Discreet feedback while adjusting time wheels. Respects system sound and touch-feedback settings.',
+      ),
+      const SizedBox(height: 16),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('High contrast'),

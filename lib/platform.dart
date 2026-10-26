@@ -6,6 +6,15 @@ import 'package:printing/printing.dart';
 import 'package:nsd/nsd.dart' as nsd;
 
 abstract class DevicePort {
+  Future<Json> signWifiProfile(String id) async => {
+    'ssid': '',
+    'supported': false,
+    'wifiEnabled': true,
+  };
+  Future<void> saveSignWifiProfile(Json profile) async {}
+  Future<bool> joinSignWifi(String id) async => false;
+  Future<void> cancelSignWifi() async {}
+
   Future<void> printServicePdf(
     String name,
     Future<Uint8List> Function(double, double) layout,
@@ -73,6 +82,19 @@ abstract class DevicePort {
 }
 
 class AndroidPort extends DevicePort {
+  @override
+  Future<Json> signWifiProfile(String id) async => Map<String, dynamic>.from(
+    await channel.invokeMethod<Map>('signWifiProfile', id) ?? {},
+  );
+  @override
+  Future<void> saveSignWifiProfile(Json profile) =>
+      channel.invokeMethod<void>('saveSignWifiProfile', profile);
+  @override
+  Future<bool> joinSignWifi(String id) async =>
+      await channel.invokeMethod<bool>('joinSignWifi', id) ?? false;
+  @override
+  Future<void> cancelSignWifi() => channel.invokeMethod<void>('cancelSignWifi');
+
   @override
   Future<void> printServicePdf(
     String name,

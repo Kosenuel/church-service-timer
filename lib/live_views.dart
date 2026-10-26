@@ -596,23 +596,35 @@ extension LiveViewActions on _HomeState {
         ),
       );
       final label = Text(text, textAlign: TextAlign.center);
+      Widget explain(Widget button) => UnavailableAction(
+        reason: callback == null ? unavailableReason(text) : null,
+        child: button,
+      );
       if (filled && icon == null)
-        return FilledButton(onPressed: callback, style: style, child: label);
+        return explain(
+          FilledButton(onPressed: callback, style: style, child: label),
+        );
       if (filled)
-        return FilledButton.icon(
-          onPressed: callback,
-          style: style,
-          icon: Icon(icon, size: 18),
-          label: label,
+        return explain(
+          FilledButton.icon(
+            onPressed: callback,
+            style: style,
+            icon: Icon(icon, size: 18),
+            label: label,
+          ),
         );
       if (icon != null)
-        return OutlinedButton.icon(
-          onPressed: callback,
-          style: style,
-          icon: Icon(icon, size: 18),
-          label: label,
+        return explain(
+          OutlinedButton.icon(
+            onPressed: callback,
+            style: style,
+            icon: Icon(icon, size: 18),
+            label: label,
+          ),
         );
-      return OutlinedButton(onPressed: callback, style: style, child: label);
+      return explain(
+        OutlinedButton(onPressed: callback, style: style, child: label),
+      );
     }
 
     return LayoutBuilder(
@@ -628,13 +640,16 @@ extension LiveViewActions on _HomeState {
           ),
           Tooltip(
             message: s.paused ? 'Resume' : 'Pause',
-            child: FilledButton(
-              key: const ValueKey('pause-resume'),
-              onPressed: enabled ? confirmPause : null,
-              child: Icon(
-                s.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                size: 28,
-                semanticLabel: s.paused ? 'Resume' : 'Pause',
+            child: UnavailableAction(
+              reason: enabled ? null : unavailableReason('Pause'),
+              child: FilledButton(
+                key: const ValueKey('pause-resume'),
+                onPressed: enabled ? confirmPause : null,
+                child: Icon(
+                  s.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                  size: 28,
+                  semanticLabel: s.paused ? 'Resume' : 'Pause',
+                ),
               ),
             ),
           ),

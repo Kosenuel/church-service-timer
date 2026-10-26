@@ -182,7 +182,7 @@ void main() {
         find.byKey(ValueKey('open-report-${c.state.reports.single.id}')),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Rehearsal 10×'), findsOneWidget);
+      expect(find.descendant(of: find.byType(ReportDetailPage), matching: find.text('Rehearsal 10×')), findsOneWidget);
       expect(find.text('4m 0s'), findsOneWidget);
       expect(find.text('4m 10s'), findsOneWidget);
       expect(find.text('Export report CSV'), findsOneWidget);

@@ -34,6 +34,19 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
       c.hardware.profile?['supported'] == true &&
       c.hardware.profile?['firmware'] == 'HD_W2 V6.02.232' &&
       c.hardware.profile?['pwdComplexity'] == 1;
+  String? get adminUnavailable => busy
+      ? 'Wait for the current change to finish.'
+      : !c.hardware.connected
+      ? 'Connect the LED display first.'
+      : !wifiConnected
+      ? 'Connect to the sign’s Wi-Fi first.'
+      : c.state.session.active
+      ? 'End the service to edit this.'
+      : c.pairing.hosting
+      ? 'Stop sharing before changing LED settings.'
+      : !adminSupported
+      ? 'This controller does not support administration.'
+      : null;
   Future<void> changeSetting(String kind, String label) async {
     if (!adminSupported ||
         !wifiConnected ||
@@ -200,9 +213,9 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
     if (busy) return;
     setState(() => busy = true);
     try {
-      if (!c.hardware.connected &&
-          c.hardware.rememberedId.isNotEmpty &&
-          await c.hardware.reconnectSaved()) {
+      final connected = await reconnectLedDisplay(context, c);
+      if (connected == null) return;
+      if (connected) {
         if (mounted)
           await connectionSuccess(
             context,
@@ -527,18 +540,21 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
         ('wifiPassword', 'Wi-Fi password', Icons.wifi_password),
         ('devicePassword', 'Device connection password', Icons.password),
       ])
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(item.$3),
-          title: Text(item.$2),
-          trailing: const Icon(Icons.chevron_right),
-          enabled:
-              adminSupported &&
-              wifiConnected &&
-              !c.state.session.active &&
-              !c.pairing.hosting &&
-              !busy,
-          onTap: () => changeSetting(item.$1, item.$2),
+        UnavailableAction(
+          reason: adminUnavailable,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(item.$3),
+            title: Text(item.$2),
+            trailing: const Icon(Icons.chevron_right),
+            enabled:
+                adminSupported &&
+                wifiConnected &&
+                !c.state.session.active &&
+                !c.pairing.hosting &&
+                !busy,
+            onTap: () => changeSetting(item.$1, item.$2),
+          ),
         ),
       if (status != null) Text(status!),
       const SizedBox(height: 16),

@@ -22,6 +22,7 @@ class W2Display(context: Context) {
     private val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private val prefs = context.getSharedPreferences("w2-display", Context.MODE_PRIVATE)
     private val random = SecureRandom()
+    @Volatile var preferredNetwork: Network? = null
     private var network: Network? = null
     private var socket: DatagramSocket? = null
     private var session: Hd7Auth.Session? = null
@@ -47,7 +48,7 @@ class W2Display(context: Context) {
         session?.close(); session = null
         device = null; network = null
     }
-    private fun wifi(): Network = cm.allNetworks.firstOrNull {
+    private fun wifi(): Network = preferredNetwork?.takeIf { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true } ?: cm.allNetworks.firstOrNull {
         cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
     } ?: error("Connect the phone to the sign's Wi-Fi, then scan again.")
     private fun open(net: Network): DatagramSocket = DatagramSocket().apply {

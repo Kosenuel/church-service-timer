@@ -39,6 +39,13 @@ class HardwareDisplay extends ChangeNotifier {
   Json? profile;
   HardwareOutputPlan? accepted;
   String? _confirmed;
+  bool get currentOutputAccepted =>
+      connected &&
+      !held &&
+      !sending &&
+      _latest != null &&
+      _now != null &&
+      _confirmed == _plan(_latest!, _now!).fingerprint;
   Session? _latest;
   Stamp? _now;
   List<Json> devices = [];
@@ -292,7 +299,14 @@ class HardwareDisplay extends ChangeNotifier {
   }
 
   /// Re-authenticate only the remembered controller. Never replay a saved upload.
-  Future<bool> reconnectSaved({bool automatic = false}) async {
+  Future<bool> hasReconnectCredential() async =>
+      _sessionPassword != null ||
+      await port.savedDisplayPassword(rememberedId) != null;
+
+  Future<bool> reconnectSaved({
+    bool automatic = false,
+    Future<bool> Function()? joinWifi,
+  }) async {
     if (_disposed || busy || sending || _checking || rememberedId.isEmpty)
       return false;
     if (automatic && !retryEnabled) return false;
@@ -318,7 +332,25 @@ class HardwareDisplay extends ChangeNotifier {
         status = 'Enter the device password to reconnect';
         return false;
       }
-      final found = await port.discoverDisplays();
+      List<Json> found;
+      try {
+        found = await port.discoverDisplays();
+      } catch (_) {
+        found = [];
+      }
+      if (intent != _intent || _disposed) return false;
+      if (!found.any(
+            (d) => d['id'] == rememberedId && d['supported'] == true,
+          ) &&
+          !automatic &&
+          joinWifi != null) {
+        status = 'Finding sign Wi-Fi…';
+        changed();
+        if (!await joinWifi() || intent != _intent || _disposed) return false;
+        status = 'Finding remembered display…';
+        changed();
+        found = await port.discoverDisplays();
+      }
       if (intent != _intent || _disposed) return false;
       if (!found.any(
         (d) => d['id'] == rememberedId && d['supported'] == true,
@@ -328,8 +360,9 @@ class HardwareDisplay extends ChangeNotifier {
       }
       devices = found;
       return await connect(rememberedId, secret, recovering: true);
-    } catch (_) {
-      if (intent == _intent) status = 'LED sign unavailable · retrying…';
+    } catch (e) {
+      if (intent == _intent)
+        status = e is RuleError ? '$e' : 'LED sign unavailable · retrying…';
       return false;
     } finally {
       _checking = false;
@@ -565,6 +598,7 @@ class HardwareDisplay extends ChangeNotifier {
     _intent++;
     _sessionPassword = null;
     ++_epoch;
+    unawaited(port.cancelSignWifi().catchError((_) {}));
     unawaited(port.disconnectDisplay().catchError((_) {}));
     super.dispose();
   }

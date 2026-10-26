@@ -361,13 +361,17 @@ void main() {
       await t.pumpAndSettle();
       expect(c.state.reports.length, 1);
       final all = find.byKey(const ValueKey('clear-all-reports'));
-      await t.ensureVisible(all);
+      await t.ensureVisible(find.byTooltip('Report list options'));
+      await t.tap(find.byTooltip('Report list options'));
+      await t.pumpAndSettle();
       await t.tap(all);
       await t.pumpAndSettle();
       expect(c.state.reports.length, 1);
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
       expect(c.state.reports.length, 1);
+      await t.tap(find.byTooltip('Report list options'));
+      await t.pumpAndSettle();
       await t.tap(all);
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(FilledButton, 'Clear all reports'));

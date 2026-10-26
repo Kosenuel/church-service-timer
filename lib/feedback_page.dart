@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app_theme.dart';
 import 'controller.dart';
+import 'running_service_bar.dart';
 import 'feedback_message.dart';
 
 class FeedbackCenterPage extends StatefulWidget {
@@ -128,7 +129,12 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Feedback Center')),
+    appBar: AppBar(
+      bottom: widget.controller.liveSession.active
+          ? RunningServiceBar.forContext(context, controller: widget.controller)
+          : null,
+      title: const Text('Feedback Center'),
+    ),
     body: SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

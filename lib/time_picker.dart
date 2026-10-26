@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
@@ -21,7 +23,23 @@ class TimeWheels extends StatefulWidget {
 
 class _TimeWheelsState extends State<TimeWheels> {
   late final List<FixedExtentScrollController> controllers;
-  bool syncing = false;
+  bool syncing = false, userScrolling = false;
+  final feedbackClock = Stopwatch()..start();
+  int lastFeedback = -100;
+  void feedback() {
+    final mode = appLayout(context).preferences.pickerFeedback;
+    if (!userScrolling ||
+        mode == 'off' ||
+        feedbackClock.elapsedMilliseconds - lastFeedback < 70)
+      return;
+    lastFeedback = feedbackClock.elapsedMilliseconds;
+    unawaited(
+      const MethodChannel(
+        'church.timer/device',
+      ).invokeMethod<void>('pickerTick', mode).catchError((Object _) {}),
+    );
+  }
+
   List<int> get values => [widget.value ~/ 60, widget.value % 60];
   int get maximum => widget.clock ? 1439 : widget.maximum;
   List<int> get limits => [
@@ -131,46 +149,57 @@ class _TimeWheelsState extends State<TimeWheels> {
           ),
           SizedBox(
             height: 220,
-            child: CupertinoPicker(
-              scrollController: controllers[i],
-              itemExtent: 44,
-              diameterRatio: 1.5,
-              selectionOverlay: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colors.accent.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onSelectedItemChanged: (n) {
-                if (syncing) return;
-                final v = values;
-                v[i] = n;
-                widget.onChanged((v[0] * 60 + v[1]).clamp(0, maximum));
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (n) {
+                if (n is ScrollStartNotification && n.dragDetails != null)
+                  userScrolling = true;
+                if (n is ScrollEndNotification) userScrolling = false;
+                return false;
               },
-              children: [
-                for (var n = 0; n <= limits[i]; n++)
-                  Center(
-                    child: Semantics(
-                      label: '${labels[i]} $n',
-                      button: true,
-                      child: GestureDetector(
-                        onTap: () => type(i),
-                        child: Text(
-                          n.toString().padLeft(2, '0'),
-                          style: TextStyle(
-                            fontFamily: 'Roboto',
-                            fontSize: 30,
-                            fontWeight: FontWeight.w600,
-                            color: n == values[i]
-                                ? colors.accent
-                                : colors.muted,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+              child: CupertinoPicker(
+                scrollController: controllers[i],
+                itemExtent: 44,
+                diameterRatio: 1.5,
+                selectionOverlay: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.accent.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onSelectedItemChanged: (n) {
+                  if (syncing) return;
+                  if (n != values[i]) feedback();
+                  final v = values;
+                  v[i] = n;
+                  widget.onChanged((v[0] * 60 + v[1]).clamp(0, maximum));
+                },
+                children: [
+                  for (var n = 0; n <= limits[i]; n++)
+                    Center(
+                      child: Semantics(
+                        label: '${labels[i]} $n',
+                        button: true,
+                        child: GestureDetector(
+                          onTap: () => type(i),
+                          child: Text(
+                            n.toString().padLeft(2, '0'),
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 30,
+                              fontWeight: FontWeight.w600,
+                              color: n == values[i]
+                                  ? colors.accent
+                                  : colors.muted,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -217,7 +246,9 @@ class _TimeWheelsState extends State<TimeWheels> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Scroll the wheels or tap a number to type.',
+          widget.clock
+              ? 'Scroll the wheels or tap a number to type.'
+              : 'Scroll or tap a number to type · ${maximum ~/ 60}:${(maximum % 60).toString().padLeft(2, '0')} maximum.',
           style: TextStyle(fontSize: 12, color: colors.muted),
         ),
       ],

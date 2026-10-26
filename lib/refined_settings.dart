@@ -403,28 +403,20 @@ extension RefinedSettings on _HomeState {
   }
 
   Future<void> chooseStageCue() async {
-    final selected = await showDialog<int>(
-      context: context,
-      animationStyle: reduceAppMotion(context)
-          ? AnimationStyle.noAnimation
-          : null,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Choose a stage cue'),
-        contentPadding: EdgeInsets.symmetric(vertical: appLayout(ctx).gap),
+    final selected = await showAppSelection<int>(
+      context,
+      title: 'Choose a stage cue',
+      builder: (ctx) => AppMenuList(
         children: [
-          AppMenuList(
-            children: [
-              for (var i = 0; i < c.state.stageCues.length; i++)
-                ListTile(
-                  onTap: () => Navigator.pop(ctx, i),
-                  title: Text(c.state.stageCues[i].text),
-                ),
-              ListTile(
-                onTap: () => Navigator.pop(ctx, -1),
-                leading: const Icon(Icons.edit_note),
-                title: const Text('Manage cues in Settings'),
-              ),
-            ],
+          for (var i = 0; i < c.state.stageCues.length; i++)
+            ListTile(
+              onTap: () => Navigator.pop(ctx, i),
+              title: Text(c.state.stageCues[i].text),
+            ),
+          ListTile(
+            onTap: () => Navigator.pop(ctx, -1),
+            leading: const Icon(Icons.edit_note),
+            title: const Text('Manage cues in Settings'),
           ),
         ],
       ),

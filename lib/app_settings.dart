@@ -1,16 +1,17 @@
 part of 'domain.dart';
 
 const appName = 'Church Service Timer';
-const appVersion = '0.20.1 (21)';
+const appVersion = '0.21.0 (22)';
 
 /// Local interface preferences: never sent to stage peers or restored from a
 /// portable backup. Output animation is configured separately.
 class AppearancePreferences {
-  final String density, dividers;
+  final String density, dividers, pickerFeedback;
   final bool highContrast, reducedMotion;
   const AppearancePreferences({
     this.density = 'compact',
     this.dividers = 'subtle',
+    this.pickerFeedback = 'haptics',
     this.highContrast = false,
     this.reducedMotion = false,
   });
@@ -33,9 +34,19 @@ class AppearancePreferences {
           (j['reducedMotion'] == null || j['reducedMotion'] is bool),
       'Invalid accessibility preference.',
     );
+    require(
+      {
+        'off',
+        'haptics',
+        'sound',
+        'both',
+      }.contains(j['pickerFeedback'] ?? 'haptics'),
+      'Unknown picker feedback.',
+    );
     return AppearancePreferences(
       density: j['density'] ?? 'compact',
       dividers: j['dividers'] ?? 'subtle',
+      pickerFeedback: j['pickerFeedback'] ?? 'haptics',
       highContrast: j['highContrast'] ?? false,
       reducedMotion: j['reducedMotion'] ?? false,
     );
@@ -43,17 +54,20 @@ class AppearancePreferences {
   AppearancePreferences copyWith({
     String? density,
     String? dividers,
+    String? pickerFeedback,
     bool? highContrast,
     bool? reducedMotion,
   }) => AppearancePreferences(
     density: density ?? this.density,
     dividers: dividers ?? this.dividers,
+    pickerFeedback: pickerFeedback ?? this.pickerFeedback,
     highContrast: highContrast ?? this.highContrast,
     reducedMotion: reducedMotion ?? this.reducedMotion,
   );
   Json toJson() => {
     'density': density,
     'dividers': dividers,
+    'pickerFeedback': pickerFeedback,
     'highContrast': highContrast,
     'reducedMotion': reducedMotion,
   };
@@ -62,11 +76,17 @@ class AppearancePreferences {
       other is AppearancePreferences &&
       density == other.density &&
       dividers == other.dividers &&
+      pickerFeedback == other.pickerFeedback &&
       highContrast == other.highContrast &&
       reducedMotion == other.reducedMotion;
   @override
-  int get hashCode =>
-      Object.hash(density, dividers, highContrast, reducedMotion);
+  int get hashCode => Object.hash(
+    density,
+    dividers,
+    pickerFeedback,
+    highContrast,
+    reducedMotion,
+  );
 }
 
 const themeIds = {
@@ -174,7 +194,8 @@ String exportBackup(AppState state, Stamp now) {
     ..remove('editDrafts')
     ..remove('outputDestination')
     ..remove('version')
-    ..remove('appearance');
+    ..remove('appearance')
+    ..remove('programLibrary');
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
     'schemaVersion': 7,

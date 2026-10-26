@@ -12,14 +12,11 @@ extension Update19Views on _HomeState {
 
   Future<void> jumpToSegment() async {
     final s = c.state.session, revision = c.state.session.revision;
-    final target = await showDialog<int>(
-      context: context,
-      animationStyle: reduceAppMotion(context)
-          ? AnimationStyle.noAnimation
-          : null,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Jump to segment'),
-        contentPadding: EdgeInsets.symmetric(vertical: appLayout(ctx).gap),
+    final target = await showAppSelection<int>(
+      context,
+      title: 'Jump to segment',
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           for (var i = s.index + 1; i < s.timeline!.segments.length; i++) ...[
             if (i > s.index + 1) const AppDivider(),
@@ -284,45 +281,46 @@ extension Update19Views on _HomeState {
     String kind,
     Future<void> Function(String) action,
   ) async {
-    final choice = await showDialog<String>(
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final point = overlay.globalToLocal(
+      menuAnchor ?? Offset(overlay.size.width / 2, overlay.size.height / 2),
+    );
+    final choice = await showMenu<String>(
       context: context,
-      animationStyle: reduceAppMotion(context)
-          ? AnimationStyle.noAnimation
-          : null,
-      builder: (ctx) => SimpleDialog(
-        title: Text('$kind actions'),
-        contentPadding: EdgeInsets.symmetric(vertical: appLayout(ctx).gap),
-        children: [
-          ListTile(
-            onTap: () => Navigator.pop(ctx, 'export'),
-            leading: const Icon(Icons.ios_share),
-            title: Text('Export ${kind.toLowerCase()}'),
-          ),
-          const AppDivider(essential: true),
-          ListTile(
-            onTap: () => Navigator.pop(ctx, 'delete'),
-            leading: Icon(Icons.delete_outline, color: appColors(ctx).error),
-            title: Text(
-              'Delete ${kind.toLowerCase()}',
-              style: TextStyle(color: appColors(ctx).error),
-            ),
-          ),
-        ],
+      position: RelativeRect.fromSize(
+        Rect.fromLTWH(point.dx, point.dy, 1, 1),
+        overlay.size,
       ),
+      semanticLabel: '$kind actions',
+      items: appMenuEntries(context, [
+        AppMenuAction('export', 'Export ${kind.toLowerCase()}'),
+        AppMenuAction(
+          'delete',
+          'Delete ${kind.toLowerCase()}',
+          destructive: true,
+        ),
+      ]),
     );
     if (choice != null) await action(choice);
   }
 
-  Widget itemMenu(String kind, void Function(String) action) => IconButton(
-    tooltip: '$kind actions',
-    onPressed: c.busy || c.corrupt
-        ? null
-        : () => showItemActions(kind, (value) async => action(value)),
-    icon: const Icon(Icons.more_vert),
-  );
+  Widget itemMenu(String kind, void Function(String) action) =>
+      PopupMenuButton<String>(
+        tooltip: '$kind actions',
+        enabled: !c.busy && !c.corrupt,
+        onSelected: action,
+        itemBuilder: (ctx) => appMenuEntries(ctx, [
+          AppMenuAction('export', 'Export ${kind.toLowerCase()}'),
+          AppMenuAction(
+            'delete',
+            'Delete ${kind.toLowerCase()}',
+            destructive: true,
+          ),
+        ]),
+      );
 
-  Future<void> exportAllPrograms() async {
-    final programs = List<Timeline>.of(c.state.templates);
+  Future<void> exportAllPrograms({List<Timeline>? selected}) async {
+    final programs = List<Timeline>.of(selected ?? c.state.templates);
     if (programs.isEmpty) return;
     var notes = false;
     final format = await showDialog<String>(
@@ -332,12 +330,16 @@ extension Update19Views on _HomeState {
           : null,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
-          title: const Text('Export all programs'),
+          title: Text(
+            selected == null
+                ? 'Export all programs'
+                : 'Export selected programs',
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '${programs.length} saved programs. JSON preserves formatting; CSV contains the rundown for spreadsheets.',
+                '${programs.length} ${selected == null ? 'saved' : 'selected'} programs. JSON preserves formatting; CSV contains the rundown for spreadsheets.',
               ),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -364,7 +366,7 @@ extension Update19Views on _HomeState {
     if (format == null) return;
     try {
       await c.port.exportFile(
-        'Church-Service-Timer-all-programs.$format',
+        'Church-Service-Timer-${selected == null ? 'all' : 'selected'}-programs.$format',
         format == 'json'
             ? exportProgramsJson(programs, privateNotes: notes)
             : exportProgramsCsv(programs, privateNotes: notes),

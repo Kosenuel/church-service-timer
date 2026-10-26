@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 part 'service_features.dart';
 part 'app_settings.dart';
+part 'program_library.dart';
 part 'service_planning.dart';
 part 'quick_message.dart';
 part 'service_improvements.dart';
@@ -984,6 +985,7 @@ Session recover(Session original, Stamp now) {
 
 class AppState {
   AppearancePreferences appearance;
+  ProgramLibrary programLibrary;
   String clockFormat;
   bool clockBlink;
   int notificationClearSeconds;
@@ -1020,7 +1022,9 @@ class AppState {
     this.notificationClearSeconds = 30,
     this.printPreferences = const PrintPreferences(),
     Map<String, Json>? editDrafts,
-  }) : editDrafts = editDrafts ?? {},
+    ProgramLibrary? programLibrary,
+  }) : programLibrary = programLibrary ?? ProgramLibrary(),
+       editDrafts = editDrafts ?? {},
        reports = reports ?? [],
        quickMessages = quickMessages ?? [...defaultQuickMessages],
        stageCues = stageCues ?? [...defaults.cues];
@@ -1069,6 +1073,9 @@ class AppState {
       clockBlink: boolSetting(j['clockBlink'] ?? true),
       appearance: AppearancePreferences.fromJson(
         Map<String, dynamic>.from(j['appearance'] ?? {}),
+      ),
+      programLibrary: ProgramLibrary.fromJson(
+        Map<String, dynamic>.from(j['programLibrary'] ?? {}),
       ),
       outputDestination: j['outputDestination'] as String?,
       notificationClearSeconds: notificationTimeoutValue(
@@ -1199,6 +1206,7 @@ class AppState {
   Json toJson() => {
     'version': 13,
     'appearance': appearance.toJson(),
+    'programLibrary': programLibrary.toJson(),
     'clockFormat': clockFormat,
     'clockBlink': clockBlink,
     'notificationClearSeconds': notificationClearSeconds,
@@ -1302,6 +1310,7 @@ class AppState {
     if (replacing == null) {
       templates.add(t);
     } else {
+      programLibrary.rename(templates[replacing].name, t.name);
       templates[replacing] = t;
     }
   }
@@ -1335,8 +1344,10 @@ class AppState {
     return copy;
   }
 
-  void deleteTemplate(Timeline expected) =>
-      templates.removeAt(templateIndex(expected));
+  void deleteTemplate(Timeline expected) {
+    templates.removeAt(templateIndex(expected));
+    programLibrary.remove(expected.name);
+  }
 }
 
 String exportJson(Timeline t) =>

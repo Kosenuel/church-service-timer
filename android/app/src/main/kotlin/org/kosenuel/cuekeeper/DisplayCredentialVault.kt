@@ -33,6 +33,7 @@ class DisplayCredentialVault(context: Context, store: String = "display-vault",
             check(prefs.edit().putString(id, Base64.encodeToString(cipher.iv + encrypted, Base64.NO_WRAP)).commit())
         } finally { raw.fill(0) }
     }
+    fun contains(id: String): Boolean = prefs.contains(id)
     fun read(id: String): String? {
         val value = prefs.getString(id, null) ?: return null
         try {
