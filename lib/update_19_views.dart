@@ -19,7 +19,7 @@ extension Update19Views on _HomeState {
           : null,
       builder: (ctx) => SimpleDialog(
         title: const Text('Jump to segment'),
-        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        contentPadding: EdgeInsets.symmetric(vertical: appLayout(ctx).gap),
         children: [
           for (var i = s.index + 1; i < s.timeline!.segments.length; i++) ...[
             if (i > s.index + 1) const AppDivider(),
@@ -223,7 +223,7 @@ extension Update19Views on _HomeState {
         : null,
     builder: (ctx) => SimpleDialog(
       title: Text(report ? 'Export report' : 'Export program'),
-      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+      contentPadding: EdgeInsets.symmetric(vertical: appLayout(ctx).gap),
       children: [
         if (report) ...[
           ListTile(
@@ -291,7 +291,7 @@ extension Update19Views on _HomeState {
           : null,
       builder: (ctx) => SimpleDialog(
         title: Text('$kind actions'),
-        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        contentPadding: EdgeInsets.symmetric(vertical: appLayout(ctx).gap),
         children: [
           ListTile(
             onTap: () => Navigator.pop(ctx, 'export'),
@@ -413,13 +413,16 @@ extension Update19Views on _HomeState {
                 const Text(
                   'All programs are added together. Existing programs stay unchanged; duplicate names receive a numbered suffix.',
                 ),
-                const SizedBox(height: 12),
-                for (final p in incoming)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(p.name),
-                    subtitle: Text(templateSummary(p)),
-                  ),
+                SizedBox(height: appLayout(ctx).gap),
+                AppMenuList(
+                  children: [
+                    for (final p in incoming)
+                      ListTile(
+                        title: Text(p.name),
+                        subtitle: Text(templateSummary(p)),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),

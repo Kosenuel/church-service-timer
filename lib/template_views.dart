@@ -108,22 +108,21 @@ extension TemplateViews on _HomeState {
           child: PopupMenuButton<bool>(
             tooltip: 'Program list options',
             enabled: !disabled,
-            initialValue: c.state.groupTemplates,
             onSelected: (value) async {
               await c.commit((draft, _) => draft.groupTemplates = value);
             },
-            itemBuilder: (_) => [
-              CheckedPopupMenuItem(
-                value: false,
+            itemBuilder: (ctx) => appMenuEntries(ctx, [
+              AppMenuAction(
+                false,
+                'Single list',
                 checked: !c.state.groupTemplates,
-                child: const Text('Single list'),
               ),
-              CheckedPopupMenuItem(
-                value: true,
+              AppMenuAction(
+                true,
+                'Services & rehearsals',
                 checked: c.state.groupTemplates,
-                child: const Text('Services & rehearsals'),
               ),
-            ],
+            ]),
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
               child: Row(

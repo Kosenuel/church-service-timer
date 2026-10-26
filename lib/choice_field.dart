@@ -123,15 +123,16 @@ class _ChoiceSheetState<T> extends State<_ChoiceSheet<T>> {
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context);
+    final layout = appLayout(context);
     final filtered = widget.options
         .where((o) => o.label.toLowerCase().contains(query.toLowerCase()))
         .toList();
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        20,
+        layout.panelPadding,
         0,
-        20,
-        16 + MediaQuery.viewInsetsOf(context).bottom,
+        layout.panelPadding,
+        layout.gap + MediaQuery.viewInsetsOf(context).bottom,
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -157,7 +158,7 @@ class _ChoiceSheetState<T> extends State<_ChoiceSheet<T>> {
               ],
             ),
             if (widget.options.length > 8) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: layout.gap),
               TextField(
                 decoration: const InputDecoration(
                   labelText: 'Search options',

@@ -115,20 +115,17 @@ extension OperatorSettings on _HomeState {
                       draft.stageCues.insert(next, cue);
                     });
                   },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    if (e.key > 0)
-                      const PopupMenuItem(value: 'up', child: Text('Move up')),
+                  itemBuilder: (ctx) => appMenuEntries(ctx, [
+                    const AppMenuAction('edit', 'Edit'),
+                    if (e.key > 0) const AppMenuAction('up', 'Move up'),
                     if (e.key + 1 < c.state.stageCues.length)
-                      const PopupMenuItem(
-                        value: 'down',
-                        child: Text('Move down'),
-                      ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete cue'),
+                      const AppMenuAction('down', 'Move down'),
+                    const AppMenuAction(
+                      'delete',
+                      'Delete cue',
+                      destructive: true,
                     ),
-                  ],
+                  ]),
                 ),
               ),
             ],

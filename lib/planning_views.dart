@@ -130,88 +130,92 @@ extension PlanningViews on _HomeState {
                   'Print or choose Save as PDF in Android’s print screen.',
                 ),
                 const SizedBox(height: 12),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.event_outlined),
-                  title: const Text('Service date'),
-                  subtitle: Text(
-                    serviceDateLabel(selectedDate.millisecondsSinceEpoch),
-                  ),
-                  trailing: actualDate == null
-                      ? const Icon(Icons.edit_calendar_outlined)
-                      : null,
-                  onTap: actualDate != null
-                      ? null
-                      : () async {
-                          final date = await showDatePicker(
-                            context: ctx,
-                            initialDate: selectedDate,
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                          );
-                          if (date != null && ctx.mounted)
-                            update(() => selectedDate = date);
-                        },
-                ),
-                if (report != null)
-                  ChoiceField<bool>(
-                    value: fullReport,
-                    decoration: const InputDecoration(labelText: 'Document'),
-                    options: const [
-                      ChoiceOption(value: true, label: 'Service report'),
-                      ChoiceOption(value: false, label: 'Service rundown'),
-                    ],
-                    onChanged: (value) => update(() => fullReport = value!),
-                  ),
-                ChoiceField<String>(
-                  value: audience,
-                  decoration: const InputDecoration(labelText: 'Print copy'),
-                  options: const [
-                    ChoiceOption(value: 'stage', label: 'Stage copy'),
-                    ChoiceOption(value: 'operator', label: 'Operator copy'),
+                AppMenuList(
+                  key: const ValueKey('print-service-options'),
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.event_outlined),
+                      title: const Text('Service date'),
+                      subtitle: Text(
+                        serviceDateLabel(selectedDate.millisecondsSinceEpoch),
+                      ),
+                      trailing: actualDate == null
+                          ? const Icon(Icons.edit_calendar_outlined)
+                          : null,
+                      onTap: actualDate != null
+                          ? null
+                          : () async {
+                              final date = await showDatePicker(
+                                context: ctx,
+                                initialDate: selectedDate,
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                              );
+                              if (date != null && ctx.mounted)
+                                update(() => selectedDate = date);
+                            },
+                    ),
+                    if (report != null)
+                      ChoiceField<bool>(
+                        value: fullReport,
+                        decoration: const InputDecoration(
+                          labelText: 'Document',
+                        ),
+                        options: const [
+                          ChoiceOption(value: true, label: 'Service report'),
+                          ChoiceOption(value: false, label: 'Service rundown'),
+                        ],
+                        onChanged: (value) => update(() => fullReport = value!),
+                      ),
+                    ChoiceField<String>(
+                      value: audience,
+                      decoration: const InputDecoration(
+                        labelText: 'Print copy',
+                      ),
+                      options: const [
+                        ChoiceOption(value: 'stage', label: 'Stage copy'),
+                        ChoiceOption(value: 'operator', label: 'Operator copy'),
+                      ],
+                      onChanged: (v) => update(() {
+                        audience = v!;
+                        includeNotes =
+                            v == 'operator' &&
+                            (report == null || report.program != null);
+                      }),
+                    ),
+                    CheckboxListTile(
+                      title: const Text('Ink-saving'),
+                      subtitle: const Text('Omit banner and watermark'),
+                      value: inkSaving,
+                      onChanged: (v) => update(() => inkSaving = v!),
+                    ),
+                    CheckboxListTile(
+                      title: const Text('Church-name watermark'),
+                      value: watermark,
+                      onChanged: inkSaving
+                          ? null
+                          : (v) => update(() => watermark = v!),
+                    ),
+                    CheckboxListTile(
+                      title: const Text('Include church banner'),
+                      value: includeBanner,
+                      onChanged: inkSaving
+                          ? null
+                          : (v) => update(() => includeBanner = v!),
+                    ),
+                    CheckboxListTile(
+                      title: const Text('Include private operator notes'),
+                      subtitle: report != null && report.program == null
+                          ? const Text('Not recorded in this older report')
+                          : null,
+                      value: includeNotes,
+                      onChanged:
+                          audience == 'stage' ||
+                              (report != null && report.program == null)
+                          ? null
+                          : (v) => update(() => includeNotes = v!),
+                    ),
                   ],
-                  onChanged: (v) => update(() {
-                    audience = v!;
-                    includeNotes =
-                        v == 'operator' &&
-                        (report == null || report.program != null);
-                  }),
-                ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Ink-saving'),
-                  subtitle: const Text('Omit banner and watermark'),
-                  value: inkSaving,
-                  onChanged: (v) => update(() => inkSaving = v!),
-                ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Church-name watermark'),
-                  value: watermark,
-                  onChanged: inkSaving
-                      ? null
-                      : (v) => update(() => watermark = v!),
-                ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Include church banner'),
-                  value: includeBanner,
-                  onChanged: inkSaving
-                      ? null
-                      : (v) => update(() => includeBanner = v!),
-                ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Include private operator notes'),
-                  subtitle: report != null && report.program == null
-                      ? const Text('Not recorded in this older report')
-                      : null,
-                  value: includeNotes,
-                  onChanged:
-                      audience == 'stage' ||
-                          (report != null && report.program == null)
-                      ? null
-                      : (v) => update(() => includeNotes = v!),
                 ),
               ],
             ),

@@ -410,21 +410,21 @@ extension RefinedSettings on _HomeState {
           : null,
       builder: (ctx) => SimpleDialog(
         title: const Text('Choose a stage cue'),
+        contentPadding: EdgeInsets.symmetric(vertical: appLayout(ctx).gap),
         children: [
-          for (var i = 0; i < c.state.stageCues.length; i++)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, i),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(c.state.stageCues[i].text),
+          AppMenuList(
+            children: [
+              for (var i = 0; i < c.state.stageCues.length; i++)
+                ListTile(
+                  onTap: () => Navigator.pop(ctx, i),
+                  title: Text(c.state.stageCues[i].text),
+                ),
+              ListTile(
+                onTap: () => Navigator.pop(ctx, -1),
+                leading: const Icon(Icons.edit_note),
+                title: const Text('Manage cues in Settings'),
               ),
-            ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, -1),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('Manage cues in Settings'),
-            ),
+            ],
           ),
         ],
       ),

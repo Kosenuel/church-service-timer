@@ -108,3 +108,5 @@ The adapter is gated to the tested W2 firmware/profile. It does not change scan 
 Version 0.16 keeps paired devices saved after Disconnect and app restarts. Reconnect resumes current output without a new code; Forget device requires confirmation and new approval. See the [remembered devices guide](docs/FEATURES-0.16.md).
 
 Version 0.20 adds local layout-density modes (Compact, Comfortable, Spacious and Automatic), high contrast, reduced motion, divider styles, consistent compact menus and clearer action buttons. Clock-colon blinking applies to the simulator and paired screens; the physical LED clock stays steady. See [the 0.20 guide](docs/FEATURES-0.20.md).
+
+Version 0.20.1 extends the selected layout and divider style to Start service and the remaining in-app option menus. See [menu appearance coverage](docs/FEATURES-0.20.1.md).

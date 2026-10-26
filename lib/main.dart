@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
+import 'app_menu.dart';
 import 'clock_text.dart';
 import 'time_picker.dart';
 import 'choice_field.dart';
@@ -243,18 +244,21 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 const Text(
                   'Choose a program to load into Ready. Timing begins only when you start the first segment.',
                 ),
-                const SizedBox(height: 16),
-                ...c.state.templates.asMap().entries.map(
-                  (e) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(e.value.name),
-                    subtitle: Text(
-                      '${e.value.segments.length} segments · ${durationLabel(e.value.segments.fold<int>(0, (a, s) => a + s.durationMs))}',
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.pop(ctx, e.key),
-                  ),
+                SizedBox(height: appLayout(ctx).gap),
+                AppMenuList(
+                  key: const ValueKey('start-service-programs'),
+                  children: [
+                    for (final e in c.state.templates.asMap().entries)
+                      ListTile(
+                        key: ValueKey('start-program:${e.value.name}'),
+                        title: Text(e.value.name),
+                        subtitle: Text(templateSummary(e.value)),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.pop(ctx, e.key),
+                      ),
+                  ],
                 ),
+                SizedBox(height: appLayout(ctx).gap),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.pop(ctx, -1),
                   icon: const Icon(Icons.add),
@@ -1440,7 +1444,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 isScrollControlled: true,
                                 builder: (context) => SafeArea(
                                   child: SingleChildScrollView(
-                                    padding: const EdgeInsets.all(24),
+                                    padding: EdgeInsets.all(
+                                      appLayout(context).panelPadding,
+                                    ),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
@@ -1466,7 +1472,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                           ),
                                         if (e.value.speaker.isNotEmpty)
                                           Text('Speaker: ${e.value.speaker}'),
-                                        const Divider(height: 32),
+                                        SizedBox(
+                                          height: appLayout(context).gap,
+                                        ),
+                                        const AppDivider(
+                                          indent: 0,
+                                          endIndent: 0,
+                                        ),
+                                        SizedBox(
+                                          height: appLayout(context).gap,
+                                        ),
                                         const Text(
                                           'Private operator note',
                                           style: TextStyle(

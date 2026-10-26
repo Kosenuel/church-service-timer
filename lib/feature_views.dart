@@ -484,22 +484,18 @@ class WarningSettingsPanel extends StatelessWidget {
                     }
                     await onSave(d.withWarnings(rules));
                   },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Edit warning'),
+                  itemBuilder: (ctx) => appMenuEntries(ctx, [
+                    const AppMenuAction('edit', 'Edit warning'),
+                    AppMenuAction(
+                      'toggle',
+                      e.value.enabled ? 'Disable warning' : 'Enable warning',
                     ),
-                    PopupMenuItem(
-                      value: 'toggle',
-                      child: Text(
-                        e.value.enabled ? 'Disable warning' : 'Enable warning',
-                      ),
+                    const AppMenuAction(
+                      'delete',
+                      'Delete warning',
+                      destructive: true,
                     ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete warning'),
-                    ),
-                  ],
+                  ]),
                 ),
               ),
             ],

@@ -193,24 +193,27 @@ extension EditorInsights on _TemplateEditorState {
                         'At least three comparable services with matching, unique segment names are needed.',
                       ),
                     ),
-                  for (final i in insights)
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(i.name),
-                      subtitle: Text(
-                        '${i.exceeded}/${i.samples} over allocation · ${i.currentMinutes} to ${i.suggestedMinutes} min',
-                      ),
-                      value: chosen.contains(i.index),
-                      onChanged: i.currentMinutes == i.suggestedMinutes
-                          ? null
-                          : (v) => update(() {
-                              if (v!) {
-                                chosen.add(i.index);
-                              } else {
-                                chosen.remove(i.index);
-                              }
-                            }),
-                    ),
+                  AppMenuList(
+                    children: [
+                      for (final i in insights)
+                        CheckboxListTile(
+                          title: Text(i.name),
+                          subtitle: Text(
+                            '${i.exceeded}/${i.samples} over allocation · ${i.currentMinutes} to ${i.suggestedMinutes} min',
+                          ),
+                          value: chosen.contains(i.index),
+                          onChanged: i.currentMinutes == i.suggestedMinutes
+                              ? null
+                              : (v) => update(() {
+                                  if (v!) {
+                                    chosen.add(i.index);
+                                  } else {
+                                    chosen.remove(i.index);
+                                  }
+                                }),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
