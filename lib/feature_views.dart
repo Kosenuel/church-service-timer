@@ -375,6 +375,9 @@ class WarningSettingsPanel extends StatelessWidget {
           : d.warnings[index];
       final next = await showDialog<WarningRule>(
         context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
         builder: (_) => WarningEditor(
           initial: initial,
           usedThresholds: d.warnings
@@ -427,7 +430,7 @@ class WarningSettingsPanel extends StatelessWidget {
               style: TextStyle(color: appColors(context).muted),
             ),
             for (final e in d.warnings.asMap().entries) ...[
-              if (e.key > 0) const Divider(height: 1),
+              if (e.key > 0) const AppDivider(indent: 0, endIndent: 0),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
@@ -448,6 +451,9 @@ class WarningSettingsPanel extends StatelessWidget {
                     if (action == 'delete') {
                       final yes = await showDialog<bool>(
                         context: context,
+                        animationStyle: reduceAppMotion(context)
+                            ? AnimationStyle.noAnimation
+                            : null,
                         builder: (ctx) => AlertDialog(
                           title: const Text('Delete warning for all services?'),
                           content: Text(
@@ -601,6 +607,9 @@ class _WarningEditorState extends State<WarningEditor> {
               onPressed: () async {
                 final next = await showDialog<TextLayout>(
                   context: context,
+                  animationStyle: reduceAppMotion(context)
+                      ? AnimationStyle.noAnimation
+                      : null,
                   builder: (_) => TextComposer(
                     initial: cue,
                     title: 'Warning text and formatting',

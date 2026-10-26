@@ -94,6 +94,9 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
   Future<void> clearDraft() async {
     final clear = await showDialog<bool>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (context) => AlertDialog(
         title: const Text('Clear feedback draft?'),
         content: const Text(

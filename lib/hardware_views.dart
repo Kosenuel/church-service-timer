@@ -8,6 +8,9 @@ extension HardwareViews on _HomeState {
     if (s.uncertain && s.active) {
       seconds = await showDialog<int>(
         context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
         builder: (_) =>
             VerifyDisplayTimeDialog(initial: s.remaining(c.now) ~/ 1000),
       );
@@ -133,6 +136,7 @@ Future<void> connectionSuccess(
   String actionLabel = 'Return to Live',
 }) => showDialog<void>(
   context: context,
+  animationStyle: reduceAppMotion(context) ? AnimationStyle.noAnimation : null,
   builder: (ctx) => AlertDialog(
     title: const Text('Display connected'),
     content: Column(
@@ -140,7 +144,9 @@ Future<void> connectionSuccess(
       children: [
         TweenAnimationBuilder<double>(
           tween: Tween(begin: 0.5, end: 1),
-          duration: const Duration(milliseconds: 450),
+          duration: reduceAppMotion(ctx)
+              ? Duration.zero
+              : const Duration(milliseconds: 450),
           curve: Curves.easeOutBack,
           builder: (_, scale, child) =>
               Transform.scale(scale: scale, child: child),
@@ -442,6 +448,9 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                   : () async {
                       final confirmed = await showDialog<bool>(
                         context: context,
+                        animationStyle: reduceAppMotion(context)
+                            ? AnimationStyle.noAnimation
+                            : null,
                         builder: (ctx) => AlertDialog(
                           title: const Text('Switch to Simulator?'),
                           content: const Text(

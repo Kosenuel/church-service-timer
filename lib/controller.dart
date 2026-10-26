@@ -56,6 +56,18 @@ class Simulator {
             format12Hour: s.clockFormat == '12h',
           )
         : renderPixels(delivered, now.mono - deliveredAt);
+    // Simulator-only blink. Physical preview stays faithful to native output.
+    if (s.outputMode(now) == 'Clock' &&
+        s.clockBlink &&
+        now.wall % 1000 >= 500) {
+      final left = s.clockFormat == '12h' ? 8 : 13;
+      final width = s.clockFormat == '12h' ? 4 : 6;
+      for (var y = 0; y < 16; y++) {
+        for (var x = left; x < left + width; x++) {
+          pixels[y * 32 + x] = false;
+        }
+      }
+    }
   }
 }
 
@@ -348,12 +360,11 @@ class AppController extends ChangeNotifier {
     return false;
   }
 
-  Future<bool> stopStageSharing() async {
+  Future<void> stopSharing() async {
     clearQuickMessage();
     _testMessage = null;
     pairing.setStageSharing(false);
-    await pairing.publish();
-    return true;
+    await pairing.stop();
   }
 
   Future<bool> _finishService({int? revision}) async {
@@ -475,6 +486,16 @@ class AppController extends ChangeNotifier {
   String loadingChurchName = '';
   String appVersion = branding.appVersion;
   final themeSelection = ValueNotifier<String>('midnight_lime');
+  final appearanceSelection = ValueNotifier<AppearancePreferences>(
+    const AppearancePreferences(),
+  );
+  AppearancePreferences? _previewAppearance;
+  void previewAppearance(AppearancePreferences? value) {
+    _previewAppearance = value;
+    appearanceSelection.value =
+        value ?? (ready ? state.appearance : const AppearancePreferences());
+  }
+
   String? _previewTheme;
   void previewTheme(String? id) {
     _previewTheme = id;
@@ -517,6 +538,7 @@ class AppController extends ChangeNotifier {
       if (quick != null) 'quickMessage': quick.toJson(),
       'displayText': s.outputBlank ? '' : display?.text ?? '',
       'outputMode': s.outputMode(now),
+      'clockBlink': s.clockBlink,
       'effect': display?.effect ?? 'static',
       'speed': display?.speed ?? 12,
       'bold': display?.bold ?? false,
@@ -542,6 +564,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> syncDeviceSettings() async {
     themeSelection.value = _previewTheme ?? state.themeId;
+    appearanceSelection.value = _previewAppearance ?? state.appearance;
     try {
       await port.setKeepScreenAwake(
         state.keepScreenAwake || pairing.mode == 'stage',
@@ -726,6 +749,7 @@ class AppController extends ChangeNotifier {
             );
       loadingChurchName = state.churchName;
       themeSelection.value = state.themeId;
+      appearanceSelection.value = state.appearance;
       notifyListeners();
       await NativeDisplayFonts.initialize(port);
       await NativeDisplayFonts.prepareState(state);
@@ -872,6 +896,9 @@ class AppController extends ChangeNotifier {
       mutation(draft, at);
       draft.clockFormat = readClockFormat(draft.clockFormat);
       draft.session.clockFormat = draft.clockFormat;
+      draft.clockBlink = boolSetting(draft.clockBlink);
+      draft.session.clockBlink = draft.clockBlink;
+      AppearancePreferences.fromJson(draft.appearance.toJson());
       draft.churchName = churchNameValue(draft.churchName);
       if (draft.churchBanner != state.churchBanner)
         await validateBannerPixels(draft.churchBanner);
@@ -911,6 +938,7 @@ class AppController extends ChangeNotifier {
       if (state.session.phase == 'idle' && state.session.id != previous.id)
         simulator.clear();
       themeSelection.value = _previewTheme ?? state.themeId;
+      appearanceSelection.value = _previewAppearance ?? state.appearance;
       if (previousAwake != state.keepScreenAwake) await syncDeviceSettings();
       await syncPhoneWarnings(previous: previous);
       error = null;
@@ -1148,6 +1176,7 @@ class AppController extends ChangeNotifier {
       draft.stageCues = restored.stageCues;
       draft.quickMessages = restored.quickMessages;
       draft.clockFormat = restored.clockFormat;
+      draft.clockBlink = restored.clockBlink;
       draft.pixelShape = restored.pixelShape;
       draft.groupTemplates = restored.groupTemplates;
       draft.churchName = restored.churchName;
@@ -1421,6 +1450,7 @@ class AppController extends ChangeNotifier {
     hardware.removeListener(_hardwareChanged);
     hardware.dispose();
     themeSelection.dispose();
+    appearanceSelection.dispose();
     super.dispose();
   }
 }

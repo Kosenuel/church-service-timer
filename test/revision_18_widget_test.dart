@@ -165,7 +165,7 @@ void main() {
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await tap(t, 'Programs');
-      await tap(t, 'New');
+      await tap(t, 'New program');
       await t.enterText(
         find.widgetWithText(TextField, 'Program name'),
         'An unfinished program',
@@ -178,7 +178,7 @@ void main() {
         c.state.templates.any((p) => p.name == 'An unfinished program'),
         false,
       );
-      await tap(t, 'New');
+      await tap(t, 'New program');
       expect(find.text('Restore program draft?'), findsOneWidget);
       await tap(t, 'Restore draft');
       expect(

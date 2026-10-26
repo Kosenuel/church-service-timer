@@ -49,7 +49,7 @@ extension SettingsViews on _HomeState {
       String subtitle,
       VoidCallback action,
     ) => ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: appLayout(context).tileInsets,
       leading: Icon(icon, color: appColors(context).accent, size: 22),
       title: Text(
         title,
@@ -72,7 +72,7 @@ extension SettingsViews on _HomeState {
           child: Column(
             children: [
               for (var i = 0; i < rows.length; i++) ...[
-                if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
+                if (i > 0) const AppDivider(),
                 rows[i],
               ],
             ],
@@ -119,7 +119,10 @@ extension SettingsViews on _HomeState {
                   ),
                 );
               } finally {
-                if (mounted) c.previewTheme(null);
+                if (mounted) {
+                  c.previewTheme(null);
+                  c.previewAppearance(null);
+                }
               }
             },
           ),
@@ -138,7 +141,7 @@ extension SettingsViews on _HomeState {
             () => openSettingsDetail('Display settings', displaySettings),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: appLayout(context).tileInsets,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -599,6 +602,7 @@ class AppearancePage extends StatefulWidget {
 
 class _AppearancePageState extends State<AppearancePage> {
   late String selected = widget.controller.state.themeId;
+  late AppearancePreferences appearance = widget.controller.state.appearance;
   bool saving = false;
   String? error;
   List<AppPalette> get choices => [
@@ -623,27 +627,40 @@ class _AppearancePageState extends State<AppearancePage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Tap a theme to preview it. Save to keep it, or go back to discard. Warning and overdue cues retain their meaning; LED colors are unchanged. The launcher’s themed icon follows Android’s system colors where supported.',
+                  'Preview your colors, spacing and accessibility preferences. Save to keep changes, or go back to discard.',
                   style: TextStyle(color: appColors(context).muted),
                 ),
                 const SizedBox(height: 20),
+                AppearanceControls(
+                  value: appearance,
+                  onChanged: saving
+                      ? null
+                      : (value) {
+                          setState(() => appearance = value);
+                          widget.controller.previewAppearance(value);
+                        },
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Color theme',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
                 Card(
+                  color: appColors(context).surface,
+                  surfaceTintColor: Colors.transparent,
                   clipBehavior: Clip.antiAlias,
                   margin: EdgeInsets.zero,
                   child: Column(
                     children: [
                       for (var i = 0; i < choices.length; i++) ...[
-                        if (i > 0)
-                          const Divider(height: 1, indent: 16, endIndent: 16),
+                        if (i > 0) const AppDivider(),
                         Builder(
                           builder: (context) {
                             final p = choices[i];
                             return ListTile(
                               key: ValueKey('theme-${p.id}'),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 4,
-                              ),
+                              contentPadding: appLayout(context).tileInsets,
                               selected: selected == p.id,
                               leading: SizedBox(
                                 width: 40,
@@ -705,6 +722,9 @@ class _AppearancePageState extends State<AppearancePage> {
                       : () async {
                           final value = await showDialog<String>(
                             context: context,
+                            animationStyle: reduceAppMotion(context)
+                                ? AnimationStyle.noAnimation
+                                : null,
                             builder: (_) =>
                                 CustomThemeEditor(initial: selected),
                           );
@@ -728,9 +748,13 @@ class _AppearancePageState extends State<AppearancePage> {
                             saving = true;
                             error = null;
                           });
-                          final saved = await widget.controller.commit(
-                            (draft, _) => draft.themeId = selected,
-                          );
+                          final saved = await widget.controller.commit((
+                            draft,
+                            _,
+                          ) {
+                            draft.themeId = selected;
+                            draft.appearance = appearance;
+                          });
                           if (!mounted) return;
                           if (saved) {
                             Navigator.pop(context);

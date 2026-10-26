@@ -69,6 +69,9 @@ class _TimeWheelsState extends State<TimeWheels> {
     String? error;
     final result = await showDialog<int>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, refresh) => AlertDialog(
           title: Text('Set ${labels[unit].toLowerCase()}'),
@@ -231,6 +234,7 @@ Future<int?> showWheelTimePicker(
   int maximum = 3599,
 }) => showDialog<int>(
   context: context,
+  animationStyle: reduceAppMotion(context) ? AnimationStyle.noAnimation : null,
   builder: (ctx) => _TimePickerDialog(
     title: title,
     initial: initial,

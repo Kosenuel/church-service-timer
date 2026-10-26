@@ -72,7 +72,7 @@ void main() {
       await host.act('end');
       await t.pumpAndSettle();
       expect(scroll.offset, 0);
-      expect(find.text('View last report').hitTestable(), findsOneWidget);
+      expect(find.text('View last service report').hitTestable(), findsOneWidget);
       await t.pumpWidget(const SizedBox());
     },
   );
@@ -95,7 +95,7 @@ void main() {
       await t.pumpAndSettle();
       expect(t.takeException(), isNull);
       expect(find.text('Standing by'), findsOneWidget);
-      expect(find.text('View last report'), findsOneWidget);
+      expect(find.text('View last service report'), findsOneWidget);
       expect(find.text('Send end screen'), findsOneWidget);
       await t.tap(find.byKey(const ValueKey('header-connection')));
       await t.pumpAndSettle();
@@ -129,7 +129,7 @@ void main() {
       expect(host.state.reports.length, 1);
       expect(host.simulator.delivered!.text, 'Hallelujah');
       await golden(t, 'standing-by-last-report');
-      await tap(t, 'View last report');
+      await tap(t, 'View last service report');
       await tap(t, 'Print Service');
       expect(
         t

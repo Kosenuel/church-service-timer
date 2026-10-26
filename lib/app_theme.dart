@@ -1,9 +1,117 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'domain.dart' show AppearancePreferences;
+
+String densityName(String value) => switch (value) {
+  'comfortable' => 'Comfortable',
+  'spacious' => 'Spacious',
+  'automatic' => 'Automatic',
+  _ => 'Compact',
+};
+
+class AppLayout extends ThemeExtension<AppLayout> {
+  final AppearancePreferences preferences;
+  final String density;
+  const AppLayout(this.preferences, this.density);
+  factory AppLayout.resolve(AppearancePreferences preferences, Size size) {
+    final automatic = size.shortestSide < 600
+        ? 'compact'
+        : size.width >= 1000 && size.height >= 700
+        ? 'spacious'
+        : 'comfortable';
+    return AppLayout(
+      preferences,
+      preferences.density == 'automatic' ? automatic : preferences.density,
+    );
+  }
+  double get rowPadding => switch (density) {
+    'spacious' => 20,
+    'comfortable' => 14,
+    _ => 10,
+  };
+  double get tilePadding => switch (density) {
+    'spacious' => 10,
+    'comfortable' => 5,
+    _ => 0,
+  };
+  double get panelPadding => switch (density) {
+    'spacious' => 28,
+    'comfortable' => 24,
+    _ => 20,
+  };
+  double get controlHeight => switch (density) {
+    'spacious' => 60,
+    'comfortable' => 54,
+    _ => 50,
+  };
+  double get gap => switch (density) {
+    'spacious' => 16,
+    'comfortable' => 12,
+    _ => 8,
+  };
+  EdgeInsets get rowInsets =>
+      EdgeInsets.symmetric(horizontal: 16, vertical: rowPadding);
+  EdgeInsets get tileInsets =>
+      EdgeInsets.symmetric(horizontal: 16, vertical: tilePadding);
+  @override
+  AppLayout copyWith() => this;
+  @override
+  AppLayout lerp(covariant AppLayout? other, double t) =>
+      t < .5 ? this : other ?? this;
+}
+
+AppLayout appLayout(BuildContext context) =>
+    Theme.of(context).extension<AppLayout>() ??
+    const AppLayout(AppearancePreferences(), 'compact');
+bool reduceAppMotion(BuildContext context) =>
+    appLayout(context).preferences.reducedMotion ||
+    MediaQuery.disableAnimationsOf(context);
+
+/// Hidden removes decorative rules, but never a destructive-action separator.
+class AppDivider extends StatelessWidget {
+  final double indent, endIndent;
+  final bool essential;
+  const AppDivider({
+    super.key,
+    this.indent = 16,
+    this.endIndent = 16,
+    this.essential = false,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final settings = appLayout(context).preferences;
+    if (settings.dividers == 'hidden' && !essential)
+      return const SizedBox(height: 8);
+    return Divider(
+      height: 1,
+      thickness: settings.dividers == 'strong' || settings.highContrast
+          ? 1.5
+          : 1,
+      indent: indent,
+      endIndent: endIndent,
+      color: settings.dividers == 'strong' || settings.highContrast
+          ? appColors(context).muted
+          : appColors(context).border,
+    );
+  }
+}
+
+class _StillPageTransitions extends PageTransitionsBuilder {
+  const _StillPageTransitions();
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => child;
+}
 
 class AppPalette extends ThemeExtension<AppPalette> {
   final String id, name, description;
   final bool light;
+  final bool highContrast;
   final Color background, surface, accent, muted, text;
   const AppPalette(
     this.id,
@@ -15,8 +123,17 @@ class AppPalette extends ThemeExtension<AppPalette> {
     this.muted,
     this.text, {
     this.light = false,
+    this.highContrast = false,
   });
-  Color get border => Color.lerp(surface, text, light ? .20 : .14)!;
+  Color get border => Color.lerp(
+    surface,
+    text,
+    highContrast
+        ? .65
+        : light
+        ? .20
+        : .14,
+  )!;
   Color get input => Color.lerp(surface, background, .65)!;
   Color get track => Color.lerp(surface, text, .15)!;
   Color get warning =>
@@ -149,13 +266,74 @@ AppPalette paletteFor(String id) {
 AppPalette appColors(BuildContext context) =>
     Theme.of(context).extension<AppPalette>() ?? appPalettes.first;
 
-ThemeData appTheme(String id) {
-  final p = paletteFor(id);
+ThemeData appTheme(
+  String id, {
+  AppearancePreferences appearance = const AppearancePreferences(),
+  Size size = const Size(430, 900),
+}) {
+  final base = paletteFor(id);
+  Color stronger(Color color, double ratio) {
+    for (var i = 0; i < 40 && contrast(color, base.surface) < ratio; i++) {
+      color = Color.lerp(color, readable(base.surface), .15)!;
+    }
+    return color;
+  }
+
+  final p = appearance.highContrast
+      ? AppPalette(
+          base.id,
+          base.name,
+          base.description,
+          base.background,
+          base.surface,
+          stronger(base.accent, 7),
+          stronger(base.muted, 7),
+          stronger(base.text, 7),
+          light: base.light,
+          highContrast: true,
+        )
+      : base;
+  final layout = AppLayout.resolve(appearance, size);
   final brightness = p.light ? Brightness.light : Brightness.dark;
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
-    extensions: [p],
+    extensions: [p, layout],
+    materialTapTargetSize: MaterialTapTargetSize.padded,
+    visualDensity: VisualDensity.standard,
+    splashFactory: appearance.reducedMotion
+        ? NoSplash.splashFactory
+        : InkRipple.splashFactory,
+    pageTransitionsTheme: appearance.reducedMotion
+        ? PageTransitionsTheme(
+            builders: {
+              for (final platform in TargetPlatform.values)
+                platform: const _StillPageTransitions(),
+            },
+          )
+        : const PageTransitionsTheme(),
+    listTileTheme: ListTileThemeData(
+      contentPadding: layout.tileInsets,
+      minTileHeight: layout.controlHeight,
+      minVerticalPadding: layout.tilePadding + 4,
+      selectedColor: p.text,
+      selectedTileColor: p.accent.withValues(alpha: .16),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: p.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: p.border),
+      ),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: p.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: p.border),
+      ),
+    ),
     colorScheme: ColorScheme.fromSeed(
       seedColor: p.accent,
       brightness: brightness,
@@ -185,19 +363,32 @@ ThemeData appTheme(String id) {
       filled: true,
       fillColor: p.input,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      contentPadding: const EdgeInsets.all(16),
+      contentPadding: EdgeInsets.all(layout.rowPadding + 6),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size(48, 50),
+        minimumSize: Size(48, layout.controlHeight),
+        animationDuration: appearance.reducedMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(48, 50),
+        minimumSize: Size(48, layout.controlHeight),
+        animationDuration: appearance.reducedMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
+        side: BorderSide(
+          color: p.muted,
+          width: appearance.highContrast ? 1.5 : 1,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(minimumSize: Size(48, layout.controlHeight)),
     ),
     textTheme: TextTheme(
       bodyMedium: TextStyle(fontSize: 15, height: 1.45, color: p.text),

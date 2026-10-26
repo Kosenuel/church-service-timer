@@ -2,6 +2,7 @@ part of 'main.dart';
 
 Future<bool?> reviewSavedDraft(BuildContext context) => showDialog<bool>(
   context: context,
+  animationStyle: reduceAppMotion(context) ? AnimationStyle.noAnimation : null,
   builder: (ctx) => AlertDialog(
     title: const Text('Restore program draft?'),
     content: const Text(
@@ -170,6 +171,9 @@ extension EditorInsights on _TemplateEditorState {
     final chosen = <int>{};
     final yes = await showDialog<bool>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
           title: const Text('Suggested durations'),

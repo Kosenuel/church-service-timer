@@ -1,6 +1,19 @@
 part of 'main.dart';
 
 extension PairingViews on _HomeState {
+  Future<void> shareServiceSetup() async {
+    if (c.pairing.hosting) {
+      await openSettingsDetail(
+        'Paired devices',
+        pairedDeviceSettings,
+        showLiveShortcut: true,
+      );
+    } else {
+      // Use the existing destination flow, including its LED-switch confirmation.
+      await chooseDestination('mobile');
+    }
+  }
+
   Future<void> joinAsStageScreen() async {
     if (c.state.session.active || c.reportSavePending) {
       await showError(
@@ -80,6 +93,9 @@ extension PairingViews on _HomeState {
     var group = device.group, layout = device.layout;
     final save = await showDialog<bool>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, refresh) => AlertDialog(
           title: Text(device.name),
@@ -390,6 +406,9 @@ extension PairingViews on _HomeState {
                   OutlinedButton.icon(
                     onPressed: () => showDialog<void>(
                       context: context,
+                      animationStyle: reduceAppMotion(context)
+                          ? AnimationStyle.noAnimation
+                          : null,
                       builder: (_) => PairQrDialog(hub: c.pairing),
                     ),
                     icon: const Icon(Icons.qr_code),
@@ -423,14 +442,7 @@ extension PairingViews on _HomeState {
         const SizedBox(height: 12),
         FilledButton.icon(
           style: stopSharingButtonStyle(),
-          onPressed: () async {
-            if (await confirm(
-              'Stop sharing?',
-              'All paired screens and operators will disconnect. The local service and sign keep running.',
-              'Stop sharing',
-            ))
-              await c.pairing.stop();
-          },
+          onPressed: stopServiceSharing,
           icon: const Icon(Icons.stop_screen_share_outlined),
           label: const Text('Stop sharing'),
         ),
@@ -996,6 +1008,9 @@ class _PairedScreenState extends State<PairedScreen> {
     if (controller.pairing.canControl) {
       final yes = await showDialog<bool>(
         context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
         builder: (ctx) => AlertDialog(
           title: const Text('Leave paired service?'),
           content: const Text(
@@ -1040,6 +1055,9 @@ class _PairedScreenState extends State<PairedScreen> {
     final revision = controller.pairing.snapshot?['revision'] as int?;
     final ok = await showDialog<bool>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => AlertDialog(
         title: Text('$label?'),
         content: const Text('Apply this action to the host’s running service.'),
@@ -1556,13 +1574,20 @@ class _StageMessageState extends State<StageMessage>
           width: space.maxWidth,
           child: FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(
-              text,
-              style: style,
-              softWrap: false,
-              textScaler: TextScaler.noScaling,
-              textAlign: TextAlign.center,
-            ),
+            child: widget.data['outputMode'] == 'Clock'
+                ? ClockText(
+                    text: text,
+                    style: style,
+                    blink: widget.data['clockBlink'] != false,
+                    stale: widget.stale,
+                  )
+                : Text(
+                    text,
+                    style: style,
+                    softWrap: false,
+                    textScaler: TextScaler.noScaling,
+                    textAlign: TextAlign.center,
+                  ),
           ),
         ),
       );

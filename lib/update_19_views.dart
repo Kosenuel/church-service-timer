@@ -14,18 +14,23 @@ extension Update19Views on _HomeState {
     final s = c.state.session, revision = c.state.session.revision;
     final target = await showDialog<int>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => SimpleDialog(
         title: const Text('Jump to segment'),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          for (var i = s.index + 1; i < s.timeline!.segments.length; i++)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, i),
-              child: ListTile(
-                title: Text(s.timeline!.segments[i].name),
-                subtitle: Text(s.timeline!.segments[i].durationText),
-                trailing: const Icon(Icons.chevron_right),
-              ),
+          for (var i = s.index + 1; i < s.timeline!.segments.length; i++) ...[
+            if (i > s.index + 1) const AppDivider(),
+            ListTile(
+              onTap: () => Navigator.pop(ctx, i),
+              leading: Text('${i + 1}'.padLeft(2, '0')),
+              title: Text(s.timeline!.segments[i].name),
+              subtitle: Text(s.timeline!.segments[i].durationText),
+              trailing: const Icon(Icons.chevron_right),
             ),
+          ],
         ],
       ),
     );
@@ -87,6 +92,21 @@ extension Update19Views on _HomeState {
                 ? null
                 : (v) => c.commit((draft, _) => draft.clockFormat = v!),
           ),
+        const AppDivider(),
+        SwitchListTile(
+          key: const ValueKey('clock-blink'),
+          title: const Text('Blink clock colon'),
+          subtitle: Text(
+            c.state.clockBlink ? 'Blinking · once per second' : 'Steady',
+          ),
+          value: c.state.clockBlink,
+          onChanged: c.busy
+              ? null
+              : (v) => c.commit((draft, _) => draft.clockBlink = v),
+        ),
+        const Text(
+          'Blinking applies to the simulator and paired screens. The LED sign and its preview keep a steady colon.',
+        ),
         const SizedBox(height: 12),
         const Text(
           'Shared across services and stage screens. Uses this phone’s current time and timezone. Countdown timers stay in minutes and seconds.',
@@ -106,6 +126,9 @@ extension Update19Views on _HomeState {
     var duration = 0;
     final send = await showDialog<bool>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
           title: Text(
@@ -195,19 +218,32 @@ extension Update19Views on _HomeState {
 
   Future<String?> itemExportFormat({bool report = false}) => showDialog<String>(
     context: context,
+    animationStyle: reduceAppMotion(context)
+        ? AnimationStyle.noAnimation
+        : null,
     builder: (ctx) => SimpleDialog(
       title: Text(report ? 'Export report' : 'Export program'),
+      contentPadding: const EdgeInsets.symmetric(vertical: 8),
       children: [
-        if (report)
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'pdf'),
-            child: const Text('PDF · Print Service'),
+        if (report) ...[
+          ListTile(
+            onTap: () => Navigator.pop(ctx, 'pdf'),
+            leading: const Icon(Icons.print_outlined),
+            title: const Text('PDF · Print Service'),
           ),
-        for (final format in ['json', 'csv'])
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, format),
-            child: Text(format.toUpperCase()),
-          ),
+          const AppDivider(),
+        ],
+        ListTile(
+          onTap: () => Navigator.pop(ctx, 'json'),
+          leading: const Icon(Icons.data_object),
+          title: const Text('JSON'),
+        ),
+        const AppDivider(),
+        ListTile(
+          onTap: () => Navigator.pop(ctx, 'csv'),
+          leading: const Icon(Icons.table_chart_outlined),
+          title: const Text('CSV'),
+        ),
       ],
     ),
   );
@@ -250,21 +286,25 @@ extension Update19Views on _HomeState {
   ) async {
     final choice = await showDialog<String>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => SimpleDialog(
         title: Text('$kind actions'),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'export'),
-            child: ListTile(
-              leading: const Icon(Icons.ios_share),
-              title: Text('Export ${kind.toLowerCase()}'),
-            ),
+          ListTile(
+            onTap: () => Navigator.pop(ctx, 'export'),
+            leading: const Icon(Icons.ios_share),
+            title: Text('Export ${kind.toLowerCase()}'),
           ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'delete'),
-            child: ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: Text('Delete ${kind.toLowerCase()}'),
+          const AppDivider(essential: true),
+          ListTile(
+            onTap: () => Navigator.pop(ctx, 'delete'),
+            leading: Icon(Icons.delete_outline, color: appColors(ctx).error),
+            title: Text(
+              'Delete ${kind.toLowerCase()}',
+              style: TextStyle(color: appColors(ctx).error),
             ),
           ),
         ],
@@ -273,22 +313,13 @@ extension Update19Views on _HomeState {
     if (choice != null) await action(choice);
   }
 
-  Widget itemMenu(String kind, void Function(String) action) =>
-      PopupMenuButton<String>(
-        tooltip: '$kind actions',
-        enabled: !c.busy && !c.corrupt,
-        onSelected: action,
-        itemBuilder: (_) => [
-          PopupMenuItem(
-            value: 'export',
-            child: Text('Export ${kind.toLowerCase()}'),
-          ),
-          PopupMenuItem(
-            value: 'delete',
-            child: Text('Delete ${kind.toLowerCase()}'),
-          ),
-        ],
-      );
+  Widget itemMenu(String kind, void Function(String) action) => IconButton(
+    tooltip: '$kind actions',
+    onPressed: c.busy || c.corrupt
+        ? null
+        : () => showItemActions(kind, (value) async => action(value)),
+    icon: const Icon(Icons.more_vert),
+  );
 
   Future<void> exportAllPrograms() async {
     final programs = List<Timeline>.of(c.state.templates);
@@ -296,6 +327,9 @@ extension Update19Views on _HomeState {
     var notes = false;
     final format = await showDialog<String>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
           title: const Text('Export all programs'),
@@ -364,6 +398,9 @@ extension Update19Views on _HomeState {
     if (!mounted) return;
     final accepted = await showDialog<bool>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => AlertDialog(
         title: const Text('Preview program import'),
         content: SizedBox(

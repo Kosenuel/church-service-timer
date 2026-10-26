@@ -23,7 +23,7 @@ class SettingsPort extends FakePort {
   }
 
   @override
-  Future<String> installedVersion() async => '0.19.0 (19)';
+  Future<String> installedVersion() async => '0.20.0 (20)';
   @override
   Future<Map<String, dynamic>?> pickBackup() async => backup;
   @override
@@ -71,9 +71,9 @@ void main() {
     () {
       expect(
         File('pubspec.yaml').readAsStringSync(),
-        contains('version: 0.19.0+19'),
+        contains('version: 0.20.0+20'),
       );
-      expect(appVersion, '0.19.0 (19)');
+      expect(appVersion, '0.20.0 (20)');
       expect(
         File('android/app/src/main/AndroidManifest.xml').readAsStringSync(),
         contains('android:label="$appName"'),
@@ -217,7 +217,7 @@ void main() {
       await t.tap(find.text('About'));
       await t.pumpAndSettle();
       expect(find.text('Created by I-Proton'), findsOneWidget);
-      expect(find.text('Version 0.19.0 (19)'), findsOneWidget);
+      expect(find.text('Version 0.20.0 (20)'), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/about-phone.png'),
@@ -259,6 +259,8 @@ void main() {
       await settings(t);
       await t.tap(find.text('Appearance'));
       await t.pumpAndSettle();
+      await t.ensureVisible(find.byKey(const ValueKey('theme-warm_ivory')));
+      await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('theme-warm_ivory')));
       await t.pumpAndSettle();
       expect(c.state.themeId, 'midnight_lime');
@@ -272,9 +274,12 @@ void main() {
       expect(c.themeSelection.value, 'midnight_lime');
       await t.tap(find.text('Appearance'));
       await t.pumpAndSettle();
+      await t.ensureVisible(find.byKey(const ValueKey('theme-slate_teal')));
+      await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('theme-slate_teal')));
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('Save appearance'));
+      await t.pumpAndSettle();
       await t.tap(find.text('Save appearance'));
       await t.pumpAndSettle();
       expect(c.state.themeId, 'slate_teal');

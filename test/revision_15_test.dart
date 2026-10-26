@@ -162,7 +162,7 @@ void main() {
   );
 
   test(
-    'Approved stage ACK gates messages; warnings return to latest timer and stopped sharing preserves operators',
+    'Approved stage ACK gates messages; warnings return to latest timer and stop sharing closes all peers but preserves approvals',
     () async {
       final p = FakePort(),
           host = AppController(p),
@@ -218,10 +218,13 @@ void main() {
       await until(() => host.pairing.peers.length == 2);
       await host.pairing.approve(host.pairing.peers.last);
       await until(() => operator.snapshot != null);
-      await host.stopStageSharing();
-      await until(() => stage.snapshot?['stageSharing'] == false);
-      expect(operator.joined, true);
-      expect(host.pairing.peers, hasLength(2));
+      final savedDevices = host.pairing.savedDevices.map((d) => d.id).toSet();
+      await host.stopSharing();
+      await until(() => stage.stale && operator.stale);
+      expect(host.pairing.hosting, false);
+      expect(host.pairing.peers, isEmpty);
+      expect(host.pairing.code, isNull);
+      expect(host.pairing.savedDevices.map((d) => d.id).toSet(), savedDevices);
       expect(host.state.session.active, true);
       expect(host.stageConnected, false);
     },

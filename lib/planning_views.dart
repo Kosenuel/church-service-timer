@@ -116,6 +116,9 @@ extension PlanningViews on _HomeState {
     );
     final yes = await showDialog<bool>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
           title: const Text('Print Service'),

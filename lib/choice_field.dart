@@ -68,6 +68,9 @@ class ChoiceField<T> extends StatelessWidget {
               ? () async {
                   final result = await showModalBottomSheet<T>(
                     context: context,
+                    sheetAnimationStyle: reduceAppMotion(context)
+                        ? AnimationStyle.noAnimation
+                        : null,
                     isScrollControlled: true,
                     useSafeArea: true,
                     backgroundColor: colors.surface,
@@ -173,7 +176,8 @@ class _ChoiceSheetState<T> extends State<_ChoiceSheet<T>> {
                   : ListView.separated(
                       shrinkWrap: true,
                       itemCount: filtered.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      separatorBuilder: (_, _) =>
+                          const AppDivider(indent: 0, endIndent: 0),
                       itemBuilder: (context, index) {
                         final option = filtered[index],
                             selected = option.value == widget.value;

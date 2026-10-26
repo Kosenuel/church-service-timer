@@ -17,7 +17,7 @@ extension TemplateViews on _HomeState {
       child: Column(
         children: [
           for (var i = 0; i < values.length; i++) ...[
-            if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
+            if (i > 0) const AppDivider(),
             InkWell(
               key: ValueKey('template-row:${values[i].name}'),
               onTap: () => openTemplate(values[i].name),
@@ -26,10 +26,7 @@ extension TemplateViews on _HomeState {
                 (a) => programItemAction(values[i], a),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+                padding: appLayout(context).rowInsets,
                 child: Row(
                   children: [
                     Expanded(
@@ -102,7 +99,7 @@ extension TemplateViews on _HomeState {
                       await editTemplate();
                     },
               icon: const Icon(Icons.add, size: 20),
-              label: const Text('New'),
+              label: const Text('New program'),
             ),
           ],
         ),
@@ -149,7 +146,7 @@ extension TemplateViews on _HomeState {
         if (items.isEmpty)
           panel(
             child: const Text(
-              'No programs yet. Create one with New, or import a CSV or JSON file.',
+              'No programs yet. Create one with New program, or import a CSV or JSON file.',
             ),
           )
         else if (!c.state.groupTemplates)
@@ -165,21 +162,27 @@ extension TemplateViews on _HomeState {
               const SizedBox(height: 20),
             ],
         const SizedBox(height: 16),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: disabled || items.isEmpty ? null : exportAllPrograms,
-            icon: const Icon(Icons.ios_share),
-            label: const Text('Export all programs'),
-          ),
+        ControlGrid(
+          maxColumns: 2,
+          children: [
+            OutlinedButton.icon(
+              key: const ValueKey('import-programs'),
+              onPressed: disabled ? null : importFile,
+              icon: const Icon(Icons.file_open_outlined, size: 20),
+              label: const Text('Import programs', textAlign: TextAlign.center),
+            ),
+            OutlinedButton.icon(
+              key: const ValueKey('export-programs'),
+              onPressed: disabled || items.isEmpty ? null : exportAllPrograms,
+              icon: const Icon(Icons.ios_share, size: 20),
+              label: const Text('Export all', textAlign: TextAlign.center),
+            ),
+          ],
         ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: disabled ? null : importFile,
-            icon: const Icon(Icons.file_open_outlined, size: 20),
-            label: const Text('Import CSV / JSON'),
-          ),
+        const SizedBox(height: 8),
+        Text(
+          'JSON or CSV',
+          style: TextStyle(color: appColors(context).muted, fontSize: 12),
         ),
       ],
     );

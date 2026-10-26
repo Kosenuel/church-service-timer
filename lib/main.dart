@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
+import 'clock_text.dart';
 import 'time_picker.dart';
 import 'choice_field.dart';
 import 'service_pdf.dart';
@@ -27,6 +28,7 @@ import 'pairing.dart';
 
 part 'feature_views.dart';
 part 'update_19_views.dart';
+part 'appearance_views.dart';
 part 'report_views.dart';
 part 'live_views.dart';
 part 'template_views.dart';
@@ -57,19 +59,48 @@ class TimerApp extends StatelessWidget {
   final AppController controller;
   const TimerApp({super.key, required this.controller});
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<String>(
-    valueListenable: controller.themeSelection,
-    builder: (context, themeId, _) => MaterialApp(
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: Listenable.merge([
+      controller.themeSelection,
+      controller.appearanceSelection,
+    ]),
+    builder: (context, _) => MaterialApp(
       title: appName,
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => AnimatedBuilder(
-        animation: controller,
-        builder: (context, _) => LedAppearance(
-          shape: controller.ready ? controller.state.pixelShape : 'square',
-          child: child!,
-        ),
+      themeAnimationDuration: controller.appearanceSelection.value.reducedMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
+      theme: appTheme(
+        controller.themeSelection.value,
+        appearance: controller.appearanceSelection.value,
       ),
-      theme: appTheme(themeId),
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        final chosen = controller.appearanceSelection.value;
+        final effective = chosen.copyWith(
+          highContrast: chosen.highContrast || media.highContrast,
+          reducedMotion: chosen.reducedMotion || media.disableAnimations,
+        );
+        return Theme(
+          data: appTheme(
+            controller.themeSelection.value,
+            appearance: effective,
+            size: media.size,
+          ),
+          child: MediaQuery(
+            data: media.copyWith(disableAnimations: effective.reducedMotion),
+            child: AnimatedBuilder(
+              animation: controller,
+              builder: (context, _) => LedAppearance(
+                shape: controller.ready
+                    ? controller.state.pixelShape
+                    : 'square',
+                child: child!,
+              ),
+            ),
+          ),
+        );
+      },
       home: Home(controller: controller),
     ),
   );
@@ -103,12 +134,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     if (!showWelcome || !mounted) return;
     setState(() => focused = false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && homeScroll.hasClients)
+      if (mounted && homeScroll.hasClients) {
+        if (reduceAppMotion(context)) {
+          homeScroll.jumpTo(0);
+          return;
+        }
         homeScroll.animateTo(
           0,
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );
+      }
     });
   }
 
@@ -153,6 +189,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> showError(String message) => showDialog<void>(
     context: context,
+    animationStyle: reduceAppMotion(context)
+        ? AnimationStyle.noAnimation
+        : null,
     builder: (context) => AlertDialog(
       title: const Text('Please review'),
       content: SingleChildScrollView(child: Text(message)),
@@ -167,6 +206,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<bool> confirm(String title, String body, String button) async =>
       await showDialog<bool>(
         context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
         builder: (context) => AlertDialog(
           title: Text(title),
           content: SingleChildScrollView(child: Text(body)),
@@ -187,6 +229,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<void> chooseService() async {
     final picked = await showDialog<int>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => AlertDialog(
         title: const Text('Start a service'),
         content: SizedBox(
@@ -240,6 +285,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final s = c.state.session, revision = c.state.session.revision;
     final start = await showDialog<bool>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => AnimatedBuilder(
         animation: c,
         builder: (ctx, _) => AlertDialog(
@@ -338,6 +386,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     Future<bool> Function()? onDelete,
   }) => showDialog<TextLayout>(
     context: context,
+    animationStyle: reduceAppMotion(context)
+        ? AnimationStyle.noAnimation
+        : null,
     builder: (_) => TextComposer(
       initial: initial,
       title: title,
@@ -489,6 +540,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       validName();
       final accepted = await showDialog<Timeline>(
         context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, update) => AlertDialog(
             title: const Text('Preview import'),
@@ -592,17 +646,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
-  Widget panel({
-    required Widget child,
-    EdgeInsets padding = const EdgeInsets.all(20),
-  }) => Material(
+  Widget panel({required Widget child, EdgeInsets? padding}) => Material(
     color: appColors(context).surface,
     clipBehavior: Clip.antiAlias,
     shape: RoundedRectangleBorder(
       side: BorderSide(color: appColors(context).border),
       borderRadius: BorderRadius.circular(20),
     ),
-    child: Padding(padding: padding, child: child),
+    child: Padding(
+      padding: padding ?? EdgeInsets.all(appLayout(context).panelPadding),
+      child: child,
+    ),
   );
   Widget label(String text) => Text(
     text.toUpperCase(),
@@ -741,24 +795,47 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ),
           if (standingBy) ...[
             const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed:
-                  c.busy ||
-                      c.corrupt ||
-                      c.reportSavePending ||
-                      controlsLocked ||
-                      !c.pairing.localControl
-                  ? null
-                  : joinAsStageScreen,
-              icon: const Icon(Icons.tablet_mac_outlined),
-              label: const Text('Join as stage screen'),
+            ControlGrid(
+              maxColumns: 2,
+              children: [
+                OutlinedButton.icon(
+                  key: const ValueKey('share-service-live'),
+                  onPressed:
+                      c.busy ||
+                          c.corrupt ||
+                          c.reportSavePending ||
+                          controlsLocked
+                      ? null
+                      : shareServiceSetup,
+                  icon: const Icon(Icons.cast_connected),
+                  label: Text(
+                    c.pairing.hosting ? 'Manage sharing' : 'Share service',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed:
+                      c.busy ||
+                          c.corrupt ||
+                          c.reportSavePending ||
+                          controlsLocked ||
+                          !c.pairing.localControl
+                      ? null
+                      : joinAsStageScreen,
+                  icon: const Icon(Icons.tablet_mac_outlined),
+                  label: const Text(
+                    'Join as stage screen',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ),
           ],
           if (standingBy && c.state.reports.isNotEmpty)
             TextButton.icon(
               onPressed: () => openReport(c.state.reports.last),
               icon: const Icon(Icons.assessment_outlined),
-              label: const Text('View last report'),
+              label: const Text('View last service report'),
             ),
           if (s.phase == 'ready') ...[
             ChoiceField<int>(
@@ -1314,98 +1391,109 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   const SizedBox(height: 12),
                   ...t.segments.asMap().entries.map((e) {
                     final current = e.key == s.index;
-                    return Container(
-                      margin: const EdgeInsets.symmetric(vertical: 3),
-                      decoration: BoxDecoration(
-                        color: current
-                            ? appColors(context).accent.withValues(alpha: .14)
-                            : null,
-                        border: current
-                            ? Border(
-                                left: BorderSide(
-                                  color: appColors(context).accent,
-                                  width: 4,
+                    return Column(
+                      children: [
+                        if (e.key > 0) const AppDivider(),
+                        Container(
+                          margin: const EdgeInsets.symmetric(vertical: 3),
+                          decoration: BoxDecoration(
+                            color: current
+                                ? appColors(
+                                    context,
+                                  ).accent.withValues(alpha: .14)
+                                : null,
+                            border: current
+                                ? Border(
+                                    left: BorderSide(
+                                      color: appColors(context).accent,
+                                      width: 4,
+                                    ),
+                                  )
+                                : null,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: ListTile(
+                              key: ValueKey('rundown-${e.key}'),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              leading: Text('${e.key + 1}'.padLeft(2, '0')),
+                              title: Text(
+                                e.value.name,
+                                style: TextStyle(
+                                  fontWeight: current
+                                      ? FontWeight.w800
+                                      : FontWeight.w500,
                                 ),
-                              )
-                            : null,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: ListTile(
-                          key: ValueKey('rundown-${e.key}'),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                          ),
-                          leading: Text('${e.key + 1}'.padLeft(2, '0')),
-                          title: Text(
-                            e.value.name,
-                            style: TextStyle(
-                              fontWeight: current
-                                  ? FontWeight.w800
-                                  : FontWeight.w500,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${e.value.durationText}${current ? ' · Current' : ''}',
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => showModalBottomSheet<void>(
-                            context: context,
-                            isScrollControlled: true,
-                            builder: (context) => SafeArea(
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      e.value.name,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.headlineSmall,
+                              ),
+                              subtitle: Text(
+                                '${e.value.durationText}${current ? ' · Now' : ''}',
+                              ),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () => showModalBottomSheet<void>(
+                                context: context,
+                                sheetAnimationStyle: reduceAppMotion(context)
+                                    ? AnimationStyle.noAnimation
+                                    : null,
+                                isScrollControlled: true,
+                                builder: (context) => SafeArea(
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.all(24),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          e.value.name,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.headlineSmall,
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'Segment ${e.key + 1} of ${t.segments.length} · ${e.value.durationText} planned',
+                                        ),
+                                        if (current)
+                                          Text(
+                                            '${operatorTimeDescription(s.balance(c.now))} · ${formatTime(s.allocatedMs)} allocated',
+                                          ),
+                                        if (s.run?.actualMs[e.key] != null)
+                                          Text(
+                                            'Recorded duration: ${durationLabel(s.run!.actualMs[e.key]!)}',
+                                          ),
+                                        if (e.value.speaker.isNotEmpty)
+                                          Text('Speaker: ${e.value.speaker}'),
+                                        const Divider(height: 32),
+                                        const Text(
+                                          'Private operator note',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          e.value.notes.isEmpty
+                                              ? 'No private note for this segment.'
+                                              : e.value.notes,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text('Close'),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'Segment ${e.key + 1} of ${t.segments.length} · ${e.value.durationText} planned',
-                                    ),
-                                    if (current)
-                                      Text(
-                                        '${operatorTimeDescription(s.balance(c.now))} · ${formatTime(s.allocatedMs)} allocated',
-                                      ),
-                                    if (s.run?.actualMs[e.key] != null)
-                                      Text(
-                                        'Recorded duration: ${durationLabel(s.run!.actualMs[e.key]!)}',
-                                      ),
-                                    if (e.value.speaker.isNotEmpty)
-                                      Text('Speaker: ${e.value.speaker}'),
-                                    const Divider(height: 32),
-                                    const Text(
-                                      'Private operator note',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      e.value.notes.isEmpty
-                                          ? 'No private note for this segment.'
-                                          : e.value.notes,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('Close'),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     );
                   }),
                 ],
@@ -1463,8 +1551,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                   context,
                                 ).accent.withValues(alpha: .04),
                                 appColors(context).surface,
-                              ).withValues(alpha: .84),
-                              appColors(context).surface.withValues(alpha: .92),
+                              ).withValues(
+                                alpha: appColors(context).highContrast
+                                    ? 1
+                                    : .84,
+                              ),
+                              appColors(context).surface.withValues(
+                                alpha: appColors(context).highContrast
+                                    ? 1
+                                    : .92,
+                              ),
                             ],
                           ),
                         ),
@@ -2050,6 +2146,9 @@ class _TemplateEditorState extends State<TemplateEditor> {
     String? issue;
     final result = await showDialog<Segment>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
           scrollable: true,
@@ -2287,6 +2386,9 @@ class _TemplateEditorState extends State<TemplateEditor> {
                           onPressed: () async {
                             final next = await showDialog<TextLayout>(
                               context: context,
+                              animationStyle: reduceAppMotion(context)
+                                  ? AnimationStyle.noAnimation
+                                  : null,
                               builder: (_) => TextComposer(
                                 initial: endScreen,
                                 title: 'Program end screen',
@@ -2374,7 +2476,8 @@ class _TemplateEditorState extends State<TemplateEditor> {
 /// Equal-width controls that wrap cleanly at narrow widths and large text sizes.
 class ControlGrid extends StatelessWidget {
   final List<Widget> children;
-  const ControlGrid({super.key, required this.children});
+  final int maxColumns;
+  const ControlGrid({super.key, required this.children, this.maxColumns = 3});
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, space) {
@@ -2383,21 +2486,35 @@ class ControlGrid extends StatelessWidget {
       ).scale(118).clamp(118.0, 220.0);
       final columns = ((space.maxWidth + 10) / (minimum + 10)).floor().clamp(
         1,
-        3,
+        maxColumns,
       );
-      final width = (space.maxWidth - 10 * (columns - 1)) / columns;
-      return Wrap(
-        spacing: 10,
-        runSpacing: 10,
+      final gap = appLayout(context).gap;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final child in children)
-            SizedBox(
-              width: width,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 52),
-                child: child,
+          for (var start = 0; start < children.length; start += columns) ...[
+            if (start > 0) SizedBox(height: gap),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var column = 0; column < columns; column++) ...[
+                    if (column > 0) SizedBox(width: gap),
+                    Expanded(
+                      child: start + column < children.length
+                          ? ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight: appLayout(context).controlHeight,
+                              ),
+                              child: children[start + column],
+                            )
+                          : const SizedBox(),
+                    ),
+                  ],
+                ],
               ),
             ),
+          ],
         ],
       );
     },

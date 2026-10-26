@@ -404,6 +404,7 @@ class Session {
   TextLayout? alert;
   bool showClock;
   String clockFormat;
+  bool clockBlink;
   Stamp? alertAt;
   int alertDurationSeconds;
   bool alertIsMessage;
@@ -437,6 +438,7 @@ class Session {
     this.alert,
     this.showClock = false,
     this.clockFormat = '24h',
+    this.clockBlink = true,
     this.alertAt,
     this.alertDurationSeconds = 0,
     this.alertIsMessage = false,
@@ -611,6 +613,7 @@ class Session {
           : TextLayout.fromJson(Map<String, dynamic>.from(j['alert'])),
       showClock: j['showClock'] == true,
       clockFormat: readClockFormat(j['clockFormat'] ?? '24h'),
+      clockBlink: boolSetting(j['clockBlink'] ?? true),
       alertAt: j['alertAt'] == null
           ? null
           : Stamp.fromJson(Map<String, dynamic>.from(j['alertAt'])),
@@ -688,6 +691,7 @@ class Session {
     'alert': alert?.toJson(),
     'showClock': showClock,
     'clockFormat': clockFormat,
+    'clockBlink': clockBlink,
     'alertAt': alertAt?.toJson(),
     'alertDurationSeconds': alertDurationSeconds,
     'alertIsMessage': alertIsMessage,
@@ -979,7 +983,9 @@ Session recover(Session original, Stamp now) {
 }
 
 class AppState {
+  AppearancePreferences appearance;
   String clockFormat;
+  bool clockBlink;
   int notificationClearSeconds;
   PrintPreferences printPreferences;
   Map<String, Json> editDrafts;
@@ -999,6 +1005,7 @@ class AppState {
     this.defaults,
     this.session, {
     this.clockFormat = '24h',
+    this.clockBlink = true,
     List<ServiceReport>? reports,
     List<TextLayout>? stageCues,
     this.pixelShape = 'square',
@@ -1009,6 +1016,7 @@ class AppState {
     this.keepScreenAwake = true,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
+    this.appearance = const AppearancePreferences(),
     this.notificationClearSeconds = 30,
     this.printPreferences = const PrintPreferences(),
     Map<String, Json>? editDrafts,
@@ -1040,7 +1048,7 @@ class AppState {
   );
   factory AppState.fromJson(Json j, {Stamp? now}) {
     require(
-      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}.contains(j['version']),
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -1058,6 +1066,10 @@ class AppState {
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['defaults'])),
       Session.fromJson(Map<String, dynamic>.from(j['session'])),
       clockFormat: readClockFormat(j['clockFormat'] ?? '24h'),
+      clockBlink: boolSetting(j['clockBlink'] ?? true),
+      appearance: AppearancePreferences.fromJson(
+        Map<String, dynamic>.from(j['appearance'] ?? {}),
+      ),
       outputDestination: j['outputDestination'] as String?,
       notificationClearSeconds: notificationTimeoutValue(
         j['notificationClearSeconds'] ?? 30,
@@ -1179,13 +1191,16 @@ class AppState {
           .toList();
     }
     a.session.clockFormat = a.clockFormat;
+    a.session.clockBlink = a.clockBlink;
     a.applySharedZero();
     a.applySharedWarnings(now);
     return a;
   }
   Json toJson() => {
-    'version': 12,
+    'version': 13,
+    'appearance': appearance.toJson(),
     'clockFormat': clockFormat,
+    'clockBlink': clockBlink,
     'notificationClearSeconds': notificationClearSeconds,
     'printPreferences': printPreferences.toJson(),
     'editDrafts': editDrafts,

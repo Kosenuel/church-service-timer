@@ -16,7 +16,7 @@ extension RefinedSettings on _HomeState {
     String summary,
     VoidCallback? action,
   ) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    contentPadding: appLayout(context).tileInsets,
     leading: Icon(icon, size: 22, color: appColors(context).accent),
     title: Text(
       title,
@@ -40,7 +40,7 @@ extension RefinedSettings on _HomeState {
         child: Column(
           children: [
             for (var i = 0; i < rows.length; i++) ...[
-              if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
+              if (i > 0) const AppDivider(),
               rows[i],
             ],
           ],
@@ -354,6 +354,9 @@ extension RefinedSettings on _HomeState {
           Icons.preview_outlined,
           () => showDialog<void>(
             context: context,
+            animationStyle: reduceAppMotion(context)
+                ? AnimationStyle.noAnimation
+                : null,
             builder: (ctx) => AlertDialog(
               title: const Text('Isolated simulator test'),
               content: SizedBox(
@@ -402,6 +405,9 @@ extension RefinedSettings on _HomeState {
   Future<void> chooseStageCue() async {
     final selected = await showDialog<int>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => SimpleDialog(
         title: const Text('Choose a stage cue'),
         children: [

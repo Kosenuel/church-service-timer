@@ -307,7 +307,7 @@ void main() {
       final report = c.state.reports.single.toJson().toString();
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      expect(find.text('View last report'), findsOneWidget);
+      expect(find.text('View last service report'), findsOneWidget);
       await t.scrollUntilVisible(find.text('Show clock').hitTestable(), 300);
       await tap(t, 'Show clock');
       expect(c.state.session.outputMode(c.now), 'Clock');

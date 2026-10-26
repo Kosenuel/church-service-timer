@@ -526,6 +526,9 @@ extension LiveViewActions on _HomeState {
   }) async =>
       await showDialog<bool>(
         context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
         builder: (ctx) => AnimatedBuilder(
           animation: Listenable.merge([c, c.liveClock]),
           builder: (ctx, _) {
@@ -561,6 +564,9 @@ extension LiveViewActions on _HomeState {
     final revision = c.state.session.revision;
     final delta = await showDialog<int>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (_) => TimeAdjustmentDialog(
         controller: c,
         revision: revision,
@@ -582,7 +588,9 @@ extension LiveViewActions on _HomeState {
         padding: const WidgetStatePropertyAll(
           EdgeInsets.symmetric(horizontal: 6, vertical: 12),
         ),
-        minimumSize: const WidgetStatePropertyAll(Size(48, 50)),
+        minimumSize: WidgetStatePropertyAll(
+          Size(48, appLayout(context).controlHeight),
+        ),
         textStyle: WidgetStatePropertyAll(
           Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 13),
         ),
@@ -638,14 +646,16 @@ extension LiveViewActions on _HomeState {
           ),
           control('Custom', enabled ? adjustTime : null),
         ];
-        Widget row(List<Widget> children) => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (var i = 0; i < children.length; i++) ...[
-              if (i > 0) const SizedBox(width: 8),
-              Expanded(child: children[i]),
+        Widget row(List<Widget> children) => IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0) SizedBox(width: appLayout(context).gap),
+                Expanded(child: children[i]),
+              ],
             ],
-          ],
+          ),
         );
         final navigation = [
           control(
@@ -676,12 +686,31 @@ extension LiveViewActions on _HomeState {
             ] else
               row(navigation),
             const SizedBox(height: 8),
-            TextButton.icon(
+            OutlinedButton.icon(
+              key: const ValueKey('jump-to-segment'),
               onPressed: enabled && s.index + 1 < s.timeline!.segments.length
                   ? jumpToSegment
                   : null,
               icon: const Icon(Icons.playlist_play),
               label: const Text('Jump to segment'),
+            ),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.textScalerOf(context).scale(12) * 1.6,
+              ),
+              child: Text(
+                s.index + 1 >= s.timeline!.segments.length
+                    ? 'No upcoming segments'
+                    : !enabled
+                    ? (controlsLocked
+                          ? 'Unlock controls to jump'
+                          : !c.pairing.localControl
+                          ? 'Request control to jump'
+                          : 'Finish the current action to jump')
+                    : '',
+                style: TextStyle(fontSize: 12, color: appColors(context).muted),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         );

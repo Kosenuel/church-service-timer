@@ -65,6 +65,9 @@ extension ReportViews on _HomeState {
     if (records.isEmpty) return;
     final format = await showDialog<String>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => AlertDialog(
         title: const Text('Export all records'),
         content: Text(
@@ -267,8 +270,7 @@ extension ReportViews on _HomeState {
             child: Column(
               children: [
                 for (var i = 0; i < history.length; i++) ...[
-                  if (i > 0)
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                  if (i > 0) const AppDivider(),
                   ReportListRow(
                     report: history[i],
                     onTap: () => openReport(history[i]),
@@ -468,7 +470,7 @@ class ReportListRow extends StatelessWidget {
       onTap: onTap,
       onLongPress: onMenu,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: appLayout(context).rowInsets,
         child: Row(
           children: [
             Expanded(

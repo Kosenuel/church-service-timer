@@ -10,6 +10,9 @@ extension MobileDisplayViews on _HomeState {
     if (c.destination == 'led' && target != 'led' && c.hardware.connected) {
       final blank = await showDialog<bool>(
         context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
         builder: (ctx) => AlertDialog(
           title: const Text('Leave the LED sign?'),
           content: const Text(
@@ -205,6 +208,9 @@ extension MobileDisplayViews on _HomeState {
                   OutlinedButton.icon(
                     onPressed: () => showDialog<void>(
                       context: context,
+                      animationStyle: reduceAppMotion(context)
+                          ? AnimationStyle.noAnimation
+                          : null,
                       builder: (_) => PairQrDialog(hub: c.pairing),
                     ),
                     icon: const Icon(Icons.qr_code),
@@ -229,7 +235,7 @@ extension MobileDisplayViews on _HomeState {
         ),
         FilledButton.icon(
           style: stopSharingButtonStyle(),
-          onPressed: stopStageSharing,
+          onPressed: stopServiceSharing,
           icon: const Icon(Icons.stop_screen_share_outlined),
           label: const Text('Stop sharing'),
         ),
@@ -261,13 +267,13 @@ extension MobileDisplayViews on _HomeState {
       );
   }
 
-  Future<void> stopStageSharing() async {
+  Future<void> stopServiceSharing() async {
     if (await confirm(
-      'Stop stage sharing?',
-      'Stage screens will stop receiving output. Paired operators and your running service remain connected.',
+      'Stop sharing?',
+      'All paired screens and operators will disconnect. Your local timer and LED sign keep running. Saved devices remain available to reconnect later.',
       'Stop sharing',
     ))
-      await c.stopStageSharing();
+      await c.stopSharing();
   }
 
   ButtonStyle stopSharingButtonStyle() => FilledButton.styleFrom(
@@ -304,7 +310,7 @@ extension MobileDisplayViews on _HomeState {
       if (c.pairing.hosting && c.pairing.stageSharingEnabled)
         FilledButton.icon(
           style: stopSharingButtonStyle(),
-          onPressed: controlsLocked ? null : stopStageSharing,
+          onPressed: controlsLocked ? null : stopServiceSharing,
           icon: const Icon(Icons.stop_screen_share_outlined),
           label: const Text('Stop sharing'),
         ),

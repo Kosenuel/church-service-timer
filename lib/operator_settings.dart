@@ -75,8 +75,7 @@ extension OperatorSettings on _HomeState {
         child: Column(
           children: [
             for (final e in c.state.stageCues.asMap().entries) ...[
-              if (e.key > 0)
-                const Divider(height: 1, indent: 16, endIndent: 16),
+              if (e.key > 0) const AppDivider(),
               ListTile(
                 title: Text(e.value.text),
                 subtitle: Text(

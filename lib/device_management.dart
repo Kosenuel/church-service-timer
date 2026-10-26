@@ -47,6 +47,9 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
     final generation = c.hardware.generation;
     final next = await showDialog<String>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
           scrollable: true,
@@ -132,6 +135,9 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
     if (next == null || !mounted) return;
     final yes = await showDialog<bool>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => AlertDialog(
         title: Text('Apply $label change?'),
         content: Text(
@@ -222,6 +228,9 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
     final field = TextEditingController();
     final value = await showDialog<String>(
       context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
       builder: (ctx) => AlertDialog(
         title: const Text('Save known Wi-Fi password'),
         content: Column(
@@ -541,6 +550,9 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
               : () async {
                   final yes = await showDialog<bool>(
                     context: context,
+                    animationStyle: reduceAppMotion(context)
+                        ? AnimationStyle.noAnimation
+                        : null,
                     builder: (ctx) => AlertDialog(
                       title: const Text('Forget this display?'),
                       content: const Text(
