@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-26",
+  "version": "0.21.0+22",
+  "sourceCommit": "df2933fba3ba258e4c89275e63466ad1f895ceec",
+  "automated": {
+    "analysis": "flutter analyze --no-pub: no issues found",
+    "flutterTests": 446,
+    "result": "Full Flutter suite passed with updated goldens",
+    "screenshotsReviewed": 48,
+    "coverage": "Program metadata/search/favourites/recent persistence; selected JSON/CSV exports across filters; service bar navigation and states; flat report details; tablet master-detail; adaptive menus and large text; settings search; unavailable controls; wheel feedback; remembered-controller rediscovery, Wi-Fi refusal/retry/cancellation and stale-join races; existing timer, output, import, printing and pairing regression tests",
+    "visualReview": "All changed and new goldens reviewed, including dark/light choice sheets, start chooser densities, Programs/Reports phone and tablet views, selection exports, feedback labels, About, large-text service bar and Wi-Fi progress/retry dialogs",
+    "identity": "org.kosenuel.cuekeeper, versionName 0.21.0, versionCode 22",
+    "signingCertificateSha256": "7447b222512d8002f5ba5d7e985f7fdeca0cbc176b167fe240e790147a336afd",
+    "androidBuild": "flutter build apk --release --no-pub with source commit define succeeded; aapt identity/permissions and apksigner v2 signature verified. All 51 Dart source fingerprints match the fresh build using Flutter's own hasher.",
+    "assets": "Four bundled Tinos fonts and OFL license present. Original 25 ms mono picker sound present as optimized res/FR.wav."
+  },
+  "physical": {
+    "manualTesting": "Left to the user at their explicit request. No phone UI, service, pairing or LED-output tests performed.",
+    "deviceSettings": "No phone settings or Wi-Fi configuration changed.",
+    "installation": "ADB install -r succeeded on Samsung SM-A266B, retaining app data. Package metadata confirms versionName 0.21.0, versionCode 22 and lastUpdateTime 2026-10-26 23:01:25."
+  },
+  "scope": "Matrix font bitmaps and W2 output serializers unchanged. New Android local Wi-Fi requests require Android approval/permissions and Android 10+; manual connection remains available. New Wi-Fi recovery and picker feedback behavior require user hands-on verification. Source build uses CHURCH_TIMER_SOURCE=df2933fba3ba258e4c89275e63466ad1f895ceec.",
+  "apkSha256": "b2c0e72863ec98be993e69e9aa68fac085f70fa775358063703dec84df3a3fbe"
+}
