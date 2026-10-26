@@ -85,7 +85,13 @@ void main() {
         matchesGoldenFile('goldens/tablet-live.png'),
       );
       await tester.ensureVisible(find.text('Show timer'));
-      await tester.tap(find.text('Show timer'));
+      await tester.scrollUntilVisible(
+        find.text('Show timer').hitTestable(),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Show timer').hitTestable());
       await tester.pumpAndSettle();
       expect(c.state.session.alert, isNull);
       expect(c.simulator.delivered!.text, '13:30');

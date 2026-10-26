@@ -4,10 +4,11 @@ import 'domain.dart';
 
 /// Desired output only. The adapter must validate the controller, clock and
 /// rendering capabilities before encoding or publishing these intents.
-enum HardwareOutputKind { countdown, text, blank, retain, blocked }
+enum HardwareOutputKind { countdown, clock, text, blank, retain, blocked }
 
 enum HardwareOutputReason {
   running,
+  clock,
   paused,
   manualCue,
   automaticCue,
@@ -39,6 +40,8 @@ class HardwareOutputPlan {
   final TextLayout? layout;
   final int? deadlineWallMs, deadlineMonoMs;
   final String? deadlineBoot;
+  final bool format12Hour;
+  final int? timezoneOffsetMinutes;
 
   const HardwareOutputPlan._({
     required this.kind,
@@ -51,16 +54,19 @@ class HardwareOutputPlan {
     this.deadlineWallMs,
     this.deadlineMonoMs,
     this.deadlineBoot,
+    this.format12Hour = false,
+    this.timezoneOffsetMinutes,
   });
 
   bool get canPublish =>
       kind == HardwareOutputKind.countdown ||
+      kind == HardwareOutputKind.clock ||
       kind == HardwareOutputKind.text ||
       kind == HardwareOutputKind.blank;
 
   /// This does not establish that the controller clock has been synchronized.
   bool get requiresAlignedControllerClock =>
-      kind == HardwareOutputKind.countdown;
+      kind == HardwareOutputKind.countdown || kind == HardwareOutputKind.clock;
 
   /// Stable across ticks and unrelated revisions. For countdown, layout carries
   /// style only: its 00:00 text is not a frame to send every tick. Matrix glyph
@@ -72,6 +78,9 @@ class HardwareOutputPlan {
     'connectionGeneration': connectionGeneration,
     'kind': kind.name,
     'reason': reason.name,
+    if (kind == HardwareOutputKind.clock) 'format12Hour': format12Hour,
+    if (kind == HardwareOutputKind.clock)
+      'timezoneOffsetMinutes': timezoneOffsetMinutes,
     if (layout != null) 'layout': layout!.toJson(),
     if (deadlineWallMs != null) 'deadlineWallMs': deadlineWallMs,
     if (deadlineMonoMs != null) 'deadlineMonoMs': deadlineMonoMs,
@@ -147,6 +156,10 @@ HardwareOutputPlan planHardwareOutput(
     deadlineWallMs: deadlineWallMs,
     deadlineMonoMs: deadlineMonoMs,
     deadlineBoot: deadlineBoot,
+    format12Hour: session.clockFormat == '12h',
+    timezoneOffsetMinutes: DateTime.fromMillisecondsSinceEpoch(
+      now.wall,
+    ).timeZoneOffset.inMinutes,
   );
   HardwareOutputPlan blocked(HardwareOutputReason reason) =>
       make(HardwareOutputKind.blocked, reason);
@@ -180,7 +193,9 @@ HardwareOutputPlan planHardwareOutput(
           : HardwareOutputReason.idle,
     );
   }
-  if (session.phase == 'ended') {
+  if (session.phase == 'ended' &&
+      !session.showClock &&
+      !session.hasManualCue(now)) {
     return make(
       HardwareOutputKind.text,
       HardwareOutputReason.endScreen,
@@ -198,12 +213,15 @@ HardwareOutputPlan planHardwareOutput(
       layout: session.automaticCue,
     );
   }
-  if (session.alert != null) {
+  if (session.hasManualCue(now)) {
     return make(
       HardwareOutputKind.text,
       HardwareOutputReason.manualCue,
       layout: session.alert,
     );
+  }
+  if (session.showClock) {
+    return make(HardwareOutputKind.clock, HardwareOutputReason.clock);
   }
   final remaining = session.remaining(now);
   if (remaining > maxRemainingMs) {

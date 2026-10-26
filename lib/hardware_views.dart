@@ -482,16 +482,7 @@ class VerifyDisplayTimeDialog extends StatefulWidget {
 }
 
 class _VerifyDisplayTimeDialogState extends State<VerifyDisplayTimeDialog> {
-  late final minutes = TextEditingController(text: '${widget.initial ~/ 60}');
-  late final seconds = TextEditingController(text: '${widget.initial % 60}');
-  String? error;
-  @override
-  void dispose() {
-    minutes.dispose();
-    seconds.dispose();
-    super.dispose();
-  }
-
+  late int selected = widget.initial.clamp(0, 3599);
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('Verify remaining time'),
@@ -503,26 +494,10 @@ class _VerifyDisplayTimeDialogState extends State<VerifyDisplayTimeDialog> {
             'Timing was recovered with uncertainty. Check and correct the remaining time before sending it to the sign. The service report will retain its uncertainty marker.',
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: minutes,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Minutes'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: seconds,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Seconds'),
-                ),
-              ),
-            ],
+          TimeWheels(
+            value: selected,
+            onChanged: (v) => setState(() => selected = v),
           ),
-          if (error != null) Text(error!),
         ],
       ),
     ),
@@ -533,12 +508,7 @@ class _VerifyDisplayTimeDialogState extends State<VerifyDisplayTimeDialog> {
       ),
       FilledButton(
         onPressed: () {
-          final m = int.tryParse(minutes.text), s = int.tryParse(seconds.text);
-          if (m == null || s == null || m < 0 || m > 59 || s < 0 || s > 59) {
-            setState(() => error = 'Enter a time from 00:00 to 59:59.');
-            return;
-          }
-          Navigator.pop(context, m * 60 + s);
+          Navigator.pop(context, selected);
         },
         child: const Text('Verify & restore'),
       ),

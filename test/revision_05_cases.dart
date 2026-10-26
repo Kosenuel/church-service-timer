@@ -59,8 +59,8 @@ final revision05Cases = <String, void Function()>{
     s = transition(s, 'adjust', at(83), value: -120);
     equal(s.balance(at(83)), -23000);
     equal(s.allocatedMs, 60000);
-    s = transition(s, 'adjust', at(83), value: 6022);
-    equal(s.remaining(at(83)), maxRemainingMs);
+    s = transition(s, 'adjust', at(83), value: 3622);
+    equal(s.remaining(at(83)), supportedCountdownMs);
     rejects(() => transition(s, 'adjust', at(83), value: 1));
   },
   'Undo restores adjusted allocation and running overtime': () {
@@ -135,7 +135,7 @@ final revision05Cases = <String, void Function()>{
     state.session = service(firstMinutes: 1, warnings: []);
     final data = state.toJson()..['version'] = 4;
     final restored = AppState.fromJson(data);
-    equal(restored.toJson()['version'], 11);
+    equal(restored.toJson()['version'], 12);
     equal(
       restored.stageCues.map((v) => v.toJson()).toList(),
       state.stageCues.map((v) => v.toJson()).toList(),

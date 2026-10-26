@@ -270,7 +270,8 @@ final hardwareOutputCases = <String, void Function()>{
       },
   'Native range prevents hidden-hour rollover and rejects out-of-range static digits':
       () {
-        final s = service(firstMinutes: 60);
+        final s = service()
+          ..baseMs = 3600000; // Legacy state still fails safely.
         blockedAs(planHardwareOutput(s, epoch), 'countdownRange');
         equal(planHardwareOutput(s, at(1)).kind.name, 'countdown');
         s.baseMs = maxRemainingMs;

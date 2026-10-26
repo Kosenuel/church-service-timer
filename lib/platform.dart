@@ -302,7 +302,9 @@ class AndroidPort extends DevicePort {
   Future<void> save(String state) => channel.invokeMethod<void>('save', state);
   @override
   Future<Map<String, dynamic>?> pickFile() async {
-    final result = await channel.invokeMethod<Map>('pick');
+    final result = await channel.invokeMethod<Map>('pick', {
+      'maxBytes': backupLimitBytes, // Allows reviewed multi-program bundles.
+    });
     return result == null ? null : Map<String, dynamic>.from(result);
   }
 

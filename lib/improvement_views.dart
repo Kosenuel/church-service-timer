@@ -248,7 +248,7 @@ class TimeRecoveryPage extends StatefulWidget {
 }
 
 class _TimeRecoveryPageState extends State<TimeRecoveryPage> {
-  final minutes = TextEditingController(text: '1');
+  int recoverSeconds = 60;
   late Session snapshot;
   String? error;
   List<Segment>? proposal;
@@ -256,12 +256,6 @@ class _TimeRecoveryPageState extends State<TimeRecoveryPage> {
   void initState() {
     super.initState();
     snapshot = Session.fromJson(widget.session.toJson());
-  }
-
-  @override
-  void dispose() {
-    minutes.dispose();
-    super.dispose();
   }
 
   List<Segment> get upcoming =>
@@ -273,17 +267,27 @@ class _TimeRecoveryPageState extends State<TimeRecoveryPage> {
       padding: const EdgeInsets.all(20),
       children: [
         const Text(
-          'Shorten upcoming segments while keeping at least one minute in each. The current timer and saved program stay unchanged.',
+          'Shorten upcoming segments while keeping at least one minute in each; shorter segments stay unchanged. The current timer and saved program stay unchanged.',
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: minutes,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Minutes to recover'),
-          onChanged: (_) => setState(() {
-            proposal = null;
-            error = null;
-          }),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Time to recover'),
+          subtitle: Text(formatTime(recoverSeconds * 1000)),
+          trailing: const Icon(Icons.expand_more),
+          onTap: () async {
+            final value = await showWheelTimePicker(
+              context,
+              title: 'Time to recover',
+              initial: recoverSeconds,
+            );
+            if (value != null && mounted)
+              setState(() {
+                recoverSeconds = value;
+                proposal = null;
+                error = null;
+              });
+          },
         ),
         const SizedBox(height: 16),
         Text(
@@ -295,7 +299,7 @@ class _TimeRecoveryPageState extends State<TimeRecoveryPage> {
             contentPadding: EdgeInsets.zero,
             title: Text(upcoming[i].name),
             subtitle: Text(
-              '${upcoming[i].minutes} min${proposal == null ? '' : ' to ${proposal![i].minutes} min'}',
+              '${upcoming[i].durationText}${proposal == null ? '' : ' to ${proposal![i].durationText}'}',
             ),
             value: upcoming[i].protected,
             onChanged: (v) => setState(() {
@@ -304,6 +308,7 @@ class _TimeRecoveryPageState extends State<TimeRecoveryPage> {
               entries[snapshot.index + 1 + i] = Segment(
                 s.name,
                 s.minutes,
+                seconds: s.seconds,
                 speaker: s.speaker,
                 notes: s.notes,
                 protected: v,
@@ -335,9 +340,9 @@ class _TimeRecoveryPageState extends State<TimeRecoveryPage> {
                 ? null
                 : () => setState(() {
                     try {
-                      proposal = timeRecoveryPlan(
+                      proposal = timeRecoveryPlanSeconds(
                         snapshot,
-                        int.tryParse(minutes.text) ?? 0,
+                        recoverSeconds,
                       );
                       error = null;
                     } catch (e) {

@@ -48,7 +48,7 @@ Future<Uint8List> createServicePdf(
   final full = data.fullReport && data.report != null;
   final rows = <List<String>>[];
   final program = data.program;
-  final total = program.segments.fold<int>(0, (n, s) => n + s.minutes);
+  final total = program.segments.fold<int>(0, (n, s) => n + s.durationMs);
   final rowCount = full ? data.report!.rows.length : program.segments.length;
   for (var i = 0; i < rowCount; i++) {
     final segment = i < program.segments.length ? program.segments[i] : null;
@@ -78,12 +78,14 @@ Future<Uint8List> createServicePdf(
         part > 0
             ? ''
             : recorded == null
-            ? '${segment!.minutes} min'
+            ? segment!.durationText
             : durationLabel(recorded.plannedMs),
         if (full)
           part > 0
               ? ''
-              : recorded!.actualMs == null
+              : recorded!.skipped
+              ? 'Skipped'
+              : recorded.actualMs == null
               ? 'Not completed'
               : durationLabel(recorded.actualMs!),
         if (full) part > 0 ? '' : durationLabel(recorded!.pausedMs),
@@ -225,7 +227,7 @@ Future<Uint8List> createServicePdf(
         ),
         pw.SizedBox(height: 8),
         pw.Text(
-          '${full ? (data.report!.rehearsal ? 'Rehearsal report' : 'Service report') : 'Service rundown'} · $total minutes · ${data.includeNotes
+          '${full ? (data.report!.rehearsal ? 'Rehearsal report' : 'Service report') : 'Service rundown'} · ${durationLabel(total)} · ${data.includeNotes
               ? 'Operator copy — private notes included'
               : data.audience == 'operator'
               ? 'Operator copy — private notes excluded'

@@ -1,10 +1,10 @@
-# Portable template schema v4
+# Portable program schema v5
 
-JSON contains these top-level fields: `schemaVersion` (integer 4 on export), `name`, `type`, `segments`, `display`. Versions 1–4 are accepted. Unknown fields are rejected, including controller data and approval records.
+JSON contains these top-level fields: `schemaVersion` (4 for whole-minute programs, 5 when seconds are present), `name`, `type`, `segments`, `display`. Versions 1–5 are accepted. Unknown fields are rejected, including controller data and approval records.
 
-`type` is `service` or `rehearsal`, required for versions 3–4. It controls optional list grouping only; timing speed is chosen when loading a service. Versions 1–2 without a type default to Service, except the legacy starter named exactly `Quick rehearsal`, which becomes Rehearsal. Set the group explicitly in the editor for other old templates. Version 3 JSON requires Cuekeeper 0.6 or newer; older apps report an unsupported version. CSV still carries segments only and imports as Service.
+`type` is `service` or `rehearsal`, required for versions 3–5. It controls optional list grouping only; timing speed is chosen when loading a service. Versions 1–2 without a type default to Service, except the legacy starter named exactly `Quick rehearsal`, which becomes Rehearsal. Set the group explicitly in the editor for other old templates. Version 3 JSON requires Cuekeeper 0.6 or newer; older apps report an unsupported version. CSV still carries segments only and imports as Service.
 
-`segments` contains 1–200 objects with `name` and integer `minutes` (1–99). Names are trimmed, 1–80 Unicode code points. Template names are unique without regard to case. Optional `speaker` (up to 80 single-line characters) and `notes` (up to 1,000 characters, multiline) are operator-only metadata; neither is sent to the display. JSON and full backups preserve them; CSV does not. Version 4 exports without duration protection require Church Service Timer 0.10 or newer. In 0.18, optional `protected: true` keeps a segment out of automatic time-recovery reductions; it is omitted when false. Files containing this optional field require 0.18 or newer. CSV does not preserve protection.
+`segments` contains 1–200 objects with `name` and integer `minutes` and optional `seconds` (0–59; omitted when zero). New edits/imports/starts require a total duration of 1–3,599 seconds. Saved legacy programs up to 99:59 remain readable but must be shortened before saving or starting. Names are trimmed, 1–80 Unicode code points. Template names are unique without regard to case. Optional `speaker` (up to 80 single-line characters) and `notes` (up to 1,000 characters, multiline) are operator-only metadata; neither is sent to the display. JSON and full backups preserve them; CSV does not. Version 4 exports without duration protection require Church Service Timer 0.10 or newer. In 0.18, optional `protected: true` keeps a segment out of automatic time-recovery reductions; it is omitted when false. Files containing this optional field require 0.18 or newer. CSV does not preserve protection.
 
 `display` contains `zero` (null means 00:00, otherwise a text layout), `end` (a text layout), `cues` (0–6 legacy template layouts), and `warnings` (0–6 rules). Missing warnings migrate to an empty list. In 0.3, accepted imported cues merge into the shared Live list, preserving unique text/style combinations. Template exports retain their legacy `cues` field, not the current shared list. The shared Live cues, LED shape preference, and reports are local data outside this interchange format.
 
@@ -26,6 +26,15 @@ Each warning rule contains `seconds` (integer 0–5,999, unique within the share
 
 Static/flashing text must fit within 32 pixels. Scrolling is required when it does not fit. No image or video fields are accepted. Physical-layout approvals and local settings are never exported or accepted as part of this schema.
 
-CSV headers are exactly `Segment Name,Duration (Minutes)`. UTF-8 with optional BOM, CRLF/LF, quoted commas and doubled quotes are supported. Entirely blank rows are ignored. Durations such as `05:30`, fractions, zero and negatives are invalid. A single invalid row blocks the full import and reports its row number. Exported CSV preserves segment names, ordering and durations only.
+Single-program CSV headers are `Segment Name,Duration (Minutes)` with optional `Seconds`. The exporter includes Seconds when any segment uses them. UTF-8 with optional BOM, CRLF/LF, quoted commas and doubled quotes are supported. Entirely blank rows are ignored. Minutes and Seconds are separate whole integers. Colon notation, fractions, negative values and a combined zero duration are invalid. A sub-minute segment can use minutes=0 and seconds=35. A single invalid row blocks the full import and reports its row number. Exported CSV preserves segment names, ordering and durations only.
 
-Imports are at most 1,048,576 bytes. The native document reader checks metadata where available and enforces this limit while reading before JSON/CSV parsing. Invalid UTF-8 is rejected. No incoming data is committed before Accept Import.
+Single-program imports are at most 1,048,576 bytes; bundles are at most 16 MiB. The native document reader enforces the outer 16 MiB limit while reading; the parser applies the smaller single-program limit before accepting it. Invalid UTF-8 is rejected. No incoming data is committed before Accept Import.
+
+
+## Bulk program bundles (0.19)
+
+JSON has `type: "church-service-timer-programs"`, `schemaVersion: 1`, and a `programs` array of 1–200 complete program objects. Formatting and second precision are preserved; private notes are omitted unless the export checkbox is selected. At Zero and warning rules adopt the receiving phone's shared settings.
+
+CSV uses `Program,Type,Segment number,Segment Name,Duration (Seconds),Speaker,Protected` and an optional `Private notes` column. Program name groups rows; segment numbers must run consecutively from 1. Duration is total integer seconds. CSV carries the rundown and metadata, not end-screen formatting. JSON is the lossless format when notes are included.
+
+The import preview lists every incoming program. Existing programs are not replaced; colliding names receive numbered suffixes. All candidates are validated before one atomic save; a malformed entry cancels the entire import. Bundles exclude live service state, reports, credentials and pairing approvals.

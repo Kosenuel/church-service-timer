@@ -1053,18 +1053,26 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
         onChanged: (v) => changed(scale: v),
       ),
       const SizedBox(height: 12),
-      ChoiceField<int>(
-        key: ValueKey('duration-${style.seconds}'),
-        value: style.seconds,
-        decoration: const InputDecoration(labelText: 'Show for'),
-        options: [
-          for (final d in [5, 10, 15, 30, 0])
-            ChoiceOption(
-              value: d,
-              label: d == 0 ? 'Until cleared' : '$d seconds',
-            ),
-        ],
-        onChanged: (v) => changed(seconds: v),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Show for'),
+        subtitle: Text(
+          style.seconds == 0
+              ? 'Until cleared'
+              : formatTime(style.seconds * 1000),
+        ),
+        trailing: const Icon(Icons.expand_more),
+        onTap: busy
+            ? null
+            : () async {
+                final value = await showWheelTimePicker(
+                  context,
+                  title: 'Message duration · 00:00 means Until cleared',
+                  initial: style.seconds,
+                  allowZero: true,
+                );
+                if (value != null && mounted) changed(seconds: value);
+              },
       ),
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,

@@ -71,6 +71,12 @@ extension RefinedSettings on _HomeState {
       ]),
       settingsGroup('Content & preview', [
         settingsRow(
+          Icons.schedule,
+          'Clock format',
+          c.state.clockFormat == '12h' ? '12-hour · AM/PM' : '24-hour',
+          () => openSettingsDetail('Clock format', clockFormatSettings),
+        ),
+        settingsRow(
           Icons.apps,
           'LED preview shape',
           c.state.pixelShape == 'square' ? 'Square LEDs' : 'Circular LEDs',

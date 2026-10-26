@@ -41,7 +41,7 @@ class QuickMessage {
       {'white', 'amber', 'sky', 'mint'}.contains(palette),
       'Choose a colour preset.',
     );
-    require({0, 5, 10, 15, 30}.contains(seconds), 'Choose a display duration.');
+    readMessageDuration(seconds);
     require({0.85, 1.0, 1.15}.contains(scale), 'Choose a text size.');
   }
 

@@ -318,29 +318,33 @@ void main() {
       expect(c.hardware.accepted!.reason, HardwareOutputReason.paused);
     },
   );
-  test('Heartbeat loss and reconnect do not replay a stale cue', () async {
-    final port = W2Port();
-    final c = await setup(port);
-    addTearDown(c.dispose);
-    await c.act('cue', value: const TextLayout('AMEN', effect: 'static'));
-    await flush();
-    port.reachable = false;
-    port.at = after(10);
-    await c.hardware.check(port.at);
-    await c.hardware.check(after(12));
-    await c.hardware.check(after(14));
-    expect(c.hardware.connected, false);
-    port.reachable = true;
-    await c.hardware.discover();
-    await c.hardware.connect('synthetic-w2', 'synthetic');
-    await c.tick();
-    await flush();
-    expect(port.sent.length, 2);
-    expect(await c.restoreHardware(), true);
-    await flush();
-    expect(port.sent.last.deadline, start.wall + 600000);
-    expect(c.state.session.alert, isNull);
-  });
+  test(
+    'Heartbeat reconnect republishes the still-active cue until explicitly cleared',
+    () async {
+      final port = W2Port();
+      final c = await setup(port);
+      addTearDown(c.dispose);
+      await c.act('cue', value: const TextLayout('AMEN', effect: 'static'));
+      await flush();
+      port.reachable = false;
+      port.at = after(10);
+      await c.hardware.check(port.at);
+      await c.hardware.check(after(12));
+      await c.hardware.check(after(14));
+      expect(c.hardware.connected, false);
+      port.reachable = true;
+      await c.hardware.discover();
+      await c.hardware.connect('synthetic-w2', 'synthetic');
+      await c.tick();
+      await flush();
+      expect(port.sent.length, 3);
+      expect(c.hardware.accepted!.layout!.text, 'AMEN');
+      expect(await c.act('timer'), true);
+      await flush();
+      expect(port.sent.last.deadline, start.wall + 600000);
+      expect(c.state.session.alert, isNull);
+    },
+  );
   test(
     'Recovered uncertainty requires verified time and stays marked in reports',
     () async {

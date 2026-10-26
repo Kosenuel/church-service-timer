@@ -6,9 +6,12 @@ part 'app_settings.dart';
 part 'service_planning.dart';
 part 'quick_message.dart';
 part 'service_improvements.dart';
+part 'service_update_19.dart';
 
 typedef Json = Map<String, dynamic>;
 const maxRemainingMs = 5999000;
+// Retain the old deserialization ceiling above so existing records remain readable.
+const supportedCountdownMs = 3599000;
 const recoveryLimitMs = 30 * 60 * 1000;
 
 class RuleError implements Exception {
@@ -203,19 +206,38 @@ class DisplaySettings {
 class Segment {
   final String name, speaker, notes;
   final int minutes;
+  final int seconds;
+  int get durationSeconds => minutes * 60 + seconds;
+  int get durationMs => durationSeconds * 1000;
+  String get durationText =>
+      seconds == 0 ? '$minutes min' : formatTime(durationMs);
   final bool protected;
   const Segment(
     this.name,
     this.minutes, {
+    this.seconds = 0,
     this.speaker = '',
     this.notes = '',
     this.protected = false,
   });
   factory Segment.fromJson(Json j) {
-    keys(j, {'name', 'minutes', 'speaker', 'notes', 'protected'}, 'Segment');
+    keys(j, {
+      'name',
+      'minutes',
+      'seconds',
+      'speaker',
+      'notes',
+      'protected',
+    }, 'Segment');
     require(
-      j['minutes'] is int && j['minutes'] >= 1 && j['minutes'] <= 99,
-      'Segment duration must be an integer from 1 to 99 minutes.',
+      j['minutes'] is int &&
+          j['minutes'] >= 0 &&
+          j['minutes'] <= 99 &&
+          (j['seconds'] ?? 0) is int &&
+          (j['seconds'] ?? 0) >= 0 &&
+          (j['seconds'] ?? 0) <= 59 &&
+          j['minutes'] * 60 + (j['seconds'] ?? 0) > 0,
+      'Enter a positive duration with seconds from 0 to 59.',
     );
     String optional(
       dynamic value,
@@ -238,6 +260,7 @@ class Segment {
     return Segment(
       nameValue(j['name'], 'Segment name'),
       j['minutes'],
+      seconds: j['seconds'] ?? 0,
       speaker: optional(j['speaker'], 80, 'Speaker'),
       notes: optional(j['notes'], 1000, 'Private notes', multiline: true),
       protected: boolSetting(j['protected'] ?? false),
@@ -246,6 +269,7 @@ class Segment {
   Json toJson() => {
     'name': name,
     'minutes': minutes,
+    if (seconds != 0) 'seconds': seconds,
     if (speaker.isNotEmpty) 'speaker': speaker,
     if (notes.isNotEmpty) 'notes': notes,
     if (protected) 'protected': true,
@@ -272,8 +296,8 @@ class Timeline {
       'type',
     }, 'Program');
     require(
-      j['schemaVersion'] is int && {1, 2, 3, 4}.contains(j['schemaVersion']),
-      'Supported program schema versions are 1–4.',
+      j['schemaVersion'] is int && {1, 2, 3, 4, 5}.contains(j['schemaVersion']),
+      'Supported program schema versions are 1–5.',
     );
     final type =
         j['type'] ??
@@ -312,7 +336,7 @@ class Timeline {
   Timeline withDisplay(DisplaySettings value) =>
       Timeline(name, segments, value, type: type);
   Json toJson() => {
-    'schemaVersion': 4,
+    'schemaVersion': segments.any((s) => s.seconds != 0) ? 5 : 4,
     'name': name,
     'type': type,
     'segments': segments.map((s) => s.toJson()).toList(),
@@ -378,6 +402,11 @@ class Session {
   bool paused, held, disconnected, uncertain, outputBlank;
   Timeline? timeline;
   TextLayout? alert;
+  bool showClock;
+  String clockFormat;
+  Stamp? alertAt;
+  int alertDurationSeconds;
+  bool alertIsMessage;
   UndoPoint? undo;
   Stamp anchor, checkpoint;
   Stamp? outage;
@@ -406,6 +435,11 @@ class Session {
     this.outputBlank = false,
     this.timeline,
     this.alert,
+    this.showClock = false,
+    this.clockFormat = '24h',
+    this.alertAt,
+    this.alertDurationSeconds = 0,
+    this.alertIsMessage = false,
     this.undo,
     Stamp? checkpoint,
     this.outage,
@@ -435,14 +469,14 @@ class Session {
       ? 0
       : math.max(
           0,
-          timeline!.segments[index].minutes * 60000 +
+          timeline!.segments[index].durationMs +
               (run?.adjustmentsMs[index] ?? 0),
         );
   int get undoAllocatedMs => undo == null || timeline == null
       ? 0
       : math.max(
           0,
-          timeline!.segments[undo!.index].minutes * 60000 +
+          timeline!.segments[undo!.index].durationMs +
               (undo!.runCheckpoint == null
                   ? 0
                   : RunMetrics.fromJson(
@@ -474,14 +508,36 @@ class Session {
       now.since(undo!.at) <= 10000;
   TextLayout? intended(Stamp now) {
     if (outputBlank) return null;
-    if (phase == 'ended') return timeline!.display.end;
-    if (!active) return null;
+    if (!active && phase != 'ended') return null;
     if (hasAutomaticCue(now)) return automaticCue;
-    if (alert != null) return alert;
+    if (hasManualCue(now)) return alert;
+    if (showClock) return clockLayout(now.wall, clockFormat);
+    if (phase == 'ended') return timeline!.display.end;
     if (remaining(now) == 0 && timeline!.display.zero != null)
       return timeline!.display.zero;
     return TextLayout(formatted(now), effect: 'static', height: 2);
   }
+
+  bool hasManualCue(Stamp now) =>
+      alert != null &&
+      (alertDurationSeconds == 0 ||
+          (alertAt != null &&
+              now.sameBoot(alertAt!) &&
+              now.since(alertAt!) < alertDurationSeconds * 1000));
+
+  String outputMode(Stamp now) => outputBlank
+      ? 'Blank'
+      : hasAutomaticCue(now)
+      ? 'Cue'
+      : hasManualCue(now)
+      ? (alertIsMessage ? 'Message' : 'Cue')
+      : showClock
+      ? 'Clock'
+      : phase == 'ended'
+      ? 'End screen'
+      : active
+      ? 'Countdown'
+      : 'Standby';
 
   bool get rehearsal => rate > 1;
   bool hasAutomaticCue(Stamp now) =>
@@ -491,7 +547,7 @@ class Session {
       now.sameBoot(automaticCueAt!) &&
       now.since(automaticCueAt!) < automaticCueDurationMs;
   int get plannedMs =>
-      timeline?.segments.fold<int>(0, (n, s) => n + s.minutes * 60000) ?? 0;
+      timeline?.segments.fold<int>(0, (n, s) => n + s.durationMs) ?? 0;
   int totalElapsed(Stamp now) => run == null
       ? 0
       : run!.totalMs + (active ? now.since(run!.anchor) * rate : 0);
@@ -504,7 +560,7 @@ class Session {
           ? remaining(now) +
                 timeline!.segments
                     .skip(index + 1)
-                    .fold<int>(0, (n, s) => n + s.minutes * 60000)
+                    .fold<int>(0, (n, s) => n + s.durationMs)
           : 0);
   void settleMetrics(Stamp now) {
     if (!active || run == null) return;
@@ -553,6 +609,13 @@ class Session {
       alert: j['alert'] == null
           ? null
           : TextLayout.fromJson(Map<String, dynamic>.from(j['alert'])),
+      showClock: j['showClock'] == true,
+      clockFormat: readClockFormat(j['clockFormat'] ?? '24h'),
+      alertAt: j['alertAt'] == null
+          ? null
+          : Stamp.fromJson(Map<String, dynamic>.from(j['alertAt'])),
+      alertDurationSeconds: readMessageDuration(j['alertDurationSeconds'] ?? 0),
+      alertIsMessage: j['alertIsMessage'] == true,
       undo: j['undo'] == null
           ? null
           : UndoPoint.fromJson(Map<String, dynamic>.from(j['undo'])),
@@ -599,10 +662,6 @@ class Session {
       'Invalid saved program position.',
     );
     require(
-      s.phase != 'ended' || s.alert == null,
-      'Ended service cannot have an alert.',
-    );
-    require(
       s.undo == null ||
           (s.timeline != null &&
               s.undo!.index >= 0 &&
@@ -627,6 +686,11 @@ class Session {
     'checkpoint': checkpoint.toJson(),
     'timeline': timeline?.toJson(),
     'alert': alert?.toJson(),
+    'showClock': showClock,
+    'clockFormat': clockFormat,
+    'alertAt': alertAt?.toJson(),
+    'alertDurationSeconds': alertDurationSeconds,
+    'alertIsMessage': alertIsMessage,
     'undo': undo?.toJson(),
     'outage': outage?.toJson(),
     'prior': prior?.toJson(),
@@ -670,12 +734,13 @@ Session transition(
       'End the current service before loading another.',
     );
     final t = Timeline.fromJson((value as Timeline).toJson());
+    validateProgramDuration(t);
     s = Session(
       id: '${now.boot}-${now.mono}-${original.revision + 1}',
       anchor: now,
       phase: 'ready',
       timeline: t,
-      baseMs: t.segments.first.minutes * 60000,
+      baseMs: t.segments.first.durationMs,
       disconnected: original.disconnected,
       prior: original.copy()..prior = null,
     );
@@ -696,6 +761,7 @@ Session transition(
   } else if (action == 'start') {
     require(s.phase == 'ready', 'Load a service first.');
     s.phase = 'active';
+    s.showClock = false;
     s.run = RunMetrics.fresh(now, s.timeline!.segments.length);
     s.warningCeiling = s.baseMs + 1;
     s.warningSeen = [];
@@ -725,7 +791,17 @@ Session transition(
     s.checkpoint = now;
   } else {
     require(
-      s.active || (action == 'blank' && s.phase == 'ended'),
+      s.active ||
+          ({
+                'blank',
+                'clock',
+                'cue',
+                'message',
+                'clearCue',
+                'timer',
+                'endScreen',
+              }.contains(action) &&
+              s.phase == 'ended'),
       'Start the first segment to use live controls.',
     );
     switch (action) {
@@ -742,8 +818,8 @@ Session transition(
             : delta * 1000;
         final result = s.balance(now) + applied;
         require(
-          result <= maxRemainingMs,
-          'The maximum remaining time is 99:59.',
+          result <= supportedCountdownMs,
+          'The maximum remaining time is 59:59.',
         );
         if (s.run != null) s.run!.adjustmentsMs[s.index] += applied;
         s.baseMs = result;
@@ -751,10 +827,13 @@ Session transition(
         s.anchor = now;
         s.undo = s.undo?.markModified();
       case 'advance':
+      case 'jump':
+        final target = action == 'jump' ? value as int : s.index + 1;
         require(
-          s.index + 1 < s.timeline!.segments.length,
-          'This is the final segment.',
+          target > s.index && target < s.timeline!.segments.length,
+          'Choose an upcoming segment.',
         );
+        final wasPaused = s.paused;
         s.undo = UndoPoint(
           s.index,
           s.balance(now),
@@ -767,18 +846,22 @@ Session transition(
         if (s.run != null) {
           s.run!.actualMs[s.index] = s.run!.currentMs;
           s.run!.currentMs = 0;
+          for (var i = s.index + 1; i < target; i++) {
+            s.run!.skipped.add(i);
+          }
         }
-        s.index++;
+        s.index = target;
         s.alert = null;
+        s.showClock = false;
         s.outputBlank = value == true; // Explicit Keep blank choice.
         s.held = false;
-        s.baseMs = s.timeline!.segments[s.index].minutes * 60000;
+        s.baseMs = s.timeline!.segments[s.index].durationMs;
         s.warningCeiling = s.baseMs + 1;
         s.warningSeen = [];
         s.warningNotice = null;
         s.automaticCue = null;
         s.anchor = now;
-        s.paused = false;
+        s.paused = action == 'jump' ? wasPaused : false;
       case 'undo':
         require(s.undo != null, 'There is no advance to undo.');
         if (s.undo!.runCheckpoint != null) {
@@ -807,8 +890,39 @@ Session transition(
         final cue = value as TextLayout;
         cue.validate();
         s.alert = cue;
+        s.alertAt = now;
+        s.alertDurationSeconds = 0;
+        s.alertIsMessage = false;
+        s.automaticCue = null;
+      case 'message':
+        final message = value as StageOutputMessage;
+        message.layout.validate();
+        readMessageDuration(message.seconds);
+        s.outputBlank = false;
+        s.alert = message.layout;
+        s.alertAt = now;
+        s.alertDurationSeconds = message.seconds;
+        s.alertIsMessage = true;
+        s.automaticCue = null;
+      case 'clearCue':
+        s.alert = null;
+        s.automaticCue = null;
+      case 'clock':
+        s.showClock = true;
+        s.outputBlank = false;
+        s.alert = null;
+        s.automaticCue = null;
+      case 'endScreen':
+        require(
+          s.phase == 'ended',
+          'End the service before restoring its end screen.',
+        );
+        s.showClock = false;
+        s.outputBlank = false;
+        s.alert = null;
         s.automaticCue = null;
       case 'timer':
+        s.showClock = false;
         s.outputBlank = false;
         s.alert = null;
         s.automaticCue = null;
@@ -817,6 +931,7 @@ Session transition(
       case 'dismissWarning':
         s.warningNotice = null;
       case 'end':
+        s.showClock = false;
         s.outputBlank = false;
         s.baseMs = s.balance(now);
         s.anchor = now;
@@ -864,6 +979,7 @@ Session recover(Session original, Stamp now) {
 }
 
 class AppState {
+  String clockFormat;
   int notificationClearSeconds;
   PrintPreferences printPreferences;
   Map<String, Json> editDrafts;
@@ -882,6 +998,7 @@ class AppState {
     this.templates,
     this.defaults,
     this.session, {
+    this.clockFormat = '24h',
     List<ServiceReport>? reports,
     List<TextLayout>? stageCues,
     this.pixelShape = 'square',
@@ -923,7 +1040,7 @@ class AppState {
   );
   factory AppState.fromJson(Json j, {Stamp? now}) {
     require(
-      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}.contains(j['version']),
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -940,6 +1057,7 @@ class AppState {
           .toList(),
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['defaults'])),
       Session.fromJson(Map<String, dynamic>.from(j['session'])),
+      clockFormat: readClockFormat(j['clockFormat'] ?? '24h'),
       outputDestination: j['outputDestination'] as String?,
       notificationClearSeconds: notificationTimeoutValue(
         j['notificationClearSeconds'] ?? 30,
@@ -1060,12 +1178,14 @@ class AppState {
           .reversed
           .toList();
     }
+    a.session.clockFormat = a.clockFormat;
     a.applySharedZero();
     a.applySharedWarnings(now);
     return a;
   }
   Json toJson() => {
-    'version': 11,
+    'version': 12,
+    'clockFormat': clockFormat,
     'notificationClearSeconds': notificationClearSeconds,
     'printPreferences': printPreferences.toJson(),
     'editDrafts': editDrafts,
@@ -1152,6 +1272,7 @@ class AppState {
   }
 
   void saveTemplate(Timeline t, {int? replacing}) {
+    validateProgramDuration(t);
     t = t.withDisplay(
       t.display.withZero(defaults.zero).withWarnings(defaults.warnings),
     );
@@ -1206,8 +1327,9 @@ class AppState {
 String exportJson(Timeline t) =>
     const JsonEncoder.withIndent('  ').convert(t.toJson());
 String exportCsv(Timeline t) {
+  final precise = t.segments.any((s) => s.seconds != 0);
   String field(String s) => '"${s.replaceAll('"', '""')}"';
-  return 'Segment Name,Duration (Minutes)\r\n${t.segments.map((s) => '${field(s.name)},${s.minutes}').join('\r\n')}\r\n';
+  return 'Segment Name,Duration (Minutes)${precise ? ',Seconds' : ''}\r\n${t.segments.map((s) => '${field(s.name)},${s.minutes}${precise ? ',${s.seconds}' : ''}').join('\r\n')}\r\n';
 }
 
 List<List<String>> parseCsv(String raw) {
@@ -1315,6 +1437,9 @@ Timeline importTemplate(
         Segment.fromJson({
           'name': row.value[ni],
           'minutes': int.tryParse(value),
+          'seconds': header.contains('Seconds')
+              ? int.tryParse(row.value[header.indexOf('Seconds')])
+              : 0,
         }),
       );
     } catch (e) {

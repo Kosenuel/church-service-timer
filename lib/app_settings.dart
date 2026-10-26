@@ -1,7 +1,7 @@
 part of 'domain.dart';
 
 const appName = 'Church Service Timer';
-const appVersion = '0.18.0 (18)';
+const appVersion = '0.19.0 (19)';
 const themeIds = {
   'midnight_lime',
   'royal_navy',
@@ -109,7 +109,7 @@ String exportBackup(AppState state, Stamp now) {
     ..remove('version');
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    'schemaVersion': 5,
+    'schemaVersion': 6,
     'createdUtc': DateTime.fromMillisecondsSinceEpoch(
       now.wall,
       isUtc: true,
@@ -133,12 +133,13 @@ AppState importBackup(String raw, Stamp now) {
     keys(envelope, {'type', 'schemaVersion', 'createdUtc', 'data'}, 'Backup');
     require(
       envelope['type'] == 'church-service-timer-backup' &&
-          {1, 2, 3, 4, 5}.contains(envelope['schemaVersion']),
+          {1, 2, 3, 4, 5, 6}.contains(envelope['schemaVersion']),
       'Choose a supported Church Service Timer backup.',
     );
     final data = Map<String, dynamic>.from(envelope['data']);
     keys(data, {
       'templates',
+      if (envelope['schemaVersion'] >= 6) 'clockFormat',
       if (envelope['schemaVersion'] >= 5) 'notificationClearSeconds',
       if (envelope['schemaVersion'] >= 5) 'printPreferences',
       'defaults',
@@ -154,7 +155,9 @@ AppState importBackup(String raw, Stamp now) {
     }, 'Backup data');
     require(
       data.length ==
-              (envelope['schemaVersion'] >= 5
+              (envelope['schemaVersion'] >= 6
+                  ? 14
+                  : envelope['schemaVersion'] >= 5
                   ? 13
                   : envelope['schemaVersion'] >= 4
                   ? 11
@@ -172,7 +175,9 @@ AppState importBackup(String raw, Stamp now) {
     );
     final restored = AppState.fromJson({
       ...data,
-      'version': envelope['schemaVersion'] >= 5
+      'version': envelope['schemaVersion'] >= 6
+          ? 12
+          : envelope['schemaVersion'] >= 5
           ? 11
           : envelope['schemaVersion'] >= 4
           ? 10

@@ -111,7 +111,10 @@ void main() {
       await flush();
       expect(c.state.session.alert, isNull);
       expect(c.state.session.index, 1);
-      expect(c.simulator.delivered, isNull); // Only the selected output is driven.
+      expect(
+        c.simulator.delivered,
+        isNull,
+      ); // Only the selected output is driven.
       expect(c.hardware.held, false);
       expect(c.hardware.accepted!.segmentIndex, 1);
       expect(p.sent.last.deadline, after(920).wall);
@@ -241,6 +244,7 @@ void main() {
       await c.resume();
       expect(c.hardware.held, false);
       await c.act('end');
+      await flush(); // Let the acknowledged end-screen upload finish.
       expect(p.active, false);
     },
   );

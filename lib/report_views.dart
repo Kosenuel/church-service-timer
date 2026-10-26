@@ -272,6 +272,14 @@ extension ReportViews on _HomeState {
                   ReportListRow(
                     report: history[i],
                     onTap: () => openReport(history[i]),
+                    onMenu: () => showItemActions(
+                      'Report',
+                      (a) => reportItemAction(history[i], a),
+                    ),
+                    menu: itemMenu(
+                      'Report',
+                      (a) => reportItemAction(history[i], a),
+                    ),
                   ),
                 ],
               ],
@@ -437,7 +445,15 @@ extension ReportViews on _HomeState {
 class ReportListRow extends StatelessWidget {
   final ServiceReport report;
   final VoidCallback onTap;
-  const ReportListRow({super.key, required this.report, required this.onTap});
+  const ReportListRow({
+    super.key,
+    required this.report,
+    required this.onTap,
+    this.onMenu,
+    this.menu,
+  });
+  final VoidCallback? onMenu;
+  final Widget? menu;
   @override
   Widget build(BuildContext context) {
     final r = report, colors = appColors(context);
@@ -450,6 +466,7 @@ class ReportListRow extends StatelessWidget {
     return InkWell(
       key: ValueKey('open-report-${r.id}'),
       onTap: onTap,
+      onLongPress: onMenu,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
@@ -518,6 +535,7 @@ class ReportListRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (menu != null) menu!,
             const SizedBox(width: 12),
             Icon(Icons.chevron_right, color: colors.muted, size: 22),
           ],
@@ -862,7 +880,9 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                                 .map(
                                   (row) => DurationEntry(
                                     title: row.name,
-                                    subtitle: row.actualMs == null
+                                    subtitle: row.skipped
+                                        ? 'Skipped'
+                                        : row.actualMs == null
                                         ? 'Not recorded'
                                         : varianceLabel(
                                             row.actualMs! - row.plannedMs,
@@ -926,7 +946,11 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              'Plan ${durationLabel(e.value.plannedMs)} · Actual ${e.value.actualMs == null ? 'not recorded' : durationLabel(e.value.actualMs!)}',
+                              'Plan ${durationLabel(e.value.plannedMs)} · Actual ${e.value.skipped
+                                  ? 'Skipped'
+                                  : e.value.actualMs == null
+                                  ? 'not recorded'
+                                  : durationLabel(e.value.actualMs!)}',
                             ),
                             const SizedBox(height: 6),
                             Text(
@@ -937,7 +961,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                                   : ''}${durationLabel(e.value.adjustmentMs)}',
                               style: TextStyle(color: appColors(context).muted),
                             ),
-                            if (e.value.actualMs == null)
+                            if (e.value.actualMs == null && !e.value.skipped)
                               Text(
                                 'This segment has no recorded duration.',
                                 style: TextStyle(

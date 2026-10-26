@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/controller.dart';
@@ -56,8 +57,11 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Remove time'));
       await t.pumpAndSettle();
-      await t.enterText(find.widgetWithText(TextField, 'Minutes'), '1');
-      await t.enterText(find.widgetWithText(TextField, 'Seconds (0–59)'), '30');
+      await t.tapAt(t.getCenter(find.byType(CupertinoPicker).first));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), '1');
+      await t.tap(find.text('Use value'));
+      await t.pumpAndSettle();
       await t.pumpAndSettle();
       expect(find.text('08:30'), findsOneWidget);
       expect(c.state.session.allocatedMs, 600000);

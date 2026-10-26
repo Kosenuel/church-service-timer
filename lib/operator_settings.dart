@@ -4,7 +4,15 @@ extension OperatorSettings on _HomeState {
   Widget deviceManagement() => DeviceManagementPanel(controller: c);
 
   Future<void> sendPreparedCue(TextLayout cue) async {
-    if (!await c.act('cue', value: cue) && mounted) {
+    final revision = c.state.session.revision;
+    if (c.state.session.phase == 'ended' &&
+        !await confirm(
+          'Send after service ended?',
+          'Show “${cue.text}” on the connected display? The report stays unchanged.',
+          'Send cue',
+        ))
+      return;
+    if (!await c.act('cue', value: cue, revision: revision) && mounted) {
       await showError(c.error ?? 'The cue could not be sent.');
     } else if (mounted &&
         c.hardware.enabled &&

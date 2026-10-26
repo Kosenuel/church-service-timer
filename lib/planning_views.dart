@@ -34,13 +34,14 @@ extension PlanningViews on _HomeState {
 
   Future<void> finishPlanning() async {
     final s = c.state.session;
-    final selected = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(
-        DateTime.fromMillisecondsSinceEpoch(
-          c.now.wall + s.remaining(c.now) ~/ s.rate,
-        ),
-      ),
+    final initial = DateTime.fromMillisecondsSinceEpoch(
+      c.now.wall + s.remaining(c.now) ~/ s.rate,
+    );
+    final selected = await showWheelTimePicker(
+      context,
+      title: 'Set finish time',
+      initial: initial.hour * 60 + initial.minute,
+      clock: true,
     );
     if (selected == null || !mounted) return;
     final date = DateTime.fromMillisecondsSinceEpoch(c.now.wall);
@@ -48,8 +49,8 @@ extension PlanningViews on _HomeState {
       date.year,
       date.month,
       date.day,
-      selected.hour,
-      selected.minute,
+      selected ~/ 60,
+      selected % 60,
     );
     if (target.millisecondsSinceEpoch <= c.now.wall)
       target = target.add(const Duration(days: 1));
@@ -65,7 +66,7 @@ extension PlanningViews on _HomeState {
           .toList();
       final changes = [
         for (var i = 0; i < proposed.length; i++)
-          '${proposed[i].name}: ${before[i].minutes} → ${proposed[i].minutes} min',
+          '${proposed[i].name}: ${before[i].durationText} → ${proposed[i].durationText}',
       ].join('\n');
       if (!await confirm(
         'Finish by ${clockLabel(target.millisecondsSinceEpoch)}?',
@@ -80,8 +81,8 @@ extension PlanningViews on _HomeState {
               target.millisecondsSinceEpoch,
             );
             require(
-              fresh.map((e) => e.minutes).join(',') ==
-                  proposed.map((e) => e.minutes).join(','),
+              fresh.map((e) => e.durationSeconds).join(',') ==
+                  proposed.map((e) => e.durationSeconds).join(','),
               'Timing changed while this plan was open. Review the finish plan again.',
             );
             replaceUpcoming(draft.session, proposed, at);

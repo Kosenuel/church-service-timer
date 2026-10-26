@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/app_theme.dart';
@@ -128,8 +129,17 @@ void main() {
     await t.tap(edit.hitTestable());
     await t.pumpAndSettle();
     expect(find.byType(WarningEditor), findsOneWidget);
-    await t.enterText(find.widgetWithText(TextField, 'Minutes'), '0');
-    await t.enterText(find.widgetWithText(TextField, 'Seconds'), seconds);
+    await t.tap(find.text('Remaining time'));
+    await t.pumpAndSettle();
+    for (final entry in {0: '0', 1: seconds}.entries) {
+      await t.tapAt(t.getCenter(find.byType(CupertinoPicker).at(entry.key)));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), entry.value);
+      await t.tap(find.text('Use value'));
+      await t.pumpAndSettle();
+    }
+    await t.tap(find.text('Use 00:$seconds'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Save warning'));
     await t.pumpAndSettle();
   }

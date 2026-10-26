@@ -35,6 +35,7 @@ class HardwareDisplay extends ChangeNotifier {
       rememberedName = '',
       status = 'No physical display selected';
   String? timingApprovedSession;
+  bool _reviewRequired = false;
   Json? profile;
   HardwareOutputPlan? accepted;
   String? _confirmed;
@@ -92,11 +93,12 @@ class HardwareDisplay extends ChangeNotifier {
     bool recovering = false,
   }) async {
     if (busy || sending) return false;
+    final sameDisplay = id == rememberedId;
     busy = true;
     connected = false;
     held = true;
     _confirmed = null;
-    accepted = null;
+    if (!sameDisplay) accepted = null;
     timingApprovedSession = null;
     final epoch = ++_epoch;
     final intent = _intent;
@@ -121,18 +123,20 @@ class HardwareDisplay extends ChangeNotifier {
       if (intent != _intent || _disposed) return false;
       status = 'Connected · output held for review';
       final latest = _latest;
-      if (recovering &&
+      if (sameDisplay &&
+          !_reviewRequired &&
           latest != null &&
-          latest.active &&
-          latest.id == _restoreSession &&
+          (latest.active || latest.phase == 'ended') &&
           !latest.held &&
           !latest.uncertain &&
-          _lostAt != null &&
           _now != null &&
-          _now!.sameBoot(_lostAt!) &&
-          _now!.since(_lostAt!) < recoveryLimitMs) {
+          _now!.sameBoot(latest.checkpoint) &&
+          (_restoreSession == null || latest.id == _restoreSession) &&
+          (_lostAt == null ||
+              (_now!.sameBoot(_lostAt!) &&
+                  _now!.since(_lostAt!) < recoveryLimitMs))) {
         held = false;
-        status = 'Reconnected · restoring current output';
+        status = 'Resyncing current output…';
       }
       _restoreSession = null;
       _lostAt = null;
@@ -195,6 +199,7 @@ class HardwareDisplay extends ChangeNotifier {
   }
 
   void hold(String reason) {
+    _reviewRequired = true;
     ++_epoch;
     held = true;
     _confirmed = null;
@@ -207,6 +212,7 @@ class HardwareDisplay extends ChangeNotifier {
 
   void release(Session s, {bool timingVerified = false}) {
     require(connected, 'Connect the display first.');
+    _reviewRequired = false;
     if (timingVerified) timingApprovedSession = s.id;
     held = false;
     _confirmed = null;
@@ -360,7 +366,7 @@ class HardwareDisplay extends ChangeNotifier {
     if (s.active)
       require(
         s.remaining(at) <= observedW2CountdownLimitMs,
-        'This hardware milestone supports up to 59:59 remaining. Use Simulator for longer countdowns.',
+        'Keep the remaining time within 59:59.',
       );
     if (cue != null)
       require(
@@ -372,6 +378,11 @@ class HardwareDisplay extends ChangeNotifier {
   static bool staticLayout(TextLayout l) =>
       l.effect != 'flash' && textWidth(l) <= 32;
   List<bool> _pixels(HardwareOutputPlan p, Stamp at) {
+    if (p.kind == HardwareOutputKind.clock)
+      return W2Program.clockPixels(
+        DateTime.fromMillisecondsSinceEpoch(at.wall),
+        format12Hour: p.format12Hour,
+      );
     if (p.kind == HardwareOutputKind.countdown) {
       final left = ((p.deadlineWallMs! - at.wall).clamp(
         0,
@@ -396,6 +407,8 @@ class HardwareDisplay extends ChangeNotifier {
     if (p == null) return 'No current output acknowledgement';
     if (p.kind == HardwareOutputKind.countdown)
       return 'Native countdown · phone preview estimates remaining time';
+    if (p.kind == HardwareOutputKind.clock)
+      return 'Clock · ${p.format12Hour ? '12-hour' : '24-hour'}';
     if (p.kind == HardwareOutputKind.blank) return 'Blank';
     return p.layout?.text ?? 'Blank';
   }
@@ -412,6 +425,14 @@ class HardwareDisplay extends ChangeNotifier {
         _disposed)
       return;
     final p = _plan(s, at);
+    if (p.kind == HardwareOutputKind.clock &&
+        accepted?.kind == HardwareOutputKind.clock &&
+        _acceptedAt != null &&
+        ((at.wall - _acceptedAt!.wall) - (at.mono - _acceptedAt!.mono)).abs() >
+            hardwareClockDriftToleranceMs) {
+      _confirmed =
+          null; // Recalibrate once when the phone's wall clock changes.
+    }
     if (p.kind == HardwareOutputKind.blocked) {
       hold(
         'Output held: ${p.reason.name}. Review and restore the current timer.',
@@ -468,6 +489,8 @@ class HardwareDisplay extends ChangeNotifier {
     try {
       final Uint8List bytes = plan.kind == HardwareOutputKind.countdown
           ? W2Program.countdown(0)
+          : plan.kind == HardwareOutputKind.clock
+          ? W2Program.clock(format12Hour: plan.format12Hour)
           : _program(plan, at);
       final result = await port.sendDisplay(
         bytes,

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/controller.dart';
@@ -69,7 +70,12 @@ void main() {
           home: TimeRecoveryPage(session: s),
         ),
       );
+      await tap(t, 'Time to recover');
+      await t.tapAt(t.getCenter(find.byType(CupertinoPicker).first));
+      await t.pumpAndSettle();
       await t.enterText(find.byType(TextField), '4');
+      await tap(t, 'Use value');
+      await tap(t, 'Use 04:00');
       expect(find.text('Apply reviewed adjustments'), findsNothing);
       await tap(t, 'Review adjustments');
       expect(find.text('5 min to 5 min'), findsOneWidget);

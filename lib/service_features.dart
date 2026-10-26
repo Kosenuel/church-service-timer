@@ -144,6 +144,7 @@ void applyWarnings(Session s, Stamp now, {bool allowStage = true}) {
 }
 
 class RunMetrics {
+  final Set<int> skipped;
   final int startedWall;
   int? endedWall;
   Stamp anchor;
@@ -159,7 +160,8 @@ class RunMetrics {
     this.endedWall,
     this.totalMs = 0,
     this.currentMs = 0,
-  });
+    Set<int>? skipped,
+  }) : skipped = skipped ?? {};
   factory RunMetrics.fresh(Stamp now, int count) => RunMetrics(
     now.wall,
     now,
@@ -177,9 +179,13 @@ class RunMetrics {
       endedWall: j['endedWall'],
       totalMs: j['totalMs'],
       currentMs: j['currentMs'],
+      skipped: Set<int>.from(j['skipped'] ?? []),
     );
     require(
       r.totalMs >= 0 &&
+          r.skipped.every(
+            (i) => i >= 0 && i < r.actualMs.length && r.actualMs[i] == null,
+          ) &&
           r.currentMs >= 0 &&
           r.actualMs.every((n) => n == null || n >= 0) &&
           r.pausedMs.every((n) => n >= 0) &&
@@ -198,6 +204,7 @@ class RunMetrics {
     'actualMs': [...actualMs],
     'pausedMs': [...pausedMs],
     'adjustmentsMs': [...adjustmentsMs],
+    'skipped': skipped.toList(),
   };
 }
 
@@ -213,6 +220,7 @@ class SavedCue {
 }
 
 class ReportRow {
+  final bool skipped;
   final String name;
   final int plannedMs, pausedMs, adjustmentMs;
   final int? actualMs;
@@ -221,14 +229,16 @@ class ReportRow {
     this.plannedMs,
     this.actualMs,
     this.pausedMs,
-    this.adjustmentMs,
-  );
+    this.adjustmentMs, {
+    this.skipped = false,
+  });
   factory ReportRow.fromJson(Json j) => ReportRow(
     j['name'],
     j['plannedMs'],
     j['actualMs'],
     j['pausedMs'],
     j['adjustmentMs'],
+    skipped: j['skipped'] == true,
   );
   Json toJson() => {
     'name': name,
@@ -236,6 +246,7 @@ class ReportRow {
     'actualMs': actualMs,
     'pausedMs': pausedMs,
     'adjustmentMs': adjustmentMs,
+    if (skipped) 'skipped': true,
   };
 }
 
@@ -278,10 +289,11 @@ class ServiceReport {
           .map(
             (e) => ReportRow(
               e.value.name,
-              e.value.minutes * 60000,
+              e.value.durationMs,
               s.run?.actualMs[e.key],
               s.run?.pausedMs[e.key] ?? 0,
               s.run?.adjustmentsMs[e.key] ?? 0,
+              skipped: s.run?.skipped.contains(e.key) ?? false,
             ),
           )
           .toList(),
@@ -417,7 +429,11 @@ String exportReportsCsv(List<ServiceReport> records) {
           seconds(row.actualMs == null ? null : row.actualMs! - row.plannedMs),
           seconds(row.pausedMs),
           seconds(row.adjustmentMs),
-          row.actualMs == null ? 'Not recorded' : 'Recorded',
+          row.skipped
+              ? 'Skipped'
+              : row.actualMs == null
+              ? 'Not recorded'
+              : 'Recorded',
           reportCsvText(r.churchName),
         ].join(','),
       );
@@ -444,7 +460,11 @@ String exportReportCsv(ServiceReport r) {
     DateTime.fromMillisecondsSinceEpoch(r.endedWall).toIso8601String(),
     '${r.uncertain}',
   ];
-  return '$header\r\n${r.rows.map((row) => [...metadata, textCell(row.name), seconds(row.plannedMs), seconds(row.actualMs), seconds(row.actualMs == null ? null : row.actualMs! - row.plannedMs), seconds(row.pausedMs), seconds(row.adjustmentMs), row.actualMs == null ? 'Not recorded' : 'Recorded', textCell(r.churchName)].join(',')).join('\r\n')}\r\n';
+  return '$header\r\n${r.rows.map((row) => [...metadata, textCell(row.name), seconds(row.plannedMs), seconds(row.actualMs), seconds(row.actualMs == null ? null : row.actualMs! - row.plannedMs), seconds(row.pausedMs), seconds(row.adjustmentMs), row.skipped
+      ? 'Skipped'
+      : row.actualMs == null
+      ? 'Not recorded'
+      : 'Recorded', textCell(r.churchName)].join(',')).join('\r\n')}\r\n';
 }
 
 String durationLabel(int ms) {
@@ -517,6 +537,12 @@ String? serviceActionDescription(
   'start' => '${s.timeline!.segments[s.index].name} started',
   'advance' =>
     '${s.timeline!.segments[s.index].name} started${s.outputBlank ? ' · display kept blank' : ''}',
+  'jump' =>
+    'Jumped to ${s.timeline!.segments[s.index].name} · ${(s.index - (s.undo?.index ?? s.index) - 1).clamp(0, 200)} segments skipped${s.paused ? ' · paused' : ''}',
+  'clock' => 'Current clock requested',
+  'message' => 'Stage message requested: ${s.alert!.text}',
+  'clearCue' => 'Stage message cleared',
+  'endScreen' => 'End screen restored',
   'undo' => 'Previous segment restored',
   'pause' => s.paused ? 'Timer paused' : 'Timer resumed',
   'adjust' =>

@@ -530,31 +530,22 @@ class WarningEditor extends StatefulWidget {
 }
 
 class _WarningEditorState extends State<WarningEditor> {
-  late TextEditingController minutes, seconds;
+  late int threshold;
   late bool enabled;
   late String destination;
   late bool scrollOnce;
-  late TextEditingController duration;
+  late int duration;
   late TextLayout cue;
   String? error;
   @override
   void initState() {
     super.initState();
-    minutes = TextEditingController(text: '${widget.initial.seconds ~/ 60}');
-    seconds = TextEditingController(text: '${widget.initial.seconds % 60}');
+    threshold = widget.initial.seconds;
     enabled = widget.initial.enabled;
     destination = widget.initial.destination;
     cue = widget.initial.cue;
     scrollOnce = widget.initial.scrollOnce;
-    duration = TextEditingController(text: '${widget.initial.durationSeconds}');
-  }
-
-  @override
-  void dispose() {
-    duration.dispose();
-    minutes.dispose();
-    seconds.dispose();
-    super.dispose();
+    duration = widget.initial.durationSeconds;
   }
 
   @override
@@ -575,24 +566,20 @@ class _WarningEditorState extends State<WarningEditor> {
             ),
             const Text('Trigger when this much time remains:'),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: minutes,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Minutes'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: seconds,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Seconds'),
-                  ),
-                ),
-              ],
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Remaining time'),
+              subtitle: Text(formatTime(threshold * 1000)),
+              trailing: const Icon(Icons.expand_more),
+              onTap: () async {
+                final value = await showWheelTimePicker(
+                  context,
+                  title: 'Warning threshold',
+                  initial: threshold,
+                  allowZero: true,
+                );
+                if (value != null && mounted) setState(() => threshold = value);
+              },
             ),
             const SizedBox(height: 12),
             ChoiceField<String>(
@@ -635,19 +622,24 @@ class _WarningEditorState extends State<WarningEditor> {
               value: scrollOnce,
               onChanged: (v) => setState(() => scrollOnce = v),
             ),
-            TextField(
-              controller: duration,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Show for (seconds)',
-                helperText:
-                    '1–120 seconds; also used for text that does not scroll',
-              ),
-              onChanged: (_) => setState(() {}),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Show for'),
+              subtitle: Text(formatTime(duration * 1000)),
+              trailing: const Icon(Icons.expand_more),
+              onTap: () async {
+                final value = await showWheelTimePicker(
+                  context,
+                  title: 'Warning duration',
+                  initial: duration,
+                  maximum: 120,
+                );
+                if (value != null && mounted) setState(() => duration = value);
+              },
             ),
             const SizedBox(height: 12),
             Text(
-              'Preview duration: ${(warningDurationMs(WarningRule(0, cue, scrollOnce: scrollOnce, durationSeconds: int.tryParse(duration.text)?.clamp(1, 120) ?? 8)) / 1000).toStringAsFixed(1)} real seconds. Timing continues underneath.',
+              'Preview duration: ${(warningDurationMs(WarningRule(0, cue, scrollOnce: scrollOnce, durationSeconds: duration)) / 1000).toStringAsFixed(1)} real seconds. Timing continues underneath.',
             ),
             const SizedBox(height: 8),
             WarningAnimationPreview(layout: cue),
@@ -665,28 +657,18 @@ class _WarningEditorState extends State<WarningEditor> {
       FilledButton(
         onPressed: () {
           try {
-            final m = int.tryParse(minutes.text),
-                sec = int.tryParse(seconds.text);
             require(
-              m != null &&
-                  sec != null &&
-                  m >= 0 &&
-                  m <= 99 &&
-                  sec >= 0 &&
-                  sec < 60,
-              'Enter 0–99 minutes and 0–59 seconds.',
+              threshold >= 0 && threshold <= 3599,
+              'Choose a threshold up to 59:59.',
             );
-            final threshold = m! * 60 + sec!;
             require(
               !widget.usedThresholds.contains(threshold),
               'A warning already uses this threshold.',
             );
             validateLayout(cue);
-            final secondsToShow = int.tryParse(duration.text);
+            final secondsToShow = duration;
             require(
-              secondsToShow != null &&
-                  secondsToShow >= 1 &&
-                  secondsToShow <= 120,
+              secondsToShow >= 1 && secondsToShow <= 120,
               'Enter a duration from 1 to 120 seconds.',
             );
             Navigator.pop(
@@ -696,7 +678,7 @@ class _WarningEditorState extends State<WarningEditor> {
                 cue,
                 enabled: enabled,
                 destination: destination,
-                durationSeconds: secondsToShow!,
+                durationSeconds: secondsToShow,
                 scrollOnce: scrollOnce,
               ),
             );

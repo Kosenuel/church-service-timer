@@ -6,6 +6,139 @@ import 'matrix_font.dart';
 /// Minimal 32x16 red-monochrome W2 program. No hardware configuration fields.
 /// Program integers are big-endian; this is separate from HD7 packet framing.
 class W2Program {
+  /// Autonomous digital clock, based on LedArt-Lite's native 0x32 widget.
+  /// The sender must align the controller RTC with the phone's local time.
+  /// Hardware layout and noon/midnight transitions await physical validation.
+  static Uint8List clock({bool format12Hour = false, List<int>? programId}) {
+    const headerLength = 94;
+    const height = 14;
+    final digitWidth = format12Hour ? 4 : 6;
+    final suffix = format12Hour
+        ? [..._clockSuffix(false), ..._clockSuffix(true)]
+        : <int>[];
+    final numbers = BytesBuilder(copy: false);
+    // Native clock glyph indices, recovered from F0.f.i(Clock,...).
+    for (final char in '0123456789/:,-.'.split('')) {
+      numbers.add(_clockCell(char, compact: format12Hour));
+    }
+    final numberBytes = numbers.takeBytes();
+    final bytes = _container(
+      headerLength + suffix.length + numberBytes.length,
+      programId,
+    );
+    final b = ByteData.sublistView(bytes);
+    const widget = 140;
+    const area = 99;
+    const dataOffset = widget + headerLength - area;
+    b.setUint16(widget, headerLength);
+    bytes[widget + 2] = 0x32;
+    // Numeric clock, zero timezone difference, no date/week, one line.
+    bytes[widget + 6] = 0xff;
+    bytes[widget + 7] = 0xff;
+    bytes[widget + 8] = format12Hour ? 6 : 1;
+    b.setUint16(widget + 29, height);
+    b.setUint16(widget + 31, digitWidth);
+    b.setUint32(widget + 35, dataOffset); // No month names.
+    b.setUint32(widget + 41, dataOffset); // No weekday names.
+    b.setUint16(widget + 47, format12Hour ? 12 : 0);
+    b.setUint32(widget + 49, dataOffset); // AM, then PM bitmap.
+    b.setUint32(widget + 53, 1); // Red on a monochrome sign.
+    b.setUint32(widget + 65, dataOffset + suffix.length);
+    b.setUint32(widget + 69, bytes.length - area); // No Chinese glyphs.
+    b.setUint32(widget + 73, bytes.length - area); // No analog background.
+    // showAmPm at +85 belongs to the analog clock; numeric style 6 includes it.
+    b.setUint32(widget + 86, 1);
+    bytes.setRange(
+      widget + headerLength,
+      widget + headerLength + suffix.length,
+      suffix,
+    );
+    bytes.setRange(
+      widget + headerLength + suffix.length,
+      bytes.length,
+      numberBytes,
+    );
+    return bytes;
+  }
+
+  /// Intended 32x16 clock preview, sharing the exact uploaded glyph cells.
+  /// This does not read the sign's framebuffer or establish physical delivery.
+  static List<bool> clockPixels(DateTime wall, {bool format12Hour = false}) {
+    final local = wall.toLocal();
+    final hour = format12Hour
+        ? (local.hour % 12 == 0 ? 12 : local.hour % 12)
+        : local.hour;
+    final text =
+        '${hour.toString().padLeft(2, '0')}:'
+        '${local.minute.toString().padLeft(2, '0')}';
+    final pixels = List.filled(512, false);
+    final width = format12Hour ? 4 : 6;
+    var left = format12Hour ? 0 : 1;
+    void draw(List<int> packed, int cellWidth) {
+      final stride = (cellWidth + 7) ~/ 8;
+      for (var y = 0; y < 14; y++) {
+        for (var x = 0; x < cellWidth; x++) {
+          pixels[(y + 1) * 32 + left + x] =
+              packed[y * stride + x ~/ 8] & (1 << (7 - x % 8)) != 0;
+        }
+      }
+      left += cellWidth;
+    }
+
+    for (final char in text.split('')) {
+      draw(_clockCell(char, compact: format12Hour), width);
+    }
+    if (format12Hour) draw(_clockSuffix(local.hour >= 12), 12);
+    return pixels;
+  }
+
+  // Dedicated compact clock cells make HH:mm + AM/PM fit a 32px row.
+  // Neither named Matrix font nor the countdown glyph recipes are changed.
+  static const _compactClock = <String, String>{
+    '0': '111/101/101/101/101/101/111',
+    '1': '010/110/010/010/010/010/111',
+    '2': '111/001/001/111/100/100/111',
+    '3': '111/001/001/111/001/001/111',
+    '4': '101/101/101/111/001/001/001',
+    '5': '111/100/100/111/001/001/111',
+    '6': '111/100/100/111/101/101/111',
+    '7': '111/001/001/010/010/010/010',
+    '8': '111/101/101/111/101/101/111',
+    '9': '111/101/101/111/001/001/111',
+    '/': '001/001/010/010/010/100/100',
+  };
+
+  static List<int> _clockCell(String char, {required bool compact}) {
+    final pattern = (compact ? _compactClock[char] : null) ?? glyphs[char]!;
+    final width = compact ? 4 : 6;
+    final rows = pattern.split('/');
+    final left = (width - rows.first.length) ~/ 2;
+    final packed = <int>[];
+    for (final row in rows) {
+      var value = 0;
+      for (var x = 0; x < row.length; x++) {
+        if (row[x] == '1') value |= 1 << (7 - left - x);
+      }
+      packed.addAll([value, value]);
+    }
+    return packed;
+  }
+
+  static List<int> _clockSuffix(bool pm) {
+    final first = glyphs[pm ? 'P' : 'A']!.split('/');
+    final second = glyphs['M']!.split('/');
+    final packed = <int>[];
+    for (var y = 0; y < 7; y++) {
+      final row = '0${first[y]}0${second[y]}';
+      var value = 0;
+      for (var x = 0; x < 12; x++) {
+        if (row[x] == '1') value |= 1 << (15 - x);
+      }
+      packed.addAll([value >> 8, value & 255, value >> 8, value & 255]);
+    }
+    return packed;
+  }
+
   static Uint8List countdown(int localEpochSeconds, {List<int>? programId}) {
     if (localEpochSeconds < 0 || localEpochSeconds > 0xffffffff) {
       throw ArgumentError('Target time is outside the controller range.');

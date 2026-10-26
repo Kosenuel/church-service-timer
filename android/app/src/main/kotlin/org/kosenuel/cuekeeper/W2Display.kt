@@ -173,6 +173,39 @@ class W2Display(context: Context) {
                 "reason" to "Controller health reply missing")
         }
     }
+    private fun calibrateRtc(now: Long) {
+        val localSeconds = (now + TimeZone.getDefault().getOffset(now)) / 1000
+        check(localSeconds in 0..0xffffffffL) { "Phone time is outside the controller range." }
+        command(20, ByteBuffer.allocate(14).put(14.toByte()).putInt(localSeconds.toInt())
+            .put(0.toByte()).putInt(0).putInt(0).array())
+    }
+    /** Only the compact numeric clock layouts produced by W2Program.clock. */
+    private fun validateClock(bytes: ByteArray) {
+        check(bytes.size == 444 || bytes.size == 500) { "Invalid clock program length" }
+        val twelve = bytes[148] == 6.toByte()
+        check(bytes[148] == 1.toByte() || twelve) { "Invalid clock time format" }
+        val suffixBytes = if (twelve) 56 else 0
+        check(bytes.size == 444 + suffixBytes) { "Invalid clock glyph data" }
+        val header = ByteBuffer.allocate(94)
+        header.putShort(0, 94.toShort())
+        header.put(2, 0x32.toByte())
+        header.put(6, 0xff.toByte()); header.put(7, 0xff.toByte())
+        header.put(8, if (twelve) 6.toByte() else 1.toByte())
+        header.putShort(29, 14.toShort())
+        header.putShort(31, (if (twelve) 4 else 6).toShort())
+        header.putInt(35, 135); header.putInt(41, 135)
+        header.putShort(47, (if (twelve) 12 else 0).toShort())
+        header.putInt(49, 135); header.putInt(53, 1)
+        header.putInt(65, 135 + suffixBytes)
+        header.putInt(69, bytes.size - 99); header.putInt(73, bytes.size - 99)
+        header.putInt(86, 1)
+        check(bytes.copyOfRange(140, 234).contentEquals(header.array())) { "Invalid clock layout" }
+        val data = ByteBuffer.wrap(bytes)
+        check(data.getInt(19) == 0 && data.getInt(27) == 31 &&
+            bytes[99] == 'H'.code.toByte() && bytes[100] == 'A'.code.toByte() &&
+            data.getShort(107).toInt() == 32 && data.getShort(109).toInt() == 16 &&
+            data.getShort(111).toInt() == 1 && data.getInt(136) == 41) { "Invalid clock display area" }
+    }
     fun send(bytes: ByteArray, targetWall: Long?, expectedGeneration: Int): Map<String, Any> {
         check(expectedGeneration == generation && session != null) { "Connection changed. Reconnect before sending." }
         check(bytes.size in 233..135335 && bytes[0] == 'H'.code.toByte() && bytes[1] == 'C'.code.toByte()) { "Unsupported display program" }
@@ -183,10 +216,13 @@ class W2Display(context: Context) {
                 check(bytes.size == 393 && bytes[142] == 0x34.toByte()) { "Invalid timer program" }
                 check(targetWall - now in 1..3_599_000) { "Remaining time must be between 00:01 and 59:59." }
                 val offset = TimeZone.getDefault().getOffset(now)
-                val localSeconds = (now + offset) / 1000
-                command(20, ByteBuffer.allocate(14).put(14.toByte()).putInt(localSeconds.toInt()).put(0.toByte()).putInt(0).putInt(0).array())
+                calibrateRtc(now)
                 // The countdown deadline stays fixed even if an acknowledgement is retried.
                 ByteBuffer.wrap(bytes).putInt(144, ((targetWall + offset) / 1000).toInt())
+            } else if (bytes[142] == 0x32.toByte()) {
+                validateClock(bytes)
+                // This program reads the RTC locally; no per-second/minute uploads.
+                calibrateRtc(now)
             } else {
                 val frames = ByteBuffer.wrap(bytes).getShort(143).toInt() and 0xffff
                 check(bytes[142] == 0x30.toByte() && frames in 1..2048 && bytes.size == 167 + 66 * frames &&

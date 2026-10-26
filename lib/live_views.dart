@@ -350,7 +350,7 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
           m != null &&
           sec != null &&
           m >= 0 &&
-          m <= 99 &&
+          m <= 59 &&
           sec >= 0 &&
           sec <= 59 &&
           m * 60 + sec > 0;
@@ -366,11 +366,11 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
       final error = stale
           ? 'The service changed. Cancel and review this action again.'
           : custom && !validInput
-          ? 'Enter 00:01–99:59; seconds must be 0–59.'
+          ? 'Enter 00:01–59:59; seconds must be 0–59.'
           : requested < 0 && before <= 0
           ? 'There is no remaining time to remove.'
-          : after > maxRemainingMs
-          ? 'The maximum remaining time is 99:59.'
+          : after > supportedCountdownMs
+          ? 'The maximum remaining time is 59:59.'
           : null;
       final name = s.timeline?.segments[s.index].name ?? 'this segment';
       final adding = requested >= 0;
@@ -427,30 +427,14 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: minutes,
-                          keyboardType: TextInputType.number,
-                          onChanged: (_) => setState(() {}),
-                          decoration: const InputDecoration(
-                            labelText: 'Minutes',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: seconds,
-                          keyboardType: TextInputType.number,
-                          onChanged: (_) => setState(() {}),
-                          decoration: const InputDecoration(
-                            labelText: 'Seconds (0–59)',
-                          ),
-                        ),
-                      ),
-                    ],
+                  TimeWheels(
+                    value:
+                        (int.tryParse(minutes.text) ?? 0) * 60 +
+                        (int.tryParse(seconds.text) ?? 0),
+                    onChanged: (v) => setState(() {
+                      minutes.text = '${v ~/ 60}';
+                      seconds.text = '${v % 60}';
+                    }),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -648,7 +632,7 @@ extension LiveViewActions on _HomeState {
           ),
           control(
             '+2 min',
-            enabled && s.balance(c.now) + 120000 <= maxRemainingMs
+            enabled && s.balance(c.now) + 120000 <= supportedCountdownMs
                 ? () => adjustTime(fixedSeconds: 120)
                 : null,
           ),
@@ -691,6 +675,14 @@ extension LiveViewActions on _HomeState {
               navigation.last,
             ] else
               row(navigation),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: enabled && s.index + 1 < s.timeline!.segments.length
+                  ? jumpToSegment
+                  : null,
+              icon: const Icon(Icons.playlist_play),
+              label: const Text('Jump to segment'),
+            ),
           ],
         );
       },

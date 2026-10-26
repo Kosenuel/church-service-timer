@@ -15,7 +15,7 @@ final revision06Cases = <String, void Function()>{
     equal(a.templates.first.type, 'service');
     equal(a.templates.last.type, 'rehearsal');
     equal(a.templates.first.display.end.bold, true);
-    equal(a.toJson()['version'], 11);
+    equal(a.toJson()['version'], 12);
   },
   'Template group and list preference survive restart and JSON import': () {
     final a = AppState.fresh(epoch)..groupTemplates = true;

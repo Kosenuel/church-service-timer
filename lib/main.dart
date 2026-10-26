@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert' show jsonDecode;
 import 'package:nsd/nsd.dart' as nsd;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -11,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
+import 'time_picker.dart';
 import 'choice_field.dart';
 import 'service_pdf.dart';
 import 'church_banner.dart';
@@ -24,6 +26,7 @@ import 'display_connection.dart';
 import 'pairing.dart';
 
 part 'feature_views.dart';
+part 'update_19_views.dart';
 part 'report_views.dart';
 part 'live_views.dart';
 part 'template_views.dart';
@@ -201,7 +204,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     contentPadding: EdgeInsets.zero,
                     title: Text(e.value.name),
                     subtitle: Text(
-                      '${e.value.segments.length} segments · ${e.value.segments.fold<int>(0, (a, s) => a + s.minutes)} min',
+                      '${e.value.segments.length} segments · ${durationLabel(e.value.segments.fold<int>(0, (a, s) => a + s.durationMs))}',
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.pop(ctx, e.key),
@@ -299,7 +302,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Finish ${s.timeline!.segments[s.index].name} and start ${next.name} · ${next.minutes} min. Previous cues are cleared and the new countdown is sent.${c.hardware.held ? ' This also restores the reviewed output on the connected display.' : ''}',
+              'Finish ${s.timeline!.segments[s.index].name} and start ${next.name} · ${next.durationText}. Previous cues are cleared and the new countdown is sent.${c.hardware.held ? ' This also restores the reviewed output on the connected display.' : ''}',
             ),
             if (s.outputBlank)
               CheckboxListTile(
@@ -434,6 +437,21 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     try {
       final file = await c.port.pickFile();
       if (file == null || !mounted) return;
+      final candidates = importPrograms(
+        file['content'] as String,
+        file['name'] as String,
+        c.state.defaults,
+      );
+      final raw = (file['content'] as String).replaceFirst('\uFEFF', '');
+      final bundle = (file['name'] as String).toLowerCase().endsWith('.json')
+          ? (jsonDecode(raw) as Map)['type'] == 'church-service-timer-programs'
+          : parseCsv(raw)
+                .firstWhere((r) => r.any((v) => v.trim().isNotEmpty))
+                .contains('Program');
+      if (candidates.length > 1 || bundle) {
+        await importProgramBundle(candidates);
+        return;
+      }
       final candidate = importTemplate(
         file['content'] as String,
         file['name'] as String,
@@ -448,6 +466,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         await NativeDisplayFonts.prepare(l);
       }
       validateTimelinePixels(candidate);
+      validateProgramDuration(candidate);
       final name = TextEditingController(text: candidate.name);
       String? error;
       bool validName() {
@@ -491,7 +510,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '${candidate.segments.length} segments · ${candidate.segments.fold<int>(0, (a, s) => a + s.minutes)} minutes',
+                      '${candidate.segments.length} segments · ${durationLabel(candidate.segments.fold<int>(0, (a, s) => a + s.durationMs))}',
                     ),
                     Text(
                       (file['name'] as String).toLowerCase().endsWith('.csv')
@@ -504,7 +523,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     ),
                     const SizedBox(height: 12),
                     ...candidate.segments.map(
-                      (s) => Text('${s.name} — ${s.minutes} min'),
+                      (s) => Text('${s.name} — ${s.durationText}'),
                     ),
                     if (error != null)
                       Text(
@@ -646,7 +665,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final phase = standingBy
         ? 'Standing by'
         : s.phase == 'active'
-        ? (s.paused ? 'Paused' : 'Live')
+        ? (s.phase == 'ended'
+              ? 'Display blank'
+              : s.paused
+              ? 'Paused'
+              : 'Live')
         : s.phase == 'ready'
         ? 'Ready'
         : s.phase == 'ended'
@@ -685,7 +708,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             const SizedBox(height: 12),
             Text(
               s.index + 1 < t.segments.length
-                  ? 'NEXT  ${t.segments[s.index + 1].name} · ${t.segments[s.index + 1].minutes} min'
+                  ? 'NEXT  ${t.segments[s.index + 1].name} · ${t.segments[s.index + 1].durationText}'
                   : 'FINAL SEGMENT',
               style: TextStyle(color: appColors(context).muted),
             ),
@@ -905,7 +928,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   style: TextStyle(decoration: TextDecoration.underline),
                 ),
               ),
-              if (s.alert != null)
+              if (s.hasManualCue(c.now))
                 Icon(
                   Icons.chat_bubble_outline,
                   color: appColors(context).accent,
@@ -916,20 +939,24 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           const SizedBox(height: 12),
           Text(
             s.outputBlank
-                ? (s.paused
+                ? (s.phase == 'ended'
+                      ? 'Display blank'
+                      : s.paused
                       ? 'Display blank · timer paused'
                       : 'Display blank · timing continues')
                 : s.hasAutomaticCue(c.now)
                 ? 'Warning on display: ${s.automaticCue!.text}'
-                : s.alert == null
+                : !s.hasManualCue(c.now)
                 ? 'The right words, at the right moment.'
                 : '${c.hardware.enabled ? 'Selected cue' : 'On display'}: ${s.alert!.text}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
           Text(
-            s.alert == null
+            !s.hasManualCue(c.now)
                 ? 'Tap a prepared cue to send it. Manage text and formatting in Settings / Stage cues.'
+                : s.phase == 'ended'
+                ? 'Service ended. Clear the message to return to the clock or end screen.'
                 : s.paused
                 ? 'The underlying timer is paused.'
                 : 'The countdown continues underneath this cue.',
@@ -947,14 +974,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(0, 60),
                         backgroundColor:
-                            s.alert?.toJson().toString() ==
-                                e.value.toJson().toString()
+                            s.hasManualCue(c.now) &&
+                                s.alert?.toJson().toString() ==
+                                    e.value.toJson().toString()
                             ? appColors(context).accent.withValues(alpha: .16)
                             : null,
                       ),
                       icon: Icon(
-                        s.alert?.toJson().toString() ==
-                                e.value.toJson().toString()
+                        s.hasManualCue(c.now) &&
+                                s.alert?.toJson().toString() ==
+                                    e.value.toJson().toString()
                             ? Icons.check_circle_outline
                             : Icons.chat_bubble_outline,
                         size: 20,
@@ -965,7 +994,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                       ),
-                      onPressed: enabled && !c.hardware.sending
+                      onPressed: outputControlsEnabled && !c.hardware.sending
                           ? () => sendPreparedCue(e.value)
                           : null,
                     ),
@@ -973,20 +1002,33 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 )
                 .toList(),
           ),
+          const SizedBox(height: 12),
+          Text(
+            'Output: ${s.outputMode(c.now)}',
+            style: TextStyle(color: appColors(context).accent),
+          ),
+          const SizedBox(height: 12),
+          extraOutputControls(),
           const SizedBox(height: 16),
           ControlGrid(
             children: [
               button(
-                'Show timer',
+                s.phase == 'ended'
+                    ? 'Show end screen'
+                    : s.showClock
+                    ? 'Return to countdown'
+                    : 'Show timer',
                 Icons.timer_outlined,
-                enabled &&
-                        (s.outputBlank ||
-                            s.alert != null ||
+                outputControlsEnabled &&
+                        (s.showClock ||
+                            s.phase == 'ended' ||
+                            s.outputBlank ||
+                            s.hasManualCue(c.now) ||
                             s.hasAutomaticCue(c.now) ||
                             c.currentQuickMessage != null)
-                    ? () => c.act('timer')
+                    ? () => c.act(s.phase == 'ended' ? 'endScreen' : 'timer')
                     : null,
-                primary: s.alert != null || s.outputBlank,
+                primary: s.hasManualCue(c.now) || s.outputBlank,
               ),
               button(
                 s.outputBlank ? 'Unblank screen' : 'Blank screen',
@@ -1162,7 +1204,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           c.busy ? null : () => c.act('release'),
                           primary: true,
                         ),
-                        if (s.alert != null)
+                        if (s.hasManualCue(c.now))
                           button(
                             'Dismiss alert & show timer',
                             Icons.timer,
@@ -1225,8 +1267,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             displayPanel,
           ],
           const SizedBox(height: 20),
-          if (!focused && s.active) ...[
-            timingOverview(),
+          if (s.active) ...[
+            focused ? focusedTimingOverview() : timingOverview(),
             const SizedBox(height: 16),
           ],
           cuePanel,
@@ -1305,7 +1347,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             ),
                           ),
                           subtitle: Text(
-                            '${e.value.minutes} min${current ? ' · Current' : ''}',
+                            '${e.value.durationText}${current ? ' · Current' : ''}',
                           ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => showModalBottomSheet<void>(
@@ -1327,7 +1369,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      'Segment ${e.key + 1} of ${t.segments.length} · ${e.value.minutes} minutes planned',
+                                      'Segment ${e.key + 1} of ${t.segments.length} · ${e.value.durationText} planned',
                                     ),
                                     if (current)
                                       Text(
@@ -1995,11 +2037,9 @@ class _TemplateEditorState extends State<TemplateEditor> {
 
   Future<void> segment({int? index}) async {
     final label = TextEditingController(
-          text: index == null ? '' : segments[index].name,
-        ),
-        duration = TextEditingController(
-          text: index == null ? '5' : '${segments[index].minutes}',
-        );
+      text: index == null ? '' : segments[index].name,
+    );
+    var durationSeconds = index == null ? 300 : segments[index].durationSeconds;
     final speaker = TextEditingController(
       text: index == null ? '' : segments[index].speaker,
     );
@@ -2022,12 +2062,22 @@ class _TemplateEditorState extends State<TemplateEditor> {
                 decoration: const InputDecoration(labelText: 'Segment name'),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: duration,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Duration · whole minutes (1–99)',
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Duration'),
+                subtitle: Text(
+                  '${formatTime(durationSeconds * 1000)} · maximum 59:59',
                 ),
+                trailing: const Icon(Icons.expand_more),
+                onTap: () async {
+                  final value = await showWheelTimePicker(
+                    ctx,
+                    title: 'Set segment duration',
+                    initial: durationSeconds,
+                  );
+                  if (value != null && ctx.mounted)
+                    update(() => durationSeconds = value);
+                },
               ),
               const SizedBox(height: 12),
               TextField(
@@ -2075,11 +2125,16 @@ class _TemplateEditorState extends State<TemplateEditor> {
                 try {
                   final s = Segment.fromJson({
                     'name': label.text,
-                    'minutes': int.tryParse(duration.text),
+                    'minutes': durationSeconds ~/ 60,
+                    'seconds': durationSeconds % 60,
                     'speaker': speaker.text,
                     'notes': notes.text,
                     'protected': protected,
                   });
+                  require(
+                    s.durationMs <= supportedCountdownMs,
+                    'Keep each segment within 59:59.',
+                  );
                   Navigator.pop(ctx, s);
                 } catch (e) {
                   update(() => issue = e.toString());
@@ -2093,7 +2148,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
     );
     Future<void>.delayed(const Duration(seconds: 1), () {
       label.dispose();
-      duration.dispose();
+
       speaker.dispose();
       notes.dispose();
     });
@@ -2166,7 +2221,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
             ),
           const SizedBox(height: 16),
           Text(
-            '${segments.length} segments · ${segments.fold<int>(0, (a, s) => a + s.minutes)} minutes',
+            '${segments.length} segments · ${durationLabel(segments.fold<int>(0, (a, s) => a + s.durationMs))}',
             style: TextStyle(color: appColors(context).muted),
           ),
           const SizedBox(height: 8),
@@ -2188,7 +2243,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
                 leading: const Icon(Icons.drag_handle),
                 title: Text(segments[i].name),
                 subtitle: Text(
-                  '${segments[i].minutes} minutes${segments[i].speaker.isEmpty ? '' : ' · ${segments[i].speaker}'}${segments[i].notes.isEmpty ? '' : '\nPrivate notes saved'}',
+                  '${segments[i].durationText}${segments[i].speaker.isEmpty ? '' : ' · ${segments[i].speaker}'}${segments[i].notes.isEmpty ? '' : '\nPrivate notes saved'}',
                 ),
                 onTap: () => segment(index: i),
                 trailing: IconButton(

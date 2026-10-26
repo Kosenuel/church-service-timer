@@ -113,8 +113,8 @@ void main() {
         expect(s.alert!.text, 'WAIT');
         s = transition(s, 'adjust', after(500), value: -900);
         expect(s.formatted(after(500)), '00:00');
-        s = transition(s, 'adjust', after(500), value: 5999);
-        expect(s.formatted(after(600)), '99:59');
+        s = transition(s, 'adjust', after(500), value: 3599);
+        expect(s.formatted(after(600)), '59:59');
         expect(
           () => transition(s, 'adjust', after(600), value: 1),
           throwsA(isA<RuleError>()),
@@ -369,7 +369,7 @@ void main() {
   });
   group('Pixel output', () {
     test('Countdown fits and produces exactly 512 bits', () {
-      for (final value in ['00:00', '11:11', '88:88', '99:59']) {
+      for (final value in ['00:00', '11:11', '88:88', '59:59']) {
         final l = TextLayout(value, effect: 'static', height: 2);
         validateLayout(l);
         expect(textWidth(l), lessThanOrEqualTo(32));

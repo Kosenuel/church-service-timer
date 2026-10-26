@@ -12,6 +12,7 @@ import 'native_fonts.dart';
 import 'warning_notifications.dart';
 import 'display_connection.dart';
 import 'hardware_display.dart';
+import 'w2_program.dart';
 import 'pairing.dart';
 
 /// The simulator is an output adapter, not a fake Huidu protocol implementation.
@@ -49,7 +50,12 @@ class Simulator {
       deliveredAt = now.mono;
     }
     revision = s.revision;
-    pixels = renderPixels(delivered, now.mono - deliveredAt);
+    pixels = s.outputMode(now) == 'Clock'
+        ? W2Program.clockPixels(
+            DateTime.fromMillisecondsSinceEpoch(now.wall),
+            format12Hour: s.clockFormat == '12h',
+          )
+        : renderPixels(delivered, now.mono - deliveredAt);
   }
 }
 
@@ -442,7 +448,11 @@ class AppController extends ChangeNotifier {
     final desired =
         pairing.hosting ||
         pairing.joined ||
-        (state.session.active &&
+        ((state.session.active ||
+                (state.session.phase == 'ended' &&
+                    ((state.session.hasManualCue(now) &&
+                            state.session.alertDurationSeconds > 0) ||
+                        hardware.sending))) &&
             hardware.enabled &&
             ((hardware.connected && !hardware.held) ||
                 (!hardware.connected &&
@@ -490,9 +500,10 @@ class AppController extends ChangeNotifier {
           : '',
       'displayIsTimer':
           s.active &&
+          !s.showClock &&
           !s.outputBlank &&
-          s.alert == null &&
-          s.automaticCue == null &&
+          !s.hasManualCue(now) &&
+          !s.hasAutomaticCue(now) &&
           (s.remaining(now) > 0 || s.timeline?.display.zero == null),
       'index': s.index,
       'phase': s.phase,
@@ -505,6 +516,7 @@ class AppController extends ChangeNotifier {
       'stageSharing': destination == 'mobile' && pairing.stageSharingEnabled,
       if (quick != null) 'quickMessage': quick.toJson(),
       'displayText': s.outputBlank ? '' : display?.text ?? '',
+      'outputMode': s.outputMode(now),
       'effect': display?.effect ?? 'static',
       'speed': display?.speed ?? 12,
       'bold': display?.bold ?? false,
@@ -515,6 +527,7 @@ class AppController extends ChangeNotifier {
           {
             'name': e.name,
             'minutes': e.minutes,
+            'seconds': e.seconds,
             'speaker': e.speaker,
             if (privateNotes) 'notes': e.notes,
           },
@@ -584,6 +597,10 @@ class AppController extends ChangeNotifier {
             'pause',
             'adjust',
             'advance',
+            'jump',
+            'clock',
+            'clearCue',
+            'endScreen',
             'cue',
             'timer',
             'blank',
@@ -631,6 +648,8 @@ class AppController extends ChangeNotifier {
         : 'Command applied';
     hardware = HardwareDisplay(port)..addListener(_hardwareChanged);
     hardware.onEvent = (session, kind, message) {
+      // Output changes after the service must not rewrite its completed report.
+      if (!ready || !state.session.active) return;
       if (_events.length < 2000)
         _events.add((
           session: session,
@@ -800,6 +819,7 @@ class AppController extends ChangeNotifier {
           await act('warnings');
         }
         _publish();
+        await syncActiveService();
         if (destination == 'led') unawaited(hardware.check(now));
         if (!busy &&
             !storageUncertain &&
@@ -850,6 +870,8 @@ class AppController extends ChangeNotifier {
       final previous = state.session;
       final previousAwake = state.keepScreenAwake;
       mutation(draft, at);
+      draft.clockFormat = readClockFormat(draft.clockFormat);
+      draft.session.clockFormat = draft.clockFormat;
       draft.churchName = churchNameValue(draft.churchName);
       if (draft.churchBanner != state.churchBanner)
         await validateBannerPixels(draft.churchBanner);
@@ -943,6 +965,8 @@ class AppController extends ChangeNotifier {
           'Operator control changed. Review the action again.',
         );
         if (action == 'cue') validateLayout(value as TextLayout);
+        if (action == 'message')
+          validateLayout((value as StageOutputMessage).layout);
         draft.session = transition(
           draft.session,
           action,
@@ -964,6 +988,11 @@ class AppController extends ChangeNotifier {
           'pause',
           'adjust',
           'advance',
+          'jump',
+          'clock',
+          'message',
+          'clearCue',
+          'endScreen',
           'undo',
           'rate',
           'cue',
@@ -975,7 +1004,17 @@ class AppController extends ChangeNotifier {
           );
         }
         if (action == 'load') draft.session.churchName = draft.churchName;
-        if ((action == 'start' || action == 'advance') && hardware.connected)
+        if ({
+              'start',
+              'advance',
+              'jump',
+              'clock',
+              'message',
+              'clearCue',
+              'endScreen',
+              'timer',
+            }.contains(action) &&
+            hardware.connected)
           draft.session.disconnected = false;
         if (action == 'end') {
           draft.reports.add(ServiceReport.fromSession(draft.session, at));
@@ -986,6 +1025,11 @@ class AppController extends ChangeNotifier {
         'load',
         'start',
         'advance',
+        'jump',
+        'clock',
+        'message',
+        'clearCue',
+        'endScreen',
         'undo',
         'cue',
         'timer',
@@ -998,6 +1042,11 @@ class AppController extends ChangeNotifier {
           'load',
           'start',
           'advance',
+          'jump',
+          'clock',
+          'message',
+          'clearCue',
+          'endScreen',
           'cue',
           'timer',
           'blank',
@@ -1007,7 +1056,18 @@ class AppController extends ChangeNotifier {
       _testMessage = null;
       unawaited(pairing.publish());
     }
-    if (saved && action == 'advance' && hardware.connected) {
+    if (saved &&
+        {
+          'advance',
+          'jump',
+          'clock',
+          'message',
+          'clearCue',
+          'endScreen',
+          'timer',
+          'blank',
+        }.contains(action) &&
+        hardware.connected) {
       hardware.release(state.session, timingVerified: true);
       await syncActiveService();
       _publish();
@@ -1040,9 +1100,6 @@ class AppController extends ChangeNotifier {
         s.anchor = at;
         s.undo = null;
       }
-      s.alert = null;
-      s.automaticCue = null;
-      s.outputBlank = false;
       s.held = false;
       s.disconnected = false;
       s.outage = null;
@@ -1090,6 +1147,7 @@ class AppController extends ChangeNotifier {
       draft.reports = restored.reports;
       draft.stageCues = restored.stageCues;
       draft.quickMessages = restored.quickMessages;
+      draft.clockFormat = restored.clockFormat;
       draft.pixelShape = restored.pixelShape;
       draft.groupTemplates = restored.groupTemplates;
       draft.churchName = restored.churchName;

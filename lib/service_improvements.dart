@@ -54,35 +54,40 @@ QuickMessage messageFromDraft(Json j) => QuickMessage(
   scale: (j['scale'] as num? ?? 1).toDouble(),
 );
 
-/// Removes whole minutes from only the unprotected upcoming segments.
-List<Segment> timeRecoveryPlan(Session s, int minutes) {
+/// Backward-compatible minutes API; the editor supports second precision.
+List<Segment> timeRecoveryPlan(Session s, int minutes) =>
+    timeRecoveryPlanSeconds(s, minutes * 60);
+List<Segment> timeRecoveryPlanSeconds(Session s, int seconds) {
   require(s.active && !s.uncertain, 'Review the running service first.');
-  require(minutes > 0, 'Enter the minutes to recover.');
+  require(seconds > 0, 'Choose time to recover.');
   final upcoming = s.timeline!.segments.skip(s.index + 1).toList();
-  final allocation = upcoming.map((v) => v.minutes).toList();
+  final allocation = upcoming.map((v) => v.durationSeconds).toList();
   final capacity = upcoming.fold<int>(
     0,
-    (n, v) => n + (v.protected ? 0 : v.minutes - 1),
+    (n, v) => n + (v.protected ? 0 : math.max(0, v.durationSeconds - 60)),
   );
   require(
-    minutes <= capacity,
-    'Only $capacity minutes can be recovered while keeping protected segments and a one-minute minimum.',
+    seconds <= capacity,
+    'Only ${durationLabel(capacity * 1000)} can be recovered while keeping protected segments and a one-minute minimum.',
   );
-  for (var remaining = minutes; remaining > 0; remaining--) {
+  for (var remaining = seconds; remaining > 0;) {
     var index = -1;
     for (var i = 0; i < upcoming.length; i++) {
       if (!upcoming[i].protected &&
-          allocation[i] > 1 &&
+          allocation[i] > 60 &&
           (index < 0 || allocation[i] > allocation[index]))
         index = i;
     }
-    allocation[index]--;
+    final take = math.min(remaining, math.min(60, allocation[index] - 60));
+    allocation[index] -= take;
+    remaining -= take;
   }
   return [
     for (var i = 0; i < upcoming.length; i++)
       Segment(
         upcoming[i].name,
-        allocation[i],
+        allocation[i] ~/ 60,
+        seconds: allocation[i] % 60,
         speaker: upcoming[i].speaker,
         notes: upcoming[i].notes,
         protected: upcoming[i].protected,
@@ -150,7 +155,7 @@ List<DurationInsight> durationInsights(
     final median = durations.length.isOdd
         ? durations[middle]
         : (durations[middle - 1] + durations[middle]) ~/ 2;
-    final suggested = (median / 60000).ceil().clamp(1, 99);
+    final suggested = (median / 60000).ceil().clamp(1, 59);
     result.add(
       DurationInsight(
         i,

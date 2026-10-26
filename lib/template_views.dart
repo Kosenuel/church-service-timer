@@ -1,7 +1,12 @@
 part of 'main.dart';
 
-String templateSummary(Timeline t) =>
-    '${t.segments.length} ${t.segments.length == 1 ? 'segment' : 'segments'} · ${t.segments.fold<int>(0, (sum, segment) => sum + segment.minutes)} min';
+String templateSummary(Timeline t) {
+  final total = t.segments.fold<int>(
+    0,
+    (sum, segment) => sum + segment.durationMs,
+  );
+  return '${t.segments.length} ${t.segments.length == 1 ? 'segment' : 'segments'} · ${total % 60000 == 0 ? '${total ~/ 60000} min' : durationLabel(total)}';
+}
 
 extension TemplateViews on _HomeState {
   Widget templates() {
@@ -16,6 +21,10 @@ extension TemplateViews on _HomeState {
             InkWell(
               key: ValueKey('template-row:${values[i].name}'),
               onTap: () => openTemplate(values[i].name),
+              onLongPress: () => showItemActions(
+                'Program',
+                (a) => programItemAction(values[i], a),
+              ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -45,7 +54,8 @@ extension TemplateViews on _HomeState {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    itemMenu('Program', (a) => programItemAction(values[i], a)),
+                    const SizedBox(width: 4),
                     Icon(
                       Icons.chevron_right,
                       color: appColors(context).muted,
@@ -155,6 +165,14 @@ extension TemplateViews on _HomeState {
               const SizedBox(height: 20),
             ],
         const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: disabled || items.isEmpty ? null : exportAllPrograms,
+            icon: const Icon(Icons.ios_share),
+            label: const Text('Export all programs'),
+          ),
+        ),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
@@ -337,7 +355,7 @@ extension TemplateViews on _HomeState {
                                                 ),
                                                 const SizedBox(width: 12),
                                                 Text(
-                                                  '${t.segments[i].minutes} min',
+                                                  '${t.segments[i].durationText}',
                                                   style: TextStyle(
                                                     color: appColors(
                                                       context,

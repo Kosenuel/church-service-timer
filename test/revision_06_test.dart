@@ -294,10 +294,15 @@ void main() {
       expect(find.text('SERVICES'), findsOneWidget);
       expect(find.text('REHEARSALS'), findsOneWidget);
       expect(t.takeException(), isNull);
-      await t.ensureVisible(
-        find.byKey(const ValueKey('template-row:Quick rehearsal')),
+      await t.scrollUntilVisible(
+        find
+            .byKey(const ValueKey('template-row:Quick rehearsal'))
+            .hitTestable(),
+        200,
+        scrollable: find.byType(Scrollable).first,
       );
-      await t.tap(find.byKey(const ValueKey('template-row:Quick rehearsal')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Quick rehearsal'));
       await t.pumpAndSettle();
       expect(t.takeException(), isNull);
       await t.ensureVisible(find.text('Edit Program'));

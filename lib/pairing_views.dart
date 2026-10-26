@@ -746,14 +746,70 @@ class PairQrDialog extends StatefulWidget {
 
 class _PairQrDialogState extends State<PairQrDialog> {
   Timer? timer;
+  bool closing = false;
+  late Set<PairPeer> existing;
   @override
   void initState() {
     super.initState();
+    existing = widget.hub.peers.toSet();
     widget.hub.addListener(refresh);
     timer = Timer.periodic(const Duration(seconds: 1), (_) => refresh());
   }
 
   void refresh() {
+    final pending = widget.hub.peers
+        .where(
+          (p) =>
+              !existing.contains(p) &&
+              !p.approved &&
+              !p.wire.closed &&
+              !p.suspended,
+        )
+        .firstOrNull;
+    if (mounted && !closing && pending != null) {
+      closing = true;
+      final navigator = Navigator.of(context), hub = widget.hub;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted || !navigator.mounted) return;
+        navigator.pop();
+        final approve = await showDialog<bool>(
+          context: navigator.context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Approve paired device?'),
+            content: Text(
+              '${pending.name}\n${pending.role == 'operator' ? 'Operator · control requires a separate handover' : 'Stage / service viewer'}',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Decline'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Approve'),
+              ),
+            ],
+          ),
+        );
+        if (!hub.hosting || pending.wire.closed || !hub.peers.contains(pending))
+          return;
+        try {
+          if (approve == true) await hub.approve(pending);
+          if (approve == false) await hub.forgetDevice(pending.id);
+        } catch (_) {
+          if (navigator.mounted)
+            ScaffoldMessenger.maybeOf(navigator.context)?.showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Device unavailable. Review the paired devices list.',
+                ),
+              ),
+            );
+        }
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+      return;
+    }
     if (mounted) setState(() {});
   }
 
@@ -1339,7 +1395,7 @@ class _PairedScreenState extends State<PairedScreen> {
                 ),
               ),
               subtitle: Text(
-                '${e.value['minutes']} min · ${e.value['speaker']}${e.value['notes'] == null ? '' : '\nPrivate: ${e.value['notes']}'}',
+                '${durationLabel(((e.value['minutes'] as int) * 60 + (e.value['seconds'] as int? ?? 0)) * 1000)} · ${e.value['speaker']}${e.value['notes'] == null ? '' : '\nPrivate: ${e.value['notes']}'}',
               ),
             ),
         ],
