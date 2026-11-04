@@ -7,18 +7,18 @@ Version 0.11 adds the first physical adapter to the simulator prototype: Huidu W
 - Church branding, seven theme presets and custom colors with cancelable previews, configurable screen awake, grouped Settings, About with author/version, and validated setup backup/restore. Reports snapshot church identity.
 - Feedback Center collects title, message and contact, includes the installed version, and opens a draft to immanuelproton@gmail.com in the phone's email app. Copy fallback and confirmed draft clearing are available. The operator reviews and sends from the email app; there is no background delivery or receipt tracking.
 
-- Separate Live, Templates, Settings and Reports views; responsive phone/tablet layouts.
-- Independent loaded-service snapshot; template changes/deletion do not change the run. Shared warning settings update every template and the loaded service. Global At Zero edits explicitly update every template and loaded/prior service snapshot.
+- Separate Live, Programs, Settings and Reports views; responsive phone/tablet layouts.
+- Independent loaded-service snapshot; program changes/deletion do not change the run. Shared warning settings update every program and the loaded service. Global At Zero edits explicitly update every program and loaded/prior service snapshot.
 - Ready with explicit first-segment start, cancellation without prior output replay, manual final-segment ending.
 - Suspend-aware Android monotonic clock; elapsed-time calculation instead of callback counting.
-- Confirmed pause/resume, custom Add and ±120-second adjustments; clamp at zero, 99:59 maximum; prominent red End service control.
+- Confirmed pause/resume, custom Add and ±120-second adjustments; clamp at zero; new durations up to 59:59 (older records up to 99:59 remain readable); prominent red End service control.
 - Confirmed advance, elapsed-aware one-step undo, 10-second quick-undo window and modification tracking.
 - Shared prepared cues: one-tap Live sending; create, format, reorder and delete in Settings → Stage cues. Editing leaves existing stage output unchanged.
 - Unchanged I-Proton Matrix and I-Proton Sq-Matrix; bundled Tinos in four styles with native rasterization. No font import is required. Explicit unsupported-character and rendering errors.
 - Saved square/circular simulator LED appearance, shared by Live and previews without altering output bits.
 - Bold, italic, 7/14-pixel text height, horizontal alignment, scrolling speed and flash preview.
 - Cue editing includes a matrix preview; Live prepared cues send immediately. A preview does not confer physical approval.
-- Shared global At Zero and per-template end screens editable in the template editor; new templates copy the Display end default.
+- Shared global At Zero and per-program end screens editable in the program editor; new programs copy the Display end default.
 - Atomic local persistence before logical publication; failure feedback/retry; corrupt state blocks output until explicit reset.
 - Running, paused, Ready, ended, alert and undo restoration; conservative 30-minute output hold and uncertainty on reboot.
 - Exact 512-pixel simulator; disconnected output freezes while authoritative time continues; reconnect applies current state only.
