@@ -93,7 +93,7 @@ class ProgramFilters extends StatelessWidget {
     runSpacing: 4,
     children: [
       for (final e in {
-        'all': 'All programs',
+        'all': 'All',
         'favourites': 'Favourites',
         'recent': 'Recent',
       }.entries)
@@ -111,9 +111,53 @@ extension Update21Views on _HomeState {
     if (!selected.remove(id)) selected.add(id);
   }
 
+  /// Compact Select toggle; Programs places it on the filter row.
+  Widget selectToggle({required bool programs}) {
+    final available = programs
+        ? c.state.templates.isNotEmpty
+        : c.state.reports.isNotEmpty;
+    final narrow = MediaQuery.sizeOf(context).width < 480;
+    void start() => refreshHome(() {
+      if (programs) {
+        selectingPrograms = true;
+        selectedProgramExports.clear();
+      } else {
+        selectingReports = true;
+        reportView = 'list';
+        selectedReportExports.clear();
+      }
+    });
+    if (narrow) {
+      return IconButton(
+        key: ValueKey('select-${programs ? 'programs' : 'reports'}'),
+        tooltip: 'Select',
+        onPressed: available ? start : null,
+        icon: const Icon(Icons.checklist),
+      );
+    }
+    return TextButton.icon(
+      key: ValueKey('select-${programs ? 'programs' : 'reports'}'),
+      onPressed: available
+          ? () => refreshHome(() {
+              if (programs) {
+                selectingPrograms = true;
+                selectedProgramExports.clear();
+              } else {
+                selectingReports = true;
+                reportView = 'list';
+                selectedReportExports.clear();
+              }
+            })
+          : null,
+      icon: const Icon(Icons.checklist),
+      label: const Text('Select'),
+    );
+  }
+
   Widget exportSelectionBar({
     required bool programs,
     required Set<String> shown,
+    bool showToggle = true,
   }) {
     final selecting = programs ? selectingPrograms : selectingReports;
     final selected = programs ? selectedProgramExports : selectedReportExports;
@@ -131,6 +175,7 @@ extension Update21Views on _HomeState {
       }
       selected.clear();
     });
+    if (!selecting && !showToggle) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: !selecting
@@ -496,7 +541,7 @@ extension Update21Views on _HomeState {
     if (!ok && mounted) await showError(c.error ?? 'Could not save favourite.');
   }
 
-  Widget programSearch() => Column(
+  Widget programSearch({List<Widget> trailing = const []}) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       TextFormField(
@@ -509,9 +554,20 @@ extension Update21Views on _HomeState {
         onChanged: (v) => refreshHome(() => programQuery = v),
       ),
       const SizedBox(height: 8),
-      ProgramFilters(
-        value: programFilter,
-        onChanged: (v) => refreshHome(() => programFilter = v),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ProgramFilters(
+                value: programFilter,
+                onChanged: (v) => refreshHome(() => programFilter = v),
+              ),
+            ),
+          ),
+          ...trailing,
+        ],
       ),
       const SizedBox(height: 12),
     ],

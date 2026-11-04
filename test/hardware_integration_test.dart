@@ -149,32 +149,44 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
-  testWidgets('Paused controls stay in one even row on a 411px phone', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(411, 1250);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final c = (await tester.runAsync(() => setup(W2Port())))!;
-    await tester.runAsync(() => c.act('pause'));
-    await tester.pumpWidget(TimerApp(controller: c));
-    await tester.pumpAndSettle();
-    final resume = find.byKey(const ValueKey('pause-resume'));
-    final subtract = find.ancestor(
-      of: find.text('−2 min'),
-      matching: find.byWidgetPredicate((w) => w is OutlinedButton),
-    );
-    expect(tester.getRect(resume).top, tester.getRect(subtract).top);
-    expect(tester.getSize(resume).height, tester.getSize(subtract).height);
-    expect(find.byTooltip('Resume'), findsOneWidget);
-    await expectLater(
-      find.byType(MaterialApp),
-      matchesGoldenFile('goldens/hardware-paused-phone.png'),
-    );
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-  });
+  testWidgets(
+    'Paused primary controls and time adjustments each share an even row on a 411px phone',
+    (tester) async {
+      tester.view.physicalSize = const Size(411, 1250);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final c = (await tester.runAsync(() => setup(W2Port())))!;
+      await tester.runAsync(() => c.act('pause'));
+      await tester.pumpWidget(TimerApp(controller: c));
+      await tester.pumpAndSettle();
+      final resume = find.byKey(const ValueKey('pause-resume'));
+      final next = find.byKey(const ValueKey('next-segment'));
+      expect(tester.getRect(resume).top, tester.getRect(next).top);
+      expect(tester.getSize(resume).height, tester.getSize(next).height);
+      final adjust = [
+        for (final label in ['−2 min', '+2 min', 'Custom'])
+          find.ancestor(
+            of: find.text(label),
+            matching: find.byWidgetPredicate((w) => w is TextButton),
+          ),
+      ];
+      for (final button in adjust.skip(1)) {
+        expect(tester.getRect(button).top, tester.getRect(adjust.first).top);
+        expect(
+          tester.getSize(button).height,
+          tester.getSize(adjust.first).height,
+        );
+      }
+      expect(find.byTooltip('Resume'), findsOneWidget);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/hardware-paused-phone.png'),
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets(
     'Hardware warning UI distinguishes requested output from acceptance',
     (tester) async {

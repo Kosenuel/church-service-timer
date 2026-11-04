@@ -50,7 +50,7 @@ Widget reportMetric(
       Text(
         value,
         style: TextStyle(
-          color: color ?? appColors(context).accent,
+          color: color ?? appColors(context).text,
           fontSize: 22,
           fontWeight: FontWeight.w600,
         ),
@@ -495,7 +495,7 @@ extension ReportViews on _HomeState {
                   ),
                   Text(
                     'On time · ${summary.onTime}',
-                    style: TextStyle(color: appColors(context).accent),
+                    style: TextStyle(color: appColors(context).success),
                   ),
                   Text(
                     'Behind · ${summary.behind}',
@@ -827,19 +827,42 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   @override
   Widget build(BuildContext context) {
     final r = widget.report, colors = appColors(context);
+    final actions = PopupMenuButton<String>(
+      key: const ValueKey('report-actions'),
+      tooltip: 'Report actions',
+      enabled: !busy,
+      icon: const Icon(Icons.more_vert),
+      onSelected: (value) => run(() async {
+        if (value == 'delete') {
+          if (await widget.onDelete() && context.mounted && !widget.embedded)
+            Navigator.pop(context);
+        } else {
+          await widget.onExport(value);
+        }
+      }),
+      itemBuilder: (context) => appMenuEntries(context, const [
+        AppMenuAction('csv', 'Export report CSV'),
+        AppMenuAction('json', 'Export report JSON'),
+        AppMenuAction('delete', 'Clear report', destructive: true),
+      ]),
+    );
     final content = SingleChildScrollView(
       padding: EdgeInsets.all(widget.embedded ? 12 : 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (widget.onPrint != null)
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: busy ? null : () => run(widget.onPrint!),
-                icon: const Icon(Icons.print_outlined),
-                label: const Text('Print Service'),
-              ),
+          if (widget.onPrint != null || widget.embedded)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (widget.onPrint != null)
+                  FilledButton.icon(
+                    onPressed: busy ? null : () => run(widget.onPrint!),
+                    icon: const Icon(Icons.print_outlined),
+                    label: const Text('Print Service'),
+                  ),
+                if (widget.embedded) actions,
+              ],
             ),
           const SizedBox(height: 12),
           block(
@@ -894,12 +917,22 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                       r.totalMs == null
                           ? '—'
                           : varianceLabel(r.totalMs! - r.plannedMs),
-                      color: r.comparable ? colors.accent : colors.warning,
+                      color: r.totalMs == null
+                          ? colors.muted
+                          : r.totalMs! - r.plannedMs > 999
+                          ? colors.warning
+                          : colors.success,
                     ),
-                    reportMetric(context, 'PAUSED', durationLabel(r.pausedMs)),
+                    reportMetric(
+                      context,
+                      'PAUSED',
+                      durationLabel(r.pausedMs),
+                      color: r.pausedMs == 0 ? colors.muted : null,
+                    ),
                     reportMetric(
                       context,
                       'TIME ADJUSTMENTS',
+                      color: r.adjustmentMs == 0 ? colors.muted : null,
                       '${r.adjustmentMs > 0
                           ? '+'
                           : r.adjustmentMs < 0
@@ -931,38 +964,6 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                   ),
               ],
             ),
-          ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed: busy
-                    ? null
-                    : () => run(() => widget.onExport('csv')),
-                icon: const Icon(Icons.download_outlined),
-                label: const Text('Export report CSV'),
-              ),
-              OutlinedButton.icon(
-                onPressed: busy
-                    ? null
-                    : () => run(() => widget.onExport('json')),
-                icon: const Icon(Icons.code),
-                label: const Text('Export report JSON'),
-              ),
-              TextButton.icon(
-                onPressed: busy
-                    ? null
-                    : () => run(() async {
-                        if (await widget.onDelete() &&
-                            context.mounted &&
-                            !widget.embedded)
-                          Navigator.pop(context);
-                      }),
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Clear report'),
-              ),
-            ],
           ),
           const SizedBox(height: 20),
           Text(
@@ -1053,6 +1054,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Service report'),
+        actions: [actions, const SizedBox(width: 4)],
         bottom: widget.controller?.liveSession.active == true
             ? RunningServiceBar.forContext(
                 context,
@@ -1113,10 +1115,11 @@ class ReportSegmentRow extends StatelessWidget {
                     variance,
                     style: TextStyle(
                       fontSize: 13,
-                      color:
-                          row.actualMs != null && row.actualMs! > row.plannedMs
+                      color: row.actualMs == null
+                          ? colors.muted
+                          : row.actualMs! > row.plannedMs
                           ? colors.warning
-                          : colors.accent,
+                          : colors.success,
                     ),
                   ),
                 ],

@@ -191,28 +191,6 @@ extension Update19Views on _HomeState {
       await showError(c.error ?? 'The message could not be sent.');
   }
 
-  Widget extraOutputControls() => ControlGrid(
-    children: [
-      button(
-        'Show clock',
-        Icons.schedule,
-        outputControlsEnabled ? () => c.act('clock') : null,
-        primary: c.state.session.outputMode(c.now) == 'Clock',
-      ),
-      button(
-        'Send message',
-        Icons.edit_note,
-        outputControlsEnabled ? sendStageMessage : null,
-      ),
-      if (c.state.session.hasManualCue(c.now))
-        button(
-          'Clear message',
-          Icons.close,
-          outputControlsEnabled ? () => c.act('clearCue') : null,
-        ),
-    ],
-  );
-
   Future<String?> itemExportFormat({bool report = false}) => showDialog<String>(
     context: context,
     animationStyle: reduceAppMotion(context)

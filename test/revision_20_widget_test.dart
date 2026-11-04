@@ -7,6 +7,7 @@ import 'package:church_service_timer/controller.dart';
 import 'package:church_service_timer/app_theme.dart';
 import 'package:church_service_timer/clock_text.dart';
 import 'domain_test.dart' show FakePort, timeline;
+import 'live_helpers.dart';
 
 void main() {
   setUpAll(() async {
@@ -364,7 +365,7 @@ void main() {
   );
 
   testWidgets(
-    'Jump button is outlined, destinations separated, final segment explains unavailability',
+    'Segment title opens Jump, destinations separated, final segment explains unavailability',
     (t) async {
       size(t);
       final c = AppController(FakePort());
@@ -373,7 +374,7 @@ void main() {
       await c.act('start');
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await tap(t, 'Jump to segment');
+      await tapJump(t);
       expect(
         find.descendant(
           of: find.byType(BottomSheet),
@@ -399,18 +400,14 @@ void main() {
       await t.tapAt(const Offset(5, 5));
       await t.pumpAndSettle();
       expect(
-        t.widget(find.byKey(const ValueKey('jump-to-segment'))),
-        isA<OutlinedButton>(),
+        t.widget<InkWell>(find.byKey(const ValueKey('jump-to-segment'))).onTap,
+        isNotNull,
       );
       await c.act('jump', value: 2);
       await t.pumpAndSettle();
       expect(find.text('No upcoming segments'), findsOneWidget);
       expect(
-        t
-            .widget<OutlinedButton>(
-              find.byKey(const ValueKey('jump-to-segment')),
-            )
-            .onPressed,
+        t.widget<InkWell>(find.byKey(const ValueKey('jump-to-segment'))).onTap,
         isNull,
       );
       await t.pumpWidget(const SizedBox());

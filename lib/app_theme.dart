@@ -140,6 +140,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
       light ? const Color(0xff875100) : const Color(0xfff3ba61);
   Color get error => light ? const Color(0xffad2835) : const Color(0xffffb4ab);
   Color get info => light ? const Color(0xff176b83) : const Color(0xff7bcfe8);
+
+  /// On-time and connected status; distinct from the accent used for actions.
+  Color get success =>
+      light ? const Color(0xff1f7a45) : const Color(0xff9fe6b0);
   @override
   AppPalette copyWith() => this;
   @override

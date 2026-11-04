@@ -12,6 +12,7 @@ import 'feature_cases.dart' show epoch, at;
 import 'revision_03_test.dart' show FontPort, NotificationPort;
 import 'revision_09_test.dart' show FeedbackPort;
 import 'revision_10_cases.dart';
+import 'live_helpers.dart';
 
 void main() {
   for (final e in revision10Cases.entries) {
@@ -195,7 +196,7 @@ void main() {
     await t.pumpAndSettle();
     final before = jsonEncode(c.state.toJson());
     final pixels = [...c.simulator.pixels];
-    await tap(t, 'Ready for service');
+    await openLiveMenu(t, 'Ready for service');
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/readiness-phone.png'),
@@ -218,7 +219,7 @@ void main() {
       await c.act('start');
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await tap(t, 'Focused operator view');
+      await openLiveMenu(t, 'Focused operator view');
       expect(find.byType(NavigationBar), findsNothing);
       expect(find.text('SERVICE TIMING OVERVIEW'), findsNothing);
       expect(find.byType(WarningSettingsPanel), findsNothing);
@@ -234,7 +235,8 @@ void main() {
       expect(c.state.session.outputBlank, false);
       await tap(t, 'Confirm blank');
       expect(c.state.session.outputBlank, true);
-      await tap(t, 'Show timer');
+      await tap(t, 'Unblank screen');
+      await tap(t, 'Confirm unblank');
       expect(c.state.session.outputBlank, false);
       await tap(t, 'Exit focused view');
       expect(find.byType(NavigationBar), findsOneWidget);

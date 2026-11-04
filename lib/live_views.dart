@@ -127,15 +127,17 @@ class SegmentGauge extends StatelessWidget {
                             ],
                             FittedBox(fit: BoxFit.scaleDown, child: number),
                             if (!outsideLabels) ...[
-                              const SizedBox(height: 10),
-                              label('Allocated time'),
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 6),
                               Text(
-                                formatTime(session.allocatedMs),
+                                'of ${formatTime(session.allocatedMs)} allocated',
                                 key: const ValueKey('allocated-time'),
-                                style: const TextStyle(
-                                  fontSize: 19,
-                                  fontFeatures: [FontFeature.tabularFigures()],
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: appColors(context).muted,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
                                 ),
                               ),
                             ],
@@ -147,7 +149,7 @@ class SegmentGauge extends StatelessWidget {
                 ),
                 if (outsideLabels)
                   Text(
-                    'Allocated time · ${formatTime(session.allocatedMs)}',
+                    'of ${formatTime(session.allocatedMs)} allocated',
                     key: const ValueKey('allocated-time'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -578,155 +580,194 @@ extension LiveViewActions on _HomeState {
 
   Widget liveControls(bool enabled) {
     final s = c.state.session;
-    Widget control(
-      String text,
-      VoidCallback? callback, {
-      IconData? icon,
-      bool filled = false,
-    }) {
-      final style = ButtonStyle(
-        padding: const WidgetStatePropertyAll(
-          EdgeInsets.symmetric(horizontal: 6, vertical: 12),
-        ),
-        minimumSize: WidgetStatePropertyAll(
-          Size(48, appLayout(context).controlHeight),
-        ),
-        textStyle: WidgetStatePropertyAll(
-          Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 13),
-        ),
-      );
-      final label = Text(text, textAlign: TextAlign.center);
-      Widget explain(Widget button) => UnavailableAction(
-        reason: callback == null ? unavailableReason(text) : null,
-        child: button,
-      );
-      if (filled && icon == null)
-        return explain(
-          FilledButton(onPressed: callback, style: style, child: label),
-        );
-      if (filled)
-        return explain(
-          FilledButton.icon(
-            onPressed: callback,
-            style: style,
-            icon: Icon(icon, size: 18),
-            label: label,
-          ),
-        );
-      if (icon != null)
-        return explain(
-          OutlinedButton.icon(
-            onPressed: callback,
-            style: style,
-            icon: Icon(icon, size: 18),
-            label: label,
-          ),
-        );
-      return explain(
-        OutlinedButton(onPressed: callback, style: style, child: label),
-      );
-    }
-
+    final canAdvance = enabled && s.index + 1 < s.timeline!.segments.length;
     return LayoutBuilder(
       builder: (context, constraints) {
         final large = MediaQuery.textScalerOf(context).scale(14) > 18;
-        final columns = constraints.maxWidth >= 330 && !large ? 4 : 2;
-        final controls = [
-          control(
+        final colors = appColors(context);
+        final primaryHeight = math.max(
+          64.0,
+          MediaQuery.textScalerOf(context).scale(18) * 2.6,
+        );
+        final primaryText = Theme.of(context).textTheme.labelLarge?.copyWith(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+        );
+        final pause = Tooltip(
+          message: s.paused ? 'Resume' : 'Pause',
+          child: UnavailableAction(
+            reason: enabled ? null : unavailableReason('Pause'),
+            child: FilledButton.icon(
+              key: const ValueKey('pause-resume'),
+              onPressed: enabled ? confirmPause : null,
+              style: FilledButton.styleFrom(
+                minimumSize: Size(0, primaryHeight),
+                textStyle: primaryText,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              icon: Icon(
+                s.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                size: 26,
+              ),
+              label: Text(s.paused ? 'Resume' : 'Pause'),
+            ),
+          ),
+        );
+        final next = UnavailableAction(
+          reason: canAdvance ? null : unavailableReason('Next segment'),
+          child: OutlinedButton.icon(
+            key: const ValueKey('next-segment'),
+            onPressed: canAdvance ? advance : null,
+            style: OutlinedButton.styleFrom(
+              minimumSize: Size(0, primaryHeight),
+              textStyle: primaryText,
+              foregroundColor: colors.accent,
+              side: BorderSide(
+                color: canAdvance ? colors.accent : colors.border,
+                width: 2,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            icon: const Icon(Icons.skip_next_rounded, size: 26),
+            label: const Text('Next segment', textAlign: TextAlign.center),
+          ),
+        );
+        Widget segment(
+          String text,
+          VoidCallback? callback, {
+          bool last = false,
+        }) => UnavailableAction(
+          reason: callback == null ? unavailableReason(text) : null,
+          child: TextButton(
+            onPressed: callback,
+            style: TextButton.styleFrom(
+              minimumSize: Size(0, appLayout(context).controlHeight),
+              foregroundColor: colors.text,
+              shape: const RoundedRectangleBorder(),
+              textStyle: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontSize: 14),
+            ),
+            child: Text(text, textAlign: TextAlign.center),
+          ),
+        );
+        final adjust = [
+          segment(
             '−2 min',
             enabled && s.remaining(c.now) > 0
                 ? () => adjustTime(fixedSeconds: -120)
                 : null,
           ),
-          Tooltip(
-            message: s.paused ? 'Resume' : 'Pause',
-            child: UnavailableAction(
-              reason: enabled ? null : unavailableReason('Pause'),
-              child: FilledButton(
-                key: const ValueKey('pause-resume'),
-                onPressed: enabled ? confirmPause : null,
-                child: Icon(
-                  s.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                  size: 28,
-                  semanticLabel: s.paused ? 'Resume' : 'Pause',
-                ),
-              ),
-            ),
-          ),
-          control(
+          segment(
             '+2 min',
             enabled && s.balance(c.now) + 120000 <= supportedCountdownMs
                 ? () => adjustTime(fixedSeconds: 120)
                 : null,
           ),
-          control('Custom', enabled ? adjustTime : null),
+          segment('Custom', enabled ? adjustTime : null),
         ];
-        Widget row(List<Widget> children) => IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0) SizedBox(width: appLayout(context).gap),
-                Expanded(child: children[i]),
-              ],
-            ],
+        final adjustGroup = Semantics(
+          container: true,
+          label: 'Adjust time',
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: colors.border),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(11),
+              child: large
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < adjust.length; i++) ...[
+                          if (i > 0) Divider(height: 1, color: colors.border),
+                          adjust[i],
+                        ],
+                      ],
+                    )
+                  : IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (var i = 0; i < adjust.length; i++) ...[
+                            if (i > 0)
+                              VerticalDivider(width: 1, color: colors.border),
+                            Expanded(child: adjust[i]),
+                          ],
+                        ],
+                      ),
+                    ),
+            ),
           ),
         );
-        final navigation = [
-          control(
-            'Next segment',
-            enabled && s.index + 1 < s.timeline!.segments.length
-                ? advance
-                : null,
-            icon: Icons.skip_next,
+        final undoButton = UnavailableAction(
+          reason: enabled && s.undo != null ? null : unavailableReason('Undo'),
+          child: Tooltip(
+            message: 'Undo',
+            child: OutlinedButton(
+              key: const ValueKey('undo'),
+              onPressed: enabled && s.undo != null ? undo : null,
+              style: OutlinedButton.styleFrom(
+                minimumSize: Size.square(appLayout(context).controlHeight),
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Icon(Icons.undo, semanticLabel: 'Undo'),
+            ),
           ),
-          control(
-            'Undo',
-            enabled && s.undo != null ? undo : null,
-            icon: Icons.undo,
-          ),
-        ];
+        );
+        final hint = s.index + 1 >= s.timeline!.segments.length
+            ? 'No upcoming segments'
+            : !enabled
+            ? (controlsLocked
+                  ? 'Unlock controls to jump'
+                  : !c.pairing.localControl
+                  ? 'Request control to jump'
+                  : 'Finish the current action to jump')
+            : '';
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (var i = 0; i < controls.length; i += columns) ...[
-              if (i > 0) const SizedBox(height: 8),
-              row(controls.sublist(i, i + columns)),
-            ],
-            const SizedBox(height: 12),
-            if (large || constraints.maxWidth < 260) ...[
-              navigation.first,
-              const SizedBox(height: 8),
-              navigation.last,
+            if (large || constraints.maxWidth < 300) ...[
+              pause,
+              const SizedBox(height: 10),
+              next,
             ] else
-              row(navigation),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              key: const ValueKey('jump-to-segment'),
-              onPressed: enabled && s.index + 1 < s.timeline!.segments.length
-                  ? jumpToSegment
-                  : null,
-              icon: const Icon(Icons.playlist_play),
-              label: const Text('Jump to segment'),
-            ),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.textScalerOf(context).scale(12) * 1.6,
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: pause),
+                    const SizedBox(width: 10),
+                    Expanded(child: next),
+                  ],
+                ),
               ),
-              child: Text(
-                s.index + 1 >= s.timeline!.segments.length
-                    ? 'No upcoming segments'
-                    : !enabled
-                    ? (controlsLocked
-                          ? 'Unlock controls to jump'
-                          : !c.pairing.localControl
-                          ? 'Request control to jump'
-                          : 'Finish the current action to jump')
-                    : '',
-                style: TextStyle(fontSize: 12, color: appColors(context).muted),
-                textAlign: TextAlign.center,
-              ),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: adjustGroup),
+                const SizedBox(width: 10),
+                undoButton,
+              ],
             ),
+            if (hint.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  hint,
+                  style: TextStyle(fontSize: 12, color: colors.muted),
+                  textAlign: TextAlign.center,
+                ),
+              ),
           ],
         );
       },

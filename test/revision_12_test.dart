@@ -11,6 +11,7 @@ import 'package:church_service_timer/pixels.dart';
 import 'package:church_service_timer/hardware_output.dart';
 import 'domain_test.dart' show after, start, FakePort;
 import 'hardware_integration_test.dart' show W2Port, setup, flush;
+import 'live_helpers.dart';
 
 class ActivePort extends W2Port {
   bool active = false;
@@ -357,8 +358,7 @@ void main() {
     await c.act('start');
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
-    await t.tap(find.text('Focused operator view'));
-    await t.pumpAndSettle();
+    await openLiveMenu(t, 'Focused operator view');
     await c.act('blank');
     await t.pumpAndSettle();
     expect(find.text('DISPLAY PREVIEW'), findsOneWidget);
