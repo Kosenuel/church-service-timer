@@ -881,6 +881,7 @@ class AppController extends ChangeNotifier {
         'timer',
         'blank',
         'cancelReady',
+        'unstart',
       }.contains(action),
     );
     if (saved &&
@@ -897,6 +898,7 @@ class AppController extends ChangeNotifier {
           'timer',
           'blank',
           'cancelReady',
+          'unstart',
         }.contains(action)) {
       quickMessages.reset();
       unawaited(pairing.publish());

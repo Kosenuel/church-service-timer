@@ -361,6 +361,9 @@ class Timeline {
   };
 }
 
+/// How long after starting a service its start can still be undone.
+const unstartWindowMs = 15000;
+
 class UndoPoint {
   final int index, remaining;
   final bool paused, modified;
@@ -791,6 +794,28 @@ Session transition(
     s.held = false;
     s.uncertain = false;
     s.prior = null;
+  } else if (action == 'unstart') {
+    // Undo an accidental start: only the first segment, within moments.
+    require(
+      s.phase == 'active' &&
+          s.index == 0 &&
+          s.undo == null &&
+          now.sameBoot(s.anchor) &&
+          now.since(s.anchor) <= unstartWindowMs,
+      'The service has been running too long to undo its start.',
+    );
+    s.phase = 'ready';
+    s.run = null;
+    s.paused = false;
+    s.alert = null;
+    s.automaticCue = null;
+    s.warningSeen = [];
+    s.warningNotice = null;
+    s.baseMs = s.timeline!.segments.first.durationMs;
+    s.warningCeiling = s.baseMs + 1;
+    s.anchor = now;
+    s.checkpoint = now;
+    s.held = true; // The display keeps its last frame until the next start.
   } else if (action == 'disconnect') {
     s.disconnected = true;
     s.outage ??= now;

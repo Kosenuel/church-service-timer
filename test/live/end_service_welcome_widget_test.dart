@@ -126,7 +126,7 @@ void main() {
       p.fail = false;
       await tap(t, 'Retry saving report');
       expect(find.text('Standing by'), findsOneWidget);
-      expect(find.text('Your next service,\nunder control.'), findsOneWidget);
+      expect(find.text('Ready when you are'), findsOneWidget);
       expect(find.byType(SegmentGauge), findsNothing);
       expect(find.text('SERVICE RUNDOWN · SNAPSHOT'), findsNothing);
       expect(host.state.reports.length, 1);

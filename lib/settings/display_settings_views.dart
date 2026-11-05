@@ -313,9 +313,8 @@ extension RefinedSettings on HomeState {
     );
   }
 
-  Widget readinessSettings() {
+  List<ReadinessCheck> readinessChecks() {
     final s = c.state.session;
-    final colors = appColors(context);
     final timeline = s.timeline;
     final connection = c.displayConnection;
     final displayOk =
@@ -325,7 +324,7 @@ extension RefinedSettings on HomeState {
     final rules = c.state.defaults.warnings;
     final enabledRules = rules.where((w) => w.enabled).length;
     final battery = c.batteryUnrestricted;
-    final checks = <ReadinessCheck>[
+    return <ReadinessCheck>[
       ReadinessCheck(
         key: 'program',
         title: 'Program loaded',
@@ -377,6 +376,12 @@ extension RefinedSettings on HomeState {
         onFix: () => openSettingsDetail('Warnings & alerts', warningsSettings),
       ),
     ];
+  }
+
+  Widget readinessSettings() {
+    final colors = appColors(context);
+    final timeline = c.state.session.timeline;
+    final checks = readinessChecks();
     final issues = checks.where((x) => !x.ok).length;
     final name = timeline?.name ?? 'The service';
     final tone = issues == 0 ? colors.accent : colors.warning;
