@@ -174,8 +174,8 @@ void main() {
       await t.ensureVisible(find.text('Edit Program'));
       await t.tap(find.widgetWithText(OutlinedButton, 'Edit Program'));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.text('Edit program end screen'));
-      await t.tap(find.text('Edit program end screen'));
+      await t.ensureVisible(find.byKey(const ValueKey('edit-end-screen')));
+      await t.tap(find.byKey(const ValueKey('edit-end-screen')));
       await t.pump(const Duration(milliseconds: 300));
       await t.enterText(find.widgetWithText(TextField, 'Display text'), 'AMEN');
       await t.tap(find.widgetWithText(FilledButton, 'Use end screen'));

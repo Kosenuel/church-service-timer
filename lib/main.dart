@@ -2495,222 +2495,415 @@ class TemplateEditorState extends State<TemplateEditor> {
       });
   }
 
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(widget.upcomingOnly ? 'Upcoming segments' : 'Program editor'),
-      bottom: widget.draftController?.liveSession.active == true
-          ? RunningServiceBar.forContext(
-              context,
-              controller: widget.draftController!,
-            )
+  void save() {
+    try {
+      if (widget.upcomingOnly) {
+        require(segments.length <= 200, 'Keep at most 200 segments.');
+        for (final s in segments) {
+          Segment.fromJson(s.toJson());
+        }
+        Navigator.pop(
+          context,
+          Timeline(
+            widget.initial.name,
+            segments,
+            widget.initial.display,
+            type: widget.initial.type,
+          ),
+        );
+        return;
+      }
+      final t = Timeline.fromJson(
+        Timeline(
+          name.text,
+          segments,
+          widget.initial.display.withEnd(endScreen),
+          type: templateType,
+        ).toJson(),
+      );
+      require(
+        !widget.existingNames.contains(t.name.toLowerCase()),
+        'A program with this name already exists.',
+      );
+      validateTimelinePixels(t);
+      Navigator.pop(context, t);
+    } catch (e) {
+      change(() => error = e.toString());
+    }
+  }
+
+  Future<void> editDuration(int i) async {
+    final value = await showWheelTimePicker(
+      context,
+      title: 'Set segment duration',
+      initial: segments[i].durationSeconds,
+    );
+    if (value == null || !mounted) return;
+    try {
+      final next = Segment.fromJson({
+        ...segments[i].toJson(),
+        'minutes': value ~/ 60,
+        'seconds': value % 60,
+      });
+      change(() {
+        segments[i] = next;
+        error = null;
+      });
+    } catch (e) {
+      change(() => error = e.toString());
+    }
+  }
+
+  Future<void> editEndScreen() async {
+    final next = await showDialog<TextLayout>(
+      context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
           : null,
-    ),
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          if (!widget.upcomingOnly) ...[
-            TextField(
-              controller: name,
-              decoration: const InputDecoration(
-                labelText: 'Program name',
-                hintText: 'Youth sunday',
-              ),
-            ),
-            const SizedBox(height: 16),
-            ChoiceField<String>(
-              value: templateType,
-              decoration: const InputDecoration(labelText: 'Program group'),
-              options: const [
-                ChoiceOption(value: 'service', label: 'Service'),
-                ChoiceOption(value: 'rehearsal', label: 'Rehearsal'),
-              ],
-              onChanged: (value) => change(() => templateType = value!),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Grouping organizes programs. Choose rehearsal speed when starting a service.',
-              style: TextStyle(color: appColors(context).muted, fontSize: 12),
-            ),
-          ],
-          if (widget.draftController != null)
+      builder: (_) => TextComposer(
+        initial: endScreen,
+        title: 'Program end screen',
+        button: 'Use end screen',
+      ),
+    );
+    if (next != null && mounted) change(() => endScreen = next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    final muted = TextStyle(fontSize: 12, color: colors.muted);
+    final totalMs = segments.fold<int>(0, (a, s) => a + s.durationMs);
+    final creating = widget.creating ?? widget.initial.name.isEmpty;
+    final draft = widget.draftController;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.upcomingOnly ? 'Upcoming segments' : 'Program editor',
+        ),
+        actions: [
+          if (draft != null)
             AnimatedBuilder(
-              animation: widget.draftController!,
-              builder: (context, _) =>
-                  widget.draftController!.draftError == null
-                  ? const Text(
-                      'Unfinished edits are saved on this phone.',
-                      style: TextStyle(fontSize: 12),
+              animation: draft,
+              builder: (context, _) => draft.draftError == null
+                  ? Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: Center(
+                        child: Text(
+                          'Draft saved',
+                          style: TextStyle(fontSize: 12, color: colors.muted),
+                        ),
+                      ),
                     )
                   : TextButton(
-                      onPressed: widget.draftController!.flushEditDrafts,
-                      child: Text(widget.draftController!.draftError!),
+                      onPressed: draft.flushEditDrafts,
+                      child: Text(draft.draftError!),
                     ),
             ),
-          if (!widget.upcomingOnly && widget.reports.isNotEmpty)
-            OutlinedButton.icon(
-              onPressed: reviewDurationSuggestions,
-              icon: const Icon(Icons.insights_outlined),
-              label: const Text('Learn from previous services'),
-            ),
-          if (widget.upcomingOnly)
-            const Text(
-              'Edit only the upcoming segments. Current and completed segments, saved programs and end screens stay unchanged.',
-            ),
-          const SizedBox(height: 16),
-          Text(
-            '${segments.length} segments · ${durationLabel(segments.fold<int>(0, (a, s) => a + s.durationMs))}',
-            style: TextStyle(color: appColors(context).muted),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Hold a row to drag it into a new position.',
-            style: TextStyle(color: appColors(context).muted, fontSize: 12),
-          ),
-          const SizedBox(height: 12),
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: segments.length,
-            onReorderItem: (a, b) => change(() {
-              segments.insert(b, segments.removeAt(a));
-            }),
-            itemBuilder: (context, i) => Card(
-              key: ValueKey(segments[i]),
-              child: ListTile(
-                leading: const Icon(Icons.drag_handle),
-                title: Text(segments[i].name),
-                subtitle: Text(
-                  '${segments[i].durationText}${segments[i].speaker.isEmpty ? '' : ' · ${segments[i].speaker}'}${segments[i].notes.isEmpty ? '' : '\nPrivate notes saved'}',
-                ),
-                onTap: () => segment(index: i),
-                trailing: IconButton(
-                  tooltip: 'Remove segment',
-                  onPressed: () => change(() => segments.removeAt(i)),
-                  icon: const Icon(Icons.close),
+        ],
+        bottom: draft?.liveSession.active == true
+            ? RunningServiceBar.forContext(context, controller: draft!)
+            : null,
+      ),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            if (!widget.upcomingOnly) ...[
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(
+                  labelText: 'Program name',
+                  hintText: 'Youth sunday',
                 ),
               ),
+              const SizedBox(height: 14),
+              ChoiceField<String>(
+                value: templateType,
+                decoration: const InputDecoration(labelText: 'Program group'),
+                options: const [
+                  ChoiceOption(value: 'service', label: 'Service'),
+                  ChoiceOption(value: 'rehearsal', label: 'Rehearsal'),
+                ],
+                onChanged: (value) => change(() => templateType = value!),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Grouping organises programs. Choose rehearsal speed when starting.',
+                style: muted,
+              ),
+            ],
+            if (widget.upcomingOnly)
+              Text(
+                'Edit only the upcoming segments. Current and completed segments, saved programs and end screens stay unchanged.',
+                style: TextStyle(color: colors.muted),
+              ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      'SEGMENTS',
+                      style: TextStyle(
+                        fontSize: 12,
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w600,
+                        color: colors.muted,
+                      ),
+                    ),
+                  ),
+                ),
+                Text('Drag the handle to reorder', style: muted),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: segments.length < 200 ? segment : null,
-            icon: const Icon(Icons.add),
-            label: const Text('Add segment'),
-          ),
-          if (!widget.upcomingOnly) ...[
-            const SizedBox(height: 24),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'End screen · this program',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    LedMatrix(pixels: renderPixels(endScreen, 0)),
-                    const SizedBox(height: 12),
-                    Text(styleSummary(endScreen)),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.edit_outlined),
-                          label: const Text('Edit program end screen'),
-                          onPressed: () async {
-                            final next = await showDialog<TextLayout>(
-                              context: context,
-                              animationStyle: reduceAppMotion(context)
-                                  ? AnimationStyle.noAnimation
-                                  : null,
-                              builder: (_) => TextComposer(
-                                initial: endScreen,
-                                title: 'Program end screen',
-                                button: 'Use end screen',
+            if (!widget.upcomingOnly && widget.reports.isNotEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: reviewDurationSuggestions,
+                  icon: const Icon(Icons.insights_outlined, size: 18),
+                  label: const Text('Learn from previous services'),
+                ),
+              ),
+            const SizedBox(height: 8),
+            if (segments.isNotEmpty)
+              Material(
+                color: colors.surface,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: colors.border),
+                ),
+                child: ReorderableListView.builder(
+                  shrinkWrap: true,
+                  buildDefaultDragHandles: false,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: segments.length,
+                  onReorderItem: (a, b) => change(() {
+                    segments.insert(b, segments.removeAt(a));
+                  }),
+                  itemBuilder: (context, i) {
+                    final s = segments[i];
+                    final detail = [
+                      if (s.speaker.isNotEmpty) s.speaker,
+                      if (s.notes.isNotEmpty) 'private note',
+                      if (s.protected) 'protected',
+                    ].join(' · ');
+                    return Material(
+                      key: ValueKey(s),
+                      color: colors.surface,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (i > 0) const AppDivider(),
+                          InkWell(
+                            onTap: () => segment(index: i),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
+                              child: Row(
+                                children: [
+                                  ReorderableDragStartListener(
+                                    index: i,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Icon(
+                                        Icons.drag_indicator,
+                                        color: colors.muted,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          s.name,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        if (detail.isNotEmpty)
+                                          Text(detail, style: muted),
+                                      ],
+                                    ),
+                                  ),
+                                  ActionChip(
+                                    key: ValueKey('segment-duration-$i'),
+                                    label: Text(
+                                      formatTime(s.durationMs),
+                                      style: const TextStyle(
+                                        fontFeatures: [
+                                          FontFeature.tabularFigures(),
+                                        ],
+                                      ),
+                                    ),
+                                    onPressed: () => editDuration(i),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Remove segment',
+                                    visualDensity: VisualDensity.compact,
+                                    onPressed: () =>
+                                        change(() => segments.removeAt(i)),
+                                    icon: Icon(
+                                      Icons.close,
+                                      size: 18,
+                                      color: colors.muted,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            );
-                            if (next != null && mounted)
-                              change(() => endScreen = next);
-                          },
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              change(() => endScreen = widget.defaultEnd),
-                          child: const Text('Use current default'),
-                        ),
-                      ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+              ),
+              onPressed: segments.length < 200 ? segment : null,
+              icon: const Icon(Icons.add),
+              label: const Text('Add segment'),
+            ),
+            if (!widget.upcomingOnly) ...[
+              const SizedBox(height: 16),
+              Material(
+                color: colors.surface,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: colors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ListTile(
+                      key: const ValueKey('edit-end-screen'),
+                      leading: Icon(Icons.flag_outlined, color: colors.muted),
+                      title: Text(
+                        'End screen · ${endScreen.text}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        endScreen == widget.defaultEnd
+                            ? 'Uses the current default · tap to edit'
+                            : 'This program’s own end screen · tap to edit',
+                        style: muted,
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: editEndScreen,
                     ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
+                          width: 168,
+                          child: LedMatrix(pixels: renderPixels(endScreen, 0)),
+                        ),
+                      ),
+                    ),
+                    if (endScreen != widget.defaultEnd)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                          child: TextButton(
+                            onPressed: () =>
+                                change(() => endScreen = widget.defaultEnd),
+                            child: const Text('Use current default'),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 10),
+              Text(
+                'Program edits apply the next time you load it.',
+                style: muted,
+              ),
+            ],
           ],
-          if (error != null)
-            Text(error!, style: TextStyle(color: appColors(context).warning)),
-          if (widget.upcomingOnly) const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () {
-              try {
-                if (widget.upcomingOnly) {
-                  require(segments.length <= 200, 'Keep at most 200 segments.');
-                  for (final s in segments) {
-                    Segment.fromJson(s.toJson());
-                  }
-                  Navigator.pop(
-                    context,
-                    Timeline(
-                      widget.initial.name,
-                      segments,
-                      widget.initial.display,
-                      type: widget.initial.type,
+        ),
+      ),
+      bottomNavigationBar: Material(
+        color: colors.surface,
+        child: SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: colors.border)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      error!,
+                      style: TextStyle(color: colors.warning),
                     ),
-                  );
-                  return;
-                }
-                final t = Timeline.fromJson(
-                  Timeline(
-                    name.text,
-                    segments,
-                    widget.initial.display.withEnd(endScreen),
-                    type: templateType,
-                  ).toJson(),
-                );
-                require(
-                  !widget.existingNames.contains(t.name.toLowerCase()),
-                  'A program with this name already exists.',
-                );
-                validateTimelinePixels(t);
-                Navigator.pop(context, t);
-              } catch (e) {
-                change(() => error = e.toString());
-              }
-            },
-            icon: const Icon(Icons.check),
-            label: Text(
-              widget.upcomingOnly
-                  ? 'Review rundown changes'
-                  : ((widget.creating ?? widget.initial.name.isEmpty)
-                        ? 'Create Program'
-                        : 'Save changes'),
+                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            totalMs % 60000 == 0
+                                ? '${totalMs ~/ 60000} min'
+                                : durationLabel(totalMs),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            '${plural(segments.length, 'segment')} · planned length',
+                            style: muted,
+                          ),
+                        ],
+                      ),
+                    ),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 50),
+                        padding: const EdgeInsets.symmetric(horizontal: 22),
+                      ),
+                      onPressed: save,
+                      icon: const Icon(Icons.check),
+                      label: Text(
+                        widget.upcomingOnly
+                            ? 'Review rundown changes'
+                            : creating
+                            ? 'Create Program'
+                            : 'Save changes',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          if (!widget.upcomingOnly)
-            Text(
-              'Program edits apply the next time you load it.',
-              style: TextStyle(color: appColors(context).muted),
-            ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Equal-width controls that wrap cleanly at narrow widths and large text sizes.
