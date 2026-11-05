@@ -8,6 +8,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/settings/whats_new_page.dart';
 
 extension SettingsViews on HomeState {
   Future<void> openSettingsDetail(
@@ -376,63 +377,85 @@ extension SettingsViews on HomeState {
     }
   }
 
-  Widget aboutSettings() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      panel(
-        child: Column(
-          children: [
-            const ChurchTimerMark(size: 80),
-            const SizedBox(height: 16),
-            const Text(
-              appName,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text('Version ${c.appVersion}'),
-            if (c.state.churchName.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(c.state.churchName, textAlign: TextAlign.center),
-              ),
-            const SizedBox(height: 20),
-            const Text(
-              'Created by I-Proton',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'A calm workspace for church service timing, stage cues, automatic warnings, rehearsals and after-service reports.',
-              textAlign: TextAlign.center,
-            ),
-          ],
+  Widget aboutSettings() {
+    final colors = appColors(context);
+    Widget detail(String title, String body, {Widget? action}) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(body, style: const TextStyle(fontSize: 15, height: 1.45)),
+        if (action != null) ...[const SizedBox(height: 16), action],
+      ],
+    );
+    Widget row(
+      IconData icon,
+      String title,
+      String summary,
+      VoidCallback onTap, {
+      Key? key,
+    }) => ListTile(
+      key: key,
+      contentPadding: appLayout(context).tileInsets,
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: colors.accent.withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 19, color: colors.accent),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(
+        summary,
+        style: TextStyle(fontSize: 13, color: colors.muted),
+      ),
+      trailing: const Icon(Icons.chevron_right, size: 22),
+      onTap: onTap,
+    );
+    final rows = [
+      row(
+        Icons.auto_awesome_outlined,
+        'What’s new',
+        'Release notes for ${c.appVersion.split(' ').first} and earlier',
+        () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const WhatsNewPage())),
+        key: const ValueKey('about-whats-new'),
+      ),
+      row(
+        Icons.storage_outlined,
+        'Your data',
+        'Stored only on this phone · backups you choose',
+        () => openSettingsDetail(
+          'Your data',
+          () => detail(
+            'Your data',
+            'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone and never included in backups.',
+          ),
         ),
       ),
-      const SizedBox(height: 16),
-      panel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            label('Simulator & W2 display'),
-            const SizedBox(height: 10),
-            const Text(
-              '32 × 16 simulator and W2 Wi-Fi output: native countdown, pause/resume, time adjustments and automatic warnings with scrolling. Hardware updates may blink briefly. The active-service notification supports locked-screen operation; after connection loss or process termination, reconnect and review the output.',
-            ),
-            const SizedBox(height: 16),
-            label('Your data'),
-            const SizedBox(height: 10),
-            const Text(
-              'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust.',
-            ),
-            const SizedBox(height: 16),
-            label('Display fonts'),
-            const SizedBox(height: 10),
-            const Text(
-              'I-Proton Matrix and I-Proton Sq-Matrix preserve the original Matrix glyphs. Tinos includes four bundled faces under SIL Open Font License 1.1.',
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
+      row(
+        Icons.developer_board_outlined,
+        'Display and hardware',
+        'Simulator, W2 sign limits and recovery',
+        () => openSettingsDetail(
+          'Display and hardware',
+          () => detail(
+            'Display and hardware',
+            '32 × 16 simulator and W2 Wi-Fi output: native countdown, pause/resume, time adjustments and automatic warnings with scrolling. Hardware updates may blink briefly. The active-service notification supports locked-screen operation; after connection loss or process termination, reconnect and review the output.',
+          ),
+        ),
+      ),
+      row(
+        Icons.text_fields,
+        'Fonts and licences',
+        'I-Proton Matrix, Sq-Matrix and Tinos (SIL OFL 1.1)',
+        () => openSettingsDetail(
+          'Fonts and licences',
+          () => detail(
+            'Fonts and licences',
+            'I-Proton Matrix and I-Proton Sq-Matrix preserve the original Matrix glyphs. Tinos includes four bundled faces under SIL Open Font License 1.1.',
+            action: OutlinedButton.icon(
               onPressed: () => showLicensePage(
                 context: context,
                 applicationName: appName,
@@ -441,11 +464,101 @@ extension SettingsViews on HomeState {
               icon: const Icon(Icons.description_outlined),
               label: const Text('Open-source licenses'),
             ),
-          ],
+          ),
         ),
       ),
-    ],
-  );
+      row(
+        Icons.feedback_outlined,
+        'Send feedback',
+        'Opens an email draft to the developer',
+        () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => FeedbackCenterPage(controller: c)),
+        ),
+      ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        panel(
+          child: Row(
+            children: [
+              const ChurchTimerMark(size: 64),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      appName,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.accent.withValues(alpha: .14),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Version ${c.appVersion}',
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'Created by I-Proton',
+                          style: TextStyle(color: colors.muted, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    if (c.state.churchName.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          c.state.churchName,
+                          style: TextStyle(color: colors.muted, fontSize: 13),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'A calm workspace for timing services, cueing the stage, warning the operator and learning from every report.',
+          style: TextStyle(fontSize: 15, height: 1.45),
+        ),
+        const SizedBox(height: 16),
+        panel(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) const AppDivider(),
+                rows[i],
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class ChurchProfilePage extends StatefulWidget {
