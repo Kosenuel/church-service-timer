@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
-import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
 import 'package:church_service_timer/shared/church_banner.dart';
 import 'package:church_service_timer/app/controller.dart';
@@ -135,158 +134,214 @@ extension ReportViews on HomeState {
     );
   }
 
+  Future<void> pickReportDates() async {
+    final dates =
+        c.state.reports
+            .map(
+              (r) => DateTime.fromMillisecondsSinceEpoch(
+                r.startedWall ?? r.endedWall,
+              ),
+            )
+            .toList()
+          ..sort();
+    final now = DateTime.fromMillisecondsSinceEpoch(c.now.wall);
+    final first = dates.isEmpty
+        ? DateTime(2020)
+        : DateTime(dates.first.year, 1, 1);
+    final last = dates.isNotEmpty && dates.last.isAfter(now) ? dates.last : now;
+    final result = await showDateRangePicker(
+      context: context,
+      firstDate: first,
+      lastDate: DateTime(last.year + 1, 12, 31),
+      initialDateRange: reportDates,
+      helpText: 'Filter service dates',
+    );
+    if (result != null && mounted)
+      refreshHome(() {
+        reportDates = result;
+        selectedReport = null;
+      });
+  }
+
+  /// Three quick facts about the most recent comparable live services.
+  Widget reportSummary() {
+    final colors = appColors(context);
+    final recent =
+        c.state.reports.where((r) => r.comparable && !r.rehearsal).toList()
+          ..sort((a, b) => b.endedWall.compareTo(a.endedWall));
+    final last = recent.take(4).toList();
+    if (last.isEmpty) return const SizedBox.shrink();
+    final variances = [for (final r in last) r.totalMs! - r.plannedMs];
+    final avg = variances.reduce((a, b) => a + b) ~/ variances.length;
+    final onTime = variances.where((v) => v.abs() < 60000).length;
+    final over = <String, int>{};
+    for (final r in last) {
+      for (final row in r.rows) {
+        if (row.skipped || row.actualMs == null) continue;
+        over[row.name] = (over[row.name] ?? 0) + row.actualMs! - row.plannedMs;
+      }
+    }
+    final worst = over.entries.where((e) => e.value > 0).toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    String minutes(int ms) {
+      final m = (ms.abs() / 60000).round();
+      return m == 0 ? 'on time' : '${ms > 0 ? '+' : '−'}${m}m avg';
+    }
+
+    Widget tile(String label, String value, Color tone) => Expanded(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: colors.muted),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: tone,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    return Padding(
+      key: const ValueKey('report-summary'),
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        children: [
+          tile(
+            'Last ${plural(last.length, 'service')}',
+            minutes(avg),
+            avg.abs() < 60000
+                ? colors.accent
+                : avg > 0
+                ? colors.warning
+                : colors.info,
+          ),
+          const SizedBox(width: 8),
+          tile('On time', '$onTime of ${last.length}', colors.text),
+          const SizedBox(width: 8),
+          tile(
+            'Longest over',
+            worst.isEmpty ? 'None' : worst.first.key,
+            worst.isEmpty ? colors.accent : colors.warning,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget reports() {
     final history = c.state.reports.where((r) => reportMatches(r)).toList()
       ..sort((a, b) => b.endedWall.compareTo(a.endedWall));
+    final colors = appColors(context);
+    final total = c.state.reports.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: () =>
-                openSettingsDetail('Timing insights', timingInsightsPage),
-            icon: const Icon(Icons.insights_outlined),
-            label: const Text('Timing insights'),
-          ),
-        ),
-        Stack(
+        Row(
           children: [
-            ChurchProfileBanner(image: c.state.churchBanner),
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0x22000000), Color(0xcc000000)],
-                  ),
-                ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: c.state.churchBanner.isEmpty
+                    ? ColoredBox(
+                        color: colors.accent.withValues(alpha: .14),
+                        child: Icon(Icons.insights, color: colors.accent),
+                      )
+                    : FittedBox(
+                        fit: BoxFit.cover,
+                        clipBehavior: Clip.hardEdge,
+                        child: SizedBox(
+                          width: 160,
+                          height: 160,
+                          child: ChurchProfileBanner(
+                            image: c.state.churchBanner,
+                          ),
+                        ),
+                      ),
               ),
             ),
-            Positioned(
-              left: 20,
-              right: 20,
-              bottom: 16,
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Reports',
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                   ),
-                  if (c.state.churchName.isNotEmpty)
-                    Text(
-                      c.state.churchName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                  Text(
+                    [
+                      if (c.state.churchName.isNotEmpty) c.state.churchName,
+                      plural(total, 'service'),
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: colors.muted, fontSize: 13),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Your service history. Tap a record for its full timing breakdown.',
-          style: TextStyle(color: appColors(context).muted),
-        ),
-        const SizedBox(height: 20),
-        exportSelectionBar(
-          programs: false,
-          shown: history.map((r) => r.id).toSet(),
-        ),
-        TextFormField(
-          key: const ValueKey('report-search'),
-          initialValue: reportQuery,
-          decoration: const InputDecoration(
-            labelText: 'Search reports',
-            prefixIcon: Icon(Icons.search),
-          ),
-          onChanged: (v) => refreshHome(() {
-            reportQuery = v;
-            selectedReport = null;
-          }),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            OutlinedButton.icon(
-              key: const ValueKey('report-date-filter'),
-              onPressed: () async {
-                final dates =
-                    c.state.reports
-                        .map(
-                          (r) => DateTime.fromMillisecondsSinceEpoch(
-                            r.startedWall ?? r.endedWall,
-                          ),
-                        )
-                        .toList()
-                      ..sort();
-                final now = DateTime.fromMillisecondsSinceEpoch(c.now.wall);
-                final first = dates.isEmpty
-                    ? DateTime(2020)
-                    : DateTime(dates.first.year, 1, 1);
-                final last = dates.isNotEmpty && dates.last.isAfter(now)
-                    ? dates.last
-                    : now;
-                final result = await showDateRangePicker(
-                  context: context,
-                  firstDate: first,
-                  lastDate: DateTime(last.year + 1, 12, 31),
-                  initialDateRange: reportDates,
-                  helpText: 'Filter service dates',
-                );
-                if (result != null && mounted)
-                  refreshHome(() {
-                    reportDates = result;
-                    selectedReport = null;
-                  });
-              },
-              icon: const Icon(Icons.date_range),
-              label: Text(
-                reportDates == null
-                    ? 'All dates'
-                    : '${reportDates!.start.day}/${reportDates!.start.month} – ${reportDates!.end.day}/${reportDates!.end.month}',
-              ),
-            ),
-            if (reportDates != null)
+            if (!selectingReports)
               IconButton(
-                tooltip: 'Clear date filter',
-                onPressed: () => refreshHome(() => reportDates = null),
-                icon: const Icon(Icons.close),
-              ),
-            UnavailableAction(
-              reason: c.state.reports.isEmpty
-                  ? 'Complete a service before exporting reports.'
-                  : c.busy
-                  ? 'Wait for the current save to finish.'
-                  : null,
-              child: OutlinedButton.icon(
-                key: const ValueKey('export-all-reports'),
-                onPressed: c.state.reports.isEmpty || c.busy
+                key: const ValueKey('select-reports'),
+                tooltip: 'Select',
+                onPressed: total == 0
                     ? null
-                    : exportAllReports,
-                icon: const Icon(Icons.download_outlined),
-                label: const Text('Export all records'),
+                    : () => refreshHome(() {
+                        selectingReports = true;
+                        reportView = 'list';
+                        selectedReportExports.clear();
+                      }),
+                icon: const Icon(Icons.checklist),
               ),
-            ),
             PopupMenuButton<String>(
               tooltip: 'Report list options',
-              onSelected: (_) => confirmClearReports(),
+              onSelected: (action) {
+                switch (action) {
+                  case 'insights':
+                    openSettingsDetail('Timing insights', timingInsightsPage);
+                  case 'export':
+                    exportAllReports();
+                  case 'clear':
+                    confirmClearReports();
+                }
+              },
               itemBuilder: (ctx) => [
                 PopupMenuItem<String>(
+                  value: 'insights',
+                  height: appLayout(ctx).controlHeight,
+                  child: const Text('Timing insights'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'export',
+                  key: const ValueKey('export-all-reports'),
+                  enabled: total > 0 && !c.busy,
+                  height: appLayout(ctx).controlHeight,
+                  child: const Text('Export all records'),
+                ),
+                PopupMenuItem<String>(
                   value: 'clear',
-                  enabled: c.state.reports.isNotEmpty && !c.busy,
+                  enabled: total > 0 && !c.busy,
                   key: const ValueKey('clear-all-reports'),
                   height: appLayout(ctx).controlHeight,
                   child: Text(
@@ -298,51 +353,126 @@ extension ReportViews on HomeState {
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        const SizedBox(height: 14),
+        reportSummary(),
+        exportSelectionBar(
+          programs: false,
+          shown: history.map((r) => r.id).toSet(),
+          showToggle: false,
+        ),
+        Row(
           children: [
-            for (final option in {
-              'all': 'All services',
-              'live': 'Live only',
-              'rehearsal': 'Rehearsals',
-            }.entries)
-              ChoiceChip(
-                label: Text(option.value),
-                selected: reportFilter == option.key,
-                onSelected: (_) => selectReportFilter(option.key),
+            Expanded(
+              child: TextFormField(
+                key: const ValueKey('report-search'),
+                initialValue: reportQuery,
+                decoration: const InputDecoration(
+                  hintText: 'Search reports',
+                  labelText: 'Search reports',
+                  floatingLabelBehavior: FloatingLabelBehavior.never,
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (v) => refreshHome(() {
+                  reportQuery = v;
+                  selectedReport = null;
+                }),
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              key: const ValueKey('report-date-filter'),
+              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 54)),
+              onPressed: pickReportDates,
+              icon: const Icon(Icons.date_range, size: 20),
+              label: Text(
+                reportDates == null
+                    ? 'Dates'
+                    : '${reportDates!.start.day}/${reportDates!.start.month} – ${reportDates!.end.day}/${reportDates!.end.month}',
+              ),
+            ),
+            if (reportDates != null)
+              IconButton(
+                tooltip: 'Clear date filter',
+                onPressed: () => refreshHome(() => reportDates = null),
+                icon: const Icon(Icons.close),
               ),
           ],
         ),
-        const SizedBox(height: 16),
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 12,
-          runSpacing: 12,
+        const SizedBox(height: 12),
+        Row(
           children: [
-            Text(
-              '${history.length} ${history.length == 1 ? 'record' : 'records'}',
-              style: TextStyle(color: appColors(context).muted),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final option in {
+                      'all': 'All',
+                      'live': 'Live only',
+                      'rehearsal': 'Rehearsals',
+                    }.entries)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(option.value),
+                          selected: reportFilter == option.key,
+                          onSelected: (_) => selectReportFilter(option.key),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(
-                  value: 'list',
-                  icon: Icon(Icons.view_list_outlined),
-                  label: Text('List'),
-                ),
-                ButtonSegment(
-                  value: 'graph',
-                  icon: Icon(Icons.bar_chart),
-                  label: Text('Graph'),
-                ),
-              ],
-              selected: {reportView},
-              onSelectionChanged: (v) => selectReportView(v.single),
+            Text(
+              plural(history.length, 'record'),
+              style: TextStyle(color: colors.muted, fontSize: 13),
             ),
           ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: colors.border)),
+          ),
+          child: Row(
+            children: [
+              for (final view in const ['list', 'graph'])
+                Expanded(
+                  child: InkWell(
+                    onTap: () => selectReportView(view),
+                    child: Container(
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            width: 3,
+                            color: reportView == view
+                                ? colors.accent
+                                : Colors.transparent,
+                          ),
+                        ),
+                      ),
+                      child: Semantics(
+                        selected: reportView == view,
+                        button: true,
+                        child: Text(
+                          view == 'list' ? 'List' : 'Graph',
+                          style: TextStyle(
+                            fontWeight: reportView == view
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: reportView == view
+                                ? colors.text
+                                : colors.muted,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         if (history.isEmpty)
@@ -605,6 +735,8 @@ class ReportListRow extends StatelessWidget {
                 children: [
                   Text(
                     r.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -613,31 +745,12 @@ class ReportListRow extends StatelessWidget {
                   const SizedBox(height: 3),
                   Wrap(
                     spacing: 8,
-                    runSpacing: 3,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         reportDate(r.startedWall ?? r.endedWall),
                         style: TextStyle(color: colors.muted, fontSize: 13),
-                      ),
-                      Text(
-                        r.totalMs == null
-                            ? 'Duration not recorded'
-                            : '${durationLabel(r.totalMs!)}${r.rehearsal ? ' simulated' : ''}',
-                        style: TextStyle(color: colors.muted, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 5,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        variance == null
-                            ? 'Partial or uncertain record'
-                            : varianceLabel(variance),
-                        style: TextStyle(color: outcomeColor, fontSize: 12),
                       ),
                       if (r.rehearsal)
                         Container(
@@ -658,14 +771,45 @@ class ReportListRow extends StatelessWidget {
                             ),
                           ),
                         ),
+                      if (r.review != null)
+                        Icon(
+                          Icons.sticky_note_2_outlined,
+                          size: 14,
+                          color: colors.muted,
+                        ),
                     ],
                   ),
                 ],
               ),
             ),
-            if (menu != null && checked == null) menu!,
             const SizedBox(width: 12),
-            Icon(Icons.chevron_right, color: colors.muted, size: 22),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 132),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    r.totalMs == null
+                        ? '—'
+                        : '${durationLabel(r.totalMs!)}${r.rehearsal ? ' simulated' : ''}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    variance == null
+                        ? 'Partial record'
+                        : varianceLabel(variance),
+                    textAlign: TextAlign.end,
+                    style: TextStyle(color: outcomeColor, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            if (menu != null && checked == null) menu!,
           ],
         ),
       ),
