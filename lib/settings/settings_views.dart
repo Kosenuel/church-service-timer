@@ -260,6 +260,14 @@ extension SettingsViews on HomeState {
               ),
             ),
             entry(
+              Icons.lock_outline,
+              'Settings PIN',
+              c.state.settingsLock == null
+                  ? 'Off · anyone can change settings or delete'
+                  : 'On · locks Settings, deleting and sign administration',
+              () => openSettingsDetail('Settings PIN', settingsPinSettings),
+            ),
+            entry(
               Icons.info_outline,
               'About',
               '$appName · ${c.appVersion}',

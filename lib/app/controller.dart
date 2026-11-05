@@ -1028,6 +1028,72 @@ class AppController extends ChangeNotifier {
     await initialize(startTicker: false);
   }
 
+  // Settings PIN -----------------------------------------------------------
+
+  /// True when a PIN is set and has not been entered since the app last left
+  /// the foreground.
+  bool get settingsLocked => state.settingsLock != null && !_settingsUnlocked;
+  bool _settingsUnlocked = false;
+  int _pinFailures = 0;
+  DateTime? pinRetryAfter;
+
+  void lockSettings() {
+    if (!_settingsUnlocked) return;
+    _settingsUnlocked = false;
+    notifyListeners();
+  }
+
+  /// Five wrong PINs wait 30 seconds before the next try.
+  Future<bool> unlockSettings(String pin) async {
+    final lock = state.settingsLock;
+    if (lock == null) return true;
+    final wait = pinRetryAfter;
+    if (wait != null && DateTime.now().isBefore(wait)) return false;
+    if (await lock.checkPin(pin)) {
+      _pinFailures = 0;
+      pinRetryAfter = null;
+      _settingsUnlocked = true;
+      notifyListeners();
+      return true;
+    }
+    _pinFailures++;
+    if (_pinFailures >= 5) {
+      _pinFailures = 0;
+      pinRetryAfter = DateTime.now().add(const Duration(seconds: 30));
+    }
+    notifyListeners();
+    return false;
+  }
+
+  /// Sets or replaces the PIN and returns the new one-time recovery code.
+  Future<String?> setSettingsPin(String pin) async {
+    require(SettingsLock.validPin(pin), 'Use 4 to 8 digits.');
+    require(!settingsLocked, 'Enter the current PIN first.');
+    final recovery = SettingsLock.newRecoveryCode();
+    final lock = await SettingsLock.create(pin, recovery);
+    if (!await commit((draft, _) => draft.settingsLock = lock)) return null;
+    _settingsUnlocked = true;
+    return recovery;
+  }
+
+  Future<bool> removeSettingsPin() async {
+    require(!settingsLocked, 'Enter the current PIN first.');
+    return commit((draft, _) => draft.settingsLock = null);
+  }
+
+  /// The recovery code works once: it removes the PIN so a new one can be set.
+  Future<bool> recoverSettings(String code) async {
+    final lock = state.settingsLock;
+    if (lock == null || !await lock.checkRecovery(code)) return false;
+    final ok = await commit((draft, _) => draft.settingsLock = null);
+    if (ok) {
+      _settingsUnlocked = false;
+      _pinFailures = 0;
+      pinRetryAfter = null;
+    }
+    return ok;
+  }
+
   Future<void> syncPhoneWarnings({Session? previous}) =>
       phoneWarnings.sync(previous: previous);
   Future<void> enablePhoneWarnings() => phoneWarnings.enable();

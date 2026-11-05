@@ -6,6 +6,10 @@ import 'package:church_service_timer/main.dart';
 
 extension ReportActions on HomeState {
   Future<bool> confirmClearReports({ServiceReport? record}) async {
+    if (!await ensureSettingsUnlocked(
+      reason: 'Enter the Settings PIN to delete reports.',
+    ))
+      return false;
     final ids = record == null
         ? c.state.reports.map((r) => r.id).toSet()
         : {record.id};

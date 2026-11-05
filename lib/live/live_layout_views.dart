@@ -43,7 +43,7 @@ extension LiveLayout on HomeState {
             selectedIndex: page,
             labelType: NavigationRailLabelType.all,
             onDestinationSelected: (v) {
-              if (!controlsLocked) navigatePage(v);
+              if (!controlsLocked) goToPage(v);
             },
             destinations: const [
               NavigationRailDestination(

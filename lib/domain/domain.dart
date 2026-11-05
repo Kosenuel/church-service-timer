@@ -8,6 +8,8 @@ export 'package:church_service_timer/domain/app_settings.dart';
 import 'package:church_service_timer/domain/program_library.dart';
 export 'package:church_service_timer/domain/program_library.dart';
 export 'package:church_service_timer/domain/service_planning.dart';
+import 'package:church_service_timer/domain/settings_lock.dart';
+export 'package:church_service_timer/domain/settings_lock.dart';
 import 'package:church_service_timer/domain/quick_message.dart';
 import 'package:church_service_timer/domain/edit_drafts.dart';
 import 'package:church_service_timer/domain/notification_settings.dart';
@@ -1096,6 +1098,8 @@ class AppState {
   /// Local to this phone; not part of portable backups.
   bool lockScreenControls;
 
+  /// Optional Settings PIN; never included in backups.
+  SettingsLock? settingsLock;
   /// Presentation clickers and foot pedals drive Next and Pause on Live.
   bool clickerControls;
   AppState(
@@ -1113,6 +1117,7 @@ class AppState {
     this.themeId = 'midnight_lime',
     this.keepScreenAwake = true,
     this.lockScreenControls = true,
+    this.settingsLock,
     this.clickerControls = true,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
@@ -1195,6 +1200,9 @@ class AppState {
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
       keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
       lockScreenControls: boolSetting(j['lockScreenControls'] ?? true),
+      settingsLock: j['settingsLock'] == null
+          ? null
+          : SettingsLock.fromJson(Map<String, dynamic>.from(j['settingsLock'])),
       clickerControls: boolSetting(j['clickerControls'] ?? true),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
@@ -1326,6 +1334,7 @@ class AppState {
     'themeId': themeId,
     'keepScreenAwake': keepScreenAwake,
     'lockScreenControls': lockScreenControls,
+    'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
   };
   AppState copy() => AppState.fromJson(toJson());
