@@ -24,7 +24,7 @@ The welcome card's report shortcut is now labelled View last service report.
 
 Display settings → Clock format → Blink clock colon defaults to on. The simulator and paired stage clocks show one blink per second (half a second visible, half a second hidden). Only the colon changes visibility; text stays aligned and screen-reader text remains complete. Stale/offline stage clocks keep the separator visible rather than implying a live update. Countdown punctuation and timing are unchanged.
 
-No confirmed native colon-blink setting was found in the retained LedArt clock path. The physical LED clock and its preview therefore remain steady. No per-second uploads or unverified protocol flags were introduced. See [the clock investigation](w2-clock-020.md).
+No confirmed native colon-blink setting was found in the retained LedArt clock path. The physical LED clock and its preview therefore remain steady. No per-second uploads or unverified protocol flags were introduced. See [the clock investigation](../w2-clock-020.md).
 
 Saved-state version is 13; portable backup schema is 7 (adds clockBlink). Earlier state and supported backups remain readable. Matrix fonts and native clock/countdown payloads are unchanged.
 

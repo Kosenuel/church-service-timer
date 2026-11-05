@@ -16,7 +16,7 @@
     "pairing": "A new pending peer closes the QR dialog and presents explicit host approval in the widget test",
     "programs": "JSON/CSV bundle export, private-note opt-in, reviewed atomic import and contextual export/delete actions covered",
     "matrixFonts": "Both existing Matrix font implementations and countdown glyphs are unchanged; compact 12-hour clock digits are separate",
-    "nativeClock": "Five Dart payload cases include all 1440 minutes in both clock formats. Native Kotlin compilation passed; native validation accepted both clock fixtures and rejected 54 malformed payloads. See docs/w2-clock-019.md for evidence and limitations.",
+    "nativeClock": "Five Dart payload cases include all 1440 minutes in both clock formats. Native Kotlin compilation passed; native validation accepted both clock fixtures and rejected 54 malformed payloads. See w2-clock-019.md for evidence and limitations.",
     "androidBuild": "flutter build apk --release succeeded; aapt identity and apksigner v2 signature verified",
     "identity": "org.kosenuel.cuekeeper, versionName 0.19.0, versionCode 19",
     "signingCertificateSha256": "7447b222512d8002f5ba5d7e985f7fdeca0cbc176b167fe240e790147a336afd"

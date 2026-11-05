@@ -31,7 +31,7 @@ Version 0.11 adds the first physical adapter to the simulator prototype: Huidu W
 - After-service reports with segment actuals, pauses, adjustments, compact list/detail pages, filtered comparison charts, individual/bulk CSV/JSON export and confirmed deletion of one/all local records.
 - Fast rehearsal at 5×, 10×, 30× or 60×, labelled separately from live timing.
 
-See `FEATURES-0.9.md` for Feedback Center, `FEATURES-0.8.md` for compact lists and banners, `FEATURES-0.7.md` for themes and backup, `FEATURES-0.4.md` for reports and migration, and `FEATURES-0.3.md` for font/notification behavior. `FEATURES-0.2.md` is historical.
+See `history/FEATURES-0.9.md` for Feedback Center, `history/FEATURES-0.8.md` for compact lists and banners, `history/FEATURES-0.7.md` for themes and backup, `history/FEATURES-0.4.md` for reports and migration, and `history/FEATURES-0.3.md` for font/notification behavior. `history/FEATURES-0.2.md` is historical.
 
 ## First hardware milestone
 
@@ -41,11 +41,11 @@ See `FEATURES-0.9.md` for Feedback Center, `FEATURES-0.8.md` for compact lists a
 - Cues preserve selected font and formatting. Accelerated rehearsals and remaining times above 59:59 are rejected in hardware mode before changing the run. Animation uploads contain at most 2048 frames, split into 4096-byte chunks.
 - Stale successful writes invalidate the accepted-output cache and reconcile the newest intent. Failure, process interruption and reconnect hold output for review; restoring uncertain timing requires verification and retains the report uncertainty marker.
 - Animated At Zero and end screens use the frame uploader. The default native countdown can remain at 00:00 without a replacement upload. Next segment clears stale cues/holds and sends its new deadline; deliberate keep-blank is offered.
-- Version 0.12 adds the active Android foreground service, compact focused preview and control lock, rundown details, raised chapel branding, glass header, Reports banner and activity timeline. See `FEATURES-0.12.md` for evidence and boundaries.
+- Version 0.12 adds the active Android foreground service, compact focused preview and control lock, rundown details, raised chapel branding, glass header, Reports banner and activity timeline. See `history/FEATURES-0.12.md` for evidence and boundaries.
 
 ## Version 0.13 additions
 
-Prepared cue management, removable warnings, optional encrypted credentials, explicit physical reconnection, local encrypted device pairing with one controlling operator, viewer and stage screens, guarded W2 administration, upcoming-only live edits, finish proposals and Android printing/PDF are implemented. See `FEATURES-0.13.md` for the twelve items and security/recovery boundaries. Pairing coordinates this app’s instances; other controller apps remain outside its ownership model. Administration setters use the exact inspected command path but are not claimed physically validated until an intentional setting change is observed and reconnection succeeds.
+Prepared cue management, removable warnings, optional encrypted credentials, explicit physical reconnection, local encrypted device pairing with one controlling operator, viewer and stage screens, guarded W2 administration, upcoming-only live edits, finish proposals and Android printing/PDF are implemented. See `history/FEATURES-0.13.md` for the twelve items and security/recovery boundaries. Pairing coordinates this app’s instances; other controller apps remain outside its ownership model. Administration setters use the exact inspected command path but are not claimed physically validated until an intentional setting change is observed and reconnection succeeds.
 
 ## Still deferred
 
@@ -68,4 +68,4 @@ The physical connection page reads the discovered profile. There is no firmware 
 
 ## Next hardware milestone
 
-Validate recovery after network loss, app backgrounding and sign power loss on the physical sign, then run a full-service endurance test. See `FEATURES-0.12.md` for the current animation/background test status. Longer countdowns and midnight transitions remain unverified.
+Validate recovery after network loss, app backgrounding and sign power loss on the physical sign, then run a full-service endurance test. See `history/FEATURES-0.12.md` for the current animation/background test status. Longer countdowns and midnight transitions remain unverified.

@@ -42,4 +42,4 @@ The template's four to six quick cues also retain all these fields. Editing a li
 
 The original display font is now named **Cuekeeper Matrix**, with its original glyphs preserved as a reusable asset. **Service Serif** is a Times-style alternative; **Clear Sans** provides a simpler alternative. Both have regular, bold, italic and bold italic variants at 7 and 14 pixels. Fine serif details are clearer at 14 pixels. Countdown digits continue to use Cuekeeper Matrix.
 
-See [Display fonts](DISPLAY-FONTS.md) for source assets, licenses and regeneration. The simulator is still 32 × 16 monochrome pixels. Physical readability and controller compatibility await the sign.
+See [Display fonts](../DISPLAY-FONTS.md) for source assets, licenses and regeneration. The simulator is still 32 × 16 monochrome pixels. Physical readability and controller compatibility await the sign.
