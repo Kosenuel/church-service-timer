@@ -30,10 +30,10 @@ Reports have **Clear report** and **Clear all reports**, each with confirmation.
 
 ## Fonts and shape
 
-Cuekeeper Matrix is unchanged. Cuekeeper Sq-Matrix is a separate condensed bitmap face for square cells. Display lets the operator choose square or circular LEDs, saved for this device and used throughout previews. Times New Roman supports licensed Regular TTF import with native Android rendering. Service Serif and Clear Sans are removed. See [Display fonts](DISPLAY-FONTS.md).
+Cuekeeper Matrix is unchanged. Cuekeeper Sq-Matrix is a separate condensed bitmap face for square cells. Display lets the operator choose square or circular LEDs, saved for this device and used throughout previews. Times New Roman supports licensed Regular TTF import with native Android rendering. Service Serif and Clear Sans are removed. See [Display fonts](../DISPLAY-FONTS.md).
 
 ## Upgrade and test boundaries
 
-Local state is version 3; versions 1 and 2 migrate on load. Reports and service timing are retained. Template interchange remains schema version 2; the shared cue list and LED shape are not part of that format. See [Template format](TEMPLATE-FORMAT.md).
+Local state is version 3; versions 1 and 2 migrate on load. Reports and service timing are retained. Template interchange remains schema version 2; the shared cue list and LED shape are not part of that format. See [Template format](../TEMPLATE-FORMAT.md).
 
-Tests cover transitions, warning thresholds/priority, notification plans, save failures, migrations, cue persistence, report deletion, confirmations, font bitmap logic and simulator views. Native compilation verifies API wiring. Permission prompts, audible alerts, locked-phone delivery and real imported Times rendering require installation checks in [Build](BUILD.md). Physical sign communication/readability remain unverified.
+Tests cover transitions, warning thresholds/priority, notification plans, save failures, migrations, cue persistence, report deletion, confirmations, font bitmap logic and simulator views. Native compilation verifies API wiring. Permission prompts, audible alerts, locked-phone delivery and real imported Times rendering require installation checks in [Build](../BUILD.md). Physical sign communication/readability remain unverified.

@@ -32,4 +32,4 @@ An explicit output hold, restarted app, changed boot/time uncertainty or extende
 
 Long-press a program/report or use its three-dot menu for **Export** and **Delete**. Export is first; deletion remains confirmed. Report export offers JSON, CSV and PDF through Print Service. Deleting a saved program does not alter an already running service's snapshot.
 
-See [program formats](TEMPLATE-FORMAT.md) for schemas, legacy compatibility and size limits. Automated validation and build results are recorded in the release verification record. Installation is followed by the operator's own hands-on testing.
+See [program formats](../TEMPLATE-FORMAT.md) for schemas, legacy compatibility and size limits. Automated validation and build results are recorded in the release verification record. Installation is followed by the operator's own hands-on testing.

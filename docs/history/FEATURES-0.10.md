@@ -21,7 +21,7 @@ Services & Rehearsals becomes the default Templates view on upgrade. Subsequent 
 
 ## Fonts and feedback
 
-Tinos Regular/Bold/Italic/Bold Italic are bundled under SIL OFL 1.1. Old Times selections migrate to Tinos without manual import. Both Matrix font sources/assets/rendering paths remain unchanged. See [Display fonts](DISPLAY-FONTS.md).
+Tinos Regular/Bold/Italic/Bold Italic are bundled under SIL OFL 1.1. Old Times selections migrate to Tinos without manual import. Both Matrix font sources/assets/rendering paths remain unchanged. See [Display fonts](../DISPLAY-FONTS.md).
 
 Feedback now targets **immanuelproton@gmail.com** in the form, copied text and native email URI. Optional diagnostics are off by default. Enabling them takes a visible snapshot of simulator/notification status and current error categories for review; no church names, cue text, private notes, paths, credentials or raw exception messages are included. The operator still reviews and sends through the phone's email app. No automatic sending or backend was added.
 
