@@ -20,6 +20,7 @@ export 'package:church_service_timer/domain/edit_drafts.dart';
 export 'package:church_service_timer/domain/notification_settings.dart';
 export 'package:church_service_timer/domain/print_preferences.dart';
 export 'package:church_service_timer/domain/review_notes.dart';
+export 'package:church_service_timer/domain/bulk_delete.dart';
 export 'package:church_service_timer/domain/program_io.dart';
 export 'package:church_service_timer/domain/stage_output.dart';
 export 'package:church_service_timer/domain/time_recovery.dart';

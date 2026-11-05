@@ -246,7 +246,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       ],
     ),
   );
-  Future<bool> confirm(String title, String body, String button) async =>
+  Future<bool> confirm(
+    String title,
+    String body,
+    String button, {
+    bool destructive = false,
+  }) async =>
       await showDialog<bool>(
         context: context,
         animationStyle: reduceAppMotion(context)
@@ -261,7 +266,14 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               child: const Text('Cancel'),
             ),
             FilledButton(
+              key: const ValueKey('confirm-action'),
               onPressed: () => Navigator.pop(context, true),
+              style: destructive
+                  ? FilledButton.styleFrom(
+                      backgroundColor: const Color(0xffa73238),
+                      foregroundColor: Colors.white,
+                    )
+                  : null,
               child: Text(button),
             ),
           ],
