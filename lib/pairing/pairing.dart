@@ -233,6 +233,16 @@ class PairHub extends ChangeNotifier {
   Future<void> Function(String)? writeMemory;
   Future<List<Json>> Function()? discoverHosts;
   Future<String> Function()? currentAddress;
+
+  /// Rejoins the one Wi-Fi network remembered for this host (never others).
+  Future<bool> Function()? rejoinWifi;
+  Future<String> Function()? currentSsid;
+  Future<void> Function()? cancelWifi;
+
+  /// The network this phone joined the host on; empty when not remembered.
+  String rejoinSsid = '';
+  bool rejoiningWifi = false;
+  String get remoteHostId => _remoteHostId;
   Future<void> _memoryWrites = Future.value();
   Future<void>? _restoringMemory;
   bool pausedByHost = false;
@@ -976,6 +986,7 @@ class PairHub extends ChangeNotifier {
       Duration(seconds: immediate ? 0 : [0, 2, 4, 8, 16, 30][_retryCount]),
       () async {
         if (lifecycle == _lifecycle && joined && !_disposed) {
+          await _rejoinRememberedWifi(lifecycle);
           try {
             _sourceAddress = await currentAddress?.call();
           } catch (_) {
@@ -1023,6 +1034,26 @@ class PairHub extends ChangeNotifier {
     changed();
   }
 
+  /// After a second failed attempt, rejoin the remembered network if this
+  /// phone is now on a different one (or none).
+  Future<void> _rejoinRememberedWifi(int lifecycle) async {
+    if (_retryCount < 2 || rejoinSsid.isEmpty || rejoinWifi == null) return;
+    try {
+      final current = await currentSsid?.call() ?? '';
+      if (current == rejoinSsid || lifecycle != _lifecycle) return;
+      rejoiningWifi = true;
+      changed();
+      await rejoinWifi!();
+    } catch (_) {
+      /* Keep retrying the host; the banner offers Wi-Fi settings. */
+    } finally {
+      if (rejoiningWifi) {
+        rejoiningWifi = false;
+        changed();
+      }
+    }
+  }
+
   Future<void> requestControl() async {
     await _client?.send({'type': 'requestControl'});
   }
@@ -1051,6 +1082,10 @@ class PairHub extends ChangeNotifier {
     reconnectingSince = null;
     _resumeCode = null;
     _resumeId = null;
+    if (rejoinSsid.isNotEmpty) {
+      rejoinSsid = '';
+      await bestEffort('release Wi-Fi rejoin', () async => cancelWifi?.call());
+    }
     if (!preserveClient && _savedClient != null) {
       _savedClient!['autoResume'] = false;
       _saveMemoryQuietly();

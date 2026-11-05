@@ -1095,6 +1095,9 @@ class AppState {
   /// Show the service with Pause and Next on the lock-screen notification.
   /// Local to this phone; not part of portable backups.
   bool lockScreenControls;
+
+  /// Presentation clickers and foot pedals drive Next and Pause on Live.
+  bool clickerControls;
   AppState(
     this.templates,
     this.defaults,
@@ -1110,6 +1113,7 @@ class AppState {
     this.themeId = 'midnight_lime',
     this.keepScreenAwake = true,
     this.lockScreenControls = true,
+    this.clickerControls = true,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -1191,6 +1195,7 @@ class AppState {
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
       keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
       lockScreenControls: boolSetting(j['lockScreenControls'] ?? true),
+      clickerControls: boolSetting(j['clickerControls'] ?? true),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1321,6 +1326,7 @@ class AppState {
     'themeId': themeId,
     'keepScreenAwake': keepScreenAwake,
     'lockScreenControls': lockScreenControls,
+    'clickerControls': clickerControls,
   };
   AppState copy() => AppState.fromJson(toJson());
 

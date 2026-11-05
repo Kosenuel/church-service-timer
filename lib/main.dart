@@ -35,6 +35,7 @@ import 'package:church_service_timer/live/timing_overview_views.dart';
 import 'package:church_service_timer/programs/program_editor_insights.dart';
 import 'package:church_service_timer/programs/program_import_export_views.dart';
 import 'package:church_service_timer/programs/program_library_views.dart';
+import 'package:church_service_timer/live/clicker_controls.dart';
 import 'package:church_service_timer/programs/program_views.dart'
     show templateSummary;
 import 'package:church_service_timer/reports/report_library_views.dart';
@@ -205,6 +206,65 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   void selectReportFilter(String value) => setState(() => reportFilter = value);
   void selectReportView(String value) => setState(() => reportView = value);
   void navigatePage(int value) => setState(() => page = value);
+  DateTime? _clickerNextArmed;
+
+  /// Presentation clickers and foot pedals: Next (pressed twice) and Pause.
+  /// Ignored while typing, while a dialog or another page is on top, and
+  /// whenever touch controls would be unavailable.
+  bool onClickerKey(KeyEvent event) {
+    if (event is! KeyDownEvent || !mounted || !c.ready) return false;
+    final action = clickerActionFor(event.logicalKey);
+    if (action == null || !c.state.clickerControls) return false;
+    final focus = FocusManager.instance.primaryFocus?.context;
+    if (focus != null &&
+        (focus.widget is EditableText ||
+            focus.findAncestorWidgetOfExactType<EditableText>() != null))
+      return false;
+    if (page != 0 || ModalRoute.of(context)?.isCurrent != true) return false;
+    final s = c.state.session;
+    if (!s.active ||
+        c.busy ||
+        c.corrupt ||
+        controlsLocked ||
+        c.reportSavePending ||
+        !c.pairing.localControl)
+      return false;
+    final messenger = ScaffoldMessenger.of(context);
+    if (action == ClickerAction.pause) {
+      _clickerNextArmed = null;
+      unawaited(c.act('pause', revision: s.revision));
+      return true;
+    }
+    final t = s.timeline!;
+    if (s.index + 1 >= t.segments.length) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Final segment · end the service on screen'),
+        ),
+      );
+      return true;
+    }
+    final now = DateTime.now();
+    final armed = _clickerNextArmed;
+    if (armed != null && now.difference(armed) <= clickerConfirmWindow) {
+      _clickerNextArmed = null;
+      messenger.hideCurrentSnackBar();
+      unawaited(c.act('advance', revision: s.revision));
+      return true;
+    }
+    _clickerNextArmed = now;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        key: const ValueKey('clicker-confirm'),
+        duration: clickerConfirmWindow,
+        content: Text('Press again to start ${t.segments[s.index + 1].name}'),
+      ),
+    );
+    return true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -212,6 +272,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     _followServiceCompletion();
     c.addListener(_followServiceCompletion);
     c.liveNavigation.addListener(returnToLive);
+    HardwareKeyboard.instance.addHandler(onClickerKey);
     if (!c.ready) {
       c.initialize().catchError((Object e) {
         if (mounted) showError('Could not initialize Android services: $e');
@@ -222,6 +283,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    HardwareKeyboard.instance.removeHandler(onClickerKey);
     c.removeListener(_followServiceCompletion);
     c.liveNavigation.removeListener(returnToLive);
     homeScroll.dispose();

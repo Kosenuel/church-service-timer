@@ -692,8 +692,11 @@ class JoinDevicePage extends StatefulWidget {
 class _JoinDevicePageState extends State<JoinDevicePage>
     with WidgetsBindingObserver {
   final code = TextEditingController(),
-      name = TextEditingController(text: 'Second device');
+      name = TextEditingController(text: 'Second device'),
+      wifiPassword = TextEditingController();
   late String role;
+  String wifiName = '', wifiKind = 'church';
+  bool rememberWifi = true, storeWifiPassword = true;
   bool busy = false, discovering = false;
   String? error, discoveryError, selected;
   nsd.Discovery? discovery;
@@ -716,10 +719,53 @@ class _JoinDevicePageState extends State<JoinDevicePage>
             s.port! <= 65535,
       )
       .toList();
+  Future<void> readWifi() async {
+    try {
+      final info = await widget.controller.port.displayNetworkInfo(
+        requestName: true,
+      );
+      if (mounted) setState(() => wifiName = info['ssid'] as String? ?? '');
+    } catch (_) {
+      /* Wi-Fi name unavailable; rejoin stays off for this join. */
+    }
+  }
+
+  /// Remembers only the network used for this join, never other networks.
+  Future<void> rememberJoinedWifi() async {
+    final hub = widget.controller.pairing;
+    if (!rememberWifi || wifiName.isEmpty || hub.remoteHostId.isEmpty) {
+      hub.rejoinSsid = '';
+      return;
+    }
+    final password = wifiPassword.text;
+    wifiPassword.clear();
+    final port = widget.controller.port;
+    try {
+      final previous = await port.pairWifiProfile(hub.remoteHostId);
+      final kept =
+          previous['passwordSaved'] == true && previous['ssid'] == wifiName;
+      final secured = password.isNotEmpty || kept;
+      await port.savePairWifi({
+        'host': hub.remoteHostId,
+        'ssid': wifiName,
+        'security': secured ? 'wpa2' : 'open',
+        'kind': wifiKind,
+        'password': password.isEmpty ? null : password,
+        'store': storeWifiPassword,
+      });
+      // Without a password the app cannot join a secured network itself;
+      // Android may still rejoin a network it already knows.
+      hub.rejoinSsid = secured ? wifiName : '';
+    } catch (_) {
+      hub.rejoinSsid = '';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     role = widget.initialRole;
+    WidgetsBinding.instance.addPostFrameCallback((_) => readWifi());
     WidgetsBinding.instance.addObserver(this);
     unawaited(findHosts());
   }
@@ -787,6 +833,8 @@ class _JoinDevicePageState extends State<JoinDevicePage>
     unawaited(stopDiscovery());
     code.dispose();
     name.dispose();
+    wifiPassword.clear();
+    wifiPassword.dispose();
     super.dispose();
   }
 
@@ -826,6 +874,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
         );
       }
       code.clear();
+      await rememberJoinedWifi();
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     } catch (_) {
       if (mounted)
@@ -836,6 +885,94 @@ class _JoinDevicePageState extends State<JoinDevicePage>
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  Widget wifiRejoinSection() {
+    final colors = appColors(context);
+    final muted = TextStyle(fontSize: 12, color: colors.muted);
+    return Container(
+      key: const ValueKey('wifi-rejoin'),
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SwitchListTile(
+              value: rememberWifi && wifiName.isNotEmpty,
+              onChanged: busy || wifiName.isEmpty
+                  ? null
+                  : (v) => setState(() => rememberWifi = v),
+              title: const Text('Rejoin this Wi-Fi automatically'),
+              subtitle: Text(
+                wifiName.isEmpty
+                    ? 'Wi-Fi name unavailable. Allow nearby Wi-Fi access to use this.'
+                    : 'This phone is on $wifiName. If the link drops, only this network is rejoined.',
+                style: muted,
+              ),
+            ),
+            if (rememberWifi && wifiName.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final kind in const {
+                      'church': 'Church Wi-Fi',
+                      'hotspot': 'Host’s hotspot',
+                      'sign': 'Sign’s Wi-Fi',
+                    }.entries)
+                      ChoiceChip(
+                        label: Text(kind.value),
+                        selected: wifiKind == kind.key,
+                        onSelected: busy
+                            ? null
+                            : (_) => setState(() => wifiKind = kind.key),
+                      ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                child: TextField(
+                  key: const ValueKey('wifi-rejoin-password'),
+                  controller: wifiPassword,
+                  enabled: !busy,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  maxLength: 63,
+                  decoration: const InputDecoration(
+                    labelText: 'Wi-Fi password (optional)',
+                    helperText:
+                        'Leave empty if Android already rejoins this network by itself.',
+                    helperMaxLines: 2,
+                  ),
+                ),
+              ),
+              CheckboxListTile(
+                value: storeWifiPassword,
+                controlAffinity: ListTileControlAffinity.leading,
+                onChanged: busy
+                    ? null
+                    : (v) => setState(() => storeWifiPassword = v ?? true),
+                title: const Text('Save the password on this phone'),
+                subtitle: Text(
+                  'Encrypted. Used only to rejoin $wifiName for this host.',
+                  style: muted,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -941,6 +1078,8 @@ class _JoinDevicePageState extends State<JoinDevicePage>
             hintText: '000000',
           ),
         ),
+        wifiRejoinSection(),
+        const SizedBox(height: 12),
         if (error != null)
           Text(error!, style: TextStyle(color: appColors(context).error)),
         FilledButton(
@@ -1680,7 +1819,9 @@ class _PairedScreenState extends State<PairedScreen> {
                 key: const ValueKey('host-reconnecting'),
                 title: 'Reconnecting to host device',
                 attempt: hub.reconnectAttempt,
-                detail: longHostWait(hub)
+                detail: hub.rejoiningWifi
+                    ? 'Rejoining ${hub.rejoinSsid}…'
+                    : longHostWait(hub)
                     ? 'Still trying. Make sure this phone is on the same Wi-Fi or hotspot as the host. Controls return when the host answers.'
                     : 'Controls are paused until the host answers. The host keeps the service running.',
                 actions: [

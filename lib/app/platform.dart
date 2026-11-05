@@ -14,6 +14,11 @@ abstract class DevicePort {
   Future<void> saveSignWifiProfile(Json profile) async {}
   Future<bool> joinSignWifi(String id) async => false;
   Future<void> cancelSignWifi() async {}
+  Future<Json> pairWifiProfile(String host) async => {};
+  Future<void> savePairWifi(Json profile) async {}
+  Future<void> forgetPairWifi(String host) async {}
+  Future<bool> joinPairWifi(String host) async => false;
+  Future<void> cancelPairWifi() async {}
 
   Future<void> printServicePdf(
     String name,
@@ -107,6 +112,21 @@ class AndroidPort extends DevicePort {
       await channel.invokeMethod<bool>('joinSignWifi', id) ?? false;
   @override
   Future<void> cancelSignWifi() => channel.invokeMethod<void>('cancelSignWifi');
+  @override
+  Future<Json> pairWifiProfile(String host) async => Map<String, dynamic>.from(
+    await channel.invokeMethod<Map>('pairWifiProfile', host) ?? {},
+  );
+  @override
+  Future<void> savePairWifi(Json profile) =>
+      channel.invokeMethod<void>('savePairWifi', profile);
+  @override
+  Future<void> forgetPairWifi(String host) =>
+      channel.invokeMethod<void>('forgetPairWifi', host);
+  @override
+  Future<bool> joinPairWifi(String host) async =>
+      await channel.invokeMethod<bool>('joinPairWifi', host) ?? false;
+  @override
+  Future<void> cancelPairWifi() => channel.invokeMethod<void>('cancelPairWifi');
 
   @override
   Future<void> printServicePdf(
