@@ -90,6 +90,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
     private val vault by lazy { DisplayCredentialVault(context) }
     private val pairingVault by lazy { DisplayCredentialVault(context, "pairing-vault", "church-timer-pairing-v1", 65536) }
     private val signWifi by lazy { SignWifi(context, vault) { w2.preferredNetwork = it } }
+    private val pairWifi by lazy { PairWifi(context, vault) }
     private val pickerFeedback by lazy { PickerFeedback(context) }
     private var wifiPermissionResult: MethodChannel.Result? = null
     private var wifiPermissionId: String? = null
@@ -113,6 +114,16 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                     null
                 }
                 "cancelSignWifi" -> { cancelSignWifi(); result.success(null) }
+                "pairWifiProfile" -> background(result) { pairWifi.info(call.arguments as String) }
+                "savePairWifi" -> background(result) {
+                    pairWifi.save(call.argument<String>("host")!!, call.argument<String>("ssid")!!,
+                        call.argument<String>("security") ?: "wpa2", call.argument<String>("kind") ?: "church",
+                        call.argument<String>("password"), call.argument<Boolean>("store") != false)
+                    null
+                }
+                "forgetPairWifi" -> background(result) { pairWifi.forget(call.arguments as String); null }
+                "cancelPairWifi" -> { pairWifi.cancel(); result.success(null) }
+                "joinPairWifi" -> pairWifi.request(call.arguments as String, result)
                 "joinSignWifi" -> {
                     val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION
                     if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
