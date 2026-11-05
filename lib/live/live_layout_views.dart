@@ -72,15 +72,21 @@ extension LiveLayout on HomeState {
   }
 
   /// Short, glanceable destination status for the header chip.
-  String headerDisplayLabel() => switch (c.displayConnection) {
-    DisplayConnection.disconnected => 'Disconnected',
-    DisplayConnection.stageDisconnected => 'Stage offline',
-    DisplayConnection.stageWaiting => 'Waiting for screen',
-    DisplayConnection.stageConnected => 'Stage screens',
-    DisplayConnection.connected =>
-      c.destination == 'led' ? 'LED sign' : 'Display',
-    DisplayConnection.simulator => 'Simulator',
-  };
+  /// The LED sign link is being recovered automatically.
+  bool get displayReconnecting =>
+      c.destination == 'led' && c.hardware.reconnecting;
+
+  String headerDisplayLabel() => displayReconnecting
+      ? 'Reconnecting…'
+      : switch (c.displayConnection) {
+          DisplayConnection.disconnected => 'Disconnected',
+          DisplayConnection.stageDisconnected => 'Stage offline',
+          DisplayConnection.stageWaiting => 'Waiting for screen',
+          DisplayConnection.stageConnected => 'Stage screens',
+          DisplayConnection.connected =>
+            c.destination == 'led' ? 'LED sign' : 'Display',
+          DisplayConnection.simulator => 'Simulator',
+        };
 
   Widget liveMenu() => PopupMenuButton<String>(
     key: const ValueKey('live-menu'),
@@ -244,24 +250,30 @@ class HeaderDisplayChip extends StatelessWidget {
   final DisplayConnection connection;
   final String label;
   final VoidCallback? onPressed;
+
+  /// Shows a spinner in the warning colour while the link is recovering.
+  final bool reconnecting;
   const HeaderDisplayChip({
     super.key,
     required this.connection,
     required this.label,
     required this.onPressed,
+    this.reconnecting = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context);
-    final dot = switch (connection) {
-      DisplayConnection.disconnected ||
-      DisplayConnection.stageDisconnected => colors.error,
-      DisplayConnection.connected ||
-      DisplayConnection.stageConnected => colors.success,
-      DisplayConnection.stageWaiting => colors.warning,
-      DisplayConnection.simulator => colors.muted,
-    };
+    final dot = reconnecting
+        ? colors.warning
+        : switch (connection) {
+            DisplayConnection.disconnected ||
+            DisplayConnection.stageDisconnected => colors.error,
+            DisplayConnection.connected ||
+            DisplayConnection.stageConnected => colors.success,
+            DisplayConnection.stageWaiting => colors.warning,
+            DisplayConnection.simulator => colors.muted,
+          };
     return Tooltip(
       message: '${connection.label} · connection details',
       child: Semantics(
@@ -283,14 +295,24 @@ class HeaderDisplayChip extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: dot,
-                        shape: BoxShape.circle,
+                    if (reconnecting &&
+                        !MediaQuery.disableAnimationsOf(context))
+                      SizedBox.square(
+                        dimension: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: dot,
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: dot,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
                     const SizedBox(width: 8),
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 140),

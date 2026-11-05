@@ -6,6 +6,7 @@ import 'package:church_service_timer/pairing/pairing_pin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/reconnect_banner.dart';
 import 'package:church_service_timer/display/clock_text.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/app/controller.dart';
@@ -966,6 +967,14 @@ class PairedScreen extends StatefulWidget {
 
 class _PairedScreenState extends State<PairedScreen> {
   AppController get controller => widget.controller;
+
+  /// After about a minute, suggest checking the Wi-Fi connection.
+  bool longHostWait(PairHub hub) {
+    final since = hub.reconnectingSince;
+    return since != null &&
+        DateTime.now().difference(since) >= const Duration(seconds: 60);
+  }
+
   bool _stage = false, _showTools = true;
   Timer? _hideTools;
   @override
@@ -1187,7 +1196,20 @@ class _PairedScreenState extends State<PairedScreen> {
                     ),
                   ),
                 ),
-              if (stale)
+              if (hub.reconnecting)
+                const SafeArea(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: ReconnectingChip(
+                        key: ValueKey('stage-reconnecting'),
+                        label: 'Reconnecting to host…',
+                      ),
+                    ),
+                  ),
+                )
+              else if (stale)
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
@@ -1444,7 +1466,38 @@ class _PairedScreenState extends State<PairedScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            content,
+            if (hub.reconnecting) ...[
+              ReconnectingBanner(
+                key: const ValueKey('host-reconnecting'),
+                title: 'Reconnecting to host device',
+                attempt: hub.reconnectAttempt,
+                detail: longHostWait(hub)
+                    ? 'Still trying. Make sure this phone is on the same Wi-Fi or hotspot as the host. Controls return when the host answers.'
+                    : 'Controls are paused until the host answers. The host keeps the service running.',
+                actions: [
+                  if (longHostWait(hub))
+                    OutlinedButton.icon(
+                      key: const ValueKey('open-wifi-settings'),
+                      onPressed: () => controller.port.openWifiSettings(),
+                      icon: const Icon(Icons.wifi),
+                      label: const Text('Open Wi-Fi settings'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+            // Commands cannot reach the host while reconnecting, so the
+            // controls are dimmed and ignore taps until it answers.
+            IgnorePointer(
+              ignoring: hub.reconnecting,
+              child: AnimatedOpacity(
+                opacity: hub.reconnecting ? .45 : 1,
+                duration: reduceAppMotion(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                child: content,
+              ),
+            ),
             const SizedBox(height: 24),
             if (hub.mode != 'operator')
               FilledButton.icon(
