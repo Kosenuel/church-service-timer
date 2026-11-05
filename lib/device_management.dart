@@ -1,4 +1,10 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'ui_tools.dart';
+import 'controller.dart';
+import 'domain.dart';
+import 'main.dart';
 
 class DeviceManagementPanel extends StatefulWidget {
   final AppController controller;

@@ -1,4 +1,13 @@
-part of 'main.dart';
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'ui_tools.dart';
+import 'time_picker.dart';
+import 'controller.dart';
+import 'domain.dart';
+import 'display_connection.dart';
+import 'main.dart';
 
 class OperatorNotes extends StatefulWidget {
   final String notes;
@@ -519,7 +528,7 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
   );
 }
 
-extension _LiveViewActions on _HomeState {
+extension LiveViewActions on HomeState {
   Future<bool> confirmTimer({
     required int revision,
     required String title,

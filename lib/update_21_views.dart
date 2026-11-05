@@ -1,4 +1,12 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'app_menu.dart';
+import 'ui_tools.dart';
+import 'feedback_page.dart';
+import 'controller.dart';
+import 'domain.dart';
+import 'main.dart';
 
 class ProgramChooser extends StatefulWidget {
   final AppController controller;
@@ -106,7 +114,7 @@ class ProgramFilters extends StatelessWidget {
   );
 }
 
-extension _Update21Views on _HomeState {
+extension Update21Views on HomeState {
   void toggleExportSelection(Set<String> selected, String id) {
     if (!selected.remove(id)) selected.add(id);
   }

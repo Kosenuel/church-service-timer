@@ -1,6 +1,14 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'app_theme.dart';
+import 'app_menu.dart';
+import 'choice_field.dart';
+import 'service_pdf.dart';
+import 'domain.dart';
+import 'main.dart';
 
-extension _PlanningViews on _HomeState {
+extension PlanningViews on HomeState {
   Future<void> editUpcoming() async {
     final s = c.state.session, revision = c.state.session.revision;
     final result = await Navigator.of(context).push<Timeline>(

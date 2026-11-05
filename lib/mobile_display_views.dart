@@ -1,6 +1,14 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'ui_tools.dart';
+import 'time_picker.dart';
+import 'choice_field.dart';
+import 'domain.dart';
+import 'pairing.dart';
+import 'main.dart';
 
-extension _MobileDisplayViews on _HomeState {
+extension MobileDisplayViews on HomeState {
   Future<void> chooseDisplay() =>
       openSettingsDetail('Choose display', displayChoices);
 

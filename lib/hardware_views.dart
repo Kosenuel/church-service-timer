@@ -1,6 +1,13 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'running_service_bar.dart';
+import 'time_picker.dart';
+import 'controller.dart';
+import 'domain.dart';
+import 'main.dart';
 
-extension _HardwareViews on _HomeState {
+extension HardwareViews on HomeState {
   Future<void> restoreSign() async {
     final s = c.state.session;
     final revision = s.revision;

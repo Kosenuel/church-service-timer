@@ -1,6 +1,20 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:nsd/nsd.dart' as nsd;
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'pairing_pin.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'app_theme.dart';
+import 'clock_text.dart';
+import 'choice_field.dart';
+import 'controller.dart';
+import 'domain.dart';
+import 'pairing.dart';
+import 'best_effort.dart';
+import 'main.dart';
 
-extension _PairingViews on _HomeState {
+extension PairingViews on HomeState {
   Future<void> shareServiceSetup() async {
     if (c.pairing.hosting) {
       await openSettingsDetail(

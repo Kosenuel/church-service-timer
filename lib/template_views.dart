@@ -1,4 +1,10 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'app_menu.dart';
+import 'running_service_bar.dart';
+import 'domain.dart';
+import 'main.dart';
 
 String templateSummary(Timeline t) {
   final total = t.segments.fold<int>(
@@ -8,7 +14,7 @@ String templateSummary(Timeline t) {
   return '${t.segments.length} ${t.segments.length == 1 ? 'segment' : 'segments'} · ${total % 60000 == 0 ? '${total ~/ 60000} min' : durationLabel(total)}';
 }
 
-extension _TemplateViews on _HomeState {
+extension TemplateViews on HomeState {
   Widget templates() {
     final items = c.state.programLibrary.find(
       c.state.templates,

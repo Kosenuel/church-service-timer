@@ -1,11 +1,19 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'app_menu.dart';
+import 'time_picker.dart';
+import 'choice_field.dart';
+import 'domain.dart';
+import 'pixels.dart';
+import 'main.dart';
 
 String clockLabel(int wall) {
   final date = DateTime.fromMillisecondsSinceEpoch(wall).toLocal();
   return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 }
 
-extension _FeatureViews on _HomeState {
+extension FeatureViews on HomeState {
   Widget sharedZeroSettings() => panel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

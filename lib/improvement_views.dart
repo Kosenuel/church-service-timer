@@ -1,4 +1,11 @@
-part of 'main.dart';
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'app_menu.dart';
+import 'time_picker.dart';
+import 'domain.dart';
+import 'main.dart';
 
 Future<bool?> reviewSavedDraft(BuildContext context) => showDialog<bool>(
   context: context,
@@ -25,7 +32,7 @@ Future<bool?> reviewSavedDraft(BuildContext context) => showDialog<bool>(
   ),
 );
 
-extension _ImprovementViews on _HomeState {
+extension ImprovementViews on HomeState {
   void offerUndo(String label, Future<bool> Function() restore) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -159,7 +166,7 @@ class DurationInsightList extends StatelessWidget {
   );
 }
 
-extension _EditorInsights on _TemplateEditorState {
+extension EditorInsights on TemplateEditorState {
   Future<void> reviewDurationSuggestions() async {
     final program = Timeline(
       name.text,

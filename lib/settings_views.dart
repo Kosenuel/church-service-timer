@@ -1,6 +1,15 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'running_service_bar.dart';
+import 'church_banner.dart';
+import 'feedback_page.dart';
+import 'controller.dart';
+import 'domain.dart';
+import 'native_fonts.dart';
+import 'main.dart';
 
-extension _SettingsViews on _HomeState {
+extension SettingsViews on HomeState {
   Future<void> openSettingsDetail(
     String title,
     Widget Function() content, {

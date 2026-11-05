@@ -1,4 +1,14 @@
-part of 'main.dart';
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'app_menu.dart';
+import 'ui_tools.dart';
+import 'running_service_bar.dart';
+import 'church_banner.dart';
+import 'controller.dart';
+import 'domain.dart';
+import 'main.dart';
 
 String reportDate(int wall) {
   final d = DateTime.fromMillisecondsSinceEpoch(wall).toLocal();
@@ -59,7 +69,7 @@ Widget reportMetric(
   ),
 );
 
-extension _ReportViews on _HomeState {
+extension ReportViews on HomeState {
   Future<void> exportAllReports({List<ServiceReport>? selected}) async {
     final records = List<ServiceReport>.unmodifiable(
       selected ?? c.state.reports,

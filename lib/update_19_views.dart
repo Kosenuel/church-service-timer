@@ -1,6 +1,16 @@
-part of 'main.dart';
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'app_menu.dart';
+import 'ui_tools.dart';
+import 'time_picker.dart';
+import 'domain.dart';
+import 'pixels.dart';
+import 'native_fonts.dart';
+import 'main.dart';
 
-extension _Update19Views on _HomeState {
+extension Update19Views on HomeState {
   bool get outputControlsEnabled =>
       !c.busy &&
       !c.corrupt &&

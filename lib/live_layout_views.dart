@@ -1,8 +1,15 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'app_menu.dart';
+import 'ui_tools.dart';
+import 'domain.dart';
+import 'display_connection.dart';
+import 'main.dart';
 
 /// Header status, menus and compact Live helpers shared by the phone and
 /// tablet layouts.
-extension _LiveLayout on _HomeState {
+extension LiveLayout on HomeState {
   bool get liveStandingBy {
     final s = c.liveSession;
     return s.phase == 'idle' || (s.phase == 'ended' && !c.reportSavePending);

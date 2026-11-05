@@ -1,6 +1,12 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'app_menu.dart';
+import 'domain.dart';
+import 'pixels.dart';
+import 'main.dart';
 
-extension _OperatorSettings on _HomeState {
+extension OperatorSettings on HomeState {
   Widget deviceManagement() => DeviceManagementPanel(controller: c);
 
   Future<void> sendPreparedCue(TextLayout cue) async {

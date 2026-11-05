@@ -1,4 +1,10 @@
-part of 'main.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'app_theme.dart';
+import 'choice_field.dart';
+import 'controller.dart';
+import 'domain.dart';
 
 /// false opens manual connection; null is an intentional cancellation.
 Future<bool?> reconnectLedDisplay(BuildContext context, AppController c) async {

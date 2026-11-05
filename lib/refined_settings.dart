@@ -1,4 +1,10 @@
-part of 'main.dart';
+import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'domain.dart';
+import 'pixels.dart';
+import 'native_fonts.dart';
+import 'display_connection.dart';
+import 'main.dart';
 
 IconData connectionIcon(DisplayConnection state) => switch (state) {
   DisplayConnection.simulator => Icons.monitor_outlined,
@@ -9,7 +15,7 @@ IconData connectionIcon(DisplayConnection state) => switch (state) {
   DisplayConnection.stageDisconnected => Icons.portable_wifi_off,
 };
 
-extension _RefinedSettings on _HomeState {
+extension RefinedSettings on HomeState {
   Widget settingsRow(
     IconData icon,
     String title,

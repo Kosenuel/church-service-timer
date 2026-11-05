@@ -1,9 +1,5 @@
 import 'dart:async';
 import 'dart:convert' show jsonDecode;
-import 'package:nsd/nsd.dart' as nsd;
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
-import 'pairing_pin.dart';
 import 'dart:ui' show ImageFilter;
 import 'dart:math' as math;
 
@@ -12,42 +8,50 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
-import 'app_menu.dart';
 import 'ui_tools.dart';
 import 'running_service_bar.dart';
-import 'clock_text.dart';
 import 'time_picker.dart';
 import 'choice_field.dart';
-import 'service_pdf.dart';
-import 'church_banner.dart';
-import 'feedback_page.dart';
 import 'controller.dart';
 import 'domain.dart';
 import 'pixels.dart';
 import 'platform.dart';
 import 'native_fonts.dart';
 import 'display_connection.dart';
-import 'pairing.dart';
-import 'best_effort.dart';
 
-part 'feature_views.dart';
-part 'update_19_views.dart';
-part 'appearance_views.dart';
-part 'report_views.dart';
-part 'live_views.dart';
-part 'template_views.dart';
-part 'settings_views.dart';
-part 'refined_settings.dart';
-part 'hardware_views.dart';
-part 'operator_settings.dart';
-part 'planning_views.dart';
-part 'pairing_views.dart';
-part 'device_management.dart';
-part 'mobile_display_views.dart';
-part 'improvement_views.dart';
-part 'update_21_views.dart';
-part 'wifi_reconnect_views.dart';
-part 'live_layout_views.dart';
+import 'feature_views.dart';
+import 'update_19_views.dart';
+import 'report_views.dart';
+import 'live_views.dart';
+import 'settings_views.dart';
+import 'refined_settings.dart';
+import 'hardware_views.dart';
+import 'operator_settings.dart';
+import 'planning_views.dart';
+import 'pairing_views.dart';
+import 'mobile_display_views.dart';
+import 'improvement_views.dart';
+import 'update_21_views.dart';
+import 'live_layout_views.dart';
+
+export 'feature_views.dart';
+export 'update_19_views.dart';
+export 'appearance_views.dart';
+export 'report_views.dart';
+export 'live_views.dart';
+export 'template_views.dart';
+export 'settings_views.dart';
+export 'refined_settings.dart';
+export 'hardware_views.dart';
+export 'operator_settings.dart';
+export 'planning_views.dart';
+export 'pairing_views.dart';
+export 'device_management.dart';
+export 'mobile_display_views.dart';
+export 'improvement_views.dart';
+export 'update_21_views.dart';
+export 'wifi_reconnect_views.dart';
+export 'live_layout_views.dart';
 
 String styleSummary(TextLayout l) =>
     '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
@@ -117,10 +121,10 @@ class Home extends StatefulWidget {
   final AppController controller;
   const Home({super.key, required this.controller});
   @override
-  State<Home> createState() => _HomeState();
+  State<Home> createState() => HomeState();
 }
 
-class _HomeState extends State<Home> with WidgetsBindingObserver {
+class HomeState extends State<Home> with WidgetsBindingObserver {
   AppController get c => widget.controller;
   int page = 0;
   QuickMessage quickDraft = const QuickMessage(body: '');
@@ -2202,10 +2206,10 @@ class TemplateEditor extends StatefulWidget {
     this.reports = const [],
   });
   @override
-  State<TemplateEditor> createState() => _TemplateEditorState();
+  State<TemplateEditor> createState() => TemplateEditorState();
 }
 
-class _TemplateEditorState extends State<TemplateEditor> {
+class TemplateEditorState extends State<TemplateEditor> {
   late TextEditingController name;
   late List<Segment> segments;
   late TextLayout endScreen;
