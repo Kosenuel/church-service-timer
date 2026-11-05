@@ -69,33 +69,23 @@ Release builds are signed with the key in `android/key.properties` (`storeFile`,
 
 ## Project layout
 
-- `lib/app_settings.dart`: church preferences, state migration helpers and portable backup validation.
-- `lib/app_theme.dart`: seven interface palettes, custom colors, semantic contrast and raised chapel brand mark.
-- `lib/settings_views.dart`: Settings hub, profile, appearance preview, backup and About pages.
-- `lib/feedback_page.dart`, `feedback_message.dart` and Android `FeedbackEmail.kt`: validated feedback form, fixed-recipient email composition and copy fallback.
-- `lib/domain.dart`: pure service transitions, timing, snapshots, recovery and program schema.
-- `lib/controller.dart`: atomic save-before-publication, failure/retry behavior and simulator adapter.
-- `lib/hardware_display.dart`, `hardware_output.dart`, `w2_program.dart`: serialized physical output, stable deadlines, stale-acknowledgement handling and independent W2 serialization.
-- `lib/hardware_views.dart`, Android `W2Display.kt`, `w2/Hd7Auth.java`, `w2/W2Discovery.java`: guided connection, Wi-Fi-bound sockets, strict profile validation and authenticated transfer. Credentials and active connections are excluded from backups.
-- `lib/service_features.dart`: warning rules, run metrics and reports.
-- `lib/pairing.dart`, `pairing_views.dart`: encrypted local pairing, host approval, one operator lease, viewer and stage-display modes.
-- `lib/service_planning.dart`, `planning_views.dart`: upcoming-only rundown changes, catch-up proposals and printable sheets.
-- `lib/operator_settings.dart`, `device_management.dart`: prepared cues, credential controls and guarded W2 administration.
-- Android `DisplayCredentialVault.kt`, `ServiceSheetPrinter.kt`, `W2Administration.kt`: encrypted local credentials, Android printing and verified administration codecs.
-- `lib/pixels.dart`, `matrix_font.dart`, `square_matrix_font.dart`: bitmap fonts, LED appearance and exact 512-bit frames.
-- `lib/native_fonts.dart` and Android `BundledFonts.kt`: four bundled Tinos faces and native rasterization.
-- `lib/warning_notifications.dart` and Android `WarningNotifications.kt`: monotonic phone warning deadlines and notification delivery.
-- `lib/main.dart`: responsive dashboard, program editor, import preview and display editor.
-- `lib/feature_views.dart`: timing overview, warnings, font/shape settings, rehearsal controls and shared At Zero settings.
-- `lib/live_views.dart`: accessible progress arc, responsive Live controls and live confirmation previews.
-- `lib/display_connection.dart`: truthful simulator/physical/disconnected status labels.
-- `lib/report_views.dart`: compact report list, detail pages, charts and bulk export.
-- `lib/template_views.dart`: compact program rows, detail pages, grouping and program actions.
-- `lib/platform.dart`, Android `MainActivity.kt` and `ActiveService.kt`: suspend-aware clock, atomic storage, document picker and engine-owned connected-device foreground service.
-- `test/`: deterministic domain, fault injection, rendering and UI checks.
-- `docs/PRD.md`: supplied requirements; historical wording about APK availability is retained as source material.
-- `docs/PROTOTYPE-SCOPE.md`: implemented behavior and hardware-dependent work.
-- `examples/`: portable program examples.
+`lib/` is organised by feature; `test/` mirrors it.
+
+- `main.dart`: app entry, home screen shell and program editor.
+- `app/`: application controller (save-before-publish, retries), suspend-aware clock and storage, phone warning notifications.
+- `domain/`: pure service model and timing, programs and library, warnings, reports, planning, stage output, backups and migrations.
+- `display/`: bitmap fonts (I-Proton Matrix, Sq-Matrix), exact 512-pixel frames, bundled Tinos rasterization, clock text.
+- `hardware/`: W2 output planning and serialization, the guarded LED adapter, connection status, device management and Wi-Fi reconnect views.
+- `pairing/`: encrypted local pairing, six-digit PIN, saved devices, pairing and stage-screen views.
+- `live/`: Live layout, timer and controls, timing overview, stage output, time recovery, rundown planning and the running-service bar.
+- `programs/`: program list, library and filters, import/export, editor insights.
+- `reports/`: report list and detail, actions, timing insights and printable PDFs.
+- `settings/`: Settings hub, display, appearance, warnings, clock, stage cues and search.
+- `feedback/`: Feedback Center form and email composition.
+- `shared/`: theme, menus, selection and undo helpers, choice fields, pickers, banner and small utilities.
+- Android sources live under `android/app/src/main/kotlin/org/kosenuel/cuekeeper/` (W2 transport, credential vault, printing, fonts, notifications, foreground service).
+- `test/`: deterministic domain, fault-injection, rendering and UI checks, with golden screenshots in `test/goldens/`.
+- `scripts/`: standalone smoke and probe scripts; `docs/`: requirements, scope and release guides; `examples/`: portable program examples.
 
 No original vendor code, APKs, bundled vendor fonts, private keys, passwords or machine-specific settings are included. The code is a fresh implementation informed by the supplied requirements and prior analysis.
 

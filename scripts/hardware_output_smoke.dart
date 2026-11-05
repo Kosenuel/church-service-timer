@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import '../test/hardware_output_cases.dart';
+import '../test/hardware/hardware_output_cases.dart';
 
 void main() {
   for (final entry in hardwareOutputCases.entries) {
