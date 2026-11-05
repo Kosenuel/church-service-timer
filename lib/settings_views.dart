@@ -1,6 +1,6 @@
 part of 'main.dart';
 
-extension SettingsViews on _HomeState {
+extension _SettingsViews on _HomeState {
   Future<void> openSettingsDetail(
     String title,
     Widget Function() content, {
@@ -596,7 +596,7 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
                             draft.churchName = value;
                             draft.churchBanner = banner;
                           });
-                          if (!mounted) return;
+                          if (!mounted || !context.mounted) return;
                           if (saved) {
                             Navigator.pop(context);
                           } else {
@@ -786,7 +786,7 @@ class _AppearancePageState extends State<AppearancePage> {
                             draft.themeId = selected;
                             draft.appearance = appearance;
                           });
-                          if (!mounted) return;
+                          if (!mounted || !context.mounted) return;
                           if (saved) {
                             Navigator.pop(context);
                           } else {

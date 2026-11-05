@@ -17,4 +17,4 @@ Both Matrix fonts and the W2 hardware serialization remain unchanged. Existing a
 
 ## Reproducing PDF review
 
-Run `dart run scripts/print-preview.dart <output-directory>` from the repository after dependencies are installed. This generates long Operator, Stage and Ink-saving fixtures using the app's actual PDF generator and bundled fonts. Check every page's footer, repeated headings, separate service/preparation dates, note visibility and banner/watermark suppression. The older HTML helpers remain for compatibility; the app's Print Service flow uses `lib/service_pdf.dart`.
+Run `dart run scripts/print_preview.dart <output-directory>` from the repository after dependencies are installed. This generates long Operator, Stage and Ink-saving fixtures using the app's actual PDF generator and bundled fonts. Check every page's footer, repeated headings, separate service/preparation dates, note visibility and banner/watermark suppression. The older HTML helpers remain for compatibility; the app's Print Service flow uses `lib/service_pdf.dart`.

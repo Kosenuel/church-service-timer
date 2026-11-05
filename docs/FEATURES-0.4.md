@@ -52,6 +52,6 @@ Only untouched old end screens (the exact original `Hallelujah` style) in defaul
 
 ## Checks
 
-`test/revision_04_test.dart` covers migration, ownership, exports, calculations, save failures, deletion, report navigation/filtering and UI previews. Its nine pure cases also run with `dart scripts/revision-04-smoke.dart`. The normal build script runs these alongside the previous timer, warning, renderer and UI tests.
+`test/revision_04_test.dart` covers migration, ownership, exports, calculations, save failures, deletion, report navigation/filtering and UI previews. Its nine pure cases also run with `dart scripts/revision_04_smoke.dart`. The normal build script runs these alongside the previous timer, warning, renderer and UI tests.
 
 Phone check after upgrading: delete/cancel a saved cue, change one template's end screen, change global At Zero while a service is running at zero, open/filter graph and detail views, and export all records through Android's document picker. No physical controller connection is added by this release.

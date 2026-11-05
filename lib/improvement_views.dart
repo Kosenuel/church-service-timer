@@ -25,7 +25,7 @@ Future<bool?> reviewSavedDraft(BuildContext context) => showDialog<bool>(
   ),
 );
 
-extension ImprovementViews on _HomeState {
+extension _ImprovementViews on _HomeState {
   void offerUndo(String label, Future<bool> Function() restore) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -159,7 +159,7 @@ class DurationInsightList extends StatelessWidget {
   );
 }
 
-extension EditorInsights on _TemplateEditorState {
+extension _EditorInsights on _TemplateEditorState {
   Future<void> reviewDurationSuggestions() async {
     final program = Timeline(
       name.text,

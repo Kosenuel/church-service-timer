@@ -305,9 +305,10 @@ extension PairMemory on PairHub {
     }
     if (peer != null) {
       peer.approved = false;
-      try {
-        await peer.wire.send({'type': 'removed'});
-      } catch (_) {}
+      await bestEffort(
+        'notify removed device',
+        () => peer.wire.send({'type': 'removed'}),
+      );
       _drop(peer);
     }
     changed();

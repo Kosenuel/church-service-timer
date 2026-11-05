@@ -1,6 +1,6 @@
 part of 'main.dart';
 
-extension PairingViews on _HomeState {
+extension _PairingViews on _HomeState {
   Future<void> shareServiceSetup() async {
     if (c.pairing.hosting) {
       await openSettingsDetail(
@@ -516,9 +516,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
     discovery = null;
     previous?.removeListener(changed);
     if (previous != null) {
-      try {
-        await nsd.stopDiscovery(previous);
-      } catch (_) {}
+      await bestEffort('stop discovery', () => nsd.stopDiscovery(previous));
     }
   }
 
@@ -644,7 +642,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
                     await widget.controller.pairing.resumeSavedHost();
                     if (widget.initialRole == 'stage')
                       widget.controller.pairing.showStage(true);
-                    if (mounted) Navigator.of(context).pop();
+                    if (mounted && context.mounted) Navigator.of(context).pop();
                   },
             icon: const Icon(Icons.refresh),
             label: const Text('Reconnect saved host'),

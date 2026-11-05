@@ -1,6 +1,6 @@
 part of 'main.dart';
 
-extension HardwareViews on _HomeState {
+extension _HardwareViews on _HomeState {
   Future<void> restoreSign() async {
     final s = c.state.session;
     final revision = s.revision;
@@ -101,6 +101,7 @@ extension HardwareViews on _HomeState {
 
   Future<void> reconnectDisplay() async {
     if (c.destination != 'led' && !await c.selectDestination('led')) return;
+    if (!mounted) return;
     final connected = await reconnectLedDisplay(context, c);
     if (connected == null) return;
     if (connected) {

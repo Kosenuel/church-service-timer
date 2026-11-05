@@ -9,7 +9,7 @@ IconData connectionIcon(DisplayConnection state) => switch (state) {
   DisplayConnection.stageDisconnected => Icons.portable_wifi_off,
 };
 
-extension RefinedSettings on _HomeState {
+extension _RefinedSettings on _HomeState {
   Widget settingsRow(
     IconData icon,
     String title,
@@ -400,32 +400,5 @@ extension RefinedSettings on _HomeState {
         ),
       ],
     );
-  }
-
-  Future<void> chooseStageCue() async {
-    final selected = await showAppSelection<int>(
-      context,
-      title: 'Choose a stage cue',
-      builder: (ctx) => AppMenuList(
-        children: [
-          for (var i = 0; i < c.state.stageCues.length; i++)
-            ListTile(
-              onTap: () => Navigator.pop(ctx, i),
-              title: Text(c.state.stageCues[i].text),
-            ),
-          ListTile(
-            onTap: () => Navigator.pop(ctx, -1),
-            leading: const Icon(Icons.edit_note),
-            title: const Text('Manage cues in Settings'),
-          ),
-        ],
-      ),
-    );
-    if (selected == null || !mounted) return;
-    if (selected == -1) {
-      await openSettingsDetail('Stage cues', stageCueSettings);
-    } else if (selected < c.state.stageCues.length) {
-      await sendPreparedCue(c.state.stageCues[selected]);
-    }
   }
 }

@@ -1,6 +1,6 @@
 part of 'main.dart';
 
-extension PlanningViews on _HomeState {
+extension _PlanningViews on _HomeState {
   Future<void> editUpcoming() async {
     final s = c.state.session, revision = c.state.session.revision;
     final result = await Navigator.of(context).push<Timeline>(
@@ -30,69 +30,6 @@ extension PlanningViews on _HomeState {
         ) &&
         mounted)
       await showError(c.error ?? 'Could not update rundown.');
-  }
-
-  Future<void> finishPlanning() async {
-    final s = c.state.session;
-    final initial = DateTime.fromMillisecondsSinceEpoch(
-      c.now.wall + s.remaining(c.now) ~/ s.rate,
-    );
-    final selected = await showWheelTimePicker(
-      context,
-      title: 'Set finish time',
-      initial: initial.hour * 60 + initial.minute,
-      clock: true,
-    );
-    if (selected == null || !mounted) return;
-    final date = DateTime.fromMillisecondsSinceEpoch(c.now.wall);
-    var target = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      selected ~/ 60,
-      selected % 60,
-    );
-    if (target.millisecondsSinceEpoch <= c.now.wall)
-      target = target.add(const Duration(days: 1));
-    final revision = c.state.session.revision;
-    try {
-      final proposed = catchUpPlan(
-        c.state.session,
-        c.now,
-        target.millisecondsSinceEpoch,
-      );
-      final before = c.state.session.timeline!.segments
-          .skip(c.state.session.index + 1)
-          .toList();
-      final changes = [
-        for (var i = 0; i < proposed.length; i++)
-          '${proposed[i].name}: ${before[i].durationText} → ${proposed[i].durationText}',
-      ].join('\n');
-      if (!await confirm(
-        'Finish by ${clockLabel(target.millisecondsSinceEpoch)}?',
-        '$changes\n\nOnly upcoming durations change. The current timer stays unchanged. Pauses and manual advances can move the actual finish.',
-        'Apply plan',
-      ))
-        return;
-      if (!await c.commit((draft, at) {
-            final fresh = catchUpPlan(
-              draft.session,
-              at,
-              target.millisecondsSinceEpoch,
-            );
-            require(
-              fresh.map((e) => e.durationSeconds).join(',') ==
-                  proposed.map((e) => e.durationSeconds).join(','),
-              'Timing changed while this plan was open. Review the finish plan again.',
-            );
-            replaceUpcoming(draft.session, proposed, at);
-            draft.session.targetFinishWall = target.millisecondsSinceEpoch;
-          }, revision: revision) &&
-          mounted)
-        await showError(c.error ?? 'Could not apply plan.');
-    } catch (e) {
-      if (mounted) await showError('$e');
-    }
   }
 
   Future<void> printServiceSheet(

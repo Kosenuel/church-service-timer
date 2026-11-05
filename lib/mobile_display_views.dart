@@ -1,6 +1,6 @@
 part of 'main.dart';
 
-extension MobileDisplayViews on _HomeState {
+extension _MobileDisplayViews on _HomeState {
   Future<void> chooseDisplay() =>
       openSettingsDetail('Choose display', displayChoices);
 

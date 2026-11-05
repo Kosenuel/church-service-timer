@@ -5,7 +5,7 @@ String clockLabel(int wall) {
   return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 }
 
-extension FeatureViews on _HomeState {
+extension _FeatureViews on _HomeState {
   Widget sharedZeroSettings() => panel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,11 +324,6 @@ extension FeatureViews on _HomeState {
       ),
     );
   }
-
-  Widget warningSettings(
-    DisplaySettings d,
-    Future<void> Function(DisplaySettings) save,
-  ) => WarningSettingsPanel(settings: d, onSave: save, busy: c.busy);
 
   Future<void> exportReport(ServiceReport r, String type) async {
     try {

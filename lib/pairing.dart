@@ -6,6 +6,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'domain.dart';
 import 'pairing_pin.dart';
+import 'best_effort.dart';
 
 part 'pairing_memory.dart';
 
@@ -1044,17 +1045,16 @@ class PairHub extends ChangeNotifier {
       _savedClient!['autoResume'] = false;
       _saveMemoryQuietly();
     }
-    try {
-      if (!preserveClient)
-        await _client
+    if (!preserveClient)
+      await bestEffort(
+        'notify host of leave',
+        () async => _client
             ?.send({'type': 'leave'})
-            .timeout(const Duration(milliseconds: 250));
-    } catch (_) {}
+            .timeout(const Duration(milliseconds: 250)),
+      );
     _timer?.cancel();
     _timer = null;
-    try {
-      await unadvertise?.call();
-    } catch (_) {}
+    await bestEffort('stop advertising', () async => unadvertise?.call());
     discoveryNotice = '';
     await _server?.close();
     _server = null;
