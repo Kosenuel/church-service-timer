@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
@@ -314,6 +315,93 @@ extension TemplateViews on HomeState {
               update(() => selectedName = next);
           }
 
+          final colors = appColors(pageContext);
+          final pinned =
+              t != null && c.state.programLibrary.favourites.contains(t.name);
+          Future<void> duplicate() async {
+            Timeline? copy;
+            final ok = await c.commit(
+              (draft, _) => copy = draft.duplicateTemplate(t!),
+            );
+            if (ok)
+              select(copy!.name);
+            else if (mounted)
+              await showError(c.error ?? 'Could not duplicate program.');
+          }
+
+          Future<void> delete() async {
+            if (!await confirm(
+              'Delete ${t!.name}?',
+              'Delete this saved program? Any loaded service and its report remain unchanged.',
+              'Delete program',
+            ))
+              return;
+            final ok = await c.commit((draft, _) => draft.deleteTemplate(t));
+            if (ok && mounted) {
+              if (embedded)
+                refreshHome(() => selectedProgram = null);
+              else if (pageContext.mounted)
+                Navigator.pop(pageContext);
+            } else if (mounted)
+              await showError(c.error ?? 'Could not delete program.');
+          }
+
+          Future<void> load() async {
+            try {
+              c.state.templateIndex(t!);
+              await c.act('load', value: t);
+              if (!mounted) return;
+              navigatePage(0);
+              if (pageContext.mounted)
+                Navigator.of(pageContext).popUntil((r) => r.isFirst);
+            } catch (e) {
+              if (mounted) await showError('$e');
+            }
+          }
+
+          final actions = t == null
+              ? <Widget>[]
+              : <Widget>[
+                  IconButton(
+                    tooltip: pinned ? 'Unpin program' : 'Pin program',
+                    onPressed: disabled ? null : () => toggleFavourite(t),
+                    icon: Icon(pinned ? Icons.star : Icons.star_border),
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Program options',
+                    enabled: !disabled,
+                    onSelected: (action) async {
+                      switch (action) {
+                        case 'duplicate':
+                          await duplicate();
+                        case 'json':
+                          await export(t, 'json');
+                        case 'csv':
+                          await export(t, 'csv');
+                        case 'print':
+                          await printServiceSheet(t);
+                        case 'delete':
+                          await delete();
+                      }
+                    },
+                    itemBuilder: (ctx) => appMenuEntries(ctx, [
+                      const AppMenuAction('duplicate', 'Duplicate'),
+                      const AppMenuAction('json', 'Export JSON'),
+                      const AppMenuAction('csv', 'Export CSV'),
+                      const AppMenuAction('print', 'Print Service'),
+                      const AppMenuAction(
+                        'delete',
+                        'Delete program',
+                        destructive: true,
+                      ),
+                    ]),
+                  ),
+                ];
+          final canLoad =
+              !disabled &&
+              !c.state.session.active &&
+              !c.reportSavePending &&
+              !controlsLocked;
           final body = SingleChildScrollView(
             padding: EdgeInsets.all(appLayout(pageContext).panelPadding),
             child: t == null
@@ -323,24 +411,51 @@ extension TemplateViews on HomeState {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        t.name,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${t.type == 'rehearsal' ? 'Rehearsal' : 'Service'} · ${templateSummary(t)}',
-                        style: TextStyle(color: appColors(pageContext).muted),
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                      Row(
                         children: [
-                          FilledButton.icon(
+                          Expanded(
+                            child: Text(
+                              t.name,
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (embedded) ...actions,
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${t.type == 'rehearsal' ? 'Rehearsal' : 'Service'} · ${templateSummary(t)} · ${lastUsedLabel(c.state.programLibrary.recent[t.name])}',
+                        style: TextStyle(color: colors.muted, fontSize: 13),
+                      ),
+                      const SizedBox(height: 14),
+                      SegmentBar(program: t, height: 10),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: UnavailableAction(
+                              reason: c.state.session.active
+                                  ? 'End the current service before loading another program.'
+                                  : null,
+                              child: FilledButton.icon(
+                                key: const ValueKey('load-into-live'),
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(50),
+                                ),
+                                onPressed: canLoad ? load : null,
+                                icon: const Icon(Icons.play_arrow),
+                                label: const Text('Load into Live'),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 50),
+                            ),
                             onPressed: disabled
                                 ? null
                                 : () async {
@@ -352,54 +467,47 @@ extension TemplateViews on HomeState {
                             icon: const Icon(Icons.edit_outlined),
                             label: const Text('Edit Program'),
                           ),
-                          OutlinedButton.icon(
-                            onPressed: disabled
-                                ? null
-                                : () async {
-                                    Timeline? copy;
-                                    final ok = await c.commit(
-                                      (draft, _) =>
-                                          copy = draft.duplicateTemplate(t),
-                                    );
-                                    if (ok)
-                                      select(copy!.name);
-                                    else if (mounted)
-                                      await showError(
-                                        c.error ??
-                                            'Could not duplicate program.',
-                                      );
-                                  },
-                            icon: const Icon(Icons.copy_outlined),
-                            label: const Text('Duplicate'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: disabled
-                                ? null
-                                : () => toggleFavourite(t),
-                            icon: Icon(
-                              c.state.programLibrary.favourites.contains(t.name)
-                                  ? Icons.star
-                                  : Icons.star_border,
-                            ),
-                            label: Text(
-                              c.state.programLibrary.favourites.contains(t.name)
-                                  ? 'Unpin program'
-                                  : 'Pin program',
-                            ),
-                          ),
                         ],
                       ),
-                      const SizedBox(height: 24),
-                      label('Segments'),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 22),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: label('Rundown'),
+                      ),
+                      const SizedBox(height: 8),
                       panel(
                         padding: EdgeInsets.zero,
-                        child: AppMenuList(
+                        child: Column(
                           children: [
-                            for (var i = 0; i < t.segments.length; i++)
+                            for (var i = 0; i < t.segments.length; i++) ...[
+                              if (i > 0) const AppDivider(),
                               ListTile(
-                                leading: Text('${i + 1}'),
-                                title: Text(t.segments[i].name),
+                                contentPadding: appLayout(
+                                  pageContext,
+                                ).tileInsets,
+                                leading: Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: colors.accent.withValues(
+                                      alpha: const [
+                                        1.0,
+                                        .6,
+                                        .8,
+                                        .45,
+                                        .7,
+                                      ][i % 5],
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                minLeadingWidth: 10,
+                                title: Text(
+                                  t.segments[i].name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 subtitle:
                                     t.segments[i].speaker.isEmpty &&
                                         t.segments[i].notes.isEmpty
@@ -411,117 +519,64 @@ extension TemplateViews on HomeState {
                                           if (t.segments[i].notes.isNotEmpty)
                                             'Private note: ${t.segments[i].notes}',
                                         ].join('\n'),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: colors.muted,
+                                        ),
                                       ),
-                                trailing: Text(t.segments[i].durationText),
+                                trailing: Text(
+                                  t.segments[i].durationText,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontFeatures: [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
                               ),
+                            ],
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
                       panel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            label('End screen'),
-                            const SizedBox(height: 8),
-                            Text(
-                              t.display.end.text,
-                              style: const TextStyle(fontSize: 22),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(styleSummary(t.display.end)),
-                            const SizedBox(height: 12),
-                            Text(
-                              '${c.state.defaults.warnings.where((w) => w.enabled).length} shared automatic warnings enabled',
-                            ),
-                          ],
+                        padding: EdgeInsets.zero,
+                        child: ListTile(
+                          contentPadding: appLayout(pageContext).tileInsets,
+                          leading: Icon(
+                            Icons.flag_outlined,
+                            color: colors.muted,
+                          ),
+                          title: Text(
+                            t.display.end.text,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(
+                            'End screen · ${styleSummary(t.display.end).substring(t.display.end.text.length + 3)}',
+                            style: TextStyle(fontSize: 12, color: colors.muted),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: disabled
-                                ? null
-                                : () => export(t, 'json'),
-                            icon: const Icon(Icons.code),
-                            label: const Text('Export JSON'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: disabled ? null : () => export(t, 'csv'),
-                            icon: const Icon(Icons.ios_share),
-                            label: const Text('Export CSV'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: disabled
-                                ? null
-                                : () => printServiceSheet(t),
-                            icon: const Icon(Icons.print_outlined),
-                            label: const Text('Print Service'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'JSON includes speaker names and private notes. CSV contains segment names and durations only.',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Edits apply the next time you load this program. Your current service stays unchanged.',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                      const SizedBox(height: 24),
-                      const AppDivider(essential: true),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          style: TextButton.styleFrom(
-                            foregroundColor: appColors(pageContext).error,
-                          ),
-                          onPressed: disabled
-                              ? null
-                              : () async {
-                                  if (!await confirm(
-                                    'Delete ${t.name}?',
-                                    'Delete this saved program? Any loaded service and its report remain unchanged.',
-                                    'Delete program',
-                                  ))
-                                    return;
-                                  final ok = await c.commit(
-                                    (draft, _) => draft.deleteTemplate(t),
-                                  );
-                                  if (ok && mounted) {
-                                    if (embedded)
-                                      refreshHome(() => selectedProgram = null);
-                                    else if (pageContext.mounted)
-                                      Navigator.pop(pageContext);
-                                  } else if (mounted)
-                                    await showError(
-                                      c.error ?? 'Could not delete program.',
-                                    );
-                                },
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('Delete program'),
-                        ),
+                      const SizedBox(height: 10),
+                      Text(
+                        '${plural(c.state.defaults.warnings.where((w) => w.enabled).length, 'shared warning')} apply. Edits take effect the next time you load this program; your current service stays unchanged.',
+                        style: TextStyle(fontSize: 12, color: colors.muted),
                       ),
                     ],
                   ),
           );
-          if (embedded)
-            return Material(color: appColors(pageContext).surface, child: body);
+          if (embedded) return Material(color: colors.surface, child: body);
           return Scaffold(
             appBar: AppBar(
               title: const Text('Program details'),
+              actions: [...actions, const SizedBox(width: 4)],
               bottom: c.liveSession.active
                   ? RunningServiceBar.forContext(context, controller: c)
                   : null,
             ),
             body: SafeArea(
-              child: Center(
+              child: Align(
+                alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 760),
                   child: body,
