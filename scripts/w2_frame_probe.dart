@@ -1,6 +1,6 @@
 import 'dart:io';
-import '../lib/matrix_font.dart';
-import '../lib/w2_program.dart';
+import 'package:church_service_timer/matrix_font.dart';
+import 'package:church_service_timer/w2_program.dart';
 
 List<bool> matrix(String text) {
   final pixels = List.filled(512, false);

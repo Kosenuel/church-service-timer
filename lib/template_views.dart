@@ -8,7 +8,7 @@ String templateSummary(Timeline t) {
   return '${t.segments.length} ${t.segments.length == 1 ? 'segment' : 'segments'} · ${total % 60000 == 0 ? '${total ~/ 60000} min' : durationLabel(total)}';
 }
 
-extension TemplateViews on _HomeState {
+extension _TemplateViews on _HomeState {
   Widget templates() {
     final items = c.state.programLibrary.find(
       c.state.templates,

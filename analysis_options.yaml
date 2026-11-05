@@ -1,11 +1,14 @@
+include: package:flutter_lints/flutter.yaml
+
 analyzer:
-  errors:
-    deprecated_member_use: ignore
   exclude:
     - build/**
     - android/**
 linter:
   rules:
-    - avoid_print
-    - cancel_subscriptions
-    - close_sinks
+    # Brace-less single-statement ifs are used deliberately throughout.
+    curly_braces_in_flow_control_structures: false
+    avoid_print: true
+    cancel_subscriptions: true
+    close_sinks: true
+    empty_catches: true

@@ -8,6 +8,7 @@ import 'hardware_output.dart';
 import 'pixels.dart';
 import 'platform.dart';
 import 'w2_program.dart';
+import 'best_effort.dart';
 
 /// Serialized display updates, including the active Android foreground service.
 /// Never retries a whole stale job.
@@ -580,9 +581,11 @@ class HardwareDisplay extends ChangeNotifier {
           'Display update not confirmed · reconnect and review',
           session: plan.sessionId,
         );
-        try {
-          await port.disconnectDisplay();
-        } catch (_) {}
+        if (!await bestEffort(
+          'disconnect after failed update',
+          port.disconnectDisplay,
+        ))
+          record('Disconnect after an unconfirmed update did not complete');
       }
     } finally {
       sending = false;

@@ -1,6 +1,6 @@
 part of 'main.dart';
 
-extension Update19Views on _HomeState {
+extension _Update19Views on _HomeState {
   bool get outputControlsEnabled =>
       !c.busy &&
       !c.corrupt &&
@@ -79,16 +79,24 @@ extension Update19Views on _HomeState {
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
-        for (final format in ['24h', '12h'])
-          RadioListTile<String>(
-            value: format,
-            groupValue: c.state.clockFormat,
-            title: Text(format == '24h' ? '24-hour' : '12-hour'),
-            subtitle: Text(stageClockText(c.now.wall, format)),
-            onChanged: c.busy
-                ? null
-                : (v) => c.commit((draft, _) => draft.clockFormat = v!),
+        RadioGroup<String>(
+          groupValue: c.state.clockFormat,
+          onChanged: (v) {
+            if (!c.busy && v != null)
+              c.commit((draft, _) => draft.clockFormat = v);
+          },
+          child: Column(
+            children: [
+              for (final format in ['24h', '12h'])
+                RadioListTile<String>(
+                  value: format,
+                  enabled: !c.busy,
+                  title: Text(format == '24h' ? '24-hour' : '12-hour'),
+                  subtitle: Text(stageClockText(c.now.wall, format)),
+                ),
+            ],
           ),
+        ),
         const AppDivider(),
         SwitchListTile(
           key: const ValueKey('clock-blink'),

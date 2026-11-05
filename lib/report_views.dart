@@ -59,7 +59,7 @@ Widget reportMetric(
   ),
 );
 
-extension ReportViews on _HomeState {
+extension _ReportViews on _HomeState {
   Future<void> exportAllReports({List<ServiceReport>? selected}) async {
     final records = List<ServiceReport>.unmodifiable(
       selected ?? c.state.reports,

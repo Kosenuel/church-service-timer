@@ -1,6 +1,6 @@
 part of 'main.dart';
 
-extension OperatorSettings on _HomeState {
+extension _OperatorSettings on _HomeState {
   Widget deviceManagement() => DeviceManagementPanel(controller: c);
 
   Future<void> sendPreparedCue(TextLayout cue) async {

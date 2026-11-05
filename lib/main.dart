@@ -28,6 +28,7 @@ import 'platform.dart';
 import 'native_fonts.dart';
 import 'display_connection.dart';
 import 'pairing.dart';
+import 'best_effort.dart';
 
 part 'feature_views.dart';
 part 'update_19_views.dart';
@@ -420,6 +421,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     var editorInitial = initial;
     final savedDraft = c.state.editDrafts[draftKey];
     if (savedDraft != null) {
+      if (!mounted) return null;
       final restore = await reviewSavedDraft(context);
       if (restore == null) return null;
       if (restore) {
@@ -507,6 +509,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       }
       validateTimelinePixels(candidate);
       validateProgramDuration(candidate);
+      if (!mounted) return;
       final name = TextEditingController(text: candidate.name);
       String? error;
       bool validName() {

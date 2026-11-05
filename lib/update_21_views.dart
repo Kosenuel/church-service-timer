@@ -106,7 +106,7 @@ class ProgramFilters extends StatelessWidget {
   );
 }
 
-extension Update21Views on _HomeState {
+extension _Update21Views on _HomeState {
   void toggleExportSelection(Set<String> selected, String id) {
     if (!selected.remove(id)) selected.add(id);
   }

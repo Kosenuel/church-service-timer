@@ -2,7 +2,7 @@ part of 'main.dart';
 
 /// Header status, menus and compact Live helpers shared by the phone and
 /// tablet layouts.
-extension LiveLayout on _HomeState {
+extension _LiveLayout on _HomeState {
   bool get liveStandingBy {
     final s = c.liveSession;
     return s.phase == 'idle' || (s.phase == 'ended' && !c.reportSavePending);

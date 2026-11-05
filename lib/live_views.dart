@@ -519,7 +519,7 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
   );
 }
 
-extension LiveViewActions on _HomeState {
+extension _LiveViewActions on _HomeState {
   Future<bool> confirmTimer({
     required int revision,
     required String title,
