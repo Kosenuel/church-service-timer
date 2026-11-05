@@ -35,6 +35,7 @@ import 'package:church_service_timer/live/timing_overview_views.dart';
 import 'package:church_service_timer/programs/program_editor_insights.dart';
 import 'package:church_service_timer/programs/program_import_export_views.dart';
 import 'package:church_service_timer/programs/program_library_views.dart';
+import 'package:church_service_timer/settings/settings_pin_views.dart';
 import 'package:church_service_timer/programs/program_views.dart'
     show templateSummary;
 import 'package:church_service_timer/reports/report_library_views.dart';
@@ -44,6 +45,7 @@ export 'package:church_service_timer/settings/appearance_views.dart';
 export 'package:church_service_timer/reports/report_views.dart';
 export 'package:church_service_timer/live/live_timer_views.dart';
 export 'package:church_service_timer/programs/program_views.dart';
+export 'package:church_service_timer/settings/settings_pin_views.dart';
 export 'package:church_service_timer/settings/settings_views.dart';
 export 'package:church_service_timer/settings/display_settings_views.dart';
 export 'package:church_service_timer/hardware/hardware_views.dart';
@@ -232,8 +234,17 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) c.suspend();
-    if (state == AppLifecycleState.resumed) c.resume();
+    if (state == AppLifecycleState.paused) {
+      c.lockSettings();
+      c.suspend();
+    }
+    if (state == AppLifecycleState.resumed) {
+      c.resume();
+      if (page == 3 && c.settingsLocked && mounted) {
+        Navigator.of(context).popUntil((r) => r.isFirst);
+        navigatePage(0);
+      }
+    }
   }
 
   Future<void> showError(String message) => showDialog<void>(
@@ -2348,7 +2359,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 : NavigationBar(
                     selectedIndex: page,
                     onDestinationSelected: (v) {
-                      if (!controlsLocked) setState(() => page = v);
+                      if (!controlsLocked) goToPage(v);
                     },
                     destinations: const [
                       NavigationDestination(

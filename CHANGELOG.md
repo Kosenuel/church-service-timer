@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Settings PIN.** Optional 4–8 digit PIN (Settings → Settings PIN) that locks Settings, deleting programs and reports, and LED sign administration; Live, Programs and Reports stay open. Setting it shows a one-time recovery code that removes the PIN if forgotten. Five wrong tries wait 30 seconds, and Settings lock again whenever the app leaves the screen. Only a salted hash is stored, and it is never included in backups.
 - **Faster start.** Pinned or recent programs on Live load straight into Ready. Ready shows the display and a readiness verdict inline. When the display is connected and nothing needs attention, Start first segment starts at once, with an 8-second **Undo start**; otherwise a confirmation explains what to check.
 - **Live idle:** "Ready when you are" hero with Start, Share and Join; a last-service card with its timing and review note; Stage & display collapses while idle (it stays open while sharing).
 - **Quick message** has its own page: preview at the top, recipients, a collapsible Style section and a pinned Send bar with Test 5 s and Save as preset.

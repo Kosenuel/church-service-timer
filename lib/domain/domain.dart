@@ -8,6 +8,8 @@ export 'package:church_service_timer/domain/app_settings.dart';
 import 'package:church_service_timer/domain/program_library.dart';
 export 'package:church_service_timer/domain/program_library.dart';
 export 'package:church_service_timer/domain/service_planning.dart';
+import 'package:church_service_timer/domain/settings_lock.dart';
+export 'package:church_service_timer/domain/settings_lock.dart';
 import 'package:church_service_timer/domain/quick_message.dart';
 import 'package:church_service_timer/domain/edit_drafts.dart';
 import 'package:church_service_timer/domain/notification_settings.dart';
@@ -1047,6 +1049,9 @@ class AppState {
   /// Show the service with Pause and Next on the lock-screen notification.
   /// Local to this phone; not part of portable backups.
   bool lockScreenControls;
+
+  /// Optional Settings PIN; never included in backups.
+  SettingsLock? settingsLock;
   AppState(
     this.templates,
     this.defaults,
@@ -1062,6 +1067,7 @@ class AppState {
     this.themeId = 'midnight_lime',
     this.keepScreenAwake = true,
     this.lockScreenControls = true,
+    this.settingsLock,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -1143,6 +1149,9 @@ class AppState {
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
       keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
       lockScreenControls: boolSetting(j['lockScreenControls'] ?? true),
+      settingsLock: j['settingsLock'] == null
+          ? null
+          : SettingsLock.fromJson(Map<String, dynamic>.from(j['settingsLock'])),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1273,6 +1282,7 @@ class AppState {
     'themeId': themeId,
     'keepScreenAwake': keepScreenAwake,
     'lockScreenControls': lockScreenControls,
+    'settingsLock': settingsLock?.toJson(),
   };
   AppState copy() => AppState.fromJson(toJson());
 
