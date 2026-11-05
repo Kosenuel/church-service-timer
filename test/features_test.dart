@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/controller.dart';
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/pixels.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/display/pixels.dart';
 import 'feature_cases.dart';
 import 'domain_test.dart' show FakePort;
 

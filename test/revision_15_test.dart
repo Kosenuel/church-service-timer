@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/controller.dart';
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/display_connection.dart';
-import 'package:church_service_timer/pairing.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/hardware/display_connection.dart';
+import 'package:church_service_timer/pairing/pairing.dart';
 import 'domain_test.dart' show FakePort, start, after, timeline;
 import 'hardware_integration_test.dart' show setup, flush;
 import 'revision_14_test.dart' show RecoveryPort;

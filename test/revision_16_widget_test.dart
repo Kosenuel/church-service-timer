@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/controller.dart';
+import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/main.dart';
-import 'package:church_service_timer/pairing.dart';
+import 'package:church_service_timer/pairing/pairing.dart';
 import 'domain_test.dart' show FakePort;
 import 'revision_16_test.dart' show eventually, pair;
 

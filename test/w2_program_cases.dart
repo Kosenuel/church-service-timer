@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import 'package:church_service_timer/w2_program.dart';
+import 'package:church_service_timer/hardware/w2_program.dart';
 import 'feature_cases.dart' show equal;
 
 final w2ProgramCases = <String, void Function()>{

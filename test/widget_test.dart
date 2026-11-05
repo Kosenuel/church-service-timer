@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/main.dart';
-import 'package:church_service_timer/controller.dart';
-import 'package:church_service_timer/domain.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/domain/domain.dart';
 
 import 'domain_test.dart' show FakePort, start, after;
 import 'live_helpers.dart';

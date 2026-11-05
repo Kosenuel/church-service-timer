@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/main.dart';
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/controller.dart';
-import 'package:church_service_timer/app_theme.dart';
-import 'package:church_service_timer/clock_text.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/display/clock_text.dart';
 import 'domain_test.dart' show FakePort, timeline;
 import 'live_helpers.dart';
 

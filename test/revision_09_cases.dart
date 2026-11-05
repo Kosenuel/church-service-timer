@@ -1,5 +1,5 @@
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/feedback_message.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/feedback/feedback_message.dart';
 import 'feature_cases.dart' show equal, rejects;
 
 final revision09Cases = <String, void Function()>{

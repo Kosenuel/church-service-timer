@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:church_service_timer/domain.dart';
+import 'package:church_service_timer/domain/domain.dart';
 
 const epoch = Stamp(1000000, 1800000000000, 'boot-a');
 Stamp at(int seconds, {int wallShift = 0, String boot = 'boot-a'}) => Stamp(

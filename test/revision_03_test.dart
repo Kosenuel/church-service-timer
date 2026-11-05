@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/controller.dart';
-import 'package:church_service_timer/domain.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
-import 'package:church_service_timer/native_fonts.dart';
-import 'package:church_service_timer/pixels.dart';
-import 'package:church_service_timer/warning_notifications.dart';
+import 'package:church_service_timer/display/native_fonts.dart';
+import 'package:church_service_timer/display/pixels.dart';
+import 'package:church_service_timer/app/warning_notifications.dart';
 import 'domain_test.dart' show FakePort;
 import 'feature_cases.dart' show epoch, at, service;
 

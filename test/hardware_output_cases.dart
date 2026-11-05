@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/hardware_output.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/hardware/hardware_output.dart';
 
 import 'feature_cases.dart' show epoch, at, equal, rejects, service;
 

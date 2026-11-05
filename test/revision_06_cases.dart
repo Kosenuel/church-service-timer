@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:church_service_timer/domain.dart';
+import 'package:church_service_timer/domain/domain.dart';
 import 'feature_cases.dart' show epoch, equal, rejects;
 
 final revision06Cases = <String, void Function()>{

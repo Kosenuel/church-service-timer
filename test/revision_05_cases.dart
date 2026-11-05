@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/display_connection.dart';
-import 'package:church_service_timer/warning_notifications.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/hardware/display_connection.dart';
+import 'package:church_service_timer/app/warning_notifications.dart';
 import 'feature_cases.dart' show epoch, at, equal, rejects, service;
 
 final revision05Cases = <String, void Function()>{

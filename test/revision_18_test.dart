@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/controller.dart';
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/pairing.dart';
-import 'package:church_service_timer/warning_notifications.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/pairing/pairing.dart';
+import 'package:church_service_timer/app/warning_notifications.dart';
 import 'domain_test.dart' show FakePort, start, after, timeline, running;
 import 'revision_16_test.dart' show eventually, PairMemoryStore;
 

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:church_service_timer/matrix_font.dart';
-import 'package:church_service_timer/w2_program.dart';
+import 'package:church_service_timer/display/matrix_font.dart';
+import 'package:church_service_timer/hardware/w2_program.dart';
 
 void _expect(Object? actual, Object? expected) {
   if (actual != expected)

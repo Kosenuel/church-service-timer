@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:church_service_timer/domain.dart';
+import 'package:church_service_timer/domain/domain.dart';
 import 'feature_cases.dart' show epoch, equal, rejects;
 
 String bannerFixture() =>

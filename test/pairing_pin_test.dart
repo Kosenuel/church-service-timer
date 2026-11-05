@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/pairing.dart';
-import 'package:church_service_timer/pairing_pin.dart';
-import 'package:church_service_timer/domain.dart';
+import 'package:church_service_timer/pairing/pairing.dart';
+import 'package:church_service_timer/pairing/pairing_pin.dart';
+import 'package:church_service_timer/domain/domain.dart';
 
 Future<void> until(bool Function() ready) async {
   final deadline = DateTime.now().add(const Duration(seconds: 6));

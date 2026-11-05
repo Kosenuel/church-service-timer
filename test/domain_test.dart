@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/controller.dart';
-import 'package:church_service_timer/platform.dart';
-import 'package:church_service_timer/pixels.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/app/platform.dart';
+import 'package:church_service_timer/display/pixels.dart';
 
 const start = Stamp(100000, 10000000, 'boot-1');
 Stamp after(int seconds, {int wallShift = 0, String boot = 'boot-1'}) => Stamp(

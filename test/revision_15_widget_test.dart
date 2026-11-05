@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/controller.dart';
-import 'package:church_service_timer/domain.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'domain_test.dart' show FakePort, after;
 
@@ -72,7 +72,10 @@ void main() {
       await host.act('end');
       await t.pumpAndSettle();
       expect(scroll.offset, 0);
-      expect(find.text('View last service report').hitTestable(), findsOneWidget);
+      expect(
+        find.text('View last service report').hitTestable(),
+        findsOneWidget,
+      );
       await t.pumpWidget(const SizedBox());
     },
   );

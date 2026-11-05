@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/app_theme.dart';
-import 'package:church_service_timer/controller.dart';
-import 'package:church_service_timer/feedback_page.dart';
+import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/feedback/feedback_page.dart';
 import 'package:church_service_timer/main.dart';
-import 'package:church_service_timer/platform.dart';
+import 'package:church_service_timer/app/platform.dart';
 import 'domain_test.dart' show FakePort;
 import 'feature_cases.dart' show epoch;
 import 'revision_09_cases.dart';

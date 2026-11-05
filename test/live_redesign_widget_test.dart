@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/main.dart';
-import 'package:church_service_timer/controller.dart';
+import 'package:church_service_timer/app/controller.dart';
 import 'domain_test.dart' show FakePort, timeline;
 import 'live_helpers.dart';
 

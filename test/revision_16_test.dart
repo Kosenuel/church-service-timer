@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/pairing.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/pairing/pairing.dart';
 
 Future<void> eventually(bool Function() condition) async {
   final end = DateTime.now().add(const Duration(seconds: 12));

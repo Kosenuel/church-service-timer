@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/controller.dart';
-import 'package:church_service_timer/pairing.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/pairing/pairing.dart';
 import 'domain_test.dart' show FakePort, start, after, running;
 import 'hardware_integration_test.dart' show W2Port, setup, flush;
 
@@ -164,16 +164,19 @@ void main() {
       expect(c.state.session.timeline!.display.warnings, isEmpty);
     },
   );
-  test('Offline LED sign does not block service and paired-screen cues', () async {
-    final p = W2Port();
-    final c = await setup(p);
-    addTearDown(c.dispose);
-    await c.hardware.disconnect();
-    expect(await c.act('cue', value: const TextLayout('AMEN')), true);
-    expect(c.state.session.alert!.text, 'AMEN');
-    expect(c.pairedSnapshot(false)['displayText'], 'AMEN');
-    expect(p.sent.length, 1);
-  });
+  test(
+    'Offline LED sign does not block service and paired-screen cues',
+    () async {
+      final p = W2Port();
+      final c = await setup(p);
+      addTearDown(c.dispose);
+      await c.hardware.disconnect();
+      expect(await c.act('cue', value: const TextLayout('AMEN')), true);
+      expect(c.state.session.alert!.text, 'AMEN');
+      expect(c.pairedSnapshot(false)['displayText'], 'AMEN');
+      expect(p.sent.length, 1);
+    },
+  );
   test('Font labels change while persisted font IDs remain compatible', () {
     expect(displayFontNames['cuekeeper_matrix'], 'I-Proton Matrix');
     expect(displayFontNames['cuekeeper_sq_matrix'], 'I-Proton Sq-Matrix');
@@ -275,7 +278,9 @@ void main() {
       expect(host.localControl, false);
       expect(operator.snapshot!['notes'], 'PRIVATE');
       await operator.sendCommand('pause', null, expectedRevision: 2);
-      await until(() => operator.requestResult.startsWith('Action unavailable'));
+      await until(
+        () => operator.requestResult.startsWith('Action unavailable'),
+      );
       expect(commands, 0);
       await operator.sendCommand('pause', null);
       await until(() => commands == 1);
