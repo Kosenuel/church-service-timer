@@ -205,6 +205,87 @@ class AppController extends ChangeNotifier {
   int _resumeRequest = 0;
   Completer<void>? _writeDone;
 
+  /// Mirrors the Live screen's Lock controls, so notification actions obey it.
+  bool uiLocked = false;
+
+  String? _lastCard;
+
+  /// What the active-service notification shows. Android draws the running
+  /// countdown itself from [deadlineWall], so this changes only when the
+  /// segment, pause state or control availability changes.
+  Json serviceCard() {
+    final s = state.session, t = s.timeline;
+    final active = s.active && t != null;
+    final balance = active ? s.balance(now) : 0;
+    final live = active && !s.paused && s.rate == 1;
+    final canControl = active && pairing.localControl && !uiLocked && !corrupt;
+    return {
+      'active': active,
+      'title': t?.name ?? 'Church Service Timer',
+      'segment': active ? t.segments[s.index].name : '',
+      'next': active && s.index + 1 < t.segments.length
+          ? t.segments[s.index + 1].name
+          : '',
+      'paused': active && s.paused,
+      'overtime': active && balance < 0,
+      'rehearsal': s.rehearsal,
+      // Wall time when the segment reaches zero (in the past when overtime).
+      if (live) 'deadlineWall': now.wall + balance,
+      'remaining': active ? operatorLabel(balance) : '',
+      'canPause': canControl,
+      'canNext': canControl && s.index + 1 < t.segments.length,
+    };
+  }
+
+  static String operatorLabel(int balance) =>
+      balance < 0 ? '+${formatTime(-balance)} over' : formatTime(balance);
+
+  /// Sends the notification card when it changed. The running countdown is
+  /// excluded from the comparison because Android animates it. With
+  /// lock-screen controls off, only the plain active-service notice remains.
+  /// This never starts the foreground service, so suspend and recovery rules
+  /// are unchanged.
+  Future<void> syncServiceNotification() async {
+    if (!ready) return;
+    final card = state.lockScreenControls
+        ? serviceCard()
+        : const <String, dynamic>{'active': false};
+    final key = jsonEncode({
+      ...card,
+      if (card['deadlineWall'] != null)
+        'deadlineWall': (card['deadlineWall'] as int) ~/ 1000,
+      if (card['deadlineWall'] != null) 'remaining': '',
+    });
+    if (key == _lastCard) return;
+    _lastCard = key;
+    try {
+      await port.updateServiceNotification(card);
+    } catch (_) {
+      _lastCard = null;
+    }
+  }
+
+  /// Pause/Resume and Next from the notification follow the same rules as
+  /// the Live buttons: local control, unlocked, not busy, current revision.
+  Future<void> handleNotificationAction(String action) async {
+    if (!ready ||
+        !state.session.active ||
+        !pairing.localControl ||
+        uiLocked ||
+        busy ||
+        corrupt ||
+        reportSavePending)
+      return;
+    final s = state.session;
+    if (action == 'pause') {
+      await act('pause', revision: s.revision);
+    } else if (action == 'next' &&
+        s.timeline != null &&
+        s.index + 1 < s.timeline!.segments.length) {
+      await act('advance', revision: s.revision);
+    }
+  }
+
   /// Hooks for the feature controllers this class owns.
   bool get disposed => _disposed;
   Future<void>? get pendingWrite => _writeDone?.future;
@@ -249,9 +330,14 @@ class AppController extends ChangeNotifier {
                     hardware.retryEnabled &&
                     !state.session.held &&
                     !_needsRecovery)));
-    if (desired == backgroundActive) return;
+    if (desired == backgroundActive) {
+      await syncServiceNotification();
+      return;
+    }
     try {
       backgroundActive = await port.setActiveService(desired);
+      _lastCard = null;
+      await syncServiceNotification();
       backgroundError = desired && !backgroundActive
           ? 'Keep this app open: background operation is unavailable.'
           : null;
@@ -422,6 +508,7 @@ class AppController extends ChangeNotifier {
         acceptedAt: acceptedAt,
       );
     };
+    port.setNotificationActionHandler(handleNotificationAction);
     port.setBackgroundHandler(() async {
       if (backgroundActive && !await port.activeServiceRunning()) {
         backgroundActive = false;
@@ -509,6 +596,8 @@ class AppController extends ChangeNotifier {
       error = 'Saved state could not be recovered. Output is held. $e';
     }
     ready = true;
+    // Replace any card left by an earlier process with the restored state.
+    unawaited(syncServiceNotification());
     await pairing.restoreMemory();
     try {
       await hardware.initialize();
@@ -552,6 +641,7 @@ class AppController extends ChangeNotifier {
       now = await port.clock();
       if ((!_foreground && !backgroundActive) || _needsRecovery || _disposed)
         return;
+      unawaited(syncServiceNotification());
       if (!corrupt && !reportSavePending) {
         quickMessages.expire();
         if (!busy && _warningAccepted != null && retry == null) {
@@ -1166,6 +1256,7 @@ class AppController extends ChangeNotifier {
     _disposed = true;
     pairing.dispose();
     port.setBackgroundHandler(null);
+    port.setNotificationActionHandler(null);
     unawaited(port.setActiveService(false));
     _timer?.cancel();
     hardware.removeListener(_hardwareChanged);

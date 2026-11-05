@@ -1494,8 +1494,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                     ),
                                   ),
                                 ),
-                            onLongPress: () =>
-                                setState(() => controlsLocked = false),
+                            onLongPress: () => setState(
+                              () => c.uiLocked = controlsLocked = false,
+                            ),
                             child: const Text('Hold to unlock'),
                           ),
                         ),
@@ -1782,7 +1783,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                 : 'Lock controls',
                             onPressed: controlsLocked
                                 ? null
-                                : () => setState(() => controlsLocked = true),
+                                : () => setState(
+                                    () => c.uiLocked = controlsLocked = true,
+                                  ),
                             icon: Icon(
                               controlsLocked ? Icons.lock : Icons.lock_open,
                             ),

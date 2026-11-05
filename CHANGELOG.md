@@ -4,6 +4,8 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Lock-screen controls:** during a service, a notification shows the current segment with a live countdown (counting up when overtime), Pause/Resume and Next segment (Next needs a second tap). On by default in Warnings & alerts; obeys Lock controls.
+- **Watch-friendly warnings:** phone warnings use a distinct vibration pattern, which Wear OS watches mirror.
 - **Battery check:** Ready for service shows whether Android battery optimisation could pause warnings with the screen off, and Live shows a hint before a service starts; both open the system setting.
 - **GitHub Releases:** pushing a tag such as `v0.24.0` publishes a release with the signed APK, its checksum and the changelog section, after checking the tag matches the app version.
 - **Reconnecting indicators.** LED sign: the header chip shows a spinner and "Reconnecting…", and Live shows the attempt count with Reconnect display and Stop trying; timer controls and cues stay usable, and the sign receives current output when it returns. Paired phones: stage screens keep the last frame with a "Reconnecting to host…" chip; operator and viewer screens show a banner, dim the controls until the host answers, and suggest Wi-Fi settings after a minute.

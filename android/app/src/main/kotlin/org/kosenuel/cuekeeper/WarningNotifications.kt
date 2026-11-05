@@ -18,7 +18,10 @@ import android.provider.Settings
 
 /** System alarms keep operator warnings independent of Flutter frame callbacks. */
 object WarningNotifications {
-    private const val CHANNEL = "service_warnings_v1"
+    // v2 adds a distinct vibration that watches mirror; channels are immutable.
+    private const val CHANNEL = "service_warnings_v2"
+    private const val OLD_CHANNEL = "service_warnings_v1"
+    private val VIBRATION = longArrayOf(0, 400, 200, 400, 200, 800)
     private const val NOTICE = 4301
     private const val CLEAR = "clear-warning"
     private fun prefs(c: Context) = c.getSharedPreferences("warning-delivery", Context.MODE_PRIVATE)
@@ -31,7 +34,10 @@ object WarningNotifications {
             channel.description = "Automatic countdown warnings for the service operator"
             channel.setSound(Settings.System.DEFAULT_NOTIFICATION_URI,
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build())
+            channel.enableVibration(true)
+            channel.vibrationPattern = VIBRATION
             manager(c).createNotificationChannel(channel)
+            manager(c).deleteNotificationChannel(OLD_CHANNEL)
         }
     }
 
@@ -108,7 +114,7 @@ object WarningNotifications {
             .setStyle(Notification.BigTextStyle().bigText(body)).setContentIntent(launch)
             .setAutoCancel(true).setCategory(Notification.CATEGORY_REMINDER).setPriority(Notification.PRIORITY_HIGH)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-        if (Build.VERSION.SDK_INT < 26) builder.setSound(Settings.System.DEFAULT_NOTIFICATION_URI)
+        if (Build.VERSION.SDK_INT < 26) builder.setSound(Settings.System.DEFAULT_NOTIFICATION_URI).setVibrate(VIBRATION)
         val seconds = prefs(c).getInt("clearSeconds", 30)
         if (Build.VERSION.SDK_INT >= 26 && seconds > 0) builder.setTimeoutAfter(seconds * 1000L)
         // API 24/25 fallback is keyed to this exact post; an old expiry cannot clear a newer warning.

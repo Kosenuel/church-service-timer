@@ -197,7 +197,8 @@ String exportBackup(AppState state, Stamp now) {
     ..remove('outputDestination')
     ..remove('version')
     ..remove('appearance')
-    ..remove('programLibrary');
+    ..remove('programLibrary')
+    ..remove('lockScreenControls');
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
     'schemaVersion': 7,
