@@ -14,6 +14,66 @@ String templateSummary(Timeline t) {
   return '${t.segments.length} ${t.segments.length == 1 ? 'segment' : 'segments'} · ${total % 60000 == 0 ? '${total ~/ 60000} min' : durationLabel(total)}';
 }
 
+String lastUsedLabel(int? wall) {
+  if (wall == null) return 'not used yet';
+  final d = DateTime.fromMillisecondsSinceEpoch(wall);
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return 'last used ${days[d.weekday - 1]} ${d.day} ${months[d.month - 1]}';
+}
+
+/// Proportional strip of a program's segments, alternating accent shades.
+class SegmentBar extends StatelessWidget {
+  final Timeline program;
+  final double height;
+  const SegmentBar({super.key, required this.program, this.height = 6});
+  @override
+  Widget build(BuildContext context) {
+    final accent = appColors(context).accent;
+    final segments = program.segments
+        .where((s) => s.durationSeconds > 0)
+        .toList();
+    if (segments.isEmpty) return SizedBox(height: height);
+    return ExcludeSemantics(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(height / 2),
+        child: SizedBox(
+          height: height,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < segments.length; i++) ...[
+                if (i > 0) const SizedBox(width: 2),
+                Expanded(
+                  flex: segments[i].durationSeconds,
+                  child: ColoredBox(
+                    color: accent.withValues(
+                      alpha: const [1.0, .6, .8, .45, .7][i % 5],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 extension TemplateViews on HomeState {
   Widget templates() {
     final items = c.state.programLibrary.find(
@@ -72,18 +132,34 @@ extension TemplateViews on HomeState {
                         children: [
                           Text(
                             values[i].name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            templateSummary(values[i]),
-                            style: TextStyle(
-                              color: appColors(context).muted,
-                              fontSize: 13,
-                            ),
+                          const SizedBox(height: 6),
+                          SegmentBar(program: values[i]),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            children: [
+                              Text(
+                                templateSummary(values[i]),
+                                style: TextStyle(
+                                  color: appColors(context).muted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                '· ${lastUsedLabel(c.state.programLibrary.recent[values[i].name])}',
+                                style: TextStyle(
+                                  color: appColors(context).muted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -132,13 +208,12 @@ extension TemplateViews on HomeState {
                 children: [
                   const Text(
                     'Programs',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                   ),
-                  const SizedBox(height: 4),
                   Text(
                     programQuery.trim().isNotEmpty || programFilter != 'all'
                         ? '${items.length} of ${c.state.templates.length} programs'
-                        : '${items.length} saved ${items.length == 1 ? 'program' : 'programs'}',
+                        : '${items.length} saved',
                     style: TextStyle(
                       color: appColors(context).muted,
                       fontSize: 13,
@@ -147,23 +222,8 @@ extension TemplateViews on HomeState {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-              key: const ValueKey('new-template'),
-              onPressed: disabled
-                  ? null
-                  : () async {
-                      await editTemplate();
-                    },
-              icon: const Icon(Icons.add, size: 20),
-              label: const Text('New program'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        programSearch(
-          trailing: [
             if (!selectingPrograms) ...[
+              selectToggle(programs: true),
               PopupMenuButton<bool>(
                 key: const ValueKey('program-list-options'),
                 icon: const Icon(Icons.tune),
@@ -185,10 +245,25 @@ extension TemplateViews on HomeState {
                   ),
                 ]),
               ),
-              selectToggle(programs: true),
+              PopupMenuButton<String>(
+                tooltip: 'More program actions',
+                enabled: !disabled,
+                onSelected: (action) =>
+                    action == 'import' ? importFile() : exportAllPrograms(),
+                itemBuilder: (ctx) => appMenuEntries(ctx, [
+                  const AppMenuAction(
+                    'import',
+                    'Import programs (JSON or CSV)',
+                  ),
+                  if (c.state.templates.isNotEmpty)
+                    const AppMenuAction('export', 'Export all programs'),
+                ]),
+              ),
             ],
           ],
         ),
+        const SizedBox(height: 14),
+        programSearch(),
         exportSelectionBar(
           programs: true,
           shown: items.map((p) => p.name).toSet(),
@@ -212,31 +287,7 @@ extension TemplateViews on HomeState {
               rows(items.where((t) => t.type == type).toList()),
               const SizedBox(height: 20),
             ],
-        const SizedBox(height: 16),
-        ControlGrid(
-          maxColumns: 2,
-          children: [
-            OutlinedButton.icon(
-              key: const ValueKey('import-programs'),
-              onPressed: disabled ? null : importFile,
-              icon: const Icon(Icons.file_open_outlined, size: 20),
-              label: const Text('Import programs', textAlign: TextAlign.center),
-            ),
-            OutlinedButton.icon(
-              key: const ValueKey('export-programs'),
-              onPressed: disabled || c.state.templates.isEmpty
-                  ? null
-                  : exportAllPrograms,
-              icon: const Icon(Icons.ios_share, size: 20),
-              label: const Text('Export all', textAlign: TextAlign.center),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'JSON or CSV',
-          style: TextStyle(color: appColors(context).muted, fontSize: 12),
-        ),
+        const SizedBox(height: 88),
       ],
     );
   }

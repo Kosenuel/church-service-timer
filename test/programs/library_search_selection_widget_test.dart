@@ -140,7 +140,7 @@ void main() {
         'Sunday',
       );
       await t.pumpAndSettle();
-      await tap(t, find.text('Favourites').last);
+      await tap(t, find.text('Pinned').last);
       await shot(t, 'start-search-021');
       await tap(t, find.byKey(const ValueKey('start-program:Sunday Service')));
       expect(c.state.session.phase, 'ready');

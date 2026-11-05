@@ -100,8 +100,9 @@ class ProgramFilters extends StatelessWidget {
     children: [
       for (final e in {
         'all': 'All',
-        'favourites': 'Favourites',
+        'favourites': 'Pinned',
         'recent': 'Recent',
+        'rehearsal': 'Rehearsals',
       }.entries)
         ChoiceChip(
           label: Text(e.value),
@@ -130,6 +131,8 @@ extension ProgramLibraryViews on HomeState {
         initialValue: programQuery,
         decoration: const InputDecoration(
           labelText: 'Search programs',
+          hintText: 'Search programs, segments or speakers',
+          floatingLabelBehavior: FloatingLabelBehavior.never,
           prefixIcon: Icon(Icons.search),
         ),
         onChanged: (v) => refreshHome(() => programQuery = v),

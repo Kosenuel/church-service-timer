@@ -1994,6 +1994,25 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
               ),
             ),
+            floatingActionButton:
+                c.ready &&
+                    page == 1 &&
+                    !focused &&
+                    !selectingPrograms &&
+                    !controlsLocked
+                ? FloatingActionButton.extended(
+                    key: const ValueKey('new-template'),
+                    backgroundColor: appColors(context).accent,
+                    foregroundColor: appColors(context).background,
+                    onPressed: c.busy || c.corrupt
+                        ? null
+                        : () async {
+                            await editTemplate();
+                          },
+                    icon: const Icon(Icons.add),
+                    label: const Text('New program'),
+                  )
+                : null,
             bottomNavigationBar: focused
                 ? SafeArea(
                     top: false,
