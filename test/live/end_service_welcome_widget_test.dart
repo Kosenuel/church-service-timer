@@ -126,7 +126,7 @@ void main() {
       p.fail = false;
       await tap(t, 'Retry saving report');
       expect(find.text('Standing by'), findsOneWidget);
-      expect(find.text('Your next service,\nunder control.'), findsOneWidget);
+      expect(find.text('Ready when you are'), findsOneWidget);
       expect(find.byType(SegmentGauge), findsNothing);
       expect(find.text('SERVICE RUNDOWN · SNAPSHOT'), findsNothing);
       expect(host.state.reports.length, 1);
@@ -185,6 +185,8 @@ void main() {
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('QUICK MESSAGE'));
       await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('open-quick-message')));
+      await t.pumpAndSettle();
       await t.enterText(
         find.widgetWithText(TextField, 'Message'),
         'Keep my draft',
@@ -226,6 +228,8 @@ void main() {
       expect(find.text('Program details'), findsOneWidget);
       expect(t.getTopLeft(find.text('Edit Program')).dy, lessThan(350));
       await golden(t, 'program-detail');
+      await t.tap(find.byTooltip('Program options'));
+      await t.pumpAndSettle();
       await tap(t, 'Delete program');
       expect(find.byType(AlertDialog), findsOneWidget);
       await tap(t, 'Cancel');

@@ -8,6 +8,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/settings/whats_new_page.dart';
 
 extension SettingsViews on HomeState {
   Future<void> openSettingsDetail(
@@ -225,10 +226,10 @@ extension SettingsViews on HomeState {
             ),
             entry(
               Icons.devices,
-              'Paired devices',
-              'View, operate or use a second screen',
+              'Screens & devices',
+              'Stage screens, viewers and second operators',
               () => openSettingsDetail(
-                'Paired devices',
+                'Screens & devices',
                 pairedDeviceSettings,
                 showLiveShortcut: true,
               ),
@@ -376,63 +377,85 @@ extension SettingsViews on HomeState {
     }
   }
 
-  Widget aboutSettings() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      panel(
-        child: Column(
-          children: [
-            const ChurchTimerMark(size: 80),
-            const SizedBox(height: 16),
-            const Text(
-              appName,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text('Version ${c.appVersion}'),
-            if (c.state.churchName.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(c.state.churchName, textAlign: TextAlign.center),
-              ),
-            const SizedBox(height: 20),
-            const Text(
-              'Created by I-Proton',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'A calm workspace for church service timing, stage cues, automatic warnings, rehearsals and after-service reports.',
-              textAlign: TextAlign.center,
-            ),
-          ],
+  Widget aboutSettings() {
+    final colors = appColors(context);
+    Widget detail(String title, String body, {Widget? action}) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(body, style: const TextStyle(fontSize: 15, height: 1.45)),
+        if (action != null) ...[const SizedBox(height: 16), action],
+      ],
+    );
+    Widget row(
+      IconData icon,
+      String title,
+      String summary,
+      VoidCallback onTap, {
+      Key? key,
+    }) => ListTile(
+      key: key,
+      contentPadding: appLayout(context).tileInsets,
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: colors.accent.withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 19, color: colors.accent),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(
+        summary,
+        style: TextStyle(fontSize: 13, color: colors.muted),
+      ),
+      trailing: const Icon(Icons.chevron_right, size: 22),
+      onTap: onTap,
+    );
+    final rows = [
+      row(
+        Icons.auto_awesome_outlined,
+        'What’s new',
+        'Release notes for ${c.appVersion.split(' ').first} and earlier',
+        () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const WhatsNewPage())),
+        key: const ValueKey('about-whats-new'),
+      ),
+      row(
+        Icons.storage_outlined,
+        'Your data',
+        'Stored only on this phone · backups you choose',
+        () => openSettingsDetail(
+          'Your data',
+          () => detail(
+            'Your data',
+            'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone and never included in backups.',
+          ),
         ),
       ),
-      const SizedBox(height: 16),
-      panel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            label('Simulator & W2 display'),
-            const SizedBox(height: 10),
-            const Text(
-              '32 × 16 simulator and W2 Wi-Fi output: native countdown, pause/resume, time adjustments and automatic warnings with scrolling. Hardware updates may blink briefly. The active-service notification supports locked-screen operation; after connection loss or process termination, reconnect and review the output.',
-            ),
-            const SizedBox(height: 16),
-            label('Your data'),
-            const SizedBox(height: 10),
-            const Text(
-              'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust.',
-            ),
-            const SizedBox(height: 16),
-            label('Display fonts'),
-            const SizedBox(height: 10),
-            const Text(
-              'I-Proton Matrix and I-Proton Sq-Matrix preserve the original Matrix glyphs. Tinos includes four bundled faces under SIL Open Font License 1.1.',
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
+      row(
+        Icons.developer_board_outlined,
+        'Display and hardware',
+        'Simulator, W2 sign limits and recovery',
+        () => openSettingsDetail(
+          'Display and hardware',
+          () => detail(
+            'Display and hardware',
+            '32 × 16 simulator and W2 Wi-Fi output: native countdown, pause/resume, time adjustments and automatic warnings with scrolling. Hardware updates may blink briefly. The active-service notification supports locked-screen operation; after connection loss or process termination, reconnect and review the output.',
+          ),
+        ),
+      ),
+      row(
+        Icons.text_fields,
+        'Fonts and licences',
+        'I-Proton Matrix, Sq-Matrix and Tinos (SIL OFL 1.1)',
+        () => openSettingsDetail(
+          'Fonts and licences',
+          () => detail(
+            'Fonts and licences',
+            'I-Proton Matrix and I-Proton Sq-Matrix preserve the original Matrix glyphs. Tinos includes four bundled faces under SIL Open Font License 1.1.',
+            action: OutlinedButton.icon(
               onPressed: () => showLicensePage(
                 context: context,
                 applicationName: appName,
@@ -441,11 +464,101 @@ extension SettingsViews on HomeState {
               icon: const Icon(Icons.description_outlined),
               label: const Text('Open-source licenses'),
             ),
-          ],
+          ),
         ),
       ),
-    ],
-  );
+      row(
+        Icons.feedback_outlined,
+        'Send feedback',
+        'Opens an email draft to the developer',
+        () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => FeedbackCenterPage(controller: c)),
+        ),
+      ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        panel(
+          child: Row(
+            children: [
+              const ChurchTimerMark(size: 64),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      appName,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.accent.withValues(alpha: .14),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Version ${c.appVersion}',
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'Created by I-Proton',
+                          style: TextStyle(color: colors.muted, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    if (c.state.churchName.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          c.state.churchName,
+                          style: TextStyle(color: colors.muted, fontSize: 13),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'A calm workspace for timing services, cueing the stage, warning the operator and learning from every report.',
+          style: TextStyle(fontSize: 15, height: 1.45),
+        ),
+        const SizedBox(height: 16),
+        panel(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) const AppDivider(),
+                rows[i],
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class ChurchProfilePage extends StatefulWidget {
@@ -644,182 +757,257 @@ class _AppearancePageState extends State<AppearancePage> {
     ...appPalettes,
     if (selected.startsWith('custom:')) paletteFor(selected),
   ];
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Appearance'),
-      bottom: widget.controller.liveSession.active
-          ? RunningServiceBar.forContext(context, controller: widget.controller)
+  Future<void> save() async {
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    final saved = await widget.controller.commit((draft, _) {
+      draft.themeId = selected;
+      draft.appearance = appearance;
+    });
+    if (!mounted) return;
+    if (saved) {
+      Navigator.pop(context);
+    } else {
+      setState(() {
+        saving = false;
+        error = widget.controller.error ?? 'Could not save. Try again.';
+      });
+    }
+  }
+
+  Future<void> createCustom() async {
+    final value = await showDialog<String>(
+      context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
           : null,
-    ),
-    body: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Choose your atmosphere.',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Preview your colors, spacing and accessibility preferences. Save to keep changes, or go back to discard.',
-                  style: TextStyle(color: appColors(context).muted),
-                ),
-                const SizedBox(height: 20),
-                AppearanceControls(
-                  value: appearance,
-                  onChanged: saving
-                      ? null
-                      : (value) {
-                          setState(() => appearance = value);
-                          widget.controller.previewAppearance(value);
-                        },
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Color theme',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  color: appColors(context).surface,
-                  surfaceTintColor: Colors.transparent,
-                  clipBehavior: Clip.antiAlias,
-                  margin: EdgeInsets.zero,
-                  child: Column(
+      builder: (_) => CustomThemeEditor(initial: selected),
+    );
+    if (value != null && mounted) {
+      setState(() => selected = value);
+      widget.controller.previewTheme(value);
+    }
+  }
+
+  Widget themeTile(AppPalette p) {
+    final colors = appColors(context);
+    final on = selected == p.id;
+    return Material(
+      key: ValueKey('theme-${p.id}'),
+      color: colors.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: on ? colors.accent : colors.border,
+          width: on ? 2 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: saving
+            ? null
+            : () {
+                setState(() => selected = p.id);
+                widget.controller.previewTheme(p.id);
+              },
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  height: 34,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (var i = 0; i < choices.length; i++) ...[
-                        if (i > 0) const AppDivider(),
-                        Builder(
-                          builder: (context) {
-                            final p = choices[i];
-                            return ListTile(
-                              key: ValueKey('theme-${p.id}'),
-                              contentPadding: appLayout(context).tileInsets,
-                              selected: selected == p.id,
-                              leading: SizedBox(
-                                width: 40,
-                                height: 40,
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Row(
-                                    children: [
-                                      for (final color in [
-                                        p.background,
-                                        p.surface,
-                                        p.accent,
-                                      ])
-                                        Expanded(
-                                          child: ColoredBox(
-                                            color: color,
-                                            child: const SizedBox.expand(),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              title: Text(
-                                p.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              subtitle: Text(
-                                p.description,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              trailing: Icon(
-                                selected == p.id
-                                    ? Icons.check_circle
-                                    : Icons.circle_outlined,
-                                size: 22,
-                              ),
-                              onTap: saving
-                                  ? null
-                                  : () {
-                                      setState(() => selected = p.id);
-                                      widget.controller.previewTheme(p.id);
-                                    },
-                            );
-                          },
-                        ),
-                      ],
+                      Expanded(flex: 2, child: ColoredBox(color: p.background)),
+                      Expanded(flex: 2, child: ColoredBox(color: p.surface)),
+                      Expanded(child: ColoredBox(color: p.accent)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.palette_outlined),
-                  label: const Text('Create custom theme'),
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          final value = await showDialog<String>(
-                            context: context,
-                            animationStyle: reduceAppMotion(context)
-                                ? AnimationStyle.noAnimation
-                                : null,
-                            builder: (_) =>
-                                CustomThemeEditor(initial: selected),
-                          );
-                          if (value != null && mounted) {
-                            setState(() => selected = value);
-                            widget.controller.previewTheme(value);
-                          }
-                        },
-                ),
-                const SizedBox(height: 8),
-                if (error != null)
-                  Text(
-                    error!,
-                    style: TextStyle(color: appColors(context).error),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      p.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
-                FilledButton(
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          setState(() {
-                            saving = true;
-                            error = null;
-                          });
-                          final saved = await widget.controller.commit((
-                            draft,
-                            _,
-                          ) {
-                            draft.themeId = selected;
-                            draft.appearance = appearance;
-                          });
-                          if (!mounted || !context.mounted) return;
-                          if (saved) {
-                            Navigator.pop(context);
-                          } else {
-                            setState(() {
-                              saving = false;
-                              error =
-                                  widget.controller.error ??
-                                  'Could not save. Try again.';
-                            });
-                          }
-                        },
-                  child: const Text('Save appearance'),
-                ),
-                TextButton(
-                  onPressed: saving ? null : () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-              ],
+                  if (on)
+                    Icon(Icons.check_circle, size: 18, color: colors.accent),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    final palette = paletteFor(selected);
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Appearance'),
+          bottom: widget.controller.liveSession.active
+              ? RunningServiceBar.forContext(
+                  context,
+                  controller: widget.controller,
+                )
+              : null,
+        ),
+        body: SafeArea(
+          bottom: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: ThemePreviewCard(name: palette.name),
+                  ),
+                  TabBar(
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                    indicatorColor: colors.accent,
+                    labelColor: colors.text,
+                    unselectedLabelColor: colors.muted,
+                    tabs: const [
+                      Tab(text: 'Theme'),
+                      Tab(text: 'Layout & accessibility'),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: [
+                            LayoutBuilder(
+                              builder: (context, space) {
+                                final columns = space.maxWidth >= 520 ? 3 : 2;
+                                final width =
+                                    (space.maxWidth - 10 * (columns - 1)) /
+                                    columns;
+                                return Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    for (final p in choices)
+                                      SizedBox(
+                                        width: width,
+                                        child: themeTile(p),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(46),
+                              ),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create custom theme'),
+                              onPressed: saving ? null : createCustom,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              palette.description,
+                              style: TextStyle(
+                                color: colors.muted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
+                          child: AppearanceControls(
+                            value: appearance,
+                            onChanged: saving
+                                ? null
+                                : (value) {
+                                    setState(() => appearance = value);
+                                    widget.controller.previewAppearance(value);
+                                  },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        bottomNavigationBar: Material(
+          color: colors.surface,
+          child: SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: colors.border)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        error!,
+                        style: TextStyle(color: colors.error),
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 52),
+                        ),
+                        onPressed: saving ? null : () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                          ),
+                          onPressed: saving ? null : save,
+                          child: const Text('Save appearance'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class CustomThemeEditor extends StatefulWidget {

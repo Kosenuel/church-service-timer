@@ -4,7 +4,7 @@ Version 0.11 adds the first physical adapter to the simulator prototype: Huidu W
 
 ## Implemented
 
-- Church branding, seven theme presets and custom colors with cancelable previews, configurable screen awake, grouped Settings, About with author/version, and validated setup backup/restore. Reports snapshot church identity.
+- Church branding, twelve theme presets and custom colors with cancelable previews, configurable screen awake, grouped Settings, About with author/version, and validated setup backup/restore. Reports snapshot church identity.
 - Feedback Center collects title, message and contact, includes the installed version, and opens a draft to immanuelproton@gmail.com in the phone's email app. Copy fallback and confirmed draft clearing are available. The operator reviews and sends from the email app; there is no background delivery or receipt tracking.
 
 - Separate Live, Programs, Settings and Reports views; responsive phone/tablet layouts.

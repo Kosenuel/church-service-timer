@@ -6,6 +6,7 @@ import 'package:church_service_timer/pairing/pairing_pin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/reconnect_banner.dart';
 import 'package:church_service_timer/display/clock_text.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
@@ -19,7 +20,7 @@ extension PairingViews on HomeState {
   Future<void> shareServiceSetup() async {
     if (c.pairing.hosting) {
       await openSettingsDetail(
-        'Paired devices',
+        'Screens & devices',
         pairedDeviceSettings,
         showLiveShortcut: true,
       );
@@ -170,93 +171,119 @@ extension PairingViews on HomeState {
 
   Widget pairedDeviceList({bool screensOnly = false}) {
     final hub = c.pairing;
+    final colors = appColors(context);
     bool included(String role) => !screensOnly || role != 'operator';
     final pending = hub.peers
         .where((p) => !p.approved && included(p.role))
         .toList();
-    final saved = hub.savedDevices.where((p) => included(p.role)).toList();
+    final saved = hub.savedDevices.where((p) => included(p.role)).toList()
+      ..sort(
+        (x, y) =>
+            (hub.connectedDevice(y.id) ? 1 : 0) -
+            (hub.connectedDevice(x.id) ? 1 : 0),
+      );
     String roleName(String role) => switch (role) {
       'stage' => 'Stage screen',
       'operator' => 'Operator',
       _ => 'Viewer',
     };
-    Widget button(String id, String text, String action, IconData icon) =>
-        TextButton.icon(
-          onPressed: hub.changingDevices.contains(id)
-              ? null
-              : () => changePairedDevice(id, action),
-          icon: Icon(icon, size: 18),
-          label: Text(text),
-        );
+    Widget chip(String text, Color tone) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: .14),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: tone,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
     Widget device(SavedPairDevice d) {
       final connected = hub.connectedDevice(d.id), peer = hub.peerFor(d.id);
+      final changing = hub.changingDevices.contains(d.id);
       final seen = DateTime.fromMillisecondsSinceEpoch(d.lastSeen).toLocal();
       final stamp =
           '${seen.day}/${seen.month} ${seen.hour.toString().padLeft(2, '0')}:${seen.minute.toString().padLeft(2, '0')}';
-      return panel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      final controls = hub.owner == d.id;
+      return ListTile(
+        key: ValueKey('paired-${d.id}'),
+        contentPadding: const EdgeInsets.fromLTRB(16, 6, 4, 6),
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: colors.muted.withValues(alpha: .14),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            d.role == 'operator'
+                ? Icons.person_outline
+                : d.role == 'stage'
+                ? Icons.tv_outlined
+                : Icons.smartphone,
+            size: 20,
+          ),
+        ),
+        title: Text(
+          d.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(
-                  d.role == 'operator'
-                      ? Icons.person_outline
-                      : Icons.tablet_mac,
-                  size: 22,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    d.name,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                if (hub.changingDevices.contains(d.id))
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: Icon(Icons.hourglass_top, size: 18),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
             Text(
-              '${roleName(d.role)} · ${connected ? (hub.owner == d.id ? 'Controls service' : 'Connected') : (d.suspended ? 'Disconnected' : 'Unavailable')}',
+              '${roleName(d.role)} · ${connected ? (controls ? 'Controls service' : 'Connected') : (d.suspended ? 'Disconnected' : 'Unavailable')}',
+              style: TextStyle(fontSize: 12, color: colors.muted),
             ),
             if (!connected)
               Text(
                 'Last seen $stamp',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: TextStyle(fontSize: 11, color: colors.muted),
               ),
             if (peer?.requestedControl == true && connected)
-              const Text('This operator requests control.'),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                if (connected)
-                  button(d.id, 'Disconnect', 'disconnect', Icons.link_off)
-                else
-                  button(d.id, 'Reconnect', 'reconnect', Icons.refresh),
-                if (connected && d.role == 'operator' && hub.owner != d.id)
-                  button(
-                    d.id,
-                    'Give control',
-                    'control',
-                    Icons.pan_tool_alt_outlined,
-                  ),
-                if (d.role != 'operator')
-                  TextButton.icon(
-                    onPressed:
-                        hub.localControl && !hub.changingDevices.contains(d.id)
-                        ? () => screenOptions(d)
-                        : null,
-                    icon: const Icon(Icons.tune, size: 18),
-                    label: const Text('Screen options'),
-                  ),
-                button(d.id, 'Forget device', 'forget', Icons.delete_outline),
-              ],
+              Text(
+                'This operator requests control.',
+                style: TextStyle(fontSize: 12, color: colors.warning),
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (changing)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(Icons.hourglass_top, size: 18),
+              )
+            else if (connected)
+              chip(controls ? 'In control' : 'Connected', colors.accent)
+            else
+              TextButton(
+                onPressed: () => changePairedDevice(d.id, 'reconnect'),
+                child: const Text('Reconnect'),
+              ),
+            PopupMenuButton<String>(
+              tooltip: 'Device actions',
+              enabled: !changing,
+              onSelected: (action) => action == 'options'
+                  ? screenOptions(d)
+                  : changePairedDevice(d.id, action),
+              itemBuilder: (ctx) => appMenuEntries(ctx, [
+                if (connected) const AppMenuAction('disconnect', 'Disconnect'),
+                if (connected && d.role == 'operator' && !controls)
+                  const AppMenuAction('control', 'Give control'),
+                if (d.role != 'operator' && hub.localControl)
+                  const AppMenuAction('options', 'Screen options'),
+                const AppMenuAction(
+                  'forget',
+                  'Forget device',
+                  destructive: true,
+                ),
+              ]),
             ),
           ],
         ),
@@ -267,7 +294,7 @@ extension PairingViews on HomeState {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (hub.memoryNotice.isNotEmpty) ...[
-          Text(hub.memoryNotice),
+          Text(hub.memoryNotice, style: TextStyle(color: colors.warning)),
           TextButton(
             onPressed: () async {
               try {
@@ -281,191 +308,373 @@ extension PairingViews on HomeState {
           ),
         ],
         for (final p in pending)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.accent.withValues(alpha: .5)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.name,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          '${roleName(p.role)} · Awaiting your approval',
+                          style: TextStyle(fontSize: 12, color: colors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: hub.changingDevices.contains(p.id)
+                        ? null
+                        : () => changePairedDevice(p.id, 'reject'),
+                    child: const Text('Reject'),
+                  ),
+                  FilledButton(
+                    onPressed: hub.changingDevices.contains(p.id)
+                        ? null
+                        : () => changePairedDevice(p.id, 'approve'),
+                    child: const Text('Approve'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (saved.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: label('Saved devices'),
+          ),
+          const SizedBox(height: 8),
           panel(
+            padding: EdgeInsets.zero,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  p.name,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                Text('${roleName(p.role)} · Awaiting your approval'),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    button(p.id, 'Approve', 'approve', Icons.check),
-                    button(p.id, 'Reject', 'reject', Icons.close),
-                  ],
-                ),
+                for (var i = 0; i < saved.length; i++) ...[
+                  if (i > 0) const AppDivider(),
+                  device(saved[i]),
+                ],
               ],
             ),
           ),
-        if (saved.any((d) => hub.connectedDevice(d.id))) ...[
-          label('Connected devices'),
-          const SizedBox(height: 10),
-          for (final d in saved.where((d) => hub.connectedDevice(d.id)))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: device(d),
-            ),
-        ],
-        if (saved.any((d) => !hub.connectedDevice(d.id))) ...[
-          label('Saved devices'),
-          const SizedBox(height: 10),
-          for (final d in saved.where((d) => !hub.connectedDevice(d.id)))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: device(d),
-            ),
-          const Text(
-            'Disconnect keeps a device saved. Reconnect restores its session; Forget device removes its approval.',
+          const SizedBox(height: 8),
+          Text(
+            'Disconnect keeps a device saved; Reconnect restores its session without a new approval. Forget device removes it.',
+            style: TextStyle(fontSize: 12, color: colors.muted),
           ),
         ],
         if (pending.isEmpty && saved.isEmpty && hub.hosting)
-          const Text(
-            'Waiting for a device. Join this host on the other phone using the six-digit code or QR code.',
+          Text(
+            'Waiting for a device. On the other phone, join this host with the six-digit code or QR code.',
+            style: TextStyle(color: colors.muted),
           ),
       ],
     );
   }
 
-  Widget pairedDeviceSettings() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const Text(
-        'Use Wi-Fi that lets the devices communicate; some sign hotspots isolate phones. This phone hosts the timer and sign. Only one operator controls it at a time; other apps such as LedArt are outside this control system.',
-      ),
-      const SizedBox(height: 16),
-      if (!c.pairing.hosting) ...[
-        FilledButton.icon(
-          onPressed: () async {
-            if (c.destination == 'mobile') {
-              await startStageSharing();
-            } else {
-              try {
-                await c.pairing.host(await c.port.localNetworkAddress());
-              } catch (_) {
-                if (mounted)
-                  await showError(
-                    'Could not share. Check your Wi-Fi connection.',
-                  );
-              }
-            }
-          },
-          icon: const Icon(Icons.cast_connected),
-          label: Text(
-            c.destination == 'mobile'
-                ? 'Share to stage screens'
-                : 'Share this service',
-          ),
+  Widget pairedDeviceSettings() => screensAndDevices();
+
+  Future<void> shareFromScreens() async {
+    if (c.destination == 'mobile') {
+      await startStageSharing();
+      return;
+    }
+    try {
+      await c.pairing.host(await c.port.localNetworkAddress());
+    } catch (_) {
+      if (mounted)
+        await showError('Could not share. Check your Wi-Fi connection.');
+    }
+  }
+
+  Widget screensAndDevices() {
+    final hub = c.pairing;
+    final colors = appColors(context);
+    final muted = TextStyle(fontSize: 12, color: colors.muted);
+    Widget bigButton(
+      String text,
+      IconData icon,
+      VoidCallback? onPressed, {
+      bool primary = false,
+      Key? key,
+    }) {
+      final child = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 22),
+          const SizedBox(height: 4),
+          Text(text, textAlign: TextAlign.center),
+        ],
+      );
+      final style = ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size.fromHeight(72)),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: c.state.session.active
-              ? null
-              : () async {
-                  await Navigator.of(context).push<void>(
-                    MaterialPageRoute(
-                      builder: (_) => JoinDevicePage(controller: c),
-                    ),
-                  );
-                },
-          icon: const Icon(Icons.devices),
-          label: const Text('Join another operator'),
-        ),
-        if (c.state.session.active)
-          const Text('End this local service before joining a different host.'),
-      ] else ...[
-        panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                c.pairing.localControl
-                    ? 'Control: this phone'
-                    : 'Control: paired operator',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Pairing codes expire after 10 minutes. Saved devices recover after a lost link. Disconnect pauses their session until you tap Reconnect. Operator control always needs a new handover.',
-              ),
-              const SizedBox(height: 12),
-              Semantics(
-                label: 'Six-digit pairing code',
-                child: SelectableText(
-                  c.pairing.pinAvailable
-                      ? '${c.pairing.pin.substring(0, 3)} ${c.pairing.pin.substring(3)}'
-                      : 'Code unavailable',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: c.pairing.pinAvailable ? 36 : 20,
+      );
+      return primary
+          ? FilledButton(
+              key: key,
+              style: style,
+              onPressed: onPressed,
+              child: child,
+            )
+          : OutlinedButton(
+              key: key,
+              style: style,
+              onPressed: onPressed,
+              child: child,
+            );
+    }
+
+    final steps = [
+      'Put both devices on the same Wi-Fi or this phone’s hotspot.',
+      'On the other device, tap Join as stage screen on Live.',
+      'Enter the six-digit code shown here, then approve it.',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!hub.hosting) ...[
+          panel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  c.destination == 'mobile'
+                      ? 'Your stage, on another screen'
+                      : 'Share with other phones and screens',
+                  style: const TextStyle(
+                    fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 3,
                   ),
                 ),
-              ),
-              Text(
-                c.pairing.pinAvailable
-                    ? 'Choose this host on the second device and enter these six digits.'
-                    : 'The code expired or reached its attempt limit. Create a new code below.',
-              ),
-              if (c.pairing.discoveryNotice.isNotEmpty)
-                Text(c.pairing.discoveryNotice),
-              Wrap(
-                spacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      animationStyle: reduceAppMotion(context)
-                          ? AnimationStyle.noAnimation
-                          : null,
-                      builder: (_) => PairQrDialog(hub: c.pairing),
+                const SizedBox(height: 12),
+                for (var i = 0; i < steps.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 26,
+                          height: 26,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: colors.accent.withValues(alpha: .16),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '${i + 1}',
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child: Text(
+                              steps[i],
+                              style: const TextStyle(
+                                fontSize: 14,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    icon: const Icon(Icons.qr_code),
-                    label: const Text('Show QR code'),
                   ),
-                  TextButton.icon(
-                    onPressed: c.pairing.newCode,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('New code'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (!c.pairing.localControl)
-                FilledButton(
-                  onPressed: () async {
-                    if (await confirm(
-                      'Take back control?',
-                      'The paired operator will become a viewer. The running timer is unchanged.',
-                      'Take control',
-                    ))
-                      c.pairing.reclaim();
-                  },
-                  child: const Text('Take back control'),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: colors.info),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Some sign hotspots and church networks keep devices apart. If joining fails, use the host phone’s hotspot. Other apps such as LedArt are outside this control system.',
+                        style: muted,
+                      ),
+                    ),
+                  ],
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: bigButton(
+                  c.destination == 'mobile'
+                      ? 'Share to stage screens'
+                      : 'Share this service',
+                  Icons.cast_connected,
+                  shareFromScreens,
+                  primary: true,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: bigButton(
+                  'Join another phone',
+                  Icons.smartphone,
+                  c.state.session.active
+                      ? null
+                      : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => JoinDevicePage(controller: c),
+                          ),
+                        ),
+                ),
+              ),
             ],
           ),
-        ),
-        const SizedBox(height: 12),
+          if (c.state.session.active)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'End this local service before joining a different host.',
+                style: muted,
+              ),
+            ),
+        ] else ...[
+          panel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: label('Pair a device')),
+                    Text(
+                      hub.localControl
+                          ? 'Control: this phone'
+                          : 'Control: paired operator',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: hub.localControl
+                            ? colors.accent
+                            : colors.warning,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Semantics(
+                  label: 'Six-digit pairing code',
+                  child: SelectableText(
+                    hub.pinAvailable
+                        ? '${hub.pin.substring(0, 3)} ${hub.pin.substring(3)}'
+                        : 'Code unavailable',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: hub.pinAvailable ? 40 : 20,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hub.pinAvailable
+                      ? 'On the other device, choose this host and enter these six digits. Codes expire after 10 minutes.'
+                      : 'The code expired or reached its attempt limit. Create a new code.',
+                  textAlign: TextAlign.center,
+                  style: muted,
+                ),
+                if (hub.discoveryNotice.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      hub.discoveryNotice,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: colors.warning),
+                    ),
+                  ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        animationStyle: reduceAppMotion(context)
+                            ? AnimationStyle.noAnimation
+                            : null,
+                        builder: (_) => PairQrDialog(hub: hub),
+                      ),
+                      icon: const Icon(Icons.qr_code),
+                      label: const Text('Show QR code'),
+                    ),
+                    TextButton.icon(
+                      onPressed: hub.newCode,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('New code'),
+                    ),
+                  ],
+                ),
+                if (!hub.localControl) ...[
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    onPressed: () async {
+                      if (await confirm(
+                        'Take back control?',
+                        'The paired operator will become a viewer. The running timer is unchanged.',
+                        'Take control',
+                      ))
+                        hub.reclaim();
+                    },
+                    child: const Text('Take back control'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (c.destination == 'mobile' && !hub.stageSharingEnabled)
+            OutlinedButton.icon(
+              onPressed: startStageSharing,
+              icon: const Icon(Icons.cast),
+              label: const Text('Share to stage screens'),
+            ),
+          if (c.stageConnected)
+            OutlinedButton.icon(
+              onPressed: testStageScreen,
+              icon: const Icon(Icons.connected_tv),
+              label: const Text('Test screen'),
+            ),
+        ],
+        const SizedBox(height: 20),
         pairedDeviceList(),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          style: stopSharingButtonStyle(),
-          onPressed: stopServiceSharing,
-          icon: const Icon(Icons.stop_screen_share_outlined),
-          label: const Text('Stop sharing'),
-        ),
+        if (hub.hosting) ...[
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            style: stopSharingButtonStyle(),
+            onPressed: stopServiceSharing,
+            icon: const Icon(Icons.stop_screen_share_outlined),
+            label: const Text('Stop sharing'),
+          ),
+        ],
       ],
-      const SizedBox(height: 12),
-      if (!c.pairing.hosting) pairedDeviceList(),
-    ],
-  );
+    );
+  }
 }
 
 class JoinDevicePage extends StatefulWidget {

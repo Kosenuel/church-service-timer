@@ -7,7 +7,8 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/hardware_output.dart';
 import 'package:church_service_timer/main.dart';
-import '../domain/service_timing_test.dart' show FakePort, start, after, timeline;
+import '../domain/service_timing_test.dart'
+    show FakePort, start, after, timeline;
 
 class W2Port extends FakePort {
   final sent = <({Uint8List bytes, int? deadline})>[];
@@ -138,7 +139,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('destination-led')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Scan for displays'));
+    await tester.tap(find.byKey(const ValueKey('scan-displays')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Test sign'));
     await tester.pumpAndSettle();
@@ -449,7 +450,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: HardwareConnectionPage(controller: c)),
     );
-    await tester.tap(find.text('Scan for displays'));
+    await tester.tap(find.byKey(const ValueKey('scan-displays')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Test sign'));
     await tester.pumpAndSettle();

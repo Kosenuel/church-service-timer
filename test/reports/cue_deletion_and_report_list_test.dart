@@ -172,10 +172,10 @@ void main() {
       await t.tap(find.byKey(const ValueKey('template-row:Sunday Service')));
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('Edit Program'));
-      await t.tap(find.widgetWithText(FilledButton, 'Edit Program'));
+      await t.tap(find.widgetWithText(OutlinedButton, 'Edit Program'));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.text('Edit program end screen'));
-      await t.tap(find.text('Edit program end screen'));
+      await t.ensureVisible(find.byKey(const ValueKey('edit-end-screen')));
+      await t.tap(find.byKey(const ValueKey('edit-end-screen')));
       await t.pump(const Duration(milliseconds: 300));
       await t.enterText(find.widgetWithText(TextField, 'Display text'), 'AMEN');
       await t.tap(find.widgetWithText(FilledButton, 'Use end screen'));
@@ -275,16 +275,22 @@ void main() {
         t.widget<DurationChart>(find.byType(DurationChart)).entries.length,
         2,
       );
+      await t.tap(find.byTooltip('Report list options'));
+      await t.pumpAndSettle();
       await t.tap(find.text('Export all records'));
       await t.pumpAndSettle();
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
       expect(port.exports, isEmpty);
+      await t.tap(find.byTooltip('Report list options'));
+      await t.pumpAndSettle();
       await t.tap(find.text('Export all records'));
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(OutlinedButton, 'JSON'));
       await t.pumpAndSettle();
       expect(jsonDecode(port.exports.single['content']!)['recordCount'], 3);
+      await t.tap(find.byTooltip('Report list options'));
+      await t.pumpAndSettle();
       await t.tap(find.text('Export all records'));
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(FilledButton, 'CSV'));

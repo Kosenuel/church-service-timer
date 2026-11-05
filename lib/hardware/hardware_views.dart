@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
 import 'package:church_service_timer/shared/time_picker.dart';
 import 'package:church_service_timer/app/controller.dart';
@@ -299,33 +300,199 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
     super.dispose();
   }
 
+  Future<void> useSimulator() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Switch to Simulator?'),
+        content: const Text(
+          'The physical sign keeps its existing program. This app will send no further updates until you reconnect the display.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Use Simulator'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!await c.selectDestination('simulator')) return;
+    if (c.state.session.disconnected) await c.act('connect');
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> connectSelected() async {
+    final h = c.hardware;
+    final id = selected!;
+    setState(() => credentialBusy = true);
+    try {
+      final secret = useSaved ? cachedSavedPassword : password.text;
+      password.clear();
+      if (secret == null)
+        throw RuleError('Saved password unavailable. Enter it again.');
+      if (c.destination != 'led' && !await c.selectDestination('led')) return;
+      final ok = await h.connect(id, secret);
+      if (ok && rememberPassword) await c.port.saveDisplayPassword(id, secret);
+      if (ok && mounted) {
+        password.clear();
+        await connectionSuccess(
+          context,
+          h.rememberedName,
+          h.held,
+          actionLabel: widget.returnToLive ? 'Return to Live' : 'Continue',
+        );
+        if (mounted) Navigator.pop(context);
+      }
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not use or save the credential. Review the connection status and enter it again.',
+            ),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => credentialBusy = false);
+    }
+  }
+
+  Widget step(
+    int number,
+    String title, {
+    required bool done,
+    required bool active,
+    Widget? trailing,
+    List<Widget> children = const [],
+  }) {
+    final colors = appColors(context);
+    final tone = done ? colors.accent : colors.muted;
+    return Material(
+      key: ValueKey('connect-step-$number'),
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(
+          color: active && !done
+              ? colors.accent.withValues(alpha: .6)
+              : colors.border,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 10, 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              margin: const EdgeInsets.only(top: 4),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: done ? colors.accent : tone.withValues(alpha: .16),
+                shape: BoxShape.circle,
+              ),
+              child: done
+                  ? Icon(Icons.check, size: 16, color: colors.surface)
+                  : Text(
+                      '$number',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: active ? colors.accent : colors.muted,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: active || done ? null : colors.muted,
+                          ),
+                        ),
+                      ),
+                      ?trailing,
+                    ],
+                  ),
+                  ...children,
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: c,
     builder: (context, _) {
       final h = c.hardware;
+      final colors = appColors(context);
       final disabled = h.busy || h.sending || c.busy || credentialBusy;
+      final muted = TextStyle(fontSize: 13, color: colors.muted);
+      final found = h.devices.isNotEmpty;
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Connect a display'),
+          title: const Text('Connect the LED sign'),
+          actions: [
+            PopupMenuButton<String>(
+              tooltip: 'More options',
+              enabled: !disabled,
+              onSelected: (value) async {
+                switch (value) {
+                  case 'wifi':
+                    await editSignWifiProfile(context, c);
+                  case 'disconnect':
+                    await h.disconnect();
+                  case 'simulator':
+                    await useSimulator();
+                }
+              },
+              itemBuilder: (ctx) => appMenuEntries(ctx, [
+                if (h.rememberedId.isNotEmpty)
+                  const AppMenuAction('wifi', 'Wi-Fi reconnect details'),
+                if (h.connected)
+                  const AppMenuAction('disconnect', 'Disconnect display'),
+                const AppMenuAction('simulator', 'Use simulator instead'),
+              ]),
+            ),
+          ],
           bottom: c.liveSession.active
               ? RunningServiceBar.forContext(context, controller: c)
               : null,
         ),
         body: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
-            const Text(
-              'W2 · 32 × 16 red monochrome',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            Text(
+              'W2 · 32 × 16 red. The sign keeps showing its current output until you choose to send.',
+              style: muted,
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'Join the sign’s Wi-Fi, select your display and connect. Its current output stays unchanged.',
-            ),
-            const SizedBox(height: 16),
             if (h.rememberedId.isNotEmpty) ...[
-              OutlinedButton.icon(
+              const SizedBox(height: 12),
+              FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
                 onPressed: disabled
                     ? null
                     : () async {
@@ -338,152 +505,163 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                           );
                       },
                 icon: const Icon(Icons.refresh),
-                label: const Text('Reconnect saved display'),
-              ),
-              TextButton.icon(
-                onPressed: disabled
-                    ? null
-                    : () => editSignWifiProfile(context, c),
-                icon: const Icon(Icons.wifi_password),
-                label: const Text('Wi-Fi reconnect details'),
+                label: Text('Reconnect ${h.rememberedName}'),
               ),
             ],
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
+            const SizedBox(height: 14),
+            step(
+              1,
+              'Join the sign’s Wi-Fi',
+              done: found || h.connected,
+              active: true,
+              trailing: TextButton(
+                onPressed: disabled ? null : () => c.port.openWifiSettings(),
+                child: const Text('Wi-Fi settings'),
+              ),
               children: [
-                OutlinedButton.icon(
-                  onPressed: disabled ? null : () => c.port.openWifiSettings(),
-                  icon: const Icon(Icons.wifi),
-                  label: const Text('Wi-Fi settings'),
-                ),
-                FilledButton.icon(
-                  onPressed: disabled
-                      ? null
-                      : () async {
-                          setState(() => selected = null);
-                          await h.discover();
-                        },
-                  icon: const Icon(Icons.search),
-                  label: const Text('Scan for displays'),
+                Text(
+                  'Connect this phone to the sign’s network in Android, then come back.',
+                  style: muted,
                 ),
               ],
             ),
-            if (h.rememberedName.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text('Remembered display: ${h.rememberedName}'),
-              ),
-            for (final device in h.devices)
-              Card(
-                child: ListTile(
-                  leading: Icon(
-                    selected == device['id']
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                  ),
-                  title: Text(device['name'] as String),
-                  subtitle: Text(
-                    '${device['firmware']} · ${device['width']} × ${device['height']}\n${device['address']}${device['id'] == h.rememberedId ? ' · remembered' : ''}${device['supported'] == true ? '' : '\nUnsupported display profile'}',
-                  ),
-                  selected: selected == device['id'],
-                  onTap: disabled || device['supported'] != true
-                      ? null
-                      : () => select(device['id'] as String),
-                ),
-              ),
-            if (selected != null) ...[
-              const SizedBox(height: 16),
-              if (hasSaved)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Use saved password'),
-                  value: useSaved,
-                  onChanged: disabled
-                      ? null
-                      : (v) => setState(() => useSaved = v!),
-                ),
-              if (!useSaved)
-                TextField(
-                  controller: password,
-                  obscureText: true,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  maxLength: 128,
-                  decoration: const InputDecoration(
-                    labelText: 'Display device password',
-                    helperText: 'This may differ from the Wi-Fi password.',
-                    helperMaxLines: 3,
-                  ),
-                ),
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: const Text('Remember password on this phone'),
-                subtitle: const Text(
-                  'Stored securely for easier reconnection.',
-                ),
-                value: rememberPassword,
-                onChanged: disabled ? null : (v) => setRememberPassword(v!),
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
+            const SizedBox(height: 10),
+            step(
+              2,
+              'Choose the sign',
+              done: selected != null || h.connected,
+              active: true,
+              trailing: TextButton(
+                key: const ValueKey('scan-displays'),
                 onPressed: disabled
                     ? null
                     : () async {
-                        final id = selected!;
-                        setState(() => credentialBusy = true);
-                        try {
-                          final secret = useSaved
-                              ? cachedSavedPassword
-                              : password.text;
-                          password.clear();
-                          if (secret == null)
-                            throw RuleError(
-                              'Saved password unavailable. Enter it again.',
-                            );
-                          if (c.destination != 'led' &&
-                              !await c.selectDestination('led'))
-                            return;
-                          final ok = await h.connect(id, secret);
-                          if (ok && rememberPassword)
-                            await c.port.saveDisplayPassword(id, secret);
-                          if (ok && context.mounted) {
-                            password.clear();
-                            await connectionSuccess(
-                              context,
-                              h.rememberedName,
-                              h.held,
-                              actionLabel: widget.returnToLive
-                                  ? 'Return to Live'
-                                  : 'Continue',
-                            );
-                            if (context.mounted) Navigator.pop(context);
-                          }
-                        } catch (_) {
-                          if (context.mounted)
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Could not use or save the credential. Review the connection status and enter it again.',
-                                ),
-                              ),
-                            );
-                        } finally {
-                          if (mounted) setState(() => credentialBusy = false);
-                        }
+                        setState(() => selected = null);
+                        await h.discover();
                       },
-                child: const Text('Connect selected display'),
+                child: Text(found ? 'Scan again' : 'Scan for displays'),
               ),
-            ],
-            const SizedBox(height: 20),
+              children: [
+                if (!found)
+                  Text(
+                    h.rememberedName.isEmpty
+                        ? 'Scan to find signs on this Wi-Fi.'
+                        : 'Remembered: ${h.rememberedName}. Scan to find it.',
+                    style: muted,
+                  ),
+                for (final device in h.devices)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Material(
+                      color: selected == device['id']
+                          ? colors.accent.withValues(alpha: .1)
+                          : Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: selected == device['id']
+                              ? colors.accent
+                              : colors.border,
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: ListTile(
+                        leading: Icon(
+                          selected == device['id']
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
+                          color: selected == device['id']
+                              ? colors.accent
+                              : null,
+                        ),
+                        title: Text(device['name'] as String),
+                        subtitle: Text(
+                          '${device['firmware']} · ${device['width']} × ${device['height']}${device['id'] == h.rememberedId ? ' · remembered' : ''}\n${device['address']}${device['supported'] == true ? '' : ' · unsupported display profile'}',
+                          style: muted,
+                        ),
+                        onTap: disabled || device['supported'] != true
+                            ? null
+                            : () => select(device['id'] as String),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            step(
+              3,
+              'Sign in',
+              done: h.connected,
+              active: selected != null,
+              children: [
+                if (selected == null)
+                  Text('Choose a sign first.', style: muted)
+                else ...[
+                  if (hasSaved)
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: const Text('Use saved password'),
+                      value: useSaved,
+                      onChanged: disabled
+                          ? null
+                          : (v) => setState(() => useSaved = v!),
+                    ),
+                  if (!useSaved) ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: password,
+                      obscureText: true,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      maxLength: 128,
+                      decoration: const InputDecoration(
+                        labelText: 'Display device password',
+                        helperText: 'This may differ from the Wi-Fi password.',
+                        helperMaxLines: 3,
+                      ),
+                    ),
+                  ],
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: const Text('Remember password on this phone'),
+                    subtitle: Text(
+                      'Encrypted for easier reconnection.',
+                      style: muted,
+                    ),
+                    value: rememberPassword,
+                    onChanged: disabled ? null : (v) => setRememberPassword(v!),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(54),
+              ),
+              onPressed: disabled || selected == null ? null : connectSelected,
+              child: const Text('Connect selected display'),
+            ),
+            const SizedBox(height: 10),
             if (h.busy || h.sending) const LinearProgressIndicator(),
+            if (h.status.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  h.status,
+                  key: const ValueKey('connection-result'),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             const SizedBox(height: 8),
-            Text(h.status, key: const ValueKey('connection-result')),
-            const SizedBox(height: 12),
-            const Text(
-              'Connection recovery retries the remembered display while this app is running. Disconnect or switch to Simulator to stop retries. After an app restart, review the output before restoring it.',
+            Text(
+              h.connected
+                  ? 'Connected. Return to Live to start or restore the timer.'
+                  : 'After connecting, output stays held until you review and restore it. Recovery retries the remembered sign while the app runs.',
+              style: muted,
+              textAlign: TextAlign.center,
             ),
             if (h.diagnostics.isNotEmpty)
               ExpansionTile(
@@ -493,51 +671,6 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                     ListTile(dense: true, title: Text(entry)),
                 ],
               ),
-            if (h.connected) ...[
-              const SizedBox(height: 12),
-              const Text(
-                'Connected. Return to Live to start or restore the timer.',
-              ),
-              OutlinedButton(
-                onPressed: disabled ? null : () => h.disconnect(),
-                child: const Text('Disconnect display'),
-              ),
-            ],
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.desktop_windows_outlined),
-              onPressed: disabled
-                  ? null
-                  : () async {
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        animationStyle: reduceAppMotion(context)
-                            ? AnimationStyle.noAnimation
-                            : null,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Switch to Simulator?'),
-                          content: const Text(
-                            'The physical sign keeps its existing program. This app will send no further updates until you reconnect the display.',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancel'),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Use Simulator'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirmed != true) return;
-                      if (!await c.selectDestination('simulator')) return;
-                      if (c.state.session.disconnected) await c.act('connect');
-                      if (context.mounted) Navigator.pop(context);
-                    },
-              label: const Text('Use simulator instead'),
-            ),
           ],
         ),
       );

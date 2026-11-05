@@ -90,9 +90,6 @@ void main() {
     await c.commit((draft, _) => draft.lockScreenControls = false);
     final saved = AppState.fromJson(c.state.toJson(), now: c.now);
     expect(saved.lockScreenControls, isFalse);
-    expect(
-      exportBackup(c.state, c.now),
-      isNot(contains('lockScreenControls')),
-    );
+    expect(exportBackup(c.state, c.now), isNot(contains('lockScreenControls')));
   });
 }

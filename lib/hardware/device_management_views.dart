@@ -315,301 +315,400 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
     super.dispose();
   }
 
+  Future<void> toggleSecret({required bool wifi}) => operation(() async {
+    if ((wifi ? revealedWifi : revealed) != null) {
+      setState(() => wifi ? revealedWifi = null : revealed = null);
+      return;
+    }
+    final secret = await c.port.savedDisplayPassword(
+      wifi ? 'wifi:${c.hardware.rememberedId}' : c.hardware.rememberedId,
+    );
+    if (mounted)
+      setState(() {
+        if (wifi) {
+          revealedWifi = secret;
+        } else {
+          revealed = secret;
+        }
+        status = secret == null
+            ? (wifi
+                  ? 'No Wi-Fi password saved on this phone.'
+                  : 'No password saved on this phone.')
+            : null;
+      });
+  });
+
+  Future<void> forgetSign() async {
+    final yes = await showDialog<bool>(
+      context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Forget this sign?'),
+        content: const Text(
+          'Disconnect, remove its saved passwords from this phone and return to the simulator. The physical sign keeps its current output.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Forget display'),
+          ),
+        ],
+      ),
+    );
+    if (yes == true)
+      await operation(() async {
+        await c.hardware.disconnect(simulator: true);
+        await c.port.forgetDisplayPassword('wifi:${c.hardware.rememberedId}');
+        await c.port.forgetDisplay();
+        await c.hardware.initialize();
+        if (mounted)
+          setState(() {
+            revealed = null;
+            revealedWifi = null;
+          });
+      });
+  }
+
+  Widget sectionLabel(String text) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 22, 4, 8),
+    child: Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        color: appColors(context).muted,
+        letterSpacing: 1.2,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
+
+  Widget card(List<Widget> rows) => Material(
+    color: appColors(context).surface,
+    clipBehavior: Clip.antiAlias,
+    shape: RoundedRectangleBorder(
+      side: BorderSide(color: appColors(context).border),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < rows.length; i++) ...[
+          if (i > 0) const AppDivider(),
+          rows[i],
+        ],
+      ],
+    ),
+  );
+
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const Text(
-        'LED sign settings',
-        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Manage the LED sign’s Wi-Fi and connection credentials here. Phone and tablet screens are managed under Stage screens / Paired devices.',
-      ),
-      const SizedBox(height: 20),
-      Text(
-        c.hardware.rememberedName.isEmpty
-            ? 'No remembered display'
-            : c.hardware.rememberedName,
-        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
-      ),
-      const SizedBox(height: 8),
-      Text(c.hardware.connected ? 'Connected' : 'Disconnected'),
-      const SizedBox(height: 12),
-      ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.wifi),
-        title: const Text('Current Wi-Fi name'),
-        subtitle: Text(
-          (network['ssid'] as String? ?? '').isNotEmpty
-              ? network['ssid'] as String
-              : wifiConnected
-              ? 'Android has not shared the Wi-Fi name'
-              : 'No Wi-Fi connection',
-        ),
-        trailing: IconButton(
-          tooltip: 'Read Wi-Fi name',
-          icon: const Icon(Icons.refresh),
-          onPressed: busy ? null : () => readNetwork(requestName: true),
-        ),
-      ),
-      const Text(
-        'Android requires location permission to reveal the Wi-Fi name. The app uses it only for this detail, not location tracking.',
-      ),
-      const Divider(height: 24),
-      const Text(
-        'Wi-Fi password · saved on this phone',
-        style: TextStyle(fontWeight: FontWeight.w700),
-      ),
-      if (revealedWifi != null) SelectableText(revealedWifi!),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          TextButton.icon(
-            icon: Icon(
-              revealedWifi == null
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined,
-            ),
-            label: Text(
-              revealedWifi == null
-                  ? 'Show saved Wi-Fi password'
-                  : 'Hide Wi-Fi password',
-            ),
-            onPressed: busy || c.hardware.rememberedId.isEmpty
-                ? null
-                : () => operation(() async {
-                    if (revealedWifi != null) {
-                      setState(() => revealedWifi = null);
-                      return;
-                    }
-                    final secret = await c.port.savedDisplayPassword(
-                      'wifi:${c.hardware.rememberedId}',
-                    );
-                    if (mounted)
-                      setState(() {
-                        revealedWifi = secret;
-                        status = secret == null
-                            ? 'No Wi-Fi password saved on this phone.'
-                            : null;
-                      });
-                  }),
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    final saved = c.hardware.rememberedId.isNotEmpty;
+    final connected = c.hardware.connected;
+    final profile = c.hardware.profile;
+    final ssid = network['ssid'] as String? ?? '';
+    final adminReady =
+        adminSupported &&
+        wifiConnected &&
+        !c.state.session.active &&
+        !c.pairing.hosting &&
+        !busy;
+    final tone = connected ? colors.accent : colors.muted;
+    final muted = TextStyle(fontSize: 12, color: colors.muted);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          key: const ValueKey('led-status-card'),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: colors.border),
           ),
-          TextButton(
-            onPressed: busy || c.hardware.rememberedId.isEmpty
-                ? null
-                : saveKnownWifiPassword,
-            child: const Text('Save known password'),
-          ),
-        ],
-      ),
-      const Divider(height: 24),
-      const Text(
-        'Device connection password · saved on this phone',
-        style: TextStyle(fontWeight: FontWeight.w700),
-      ),
-      if (c.hardware.profile != null)
-        Text(
-          '${c.hardware.profile!['firmware']} · ${c.hardware.profile!['width']} × ${c.hardware.profile!['height']}',
-        ),
-      const SizedBox(height: 8),
-      const Text(
-        'Only a password saved on this phone can be shown. The controller does not provide its existing device password in readable form.',
-      ),
-      if (revealed != null)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: SelectableText(revealed!),
-        ),
-      Wrap(
-        spacing: 8,
-        children: [
-          OutlinedButton.icon(
-            onPressed: busy || c.hardware.rememberedId.isEmpty
-                ? null
-                : () => operation(() async {
-                    if (revealed != null) {
-                      setState(() {
-                        revealed = null;
-                        revealedWifi = null;
-                      });
-                      return;
-                    }
-                    final secret = await c.port.savedDisplayPassword(
-                      c.hardware.rememberedId,
-                    );
-                    if (mounted)
-                      setState(() {
-                        revealed = secret;
-                        status = secret == null
-                            ? 'No password saved on this phone.'
-                            : null;
-                      });
-                  }),
-            icon: Icon(
-              revealed == null
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined,
-            ),
-            label: Text(
-              revealed == null ? 'Show saved password' : 'Hide password',
-            ),
-          ),
-          TextButton(
-            onPressed: busy || c.hardware.rememberedId.isEmpty
-                ? null
-                : () => operation(() async {
-                    await c.port.forgetDisplayPassword(c.hardware.rememberedId);
-                    if (mounted)
-                      setState(() {
-                        revealed = null;
-                        status =
-                            'Saved password removed. The sign’s password is unchanged.';
-                      });
-                  }),
-            child: const Text('Forget saved password'),
-          ),
-        ],
-      ),
-      const Divider(height: 32),
-      const Text(
-        'LED controller administration',
-        style: TextStyle(fontWeight: FontWeight.w700),
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'To change these settings, connect this phone to the sign’s Wi-Fi and connect the display in the app. End the service and stop sharing with paired devices first.',
-      ),
-      const SizedBox(height: 12),
-      LayoutBuilder(
-        builder: (context, space) => Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            SizedBox(
-              width: space.maxWidth < 280
-                  ? space.maxWidth
-                  : (space.maxWidth - 10) / 2,
-              child: OutlinedButton.icon(
-                onPressed: busy
-                    ? null
-                    : () => operation(() => c.port.openWifiSettings()),
-                icon: const Icon(Icons.wifi),
-                label: const Text('Open Wi-Fi', textAlign: TextAlign.center),
-              ),
-            ),
-            SizedBox(
-              width: space.maxWidth < 280
-                  ? space.maxWidth
-                  : (space.maxWidth - 10) / 2,
-              child: FilledButton.tonalIcon(
-                onPressed: busy || c.hardware.busy || c.hardware.sending
-                    ? null
-                    : connectFromSettings,
-                icon: const Icon(Icons.connected_tv),
-                label: Text(
-                  c.hardware.connected
-                      ? 'Connection details'
-                      : c.hardware.rememberedId.isEmpty
-                      ? 'Connect LED display'
-                      : 'Reconnect LED display',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        !c.hardware.connected
-            ? 'Connect the LED display to enable changes.'
-            : !wifiConnected
-            ? 'Wi-Fi is unavailable. Reconnect to the sign’s Wi-Fi.'
-            : !adminSupported
-            ? 'This controller does not report the supported administration capability.'
-            : c.state.session.active
-            ? 'End the current service to enable changes.'
-            : c.pairing.hosting
-            ? 'Stop sharing this service to enable changes.'
-            : 'Ready to manage this W2 controller.',
-      ),
-      TextButton.icon(
-        onPressed: busy ? null : () => readNetwork(),
-        icon: const Icon(Icons.refresh),
-        label: const Text('Refresh connection details'),
-      ),
-      for (final item in [
-        ('ssid', 'Wi-Fi name', Icons.wifi),
-        ('wifiPassword', 'Wi-Fi password', Icons.wifi_password),
-        ('devicePassword', 'Device connection password', Icons.password),
-      ])
-        UnavailableAction(
-          reason: adminUnavailable,
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(item.$3),
-            title: Text(item.$2),
-            trailing: const Icon(Icons.chevron_right),
-            enabled:
-                adminSupported &&
-                wifiConnected &&
-                !c.state.session.active &&
-                !c.pairing.hosting &&
-                !busy,
-            onTap: () => changeSetting(item.$1, item.$2),
-          ),
-        ),
-      if (status != null) Text(status!),
-      const SizedBox(height: 16),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton(
-          onPressed: busy || c.hardware.rememberedId.isEmpty
-              ? null
-              : () async {
-                  final yes = await showDialog<bool>(
-                    context: context,
-                    animationStyle: reduceAppMotion(context)
-                        ? AnimationStyle.noAnimation
-                        : null,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Forget this display?'),
-                      content: const Text(
-                        'Disconnect, remove its saved credential and return to the simulator. The physical sign retains its current output.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('Cancel'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: tone.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(Icons.developer_board, color: tone, size: 26),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          saved
+                              ? c.hardware.rememberedName
+                              : 'No LED sign saved',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('Forget display'),
+                        const SizedBox(height: 2),
+                        Text(
+                          profile == null
+                              ? 'W2 controller · connect to read its details'
+                              : '${profile['width']} × ${profile['height']} · ${profile['firmware']}',
+                          style: muted,
                         ),
                       ],
                     ),
-                  );
-                  if (yes == true)
-                    await operation(() async {
-                      await c.hardware.disconnect(simulator: true);
-                      await c.port.forgetDisplayPassword(
-                        'wifi:${c.hardware.rememberedId}',
-                      );
-                      await c.port.forgetDisplay();
-                      await c.hardware.initialize();
-                      if (mounted)
-                        setState(() {
-                          revealed = null;
-                          revealedWifi = null;
-                        });
-                    });
-                },
-          child: const Text('Forget display'),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tone.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      connected ? 'Connected' : 'Not connected',
+                      style: TextStyle(
+                        color: tone,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: busy
+                          ? null
+                          : () => operation(() => c.port.openWifiSettings()),
+                      icon: const Icon(Icons.wifi),
+                      label: const Text(
+                        'Open Wi-Fi',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: busy || c.hardware.busy || c.hardware.sending
+                          ? null
+                          : connectFromSettings,
+                      icon: const Icon(Icons.connected_tv),
+                      label: Text(
+                        connected
+                            ? 'Connection details'
+                            : saved
+                            ? 'Reconnect LED display'
+                            : 'Connect LED display',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    wifiConnected ? Icons.wifi : Icons.wifi_off,
+                    size: 16,
+                    color: colors.muted,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      ssid.isNotEmpty
+                          ? ssid
+                          : wifiConnected
+                          ? 'Android has not shared the Wi-Fi name'
+                          : 'No Wi-Fi connection',
+                      style: muted,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Read Wi-Fi name',
+                    icon: const Icon(Icons.refresh, size: 20),
+                    onPressed: busy
+                        ? null
+                        : () => readNetwork(requestName: true),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
-    ],
-  );
+        sectionLabel('Saved on this phone'),
+        card([
+          ListTile(
+            key: const ValueKey('led-saved-wifi'),
+            leading: Icon(Icons.wifi_password, color: colors.muted),
+            title: const Text('Sign Wi-Fi password'),
+            subtitle: revealedWifi != null
+                ? SelectableText(revealedWifi!)
+                : Text('Encrypted on this phone', style: muted),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  onPressed: busy || !saved
+                      ? null
+                      : () => toggleSecret(wifi: true),
+                  child: Text(revealedWifi == null ? 'Show' : 'Hide'),
+                ),
+                IconButton(
+                  tooltip: 'Save known password',
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  onPressed: busy || !saved ? null : saveKnownWifiPassword,
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            key: const ValueKey('led-saved-device'),
+            leading: Icon(Icons.lock_outline, color: colors.muted),
+            title: const Text('Device password'),
+            subtitle: revealed != null
+                ? SelectableText(revealed!)
+                : Text(
+                    'Encrypted on this phone · the sign never reveals it',
+                    style: muted,
+                  ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  onPressed: busy || !saved
+                      ? null
+                      : () => toggleSecret(wifi: false),
+                  child: Text(revealed == null ? 'Show' : 'Hide'),
+                ),
+                IconButton(
+                  tooltip: 'Forget saved password',
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  onPressed: busy || !saved
+                      ? null
+                      : () => operation(() async {
+                          await c.port.forgetDisplayPassword(
+                            c.hardware.rememberedId,
+                          );
+                          if (mounted)
+                            setState(() {
+                              revealed = null;
+                              status =
+                                  'Saved password removed. The sign’s password is unchanged.';
+                            });
+                        }),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, size: 16, color: colors.info),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Android needs location permission to read the Wi-Fi name; it is not used for tracking.',
+                    style: muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ]),
+        sectionLabel('Sign settings'),
+        card([
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+            child: Row(
+              children: [
+                Icon(
+                  adminReady ? Icons.lock_open : Icons.lock_outline,
+                  size: 18,
+                  color: adminReady ? colors.accent : colors.muted,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    !connected
+                        ? 'Connect the LED display to change these.'
+                        : !wifiConnected
+                        ? 'Join the sign’s Wi-Fi to change these.'
+                        : !adminSupported
+                        ? 'This controller does not report the supported administration capability.'
+                        : c.state.session.active
+                        ? 'End the current service to change these.'
+                        : c.pairing.hosting
+                        ? 'Stop sharing this service to change these.'
+                        : 'Ready to manage this W2 controller.',
+                    style: muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          for (final item in [
+            ('ssid', 'Wi-Fi name', Icons.wifi),
+            ('wifiPassword', 'Wi-Fi password', Icons.wifi_password),
+            ('devicePassword', 'Device connection password', Icons.password),
+          ])
+            UnavailableAction(
+              reason: adminUnavailable,
+              child: ListTile(
+                leading: Icon(item.$3),
+                title: Text(item.$2),
+                trailing: const Icon(Icons.chevron_right),
+                enabled: adminReady,
+                onTap: () => changeSetting(item.$1, item.$2),
+              ),
+            ),
+        ]),
+        if (status != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
+            child: Text(status!, style: TextStyle(color: colors.warning)),
+          ),
+        const SizedBox(height: 24),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: colors.error,
+            side: BorderSide(color: colors.error.withValues(alpha: .5)),
+            minimumSize: const Size.fromHeight(48),
+          ),
+          onPressed: busy || !saved ? null : forgetSign,
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('Forget this sign'),
+        ),
+      ],
+    );
+  }
 }

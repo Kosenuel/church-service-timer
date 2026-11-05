@@ -35,6 +35,8 @@ import 'package:church_service_timer/live/timing_overview_views.dart';
 import 'package:church_service_timer/programs/program_editor_insights.dart';
 import 'package:church_service_timer/programs/program_import_export_views.dart';
 import 'package:church_service_timer/programs/program_library_views.dart';
+import 'package:church_service_timer/programs/program_views.dart'
+    show templateSummary;
 import 'package:church_service_timer/reports/report_library_views.dart';
 import 'package:church_service_timer/shared/format_labels.dart';
 
@@ -148,7 +150,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   int quickDraftGeneration = 0;
   String quickAudience = 'all';
   String? previewScreenId;
-  void refreshHome(VoidCallback change) => setState(change);
+  void refreshHome(VoidCallback change) {
+    setState(change);
+    settingsRefresh.value++;
+  }
+
   bool focused = false, controlsLocked = false;
   final homeScroll = ScrollController();
   bool? _completedService;
@@ -305,6 +311,13 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> startFirst() async {
     final s = c.state.session, revision = c.state.session.revision;
+    final problems = readinessChecks()
+        .where((x) => !x.ok && x.key != 'program')
+        .toList();
+    if (c.destinationConnected && problems.isEmpty) {
+      await startWithUndo(revision);
+      return;
+    }
     final start = await showDialog<bool>(
       context: context,
       animationStyle: reduceAppMotion(context)
@@ -312,51 +325,107 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
           : null,
       builder: (ctx) => AnimatedBuilder(
         animation: c,
-        builder: (ctx, _) => AlertDialog(
-          title: Text('Start ${s.timeline!.segments.first.name}?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(connectionIcon(c.displayConnection)),
-                title: Text('Display: ${c.destinationName}'),
-                subtitle: Text(c.displayConnection.label),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () async {
-                  Navigator.pop(ctx, false);
-                  await chooseDisplay();
-                },
-              ),
-              if (s.rehearsal) Text('Rehearsal · ${s.rate}× speed'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+        builder: (ctx, _) {
+          final colors = appColors(ctx);
+          return AlertDialog(
+            title: Text(
+              !c.destinationConnected
+                  ? 'No display connected'
+                  : problems.length == 1
+                  ? problems.single.detail
+                  : '${plural(problems.length, 'thing')} to check',
             ),
-            if (!c.destinationConnected)
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'You can still start ${s.timeline!.segments.first.name}.',
+                  style: TextStyle(color: colors.muted),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(connectionIcon(c.displayConnection)),
+                  title: Text('Display: ${c.destinationName}'),
+                  subtitle: Text(c.displayConnection.label),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    Navigator.pop(ctx, false);
+                    await chooseDisplay();
+                  },
+                ),
+                for (final p in problems)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.priority_high, color: colors.warning),
+                    title: Text(p.title),
+                    subtitle: Text(p.detail),
+                    trailing: p.fix == null
+                        ? null
+                        : TextButton(
+                            onPressed: () async {
+                              Navigator.pop(ctx, false);
+                              await p.onFix?.call();
+                            },
+                            child: Text(p.fix!),
+                          ),
+                  ),
+                if (s.rehearsal) Text('Rehearsal · ${s.rate}× speed'),
+              ],
+            ),
+            actions: [
               TextButton(
-                onPressed: () async {
-                  Navigator.pop(ctx, false);
-                  await chooseDisplay();
-                },
-                child: const Text('Connect display'),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
               ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(
-                c.destinationConnected
-                    ? 'Start first segment'
-                    : 'Start without a display',
+              if (!c.destinationConnected)
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx, false);
+                    await chooseDisplay();
+                  },
+                  child: const Text('Connect display'),
+                ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(
+                  c.destinationConnected
+                      ? 'Start first segment'
+                      : 'Start without a display',
+                ),
               ),
-            ),
-          ],
+            ],
+          );
+        },
+      ),
+    );
+    if (start == true) await startWithUndo(revision);
+  }
+
+  /// Starts the loaded service and offers a short Undo for accidental taps.
+  Future<void> startWithUndo(int revision) async {
+    if (!await c.act('start', revision: revision) || !mounted) return;
+    final id = c.state.session.id;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        key: const ValueKey('undo-start'),
+        duration: const Duration(seconds: 8),
+        content: Text(
+          '${c.state.session.timeline!.segments.first.name} started',
+        ),
+        action: SnackBarAction(
+          label: 'Undo start',
+          onPressed: () async {
+            if (c.state.session.id != id || !c.state.session.active) return;
+            if (!await c.act('unstart') && mounted)
+              await showError(c.error ?? 'Could not undo the start.');
+          },
         ),
       ),
     );
-    if (start == true) await c.act('start', revision: revision);
   }
 
   Future<void> advance() async {
@@ -734,6 +803,219 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     ),
   );
 
+  /// Pinned (or most recent) programs that load straight into Ready.
+  Widget pinnedPrograms() {
+    final lib = c.state.programLibrary;
+    final pinned = c.state.templates
+        .where((p) => lib.favourites.contains(p.name))
+        .toList();
+    final recent =
+        c.state.templates.where((p) => lib.recent.containsKey(p.name)).toList()
+          ..sort((a, b) => lib.recent[b.name]!.compareTo(lib.recent[a.name]!));
+    final items = (pinned.isNotEmpty ? pinned : recent).take(4).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+    final colors = appColors(context);
+    final disabled =
+        c.busy || c.corrupt || c.reportSavePending || controlsLocked;
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          label(pinned.isNotEmpty ? 'Pinned' : 'Recent'),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, space) {
+              final width = (space.maxWidth - 10) / 2;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final p in items)
+                    SizedBox(
+                      width: width,
+                      child: Material(
+                        key: ValueKey('quick-load:${p.name}'),
+                        color: colors.background,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(color: colors.border),
+                        ),
+                        child: InkWell(
+                          onTap: disabled
+                              ? null
+                              : () async {
+                                  try {
+                                    c.state.templateIndex(p);
+                                    await c.act('load', value: p);
+                                  } catch (e) {
+                                    if (mounted) await showError('$e');
+                                  }
+                                },
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.play_circle_outline,
+                                      size: 18,
+                                      color: colors.accent,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        p.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  templateSummary(p),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: colors.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget lastServiceCard() {
+    final r = c.state.reports.reduce(
+      (a, b) => b.endedWall > a.endedWall ? b : a,
+    );
+    final colors = appColors(context);
+    final variance = r.comparable ? r.totalMs! - r.plannedMs : null;
+    final tone = variance == null || variance >= 1000
+        ? colors.warning
+        : variance <= -1000
+        ? colors.info
+        : colors.accent;
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Material(
+        key: const ValueKey('last-service-card'),
+        color: colors.background,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: colors.border),
+        ),
+        child: InkWell(
+          onTap: () => openReport(r),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: label('Last service')),
+                    Text(
+                      'View last service report',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: colors.accent,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${r.name} · ${reportDate(r.startedWall ?? r.endedWall)}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    if (r.totalMs != null) durationLabel(r.totalMs!),
+                    variance == null
+                        ? 'Partial record'
+                        : varianceLabel(variance),
+                  ].join(' · '),
+                  style: TextStyle(fontSize: 13, color: tone),
+                ),
+                if (r.review != null && r.review!.text.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    r.review!.text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: colors.muted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Display status and readiness verdict, shown while a service is in Ready.
+  Widget readyInline() {
+    final colors = appColors(context);
+    final problems = readinessChecks()
+        .where((x) => !x.ok && x.key != 'program')
+        .length;
+    final tone = problems == 0 && c.destinationConnected
+        ? colors.accent
+        : colors.warning;
+    return Material(
+      key: const ValueKey('ready-inline'),
+      color: tone.withValues(alpha: .1),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => openSettingsDetail('Ready for service', readinessSettings),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Icon(connectionIcon(c.displayConnection), color: tone, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${c.displayConnection.label} · ${problems == 0 ? 'all set' : '${plural(problems, 'thing')} to check'}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget liveContent() {
     final s = c.liveSession;
     final standingBy =
@@ -789,7 +1071,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
           const SizedBox(height: 8),
           if (t == null)
             const Text(
-              'Your next service,\nunder control.',
+              'Ready when you are',
               style: TextStyle(
                 fontSize: 27,
                 fontWeight: FontWeight.w600,
@@ -857,12 +1139,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               ),
             SegmentGauge(session: s, now: c.now),
           ] else ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 6),
             Text(
               'Load a program, keep the room on time, and send discreet cues to the stage.',
               style: TextStyle(color: appColors(context).muted),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
           ],
           if (!s.active && s.phase != 'ready' && !c.reportSavePending)
             button(
@@ -909,12 +1191,10 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               ],
             ),
           ],
-          if (standingBy && c.state.reports.isNotEmpty)
-            TextButton.icon(
-              onPressed: () => openReport(c.state.reports.last),
-              icon: const Icon(Icons.assessment_outlined),
-              label: const Text('View last service report'),
-            ),
+          if (standingBy) ...[
+            pinnedPrograms(),
+            if (c.state.reports.isNotEmpty) lastServiceCard(),
+          ],
           if ((s.phase == 'ready' || standingBy) &&
               c.batteryUnrestricted == false)
             Padding(
@@ -987,6 +1267,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
               ),
           if (s.phase == 'ready') ...[
+            readyInline(),
+            const SizedBox(height: 12),
             ChoiceField<int>(
               key: ValueKey('speed-${s.id}'),
               value: s.rate,
@@ -1669,6 +1951,49 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                   ),
                 ],
               ),
+            ] else if (s.phase == 'idle') ...[
+              timerPanelOf(wide: false),
+              const SizedBox(height: 16),
+              panel(
+                padding: EdgeInsets.zero,
+                child: Theme(
+                  data: Theme.of(
+                    context,
+                  ).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    key: ValueKey(
+                      'stage-and-display-${c.pairing.hosting || c.destination == 'mobile'}',
+                    ),
+                    initiallyExpanded:
+                        c.pairing.hosting || c.destination == 'mobile',
+                    leading: Icon(
+                      connectionIcon(c.displayConnection),
+                      color: appColors(context).accent,
+                    ),
+                    title: const Text(
+                      'Stage & display',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      '${c.destinationName} · ${plural(c.state.stageCues.length, 'cue')}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: appColors(context).muted,
+                      ),
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    children: [
+                      cuePanel,
+                      if (c.destination == 'mobile') ...[
+                        const SizedBox(height: 12),
+                        quickMessagePanel(),
+                      ],
+                      const SizedBox(height: 12),
+                      displayPanel,
+                    ],
+                  ),
+                ),
+              ),
             ] else ...[
               timerPanelOf(wide: false),
               const SizedBox(height: 16),
@@ -1897,7 +2222,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                               TextButton(
                                                 onPressed: () =>
                                                     openSettingsDetail(
-                                                      'Paired devices',
+                                                      'Screens & devices',
                                                       pairedDeviceSettings,
                                                     ),
                                                 child: const Text(
@@ -1990,6 +2315,25 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
               ),
             ),
+            floatingActionButton:
+                c.ready &&
+                    page == 1 &&
+                    !focused &&
+                    !selectingPrograms &&
+                    !controlsLocked
+                ? FloatingActionButton.extended(
+                    key: const ValueKey('new-template'),
+                    backgroundColor: appColors(context).accent,
+                    foregroundColor: appColors(context).background,
+                    onPressed: c.busy || c.corrupt
+                        ? null
+                        : () async {
+                            await editTemplate();
+                          },
+                    icon: const Icon(Icons.add),
+                    label: const Text('New program'),
+                  )
+                : null,
             bottomNavigationBar: focused
                 ? SafeArea(
                     top: false,
@@ -2472,222 +2816,415 @@ class TemplateEditorState extends State<TemplateEditor> {
       });
   }
 
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(widget.upcomingOnly ? 'Upcoming segments' : 'Program editor'),
-      bottom: widget.draftController?.liveSession.active == true
-          ? RunningServiceBar.forContext(
-              context,
-              controller: widget.draftController!,
-            )
+  void save() {
+    try {
+      if (widget.upcomingOnly) {
+        require(segments.length <= 200, 'Keep at most 200 segments.');
+        for (final s in segments) {
+          Segment.fromJson(s.toJson());
+        }
+        Navigator.pop(
+          context,
+          Timeline(
+            widget.initial.name,
+            segments,
+            widget.initial.display,
+            type: widget.initial.type,
+          ),
+        );
+        return;
+      }
+      final t = Timeline.fromJson(
+        Timeline(
+          name.text,
+          segments,
+          widget.initial.display.withEnd(endScreen),
+          type: templateType,
+        ).toJson(),
+      );
+      require(
+        !widget.existingNames.contains(t.name.toLowerCase()),
+        'A program with this name already exists.',
+      );
+      validateTimelinePixels(t);
+      Navigator.pop(context, t);
+    } catch (e) {
+      change(() => error = e.toString());
+    }
+  }
+
+  Future<void> editDuration(int i) async {
+    final value = await showWheelTimePicker(
+      context,
+      title: 'Set segment duration',
+      initial: segments[i].durationSeconds,
+    );
+    if (value == null || !mounted) return;
+    try {
+      final next = Segment.fromJson({
+        ...segments[i].toJson(),
+        'minutes': value ~/ 60,
+        'seconds': value % 60,
+      });
+      change(() {
+        segments[i] = next;
+        error = null;
+      });
+    } catch (e) {
+      change(() => error = e.toString());
+    }
+  }
+
+  Future<void> editEndScreen() async {
+    final next = await showDialog<TextLayout>(
+      context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
           : null,
-    ),
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          if (!widget.upcomingOnly) ...[
-            TextField(
-              controller: name,
-              decoration: const InputDecoration(
-                labelText: 'Program name',
-                hintText: 'Youth sunday',
-              ),
-            ),
-            const SizedBox(height: 16),
-            ChoiceField<String>(
-              value: templateType,
-              decoration: const InputDecoration(labelText: 'Program group'),
-              options: const [
-                ChoiceOption(value: 'service', label: 'Service'),
-                ChoiceOption(value: 'rehearsal', label: 'Rehearsal'),
-              ],
-              onChanged: (value) => change(() => templateType = value!),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Grouping organizes programs. Choose rehearsal speed when starting a service.',
-              style: TextStyle(color: appColors(context).muted, fontSize: 12),
-            ),
-          ],
-          if (widget.draftController != null)
+      builder: (_) => TextComposer(
+        initial: endScreen,
+        title: 'Program end screen',
+        button: 'Use end screen',
+      ),
+    );
+    if (next != null && mounted) change(() => endScreen = next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    final muted = TextStyle(fontSize: 12, color: colors.muted);
+    final totalMs = segments.fold<int>(0, (a, s) => a + s.durationMs);
+    final creating = widget.creating ?? widget.initial.name.isEmpty;
+    final draft = widget.draftController;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.upcomingOnly ? 'Upcoming segments' : 'Program editor',
+        ),
+        actions: [
+          if (draft != null)
             AnimatedBuilder(
-              animation: widget.draftController!,
-              builder: (context, _) =>
-                  widget.draftController!.draftError == null
-                  ? const Text(
-                      'Unfinished edits are saved on this phone.',
-                      style: TextStyle(fontSize: 12),
+              animation: draft,
+              builder: (context, _) => draft.draftError == null
+                  ? Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: Center(
+                        child: Text(
+                          'Draft saved',
+                          style: TextStyle(fontSize: 12, color: colors.muted),
+                        ),
+                      ),
                     )
                   : TextButton(
-                      onPressed: widget.draftController!.flushEditDrafts,
-                      child: Text(widget.draftController!.draftError!),
+                      onPressed: draft.flushEditDrafts,
+                      child: Text(draft.draftError!),
                     ),
             ),
-          if (!widget.upcomingOnly && widget.reports.isNotEmpty)
-            OutlinedButton.icon(
-              onPressed: reviewDurationSuggestions,
-              icon: const Icon(Icons.insights_outlined),
-              label: const Text('Learn from previous services'),
-            ),
-          if (widget.upcomingOnly)
-            const Text(
-              'Edit only the upcoming segments. Current and completed segments, saved programs and end screens stay unchanged.',
-            ),
-          const SizedBox(height: 16),
-          Text(
-            '${segments.length} segments · ${durationLabel(segments.fold<int>(0, (a, s) => a + s.durationMs))}',
-            style: TextStyle(color: appColors(context).muted),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Hold a row to drag it into a new position.',
-            style: TextStyle(color: appColors(context).muted, fontSize: 12),
-          ),
-          const SizedBox(height: 12),
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: segments.length,
-            onReorderItem: (a, b) => change(() {
-              segments.insert(b, segments.removeAt(a));
-            }),
-            itemBuilder: (context, i) => Card(
-              key: ValueKey(segments[i]),
-              child: ListTile(
-                leading: const Icon(Icons.drag_handle),
-                title: Text(segments[i].name),
-                subtitle: Text(
-                  '${segments[i].durationText}${segments[i].speaker.isEmpty ? '' : ' · ${segments[i].speaker}'}${segments[i].notes.isEmpty ? '' : '\nPrivate notes saved'}',
-                ),
-                onTap: () => segment(index: i),
-                trailing: IconButton(
-                  tooltip: 'Remove segment',
-                  onPressed: () => change(() => segments.removeAt(i)),
-                  icon: const Icon(Icons.close),
+        ],
+        bottom: draft?.liveSession.active == true
+            ? RunningServiceBar.forContext(context, controller: draft!)
+            : null,
+      ),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            if (!widget.upcomingOnly) ...[
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(
+                  labelText: 'Program name',
+                  hintText: 'Youth sunday',
                 ),
               ),
+              const SizedBox(height: 14),
+              ChoiceField<String>(
+                value: templateType,
+                decoration: const InputDecoration(labelText: 'Program group'),
+                options: const [
+                  ChoiceOption(value: 'service', label: 'Service'),
+                  ChoiceOption(value: 'rehearsal', label: 'Rehearsal'),
+                ],
+                onChanged: (value) => change(() => templateType = value!),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Grouping organises programs. Choose rehearsal speed when starting.',
+                style: muted,
+              ),
+            ],
+            if (widget.upcomingOnly)
+              Text(
+                'Edit only the upcoming segments. Current and completed segments, saved programs and end screens stay unchanged.',
+                style: TextStyle(color: colors.muted),
+              ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      'SEGMENTS',
+                      style: TextStyle(
+                        fontSize: 12,
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w600,
+                        color: colors.muted,
+                      ),
+                    ),
+                  ),
+                ),
+                Text('Drag the handle to reorder', style: muted),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: segments.length < 200 ? segment : null,
-            icon: const Icon(Icons.add),
-            label: const Text('Add segment'),
-          ),
-          if (!widget.upcomingOnly) ...[
-            const SizedBox(height: 24),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'End screen · this program',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    LedMatrix(pixels: renderPixels(endScreen, 0)),
-                    const SizedBox(height: 12),
-                    Text(styleSummary(endScreen)),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.edit_outlined),
-                          label: const Text('Edit program end screen'),
-                          onPressed: () async {
-                            final next = await showDialog<TextLayout>(
-                              context: context,
-                              animationStyle: reduceAppMotion(context)
-                                  ? AnimationStyle.noAnimation
-                                  : null,
-                              builder: (_) => TextComposer(
-                                initial: endScreen,
-                                title: 'Program end screen',
-                                button: 'Use end screen',
+            if (!widget.upcomingOnly && widget.reports.isNotEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: reviewDurationSuggestions,
+                  icon: const Icon(Icons.insights_outlined, size: 18),
+                  label: const Text('Learn from previous services'),
+                ),
+              ),
+            const SizedBox(height: 8),
+            if (segments.isNotEmpty)
+              Material(
+                color: colors.surface,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: colors.border),
+                ),
+                child: ReorderableListView.builder(
+                  shrinkWrap: true,
+                  buildDefaultDragHandles: false,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: segments.length,
+                  onReorderItem: (a, b) => change(() {
+                    segments.insert(b, segments.removeAt(a));
+                  }),
+                  itemBuilder: (context, i) {
+                    final s = segments[i];
+                    final detail = [
+                      if (s.speaker.isNotEmpty) s.speaker,
+                      if (s.notes.isNotEmpty) 'private note',
+                      if (s.protected) 'protected',
+                    ].join(' · ');
+                    return Material(
+                      key: ValueKey(s),
+                      color: colors.surface,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (i > 0) const AppDivider(),
+                          InkWell(
+                            onTap: () => segment(index: i),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
+                              child: Row(
+                                children: [
+                                  ReorderableDragStartListener(
+                                    index: i,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Icon(
+                                        Icons.drag_indicator,
+                                        color: colors.muted,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          s.name,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        if (detail.isNotEmpty)
+                                          Text(detail, style: muted),
+                                      ],
+                                    ),
+                                  ),
+                                  ActionChip(
+                                    key: ValueKey('segment-duration-$i'),
+                                    label: Text(
+                                      formatTime(s.durationMs),
+                                      style: const TextStyle(
+                                        fontFeatures: [
+                                          FontFeature.tabularFigures(),
+                                        ],
+                                      ),
+                                    ),
+                                    onPressed: () => editDuration(i),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Remove segment',
+                                    visualDensity: VisualDensity.compact,
+                                    onPressed: () =>
+                                        change(() => segments.removeAt(i)),
+                                    icon: Icon(
+                                      Icons.close,
+                                      size: 18,
+                                      color: colors.muted,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            );
-                            if (next != null && mounted)
-                              change(() => endScreen = next);
-                          },
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              change(() => endScreen = widget.defaultEnd),
-                          child: const Text('Use current default'),
-                        ),
-                      ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+              ),
+              onPressed: segments.length < 200 ? segment : null,
+              icon: const Icon(Icons.add),
+              label: const Text('Add segment'),
+            ),
+            if (!widget.upcomingOnly) ...[
+              const SizedBox(height: 16),
+              Material(
+                color: colors.surface,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: colors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ListTile(
+                      key: const ValueKey('edit-end-screen'),
+                      leading: Icon(Icons.flag_outlined, color: colors.muted),
+                      title: Text(
+                        'End screen · ${endScreen.text}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        endScreen == widget.defaultEnd
+                            ? 'Uses the current default · tap to edit'
+                            : 'This program’s own end screen · tap to edit',
+                        style: muted,
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: editEndScreen,
                     ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
+                          width: 168,
+                          child: LedMatrix(pixels: renderPixels(endScreen, 0)),
+                        ),
+                      ),
+                    ),
+                    if (endScreen != widget.defaultEnd)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                          child: TextButton(
+                            onPressed: () =>
+                                change(() => endScreen = widget.defaultEnd),
+                            child: const Text('Use current default'),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 10),
+              Text(
+                'Program edits apply the next time you load it.',
+                style: muted,
+              ),
+            ],
           ],
-          if (error != null)
-            Text(error!, style: TextStyle(color: appColors(context).warning)),
-          if (widget.upcomingOnly) const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () {
-              try {
-                if (widget.upcomingOnly) {
-                  require(segments.length <= 200, 'Keep at most 200 segments.');
-                  for (final s in segments) {
-                    Segment.fromJson(s.toJson());
-                  }
-                  Navigator.pop(
-                    context,
-                    Timeline(
-                      widget.initial.name,
-                      segments,
-                      widget.initial.display,
-                      type: widget.initial.type,
+        ),
+      ),
+      bottomNavigationBar: Material(
+        color: colors.surface,
+        child: SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: colors.border)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      error!,
+                      style: TextStyle(color: colors.warning),
                     ),
-                  );
-                  return;
-                }
-                final t = Timeline.fromJson(
-                  Timeline(
-                    name.text,
-                    segments,
-                    widget.initial.display.withEnd(endScreen),
-                    type: templateType,
-                  ).toJson(),
-                );
-                require(
-                  !widget.existingNames.contains(t.name.toLowerCase()),
-                  'A program with this name already exists.',
-                );
-                validateTimelinePixels(t);
-                Navigator.pop(context, t);
-              } catch (e) {
-                change(() => error = e.toString());
-              }
-            },
-            icon: const Icon(Icons.check),
-            label: Text(
-              widget.upcomingOnly
-                  ? 'Review rundown changes'
-                  : ((widget.creating ?? widget.initial.name.isEmpty)
-                        ? 'Create Program'
-                        : 'Save changes'),
+                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            totalMs % 60000 == 0
+                                ? '${totalMs ~/ 60000} min'
+                                : durationLabel(totalMs),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            '${plural(segments.length, 'segment')} · planned length',
+                            style: muted,
+                          ),
+                        ],
+                      ),
+                    ),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 50),
+                        padding: const EdgeInsets.symmetric(horizontal: 22),
+                      ),
+                      onPressed: save,
+                      icon: const Icon(Icons.check),
+                      label: Text(
+                        widget.upcomingOnly
+                            ? 'Review rundown changes'
+                            : creating
+                            ? 'Create Program'
+                            : 'Save changes',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          if (!widget.upcomingOnly)
-            Text(
-              'Program edits apply the next time you load it.',
-              style: TextStyle(color: appColors(context).muted),
-            ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Equal-width controls that wrap cleanly at narrow widths and large text sizes.

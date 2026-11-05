@@ -6,7 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
-import '../domain/service_timing_test.dart' show FakePort, start, after, running;
+import '../domain/service_timing_test.dart'
+    show FakePort, start, after, running;
 import '../hardware/hardware_integration_test.dart' show W2Port, setup, flush;
 
 Future<void> until(bool Function() ready) async {

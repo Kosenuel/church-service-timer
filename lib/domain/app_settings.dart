@@ -99,6 +99,11 @@ const themeIds = {
   'slate_teal',
   'morning_sky',
   'sage_linen',
+  'ocean_deep',
+  'cobalt_night',
+  'graphite',
+  'paper_ink',
+  'meadow',
 };
 const backupLimitBytes = 16 * 1024 * 1024;
 

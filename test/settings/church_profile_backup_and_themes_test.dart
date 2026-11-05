@@ -226,6 +226,12 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('../goldens/about-phone.png'),
       );
+      await t.tap(find.byKey(const ValueKey('about-whats-new')));
+      for (var i = 0; i < 10; i++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('What’s new'), findsOneWidget);
+      expect(find.textContaining('0.24.0'), findsWidgets);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
     },

@@ -56,7 +56,7 @@ void main() {
 
   for (final title in [
     'Stage cues',
-    'Paired devices',
+    'Screens & devices',
     'LED device management',
   ]) {
     testWidgets('$title settings preview', (t) async {
@@ -67,7 +67,7 @@ void main() {
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile(
-          '../goldens/settings-${title.toLowerCase().replaceAll(' ', '-')}.png',
+          '../goldens/settings-${title.toLowerCase().replaceAll(' & ', '-').replaceAll(' ', '-')}.png',
         ),
       );
       await t.pumpWidget(const SizedBox());
@@ -86,7 +86,7 @@ void main() {
         'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
         9999999999999,
       );
-      await setting(t, 'Paired devices');
+      await setting(t, 'Screens & devices');
       expect(find.text('001 234'), findsOneWidget);
       expect(find.text('Copy new pairing code'), findsNothing);
       await expectLater(

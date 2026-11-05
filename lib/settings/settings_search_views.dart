@@ -92,11 +92,11 @@ extension SettingsSearchViews on HomeState {
         () => openSettingsDetail('Quick message presets', quickPresetSettings),
       ),
       (
-        'Paired devices',
+        'Screens & devices',
         'pair qr pin host share tablet mobile stage screen control',
         Icons.devices,
         () => openSettingsDetail(
-          'Paired devices',
+          'Screens & devices',
           pairedDeviceSettings,
           showLiveShortcut: true,
         ),

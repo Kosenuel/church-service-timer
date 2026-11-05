@@ -313,109 +313,284 @@ extension RefinedSettings on HomeState {
     );
   }
 
-  Widget readinessSettings() {
+  List<ReadinessCheck> readinessChecks() {
     final s = c.state.session;
+    final timeline = s.timeline;
+    final connection = c.displayConnection;
+    final displayOk =
+        connection != DisplayConnection.disconnected &&
+        connection != DisplayConnection.stageDisconnected;
+    final warningsOn = c.notificationState['enabled'] == true;
+    final rules = c.state.defaults.warnings;
+    final enabledRules = rules.where((w) => w.enabled).length;
+    final battery = c.batteryUnrestricted;
+    return <ReadinessCheck>[
+      ReadinessCheck(
+        key: 'program',
+        title: 'Program loaded',
+        detail: timeline == null
+            ? 'Choose a program from Live or Programs'
+            : '${timeline.name} · ${templateSummary(timeline)}',
+        ok: timeline != null,
+      ),
+      ReadinessCheck(
+        key: 'display',
+        title: 'Display',
+        detail:
+            '${connection.label}${(c.hardware.enabled ? c.hardware.held : s.held) ? ' · output held' : ''}',
+        ok: displayOk,
+        fix: displayOk ? null : 'Connect',
+        onFix: () =>
+            openSettingsDetail('Display connection', connectionSettings),
+      ),
+      ReadinessCheck(
+        key: 'warnings',
+        title: 'Phone warnings',
+        detail: warningsOn
+            ? (c.notificationState['sound'] == true
+                  ? 'Notifications and sound on'
+                  : 'Notifications on · channel sound off')
+            : 'Notifications are off',
+        ok: warningsOn,
+        fix: warningsOn ? null : 'Turn on',
+        onFix: c.enablePhoneWarnings,
+      ),
+      if (battery != null)
+        ReadinessCheck(
+          key: 'battery',
+          title: 'Battery',
+          detail: battery
+              ? 'Unrestricted · warnings keep running with the screen off'
+              : 'Optimised · Android may pause warnings with the screen off',
+          ok: battery,
+          fix: battery ? null : 'Allow',
+          onFix: c.port.openBatterySettings,
+        ),
+      ReadinessCheck(
+        key: 'rules',
+        title: 'Warning rules',
+        detail:
+            '$enabledRules of ${rules.length} enabled · shared across services',
+        ok: enabledRules > 0,
+        fix: enabledRules > 0 ? null : 'Review',
+        onFix: () => openSettingsDetail('Warnings & alerts', warningsSettings),
+      ),
+    ];
+  }
+
+  Widget readinessSettings() {
+    final colors = appColors(context);
+    final timeline = c.state.session.timeline;
+    final checks = readinessChecks();
+    final issues = checks.where((x) => !x.ok).length;
+    final name = timeline?.name ?? 'The service';
+    final tone = issues == 0 ? colors.accent : colors.warning;
+    Future<void> run(Future<void> Function() fix) async {
+      try {
+        await fix();
+      } catch (e) {
+        if (mounted) await showError('$e');
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'A quick optional check before you start. Your timer and current display output remain unchanged.',
-          style: TextStyle(fontSize: 16),
-        ),
-        const SizedBox(height: 20),
-        settingsGroup('Service checklist', [
-          settingsRow(
-            Icons.view_timeline_outlined,
-            'Selected service',
-            s.timeline == null
-                ? 'Choose a program from Live or Programs'
-                : '${s.timeline!.name} · ${s.timeline!.segments.length} segments',
-            null,
+        Container(
+          key: const ValueKey('readiness-verdict'),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: tone.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: tone.withValues(alpha: .4)),
           ),
-          settingsRow(
-            connectionIcon(c.displayConnection),
-            'Display connection',
-            '${c.displayConnection.label}${(c.hardware.enabled ? c.hardware.held : s.held) ? ' · output held' : ''}',
-            () => openSettingsDetail('Display connection', connectionSettings),
-          ),
-          settingsRow(
-            Icons.notifications_outlined,
-            'Phone warnings',
-            c.notificationState['enabled'] == true
-                ? (c.notificationState['sound'] == true
-                      ? 'Notifications and sound enabled'
-                      : 'Notifications enabled · channel sound off')
-                : 'Notifications disabled',
-            () => openSettingsDetail('Warnings & alerts', warningsSettings),
-          ),
-          if (c.batteryUnrestricted != null)
-            settingsRow(
-              c.batteryUnrestricted!
-                  ? Icons.battery_full
-                  : Icons.battery_alert_outlined,
-              'Battery',
-              c.batteryUnrestricted!
-                  ? 'Unrestricted · timing and warnings keep running with the screen off'
-                  : 'Optimised · Android may pause warnings and recovery with the screen off. Tap to allow unrestricted use.',
-              c.batteryUnrestricted! ? null : c.port.openBatterySettings,
-            ),
-          settingsRow(
-            Icons.alarm,
-            'Warning rules',
-            '${c.state.defaults.warnings.where((w) => w.enabled).length} enabled · shared across services',
-            () => openSettingsDetail('Warnings & alerts', warningsSettings),
-          ),
-        ]),
-        button(
-          'Preview test cue',
-          Icons.preview_outlined,
-          () => showDialog<void>(
-            context: context,
-            animationStyle: reduceAppMotion(context)
-                ? AnimationStyle.noAnimation
-                : null,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Isolated simulator test'),
-              content: SizedBox(
-                width: 400,
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
+                child: issues == 0
+                    ? Icon(Icons.check, color: colors.surface, size: 24)
+                    : Text(
+                        '$issues',
+                        style: TextStyle(
+                          color: colors.surface,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    LedMatrix(
-                      pixels: renderPixels(
-                        const TextLayout('AMEN', effect: 'static'),
-                        0,
+                    Text(
+                      issues == 0
+                          ? 'All set'
+                          : '${plural(issues, 'thing')} to check',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Test preview only. The current stage output and timing have not changed.',
+                    const SizedBox(height: 2),
+                    Text(
+                      timeline == null
+                          ? 'Load a program, then check again.'
+                          : issues == 0
+                          ? '$name is ready to start.'
+                          : '$name is ready to start. Fix ${issues == 1 ? 'this' : 'these'} for a smoother service.',
+                      style: TextStyle(fontSize: 13, color: colors.muted),
                     ),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Close'),
-                ),
-              ],
-            ),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        button('Test notification sound', Icons.volume_up_outlined, () async {
-          try {
-            await c.port.testNotification();
-          } catch (e) {
-            if (mounted) await showError('$e');
-          }
-        }),
-        const SizedBox(height: 12),
-        const Text(
-          'Sound also depends on phone volume and Do Not Disturb. This preview does not send to the sign. To check physical output, connect the display and start a short rehearsal.',
+        const SizedBox(height: 14),
+        panel(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (var i = 0; i < checks.length; i++) ...[
+                if (i > 0) const AppDivider(),
+                readinessRow(checks[i], run),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                onPressed: previewTestCue,
+                child: const Text('Preview test cue'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                onPressed: () => run(c.port.testNotification),
+                child: const Text('Test warning sound'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Tests never change the timer or the sign. Sound also depends on phone volume and Do Not Disturb. To check the sign itself, run a short rehearsal.',
+          style: TextStyle(fontSize: 12, color: colors.muted),
         ),
       ],
     );
   }
+
+  Widget readinessRow(
+    ReadinessCheck check,
+    Future<void> Function(Future<void> Function()) run,
+  ) {
+    final colors = appColors(context);
+    final tone = check.ok ? colors.accent : colors.warning;
+    final fix = check.fix;
+    return ListTile(
+      key: ValueKey('ready-${check.key}'),
+      contentPadding: appLayout(context).tileInsets,
+      leading: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: tone.withValues(alpha: .16),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          check.ok ? Icons.check : Icons.priority_high,
+          size: 16,
+          color: tone,
+        ),
+      ),
+      title: Text(
+        check.title,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        check.detail,
+        style: TextStyle(fontSize: 12, color: colors.muted),
+      ),
+      trailing: fix == null
+          ? null
+          : OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colors.warning,
+                side: BorderSide(color: colors.warning.withValues(alpha: .5)),
+                minimumSize: const Size(64, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              onPressed: c.busy ? null : () => run(check.onFix!),
+              child: Text(fix),
+            ),
+      onTap: fix == null || c.busy ? null : () => run(check.onFix!),
+    );
+  }
+
+  void previewTestCue() => showDialog<void>(
+    context: context,
+    animationStyle: reduceAppMotion(context)
+        ? AnimationStyle.noAnimation
+        : null,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Isolated simulator test'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LedMatrix(
+              pixels: renderPixels(
+                const TextLayout('AMEN', effect: 'static'),
+                0,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Test preview only. The current stage output and timing have not changed.',
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+class ReadinessCheck {
+  final String key;
+  final String title;
+  final String detail;
+  final bool ok;
+  final String? fix;
+  final Future<void> Function()? onFix;
+  const ReadinessCheck({
+    required this.key,
+    required this.title,
+    required this.detail,
+    required this.ok,
+    this.fix,
+    this.onFix,
+  });
 }

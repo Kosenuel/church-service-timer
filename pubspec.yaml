@@ -22,6 +22,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/licenses/OFL-Tinos.txt
+    - CHANGELOG.md
   fonts:
     - family: Roboto
       fonts:

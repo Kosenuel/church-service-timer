@@ -39,9 +39,9 @@ void main() {
   Future<void> settings(WidgetTester t) async {
     await t.tap(find.text('Settings'));
     await t.pumpAndSettle();
-    await t.ensureVisible(find.text('Paired devices'));
+    await t.ensureVisible(find.text('Screens & devices'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Paired devices'));
+    await t.tap(find.text('Screens & devices'));
     await t.pumpAndSettle();
   }
 
@@ -87,13 +87,17 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('../goldens/saved-paired-devices.png'),
       );
-      await t.tap(find.text('Forget device').first);
+      await t.tap(find.byTooltip('Device actions').first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Forget device').last);
       await t.pumpAndSettle();
       expect(find.text('Forget device?'), findsOneWidget);
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
       expect(c.pairing.savedDevices.length, 2);
-      await t.tap(find.text('Forget device').first);
+      await t.tap(find.byTooltip('Device actions').first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Forget device').last);
       await t.pumpAndSettle();
       await t.tap(
         find.descendant(
@@ -125,11 +129,22 @@ void main() {
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await settings(t);
-      await t.ensureVisible(find.text('Disconnect'));
+      await t.ensureVisible(find.byTooltip('Device actions'));
       await t.pumpAndSettle();
+      await t.tap(find.byTooltip('Device actions'));
+      await t.pumpAndSettle();
+      expect(find.text('Disconnect'), findsOneWidget);
+      await t.tapAt(Offset.zero);
+      await t.pumpAndSettle();
+      final menu = t.widget<PopupMenuButton<String>>(
+        find.byWidgetPredicate(
+          (w) => w is PopupMenuButton<String> && w.tooltip == 'Device actions',
+        ),
+      );
       await t.runAsync(() async {
-        await t.tap(find.text('Disconnect'));
+        menu.onSelected!('disconnect');
         await eventually(() => client.pausedByHost);
+        await eventually(() => c.pairing.changingDevices.isEmpty);
       });
       await t.pumpAndSettle();
       expect(find.text('SAVED DEVICES'), findsOneWidget);
@@ -143,8 +158,8 @@ void main() {
       });
       await t.pumpAndSettle();
       expect(c.pairing.connectedDevice(id), true);
-      expect(find.text('CONNECTED DEVICES'), findsOneWidget);
-      expect(find.text('SAVED DEVICES'), findsNothing);
+      expect(find.text('Connected'), findsOneWidget);
+      expect(find.text('Reconnect'), findsNothing);
       expect(t.takeException(), isNull);
       await t.runAsync(() async {
         await client.stop();

@@ -193,7 +193,8 @@ void main() {
       find.byType(MaterialApp),
       matchesGoldenFile('../goldens/template-detail-phone.png'),
     );
-    await t.ensureVisible(find.text('Export JSON'));
+    await t.tap(find.byTooltip('Program options'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Export JSON'));
     await t.pumpAndSettle();
     expect(
@@ -219,17 +220,21 @@ void main() {
       await templates(t);
       await t.tap(find.byKey(const ValueKey('template-row:Quick rehearsal')));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.text('Duplicate'));
+      await t.tap(find.byTooltip('Program options'));
+      await t.pumpAndSettle();
       await t.tap(find.text('Duplicate'));
       await t.pumpAndSettle();
       expect(find.text('Quick rehearsal (copy)'), findsOneWidget);
       expect(c.state.templates.last.type, 'rehearsal');
-      await t.ensureVisible(find.text('Delete program'));
+      await t.tap(find.byTooltip('Program options'));
+      await t.pumpAndSettle();
       await t.tap(find.text('Delete program'));
       await t.pumpAndSettle();
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
       expect(c.state.templates.length, 3);
+      await t.tap(find.byTooltip('Program options'));
+      await t.pumpAndSettle();
       await t.tap(find.text('Delete program'));
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(FilledButton, 'Delete program'));

@@ -5,7 +5,8 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
-import '../domain/service_timing_test.dart' show FakePort, start, after, timeline;
+import '../domain/service_timing_test.dart'
+    show FakePort, start, after, timeline;
 import '../hardware/hardware_integration_test.dart' show setup, flush;
 import '../hardware/sign_reconnect_recovery_test.dart' show RecoveryPort;
 import '../pairing/paired_operators_and_upcoming_edits_test.dart' show until;

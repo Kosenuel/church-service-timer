@@ -881,6 +881,7 @@ class AppController extends ChangeNotifier {
         'timer',
         'blank',
         'cancelReady',
+        'unstart',
       }.contains(action),
     );
     if (saved &&
@@ -897,6 +898,7 @@ class AppController extends ChangeNotifier {
           'timer',
           'blank',
           'cancelReady',
+          'unstart',
         }.contains(action)) {
       quickMessages.reset();
       unawaited(pairing.publish());
@@ -1080,6 +1082,7 @@ class AppController extends ChangeNotifier {
   /// timings are never changed.
   Future<bool> setReviewNote(String reportId, String text) =>
       commit((draft, at) => draft.setReviewNote(reportId, text, at.wall));
+
   /// Deletes the named saved programs atomically; null when nothing saved.
   Future<List<DeletedProgram>?> deletePrograms(Set<String> names) async {
     List<DeletedProgram>? removed;

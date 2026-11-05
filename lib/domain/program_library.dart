@@ -48,7 +48,8 @@ class ProgramLibrary {
               .toLowerCase();
       return words.every(text.contains) &&
           (filter != 'favourites' || favourites.contains(p.name)) &&
-          (filter != 'recent' || recent.containsKey(p.name));
+          (filter != 'recent' || recent.containsKey(p.name)) &&
+          (filter != 'rehearsal' || p.type == 'rehearsal');
     }).toList();
     result.sort((a, b) {
       if (filter != 'recent') {

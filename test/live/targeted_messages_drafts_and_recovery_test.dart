@@ -4,7 +4,8 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/app/warning_notifications.dart';
-import '../domain/service_timing_test.dart' show FakePort, start, after, timeline, running;
+import '../domain/service_timing_test.dart'
+    show FakePort, start, after, timeline, running;
 import '../pairing/saved_devices_test.dart' show eventually, PairMemoryStore;
 
 void main() {

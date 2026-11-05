@@ -28,6 +28,17 @@ void main() {
   }
 
   Future<void> tap(WidgetTester t, String text) async {
+    if (const [
+          'Layout density',
+          'High contrast',
+          'Reduced motion',
+        ].contains(text) &&
+        find.text('Layout & accessibility').evaluate().isNotEmpty &&
+        find.text(text).evaluate().isEmpty &&
+        find.byKey(const ValueKey('layout-density')).evaluate().isEmpty) {
+      await t.tap(find.text('Layout & accessibility'));
+      await t.pumpAndSettle();
+    }
     final target = text == 'Layout density'
         ? find.byKey(const ValueKey('layout-density'))
         : find.text(text).last;
@@ -349,16 +360,10 @@ void main() {
       );
       await t.tapAt(const Offset(5, 5));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.byKey(const ValueKey('import-programs')));
+      await t.tap(find.byTooltip('More program actions'));
       await t.pumpAndSettle();
-      expect(
-        t.widget(find.byKey(const ValueKey('import-programs'))),
-        isA<OutlinedButton>(),
-      );
-      expect(
-        t.widget(find.byKey(const ValueKey('export-programs'))),
-        isA<OutlinedButton>(),
-      );
+      expect(find.text('Import programs (JSON or CSV)'), findsOneWidget);
+      expect(find.text('Export all programs'), findsOneWidget);
       await shot(t, 'program-buttons-020');
       await t.pumpWidget(const SizedBox());
     },

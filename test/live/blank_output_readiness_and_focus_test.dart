@@ -9,7 +9,8 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
 import '../domain/service_timing_test.dart' show FakePort;
 import '../domain/feature_cases.dart' show epoch, at;
-import 'warning_scheduling_and_atomic_send_test.dart' show FontPort, NotificationPort;
+import 'warning_scheduling_and_atomic_send_test.dart'
+    show FontPort, NotificationPort;
 import '../feedback/feedback_center_test.dart' show FeedbackPort;
 import '../domain/private_notes_and_blank_output_cases.dart';
 import '../support/live_helpers.dart';
