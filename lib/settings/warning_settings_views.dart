@@ -609,6 +609,22 @@ extension WarningSettingsViews on HomeState {
                   await c.syncActiveService();
                 },
         ),
+        SwitchListTile(
+          key: const ValueKey('clicker-controls'),
+          contentPadding: appLayout(context).tileInsets,
+          title: const Text(
+            'Clicker and foot pedal',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            'Page Down or → for Next (press twice to confirm). B or Space to pause or resume.',
+            style: TextStyle(fontSize: 13, color: appColors(context).muted),
+          ),
+          value: c.state.clickerControls,
+          onChanged: c.busy
+              ? null
+              : (v) => c.commit((draft, _) => draft.clickerControls = v),
+        ),
         settingsRow(
           c.backgroundActive ? Icons.sync : Icons.info_outline,
           c.backgroundActive

@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Clicker and foot-pedal support.** On Live during a service, Page Down or → arms Next and a second press within 4 seconds starts the next segment; B or Space pauses and resumes. Keys are ignored while typing, in dialogs and on other tabs. Turn it off in Warnings & alerts → During a service.
 - **Wi-Fi rejoin for paired phones.** When joining a host, the phone notes the Wi-Fi it is on (church Wi-Fi, the host's hotspot or the sign's Wi-Fi) and can rejoin that network, and only that network, if the link drops and the phone has moved to another. The password is optional, and storing it (encrypted) is ticked by default; unticked, it is kept only while the app runs. The reconnecting banner shows "Rejoining <network>…".
 - **Faster start.** Pinned or recent programs on Live load straight into Ready. Ready shows the display and a readiness verdict inline. When the display is connected and nothing needs attention, Start first segment starts at once, with an 8-second **Undo start**; otherwise a confirmation explains what to check.
 - **Live idle:** "Ready when you are" hero with Start, Share and Join; a last-service card with its timing and review note; Stage & display collapses while idle (it stays open while sharing).
