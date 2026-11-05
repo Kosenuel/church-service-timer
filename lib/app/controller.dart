@@ -335,7 +335,24 @@ class AppController extends ChangeNotifier {
     };
   }
 
+  /// Whether Android exempts the app from battery optimisation; null when
+  /// unknown. Restricted apps can have warnings stopped with the screen off.
+  bool? batteryUnrestricted;
+  Future<void> refreshBatteryStatus() async {
+    bool? next;
+    try {
+      next = await port.batteryUnrestricted();
+    } catch (_) {
+      next = null;
+    }
+    if (next != batteryUnrestricted) {
+      batteryUnrestricted = next;
+      notifyChanged();
+    }
+  }
+
   Future<void> syncDeviceSettings() async {
+    unawaited(refreshBatteryStatus());
     appearancePreview.sync(state);
     try {
       await port.setKeepScreenAwake(
@@ -1068,6 +1085,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> resume() async {
+    unawaited(refreshBatteryStatus());
     if (backgroundActive && await port.activeServiceRunning()) {
       _foreground = true;
       await tick();

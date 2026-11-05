@@ -915,6 +915,38 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               icon: const Icon(Icons.assessment_outlined),
               label: const Text('View last service report'),
             ),
+          if ((s.phase == 'ready' || standingBy) &&
+              c.batteryUnrestricted == false)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Material(
+                key: const ValueKey('battery-hint'),
+                color: appColors(context).warning.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: c.port.openBatterySettings,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.battery_alert_outlined,
+                          color: appColors(context).warning,
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'Battery optimisation may pause warnings while the screen is off. Tap to allow unrestricted use.',
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (s.phase == 'ready' && t != null)
             if (c.state.latestReviewFor(t.name) case final last?)
               Padding(

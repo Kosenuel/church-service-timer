@@ -348,6 +348,17 @@ extension RefinedSettings on HomeState {
                 : 'Notifications disabled',
             () => openSettingsDetail('Warnings & alerts', warningsSettings),
           ),
+          if (c.batteryUnrestricted != null)
+            settingsRow(
+              c.batteryUnrestricted!
+                  ? Icons.battery_full
+                  : Icons.battery_alert_outlined,
+              'Battery',
+              c.batteryUnrestricted!
+                  ? 'Unrestricted · timing and warnings keep running with the screen off'
+                  : 'Optimised · Android may pause warnings and recovery with the screen off. Tap to allow unrestricted use.',
+              c.batteryUnrestricted! ? null : c.port.openBatterySettings,
+            ),
           settingsRow(
             Icons.alarm,
             'Warning rules',
