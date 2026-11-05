@@ -33,6 +33,9 @@ class FakePort extends DevicePort {
   Completer<void>? saveGate;
   @override
   Future<Stamp> clock() async => at;
+  // A fixed installed version keeps screenshots stable across releases.
+  @override
+  Future<String> installedVersion() async => '0.0.0 (test)';
   @override
   Future<String?> load() async => data;
   @override

@@ -23,7 +23,8 @@ class SettingsPort extends FakePort {
   }
 
   @override
-  Future<String> installedVersion() async => '0.24.0 (24)';
+  // A made-up installed version: proves About shows what Android reports.
+  Future<String> installedVersion() async => '1.2.3 (45)';
   @override
   Future<Map<String, dynamic>?> pickBackup() async => backup;
   @override
@@ -69,11 +70,12 @@ void main() {
   test(
     'Source version and launcher name match release metadata; application ID is set',
     () {
-      expect(
-        File('pubspec.yaml').readAsStringSync(),
-        contains('version: 0.24.0+24'),
-      );
-      expect(appVersion, '0.24.0 (24)');
+      // pubspec "X+N" and appVersion "X (N)" must agree; no edit per release.
+      final pubspec = RegExp(
+        r'^version: (\d+\.\d+\.\d+)\+(\d+)$',
+        multiLine: true,
+      ).firstMatch(File('pubspec.yaml').readAsStringSync())!;
+      expect(appVersion, '${pubspec.group(1)} (${pubspec.group(2)})');
       expect(
         File('android/app/src/main/AndroidManifest.xml').readAsStringSync(),
         contains('android:label="$appName"'),
@@ -219,7 +221,7 @@ void main() {
       await t.tap(find.text('About'));
       await t.pumpAndSettle();
       expect(find.text('Created by I-Proton'), findsOneWidget);
-      expect(find.text('Version 0.24.0 (24)'), findsOneWidget);
+      expect(find.text('Version 1.2.3 (45)'), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('../goldens/about-phone.png'),
