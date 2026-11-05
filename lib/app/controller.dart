@@ -459,6 +459,10 @@ class AppController extends ChangeNotifier {
     pairing.writeMemory = port.savePairing;
     pairing.discoverHosts = port.discoverPairHosts;
     pairing.currentAddress = port.localNetworkAddress;
+    pairing.rejoinWifi = () => port.joinPairWifi(pairing.remoteHostId);
+    pairing.currentSsid = () async =>
+        (await port.displayNetworkInfo())['ssid'] as String? ?? '';
+    pairing.cancelWifi = port.cancelPairWifi;
     pairing.advertise = (portNumber) =>
         port.advertisePairHost(portNumber, hostId: pairing.hostId);
     pairing.unadvertise = port.stopPairAdvertisement;
