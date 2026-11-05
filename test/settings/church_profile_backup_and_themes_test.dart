@@ -7,6 +7,7 @@ import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/settings/whats_new_page.dart';
 import '../domain/service_timing_test.dart' show FakePort;
 import '../domain/feature_cases.dart' show epoch, at;
 import 'church_profile_and_backup_cases.dart';
@@ -231,7 +232,11 @@ void main() {
         await t.pump(const Duration(milliseconds: 100));
       }
       expect(find.text('What’s new'), findsOneWidget);
-      expect(find.textContaining('0.24.0'), findsWidgets);
+      // The newest release in the bundled changelog is shown first.
+      final newest = parseChangelog(
+        File('CHANGELOG.md').readAsStringSync(),
+      ).first.heading;
+      expect(find.text(newest), findsOneWidget);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
     },
