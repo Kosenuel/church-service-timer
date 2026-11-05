@@ -44,6 +44,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(c.state.session.phase, 'ready');
     expect(c.simulator.delivered, isNull);
+    await tester.ensureVisible(find.text('Start first segment'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Start first segment'));
     await tester.pumpAndSettle();
     expect(c.state.session.phase, 'ready');
@@ -53,6 +55,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(c.state.session.active, true);
     expect(c.simulator.delivered!.text, '01:00');
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 3000));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await expectLater(
       find.byType(MaterialApp),
