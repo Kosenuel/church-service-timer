@@ -1,0 +1,94 @@
+name: Release
+
+# Push a tag such as v0.24.0 to publish a GitHub Release with the signed APK
+# and that version's CHANGELOG.md section.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches the app version
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pubspec=$(grep '^version:' pubspec.yaml | sed 's/version: //; s/+.*//')
+          app=$(grep -o "appVersion = '[^ ']*" lib/domain/app_settings.dart | sed "s/appVersion = '//")
+          echo "tag=$tag pubspec=$pubspec app=$app"
+          if [ "$tag" != "$pubspec" ] || [ "$tag" != "$app" ]; then
+            echo "::error::Tag v$tag does not match pubspec.yaml ($pubspec) and appVersion ($app)."
+            exit 1
+          fi
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes
+        run: python3 scripts/release_notes.py "${{ steps.version.outputs.version }}" > "$RUNNER_TEMP/notes.md"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Prepare release signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.CST_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::CST_KEYSTORE_BASE64 is not set. Releases must be signed with the release key."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "CST_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        env:
+          CST_KEYSTORE_PASSWORD: ${{ secrets.CST_KEYSTORE_PASSWORD }}
+          CST_KEY_ALIAS: ${{ secrets.CST_KEY_ALIAS }}
+          CST_KEY_PASSWORD: ${{ secrets.CST_KEY_PASSWORD }}
+        run: flutter build apk --release
+
+      - name: Name the APK and record its checksum
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/Church-Service-Timer-$version.apk"
+          (cd dist && sha256sum "Church-Service-Timer-$version.apk" > "Church-Service-Timer-$version.apk.sha256")
+          {
+            echo
+            echo "---"
+            echo "**Install:** download \`Church-Service-Timer-$version.apk\` on the phone and open it (Android 7.0 or newer)."
+            echo
+            echo "SHA-256: \`$(cut -d' ' -f1 "dist/Church-Service-Timer-$version.apk.sha256")\`"
+          } >> "$RUNNER_TEMP/notes.md"
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "Church Service Timer $version" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --verify-tag
