@@ -11,6 +11,9 @@ class ServicePrintDocument {
   final ServiceReport? report;
   final String church, banner, audience;
   final bool includeNotes, includeBanner, watermark, inkSaving, fullReport;
+
+  /// Prints the report's after-service review note, when it has one.
+  final bool includeReview;
   final int serviceDate, preparedAt;
   const ServicePrintDocument({
     required this.program,
@@ -25,6 +28,7 @@ class ServicePrintDocument {
     this.watermark = true,
     this.inkSaving = false,
     this.fullReport = false,
+    this.includeReview = false,
   });
 }
 
@@ -307,6 +311,23 @@ Future<Uint8List> createServicePdf(
               ),
           ],
         ),
+        if (data.includeReview && data.report?.review != null) ...[
+          pw.SizedBox(height: 16),
+          pw.Text(
+            'Review notes',
+            style: pw.TextStyle(font: bold, fontSize: 12, color: accent),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            data.report!.review!.text,
+            style: pw.TextStyle(fontSize: 10, color: ink),
+          ),
+          pw.SizedBox(height: 3),
+          pw.Text(
+            'Added after service · ${preparedDateLabel(data.report!.review!.editedWall)}',
+            style: pw.TextStyle(fontSize: 8, color: muted),
+          ),
+        ],
       ],
     ),
   );

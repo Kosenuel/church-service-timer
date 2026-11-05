@@ -38,11 +38,13 @@ extension ReviewNotes on AppState {
   ({ReviewNote note, ServiceReport report})? latestReviewFor(
     String programName,
   ) {
-    final withNotes =
-        reports.where((r) => r.review != null && r.name == programName).toList()
-          ..sort((a, b) => b.endedWall.compareTo(a.endedWall));
-    if (withNotes.isEmpty) return null;
-    return (note: withNotes.first.review!, report: withNotes.first);
+    ServiceReport? newest;
+    // Later in the list means saved later, which breaks ties on end time.
+    for (final r in reports) {
+      if (r.review == null || r.name != programName) continue;
+      if (newest == null || r.endedWall >= newest.endedWall) newest = r;
+    }
+    return newest == null ? null : (note: newest.review!, report: newest);
   }
 
   /// Sets or, with empty text, removes the review note on a report.

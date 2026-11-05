@@ -47,9 +47,11 @@ extension ReportLibraryViews on HomeState {
               key: ValueKey(r.id),
               report: r,
               embedded: true,
+              controller: c,
               onExport: (format) => exportReport(r, format),
               onPrint: () => printServiceSheet(r.program, report: r),
               onDelete: () => confirmClearReports(record: r),
+              onEditReview: () => editReviewNote(r),
             ),
     );
   }

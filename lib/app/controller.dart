@@ -969,6 +969,11 @@ class AppController extends ChangeNotifier {
         );
       }, revision: revision);
 
+  /// Sets or, with empty text, removes a report's review note. Recorded
+  /// timings are never changed.
+  Future<bool> setReviewNote(String reportId, String text) =>
+      commit((draft, at) => draft.setReviewNote(reportId, text, at.wall));
+
   Future<bool> clearReports(Set<String> ids) => commit((draft, _) {
     draft.reports.removeWhere((r) => ids.contains(r.id));
   });

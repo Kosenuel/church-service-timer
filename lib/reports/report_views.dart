@@ -106,12 +106,14 @@ extension ReportViews on HomeState {
       ),
     );
     if (format == null || !mounted) return;
+    final includeReview = await askIncludeReview(records);
+    if (includeReview == null) return;
     try {
       await c.port.exportFile(
         'Church-Service-Timer-${selected == null ? 'all' : 'selected'}-reports-${c.now.wall}.$format',
         format == 'csv'
-            ? exportReportsCsv(records)
-            : exportReportsJson(records),
+            ? exportReportsCsv(records, includeReview: includeReview)
+            : exportReportsJson(records, includeReview: includeReview),
       );
     } catch (e) {
       if (mounted) await showError('Export failed: $e');
@@ -127,6 +129,7 @@ extension ReportViews on HomeState {
           onExport: (format) => exportReport(r, format),
           onPrint: () => printServiceSheet(r.program, report: r),
           onDelete: () => confirmClearReports(record: r),
+          onEditReview: () => editReviewNote(r),
         ),
       ),
     );
@@ -799,12 +802,16 @@ class ReportDetailPage extends StatefulWidget {
   final ServiceReport report;
   final Future<void> Function(String) onExport;
   final Future<bool> Function() onDelete;
+
+  /// Opens the review-note editor; null hides the Review notes section.
+  final Future<void> Function()? onEditReview;
   const ReportDetailPage({
     super.key,
     required this.report,
     required this.onExport,
     required this.onDelete,
     this.onPrint,
+    this.onEditReview,
     this.controller,
     this.embedded = false,
   });
@@ -814,6 +821,29 @@ class ReportDetailPage extends StatefulWidget {
 
 class _ReportDetailPageState extends State<ReportDetailPage> {
   bool busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?.addListener(_changed);
+  }
+
+  @override
+  void dispose() {
+    widget.controller?.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  /// The saved copy, so a review note edit shows straight away.
+  ServiceReport get current =>
+      widget.controller?.state.reports
+          .where((r) => r.id == widget.report.id)
+          .firstOrNull ??
+      widget.report;
   Future<void> run(Future<void> Function() action) async {
     if (busy) return;
     setState(() => busy = true);
@@ -836,7 +866,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   );
   @override
   Widget build(BuildContext context) {
-    final r = widget.report, colors = appColors(context);
+    final r = current, colors = appColors(context);
     final actions = PopupMenuButton<String>(
       key: const ValueKey('report-actions'),
       tooltip: 'Report actions',
@@ -975,6 +1005,14 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               ],
             ),
           ),
+          if (widget.onEditReview != null) ...[
+            const SizedBox(height: 20),
+            ReviewNoteSection(
+              review: r.review,
+              busy: busy,
+              onEdit: () => run(widget.onEditReview!),
+            ),
+          ],
           const SizedBox(height: 20),
           Text(
             'Segment breakdown',
@@ -1188,4 +1226,128 @@ class ReportSegmentRow extends StatelessWidget {
       ],
     );
   }
+}
+
+/// After-service reflection, shown apart from the recorded timings.
+class ReviewNoteSection extends StatelessWidget {
+  final ReviewNote? review;
+  final bool busy;
+  final VoidCallback onEdit;
+  const ReviewNoteSection({
+    super.key,
+    required this.review,
+    required this.busy,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    return reportSurface(
+      context,
+      child: Padding(
+        key: const ValueKey('review-note-section'),
+        padding: EdgeInsets.all(appLayout(context).panelPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.rate_review_outlined, color: colors.muted, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Review notes',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                if (review != null)
+                  TextButton(
+                    key: const ValueKey('edit-review-note'),
+                    onPressed: busy ? null : onEdit,
+                    child: const Text('Edit'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (review == null) ...[
+              Text(
+                'Add what to remember for next time, such as "Reduce welcome next week". Notes never change the recorded timings.',
+                style: TextStyle(color: colors.muted),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const ValueKey('add-review-note'),
+                onPressed: busy ? null : onEdit,
+                icon: const Icon(Icons.add_comment_outlined),
+                label: const Text('Add a review note'),
+              ),
+            ] else ...[
+              Text(review!.text, key: const ValueKey('review-note-text')),
+              const SizedBox(height: 8),
+              Text(
+                'Added after service · ${reportDate(review!.editedWall)}',
+                style: TextStyle(color: colors.muted, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Edits a review note. Owns its text controller so the field stays valid
+/// through the dialog's closing animation.
+class ReviewNoteDialog extends StatefulWidget {
+  final String? initial;
+  const ReviewNoteDialog({super.key, this.initial});
+
+  @override
+  State<ReviewNoteDialog> createState() => _ReviewNoteDialogState();
+}
+
+class _ReviewNoteDialogState extends State<ReviewNoteDialog> {
+  late final text = TextEditingController(text: widget.initial ?? '');
+
+  @override
+  void dispose() {
+    text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(
+      widget.initial == null ? 'Add review note' : 'Edit review note',
+    ),
+    content: TextField(
+      key: const ValueKey('review-note-field'),
+      controller: text,
+      autofocus: true,
+      minLines: 3,
+      maxLines: 8,
+      maxLength: ReviewNote.maxLength,
+      decoration: const InputDecoration(
+        hintText: 'For example: Reduce welcome next week.',
+      ),
+    ),
+    actions: [
+      if (widget.initial != null)
+        TextButton(
+          key: const ValueKey('remove-review-note'),
+          onPressed: () => Navigator.pop(context, ''),
+          child: const Text('Remove note'),
+        ),
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        key: const ValueKey('save-review-note'),
+        onPressed: () => Navigator.pop(context, text.text),
+        child: const Text('Save note'),
+      ),
+    ],
+  );
 }

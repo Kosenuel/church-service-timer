@@ -903,6 +903,45 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               icon: const Icon(Icons.assessment_outlined),
               label: const Text('View last service report'),
             ),
+          if (s.phase == 'ready' && t != null)
+            if (c.state.latestReviewFor(t.name) case final last?)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Material(
+                  key: const ValueKey('last-review-note'),
+                  color: appColors(context).info.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.rate_review_outlined,
+                          size: 20,
+                          color: appColors(context).info,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Last time · ${serviceDateLabel(last.report.startedWall ?? last.report.endedWall)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(last.note.text),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           if (s.phase == 'ready') ...[
             ChoiceField<int>(
               key: ValueKey('speed-${s.id}'),
