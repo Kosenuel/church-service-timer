@@ -1042,6 +1042,84 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     );
   }
 
+  String wallTime(int wall) {
+    final d = DateTime.fromMillisecondsSinceEpoch(wall);
+    return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> pickServiceStart() async {
+    final now = DateTime.fromMillisecondsSinceEpoch(c.now.wall);
+    final current = c.state.session.startsAtWall;
+    final initial = current == null
+        ? TimeOfDay.fromDateTime(
+            DateTime(now.year, now.month, now.day, now.hour + 1),
+          )
+        : TimeOfDay.fromDateTime(DateTime.fromMillisecondsSinceEpoch(current));
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      helpText: 'Service starts at',
+    );
+    if (picked == null || !mounted) return;
+    var start = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      picked.hour,
+      picked.minute,
+    );
+    if (!start.isAfter(now)) start = start.add(const Duration(days: 1));
+    if (!await c.act('schedule', value: start.millisecondsSinceEpoch) &&
+        mounted)
+      await showError(c.error ?? 'Could not schedule the start.');
+  }
+
+  /// Optional scheduled start: the stage shows the clock, then a countdown to
+  /// the start, then "Starting soon". The service still starts only on tap.
+  Widget preServiceRow() {
+    final colors = appColors(context);
+    final at = c.state.session.startsAtWall;
+    final left = at == null ? 0 : at - c.now.wall;
+    final summary = at == null
+        ? 'Off · the display keeps its current output'
+        : left > preServiceCountdownMs
+        ? 'Starts ${wallTime(at)} · clock now, countdown from ${wallTime(at - preServiceCountdownMs - 1000)}'
+        : left > 0
+        ? 'Starts ${wallTime(at)} · counting down on the display'
+        : 'Start time reached · display shows “Starting soon”';
+    return Material(
+      key: const ValueKey('pre-service-row'),
+      color: colors.background,
+      borderRadius: BorderRadius.circular(12),
+      child: ListTile(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.border),
+        ),
+        leading: Icon(Icons.schedule, color: colors.accent),
+        title: const Text(
+          'Pre-service countdown',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          summary,
+          style: TextStyle(fontSize: 12, color: colors.muted),
+        ),
+        trailing: at == null
+            ? TextButton(
+                onPressed: c.busy ? null : pickServiceStart,
+                child: const Text('Set time'),
+              )
+            : IconButton(
+                tooltip: 'Turn off pre-service countdown',
+                onPressed: c.busy ? null : () => c.act('schedule', value: null),
+                icon: const Icon(Icons.close),
+              ),
+        onTap: c.busy ? null : pickServiceStart,
+      ),
+    );
+  }
+
   /// Display status and readiness verdict, shown while a service is in Ready.
   Widget readyInline() {
     final colors = appColors(context);
@@ -1330,6 +1408,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               ),
           if (s.phase == 'ready') ...[
             readyInline(),
+            const SizedBox(height: 10),
+            preServiceRow(),
             const SizedBox(height: 12),
             ChoiceField<int>(
               key: ValueKey('speed-${s.id}'),

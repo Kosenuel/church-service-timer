@@ -361,6 +361,10 @@ class Timeline {
   };
 }
 
+/// The pre-service countdown runs for the last hour before the start.
+const preServiceCountdownMs = 59 * 60000 + 59000;
+const startingSoonLayout = TextLayout('STARTING SOON', effect: 'scroll');
+
 /// How long after starting a service its start can still be undone.
 const unstartWindowMs = 15000;
 
@@ -441,6 +445,9 @@ class Session {
   int automaticCueDurationMs;
   List<ServiceEvent> events;
   int? targetFinishWall;
+
+  /// Scheduled start while in Ready; drives the pre-service countdown.
+  int? startsAtWall;
   Session({
     required this.id,
     required this.anchor,
@@ -475,6 +482,7 @@ class Session {
     this.automaticCueAt,
     this.automaticCueDurationMs = 8000,
     this.targetFinishWall,
+    this.startsAtWall,
     List<ServiceEvent>? events,
   }) : checkpoint = checkpoint ?? anchor,
        warningSeen = warningSeen ?? [],
@@ -528,8 +536,23 @@ class Session {
       !uncertain &&
       now.sameBoot(undo!.at) &&
       now.since(undo!.at) <= 10000;
+
+  /// What a scheduled Ready service shows before it starts, or null.
+  /// The clock until the last hour, then a countdown, then "Starting soon".
+  /// It never starts the service by itself.
+  TextLayout? preService(Stamp now) {
+    final at = startsAtWall;
+    if (phase != 'ready' || at == null) return null;
+    final left = at - now.wall;
+    if (left > preServiceCountdownMs) return clockLayout(now.wall, clockFormat);
+    if (left > 0)
+      return TextLayout(formatTime(left), effect: 'static', height: 2);
+    return startingSoonLayout;
+  }
+
   TextLayout? intended(Stamp now) {
     if (outputBlank) return null;
+    if (phase == 'ready' && startsAtWall != null) return preService(now);
     if (!active && phase != 'ended') return null;
     if (hasAutomaticCue(now)) return automaticCue;
     if (hasManualCue(now)) return alert;
@@ -559,6 +582,8 @@ class Session {
       ? 'End screen'
       : active
       ? 'Countdown'
+      : phase == 'ready' && startsAtWall != null
+      ? 'Pre-service'
       : 'Standby';
 
   bool get rehearsal => rate > 1;
@@ -608,10 +633,18 @@ class Session {
               j['targetFinishWall'] <= 8640000000000000),
       'Invalid target finish.',
     );
+    require(
+      j['startsAtWall'] == null ||
+          (j['startsAtWall'] is int &&
+              j['startsAtWall'] >= 0 &&
+              j['startsAtWall'] <= 8640000000000000),
+      'Invalid scheduled start.',
+    );
     final s = Session(
       id: j['id'],
       events: readServiceEvents(j['events']),
       targetFinishWall: j['targetFinishWall'] as int?,
+      startsAtWall: j['startsAtWall'] as int?,
       automaticCueDurationMs: readCueDuration(j['automaticCueDurationMs']),
       churchName: churchNameValue(j['churchName'] ?? ''),
       phase: j['phase'],
@@ -728,6 +761,7 @@ class Session {
     'automaticCueDurationMs': automaticCueDurationMs,
     'events': events.map((e) => e.toJson()).toList(),
     'targetFinishWall': targetFinishWall,
+    'startsAtWall': startsAtWall,
   };
   Session copy() => Session.fromJson(toJson());
 }
@@ -775,6 +809,19 @@ Session transition(
     s.id = '${original.id}-cancelled';
     s.held = true; // Cancelling Ready must never resurrect a prior output job.
     s.prior = null;
+  } else if (action == 'schedule') {
+    require(s.phase == 'ready', 'Load a service before scheduling its start.');
+    require(
+      value == null ||
+          (value is int && value > now.wall && value - now.wall <= 86400000),
+      'Choose a start time within the next 24 hours.',
+    );
+    s.startsAtWall = value as int?;
+    // Anchor the schedule so the sign's countdown deadline stays stable.
+    s.anchor = now;
+    s.checkpoint = now;
+    // Scheduling sends the clock or countdown, so the output is no longer held.
+    if (value != null) s.held = false;
   } else if (action == 'rate') {
     require(s.phase == 'ready', 'Select rehearsal speed before starting.');
     require(
@@ -785,6 +832,7 @@ Session transition(
   } else if (action == 'start') {
     require(s.phase == 'ready', 'Load a service first.');
     s.phase = 'active';
+    s.startsAtWall = null;
     s.showClock = false;
     s.run = RunMetrics.fresh(now, s.timeline!.segments.length);
     s.warningCeiling = s.baseMs + 1;
