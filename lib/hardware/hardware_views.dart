@@ -6,6 +6,7 @@ import 'package:church_service_timer/shared/time_picker.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/shared/reconnect_banner.dart';
 
 extension HardwareViews on HomeState {
   Future<void> restoreSign() async {
@@ -43,7 +44,31 @@ extension HardwareViews on HomeState {
     }
   }
 
-  Widget hardwareStatusPanel() => c.hardware.connected && !c.hardware.held
+  Widget hardwareStatusPanel() => c.hardware.reconnecting
+      ? ReconnectingBanner(
+          key: const ValueKey('sign-reconnecting'),
+          title: c.hardware.connected
+              ? 'Checking the LED sign connection'
+              : 'Reconnecting to LED sign',
+          attempt: c.hardware.reconnectAttempt,
+          detail:
+              'Timing, phone warnings and stage screens keep running. Cues you send now will show on the sign when it reconnects.${(c.hardware.offlineMs ?? 0) >= 60000 ? ' Check the sign is powered on and this phone is on its Wi-Fi.' : ''}',
+          actions: [
+            if (!c.hardware.connected)
+              OutlinedButton.icon(
+                key: const ValueKey('sign-reconnect-display'),
+                onPressed: c.hardware.busy ? null : reconnectDisplay,
+                icon: const Icon(Icons.wifi),
+                label: const Text('Reconnect display'),
+              ),
+            TextButton(
+              key: const ValueKey('sign-stop-trying'),
+              onPressed: () => c.hardware.disconnect(),
+              child: const Text('Stop trying'),
+            ),
+          ],
+        )
+      : c.hardware.connected && !c.hardware.held
       ? panel(
           padding: const EdgeInsets.all(12),
           child: Row(

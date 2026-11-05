@@ -260,11 +260,14 @@ void main() {
         await flush();
       });
       await t.pumpWidget(TimerApp(controller: c));
-      await t.pumpAndSettle();
+      // The unconfirmed upload drops the sign link, so the reconnecting
+      // spinner animates; pump frames instead of waiting for it to settle.
+      await t.pump(const Duration(milliseconds: 500));
+      expect(find.byKey(const ValueKey('sign-reconnecting')), findsOneWidget);
       await t.ensureVisible(
         find.byKey(const ValueKey('cue-delivery-feedback')),
       );
-      await t.pumpAndSettle();
+      await t.pump(const Duration(milliseconds: 500));
       expect(find.text('Not sent'), findsOneWidget);
       expect(find.text('Returns to timer in 8s'), findsOneWidget);
       await shot(t, 'cue-not-sent-021');
@@ -444,8 +447,14 @@ void main() {
       final c = AppController(p);
       await c.initialize(startTicker: false);
       await t.pumpWidget(TimerApp(controller: c));
+      // The remembered sign starts in automatic reconnection, whose spinner
+      // keeps animating until the manual flow below takes over.
+      await t.pump(const Duration(milliseconds: 500));
+      expect(find.byKey(const ValueKey('sign-reconnecting')), findsOneWidget);
+      await t.tap(find.text('Reconnect display'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 500));
       await t.pumpAndSettle();
-      await tap(t, find.text('Reconnect display'));
       expect(find.textContaining('Wi-Fi is off.'), findsOneWidget);
       expect(c.hardware.autoReconnect, isFalse);
       await shot(t, 'wifi-reconnect-retry-021');
