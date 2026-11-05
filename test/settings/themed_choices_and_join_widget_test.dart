@@ -356,7 +356,10 @@ void main() {
       final before = jsonEncode(c.state.toJson()..remove('editDrafts'));
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.widgetWithText(TextField, 'Message'));
+      await t.ensureVisible(find.byKey(const ValueKey('open-quick-message')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('open-quick-message')));
+      await t.pumpAndSettle();
       await t.enterText(
         find.widgetWithText(TextField, 'Message'),
         'Please remain seated',
@@ -369,6 +372,7 @@ void main() {
         await c.pairing.publish();
         await eventually(() => c.stageConnected);
       });
+      await t.pump();
       await t.tap(find.text('Send message').last);
       await t.pumpAndSettle();
       expect(find.text('Send message after service?'), findsOneWidget);

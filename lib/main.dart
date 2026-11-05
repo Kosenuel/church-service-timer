@@ -148,7 +148,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   int quickDraftGeneration = 0;
   String quickAudience = 'all';
   String? previewScreenId;
-  void refreshHome(VoidCallback change) => setState(change);
+  void refreshHome(VoidCallback change) {
+    setState(change);
+    settingsRefresh.value++;
+  }
+
   bool focused = false, controlsLocked = false;
   final homeScroll = ScrollController();
   bool? _completedService;

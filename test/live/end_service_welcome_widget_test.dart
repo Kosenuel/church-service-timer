@@ -185,6 +185,8 @@ void main() {
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('QUICK MESSAGE'));
       await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('open-quick-message')));
+      await t.pumpAndSettle();
       await t.enterText(
         find.widgetWithText(TextField, 'Message'),
         'Keep my draft',
