@@ -1,4 +1,5 @@
-part of 'domain.dart';
+import 'dart:convert';
+import 'domain.dart';
 
 void replaceUpcoming(Session s, List<Segment> upcoming, Stamp now) {
   require(

@@ -1,4 +1,4 @@
-part of 'domain.dart';
+import 'domain.dart';
 
 /// Local shortcuts, keyed by the unique saved program name. Portable programs
 /// and backups do not carry another operator's favourites or usage history.

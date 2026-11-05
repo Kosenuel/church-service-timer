@@ -1,4 +1,4 @@
-part of 'domain.dart';
+import 'domain.dart';
 
 /// Mobile-stage content. Never converted to LED glyphs or hardware programs.
 class QuickMessage {

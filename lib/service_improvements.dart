@@ -1,4 +1,6 @@
-part of 'domain.dart';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'domain.dart';
 
 class PrintPreferences {
   final bool watermark, inkSaving;

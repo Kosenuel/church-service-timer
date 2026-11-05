@@ -8,6 +8,9 @@ import 'domain.dart';
 import 'pairing_pin.dart';
 import 'best_effort.dart';
 
+// pairing_memory.dart stays a part: it extends PairHub and needs its
+// private trust state (approvals, saved client, resume codes), which must
+// not become public API.
 part 'pairing_memory.dart';
 
 Future<SecretKey> pairSessionKey(

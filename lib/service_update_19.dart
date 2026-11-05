@@ -1,4 +1,5 @@
-part of 'domain.dart';
+import 'dart:convert';
+import 'domain.dart';
 
 String readClockFormat(dynamic value) {
   require({'12h', '24h'}.contains(value), 'Choose a 12-hour or 24-hour clock.');

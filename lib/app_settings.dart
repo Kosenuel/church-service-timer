@@ -1,4 +1,6 @@
-part of 'domain.dart';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'domain.dart';
 
 const appName = 'Church Service Timer';
 const appVersion = '0.22.0 (23)';
