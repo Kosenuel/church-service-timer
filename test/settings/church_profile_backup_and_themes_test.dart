@@ -321,7 +321,19 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Export backup'));
       await t.pumpAndSettle();
+      // No sign passwords are saved, so the option is unavailable.
+      expect(
+        t
+            .widget<CheckboxListTile>(
+              find.byKey(const ValueKey('include-passwords')),
+            )
+            .onChanged,
+        isNull,
+      );
+      await t.tap(find.widgetWithText(FilledButton, 'Export'));
+      await t.pumpAndSettle();
       expect(port.exportedName, startsWith('Church-Service-Timer-backup-'));
+      expect(jsonDecode(port.exportedContent!)['schemaVersion'], 7);
       expect(importBackup(port.exportedContent!, epoch).churchName, '');
       await t.ensureVisible(find.text('Choose backup to restore'));
       await t.tap(find.text('Choose backup to restore'));

@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Saved passwords in backups (optional).** Export backup can include the LED sign's device password and Wi-Fi reconnect details, encrypted (AES-256-GCM, PBKDF2 key) with a passphrase you choose. It is off by default. Restoring asks for the passphrase; skipping it or a wrong passphrase still restores everything else. Paired-device approvals are never included, and backups without passwords stay readable by earlier versions.
 - **Faster start.** Pinned or recent programs on Live load straight into Ready. Ready shows the display and a readiness verdict inline. When the display is connected and nothing needs attention, Start first segment starts at once, with an 8-second **Undo start**; otherwise a confirmation explains what to check.
 - **Live idle:** "Ready when you are" hero with Start, Share and Join; a last-service card with its timing and review note; Stage & display collapses while idle (it stays open while sharing).
 - **Quick message** has its own page: preview at the top, recipients, a collapsible Style section and a pinned Send bar with Test 5 s and Save as preset.
