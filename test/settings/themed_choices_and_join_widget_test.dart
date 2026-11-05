@@ -143,7 +143,7 @@ void main() {
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await tap(t, 'Settings');
-      await tap(t, 'Paired devices');
+      await tap(t, 'Screens & devices');
       await tap(t, 'Go to Live');
       expect(find.text('LIVE PRODUCTION'), findsOneWidget);
       expect(c.pairing.hosting, true);

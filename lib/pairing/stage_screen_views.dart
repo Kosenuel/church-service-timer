@@ -67,7 +67,7 @@ extension MobileDisplayViews on HomeState {
       await reconnectDisplay();
     } else if (target == 'mobile') {
       await openSettingsDetail(
-        'Stage screens',
+        'Screens & devices',
         stageScreenSettings,
         showLiveShortcut: true,
       );
@@ -171,87 +171,7 @@ extension MobileDisplayViews on HomeState {
     }
   }
 
-  Widget stageScreenSettings() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(
-        'Your stage, on another screen',
-        style: Theme.of(context).textTheme.headlineSmall,
-      ),
-      const SizedBox(height: 10),
-      const Text(
-        'Put both devices on the same Wi-Fi. On the second device, tap Join as stage screen on Live. Some sign hotspots isolate phones.',
-      ),
-      const SizedBox(height: 16),
-      if (!c.pairing.hosting || !c.pairing.stageSharingEnabled)
-        FilledButton.icon(
-          onPressed: startStageSharing,
-          icon: const Icon(Icons.cast),
-          label: const Text('Share to stage screens'),
-        ),
-      if (c.pairing.hosting && c.pairing.stageSharingEnabled) ...[
-        panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              label('Pair a screen'),
-              const SizedBox(height: 12),
-              SelectableText(
-                c.pairing.pinAvailable
-                    ? '${c.pairing.pin.substring(0, 3)} ${c.pairing.pin.substring(3)}'
-                    : 'Code expired',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 38,
-                  letterSpacing: 4,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                alignment: WrapAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      animationStyle: reduceAppMotion(context)
-                          ? AnimationStyle.noAnimation
-                          : null,
-                      builder: (_) => PairQrDialog(hub: c.pairing),
-                    ),
-                    icon: const Icon(Icons.qr_code),
-                    label: const Text('Show QR code'),
-                  ),
-                  TextButton(
-                    onPressed: c.pairing.newCode,
-                    child: const Text('New code'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        pairedDeviceList(screensOnly: true),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: c.stageConnected ? testStageScreen : null,
-          icon: const Icon(Icons.connected_tv),
-          label: const Text('Test screen'),
-        ),
-        FilledButton.icon(
-          style: stopSharingButtonStyle(),
-          onPressed: stopServiceSharing,
-          icon: const Icon(Icons.stop_screen_share_outlined),
-          label: const Text('Stop sharing'),
-        ),
-      ],
-      if (!c.pairing.hosting || !c.pairing.stageSharingEnabled)
-        pairedDeviceList(screensOnly: true),
-    ],
-  );
+  Widget stageScreenSettings() => screensAndDevices();
 
   Future<void> testStageScreen() async {
     final ok = await c.sendQuickMessage(
@@ -302,7 +222,7 @@ extension MobileDisplayViews on HomeState {
         onPressed: controlsLocked
             ? null
             : () => openSettingsDetail(
-                'Stage screens',
+                'Screens & devices',
                 stageScreenSettings,
                 showLiveShortcut: true,
               ),

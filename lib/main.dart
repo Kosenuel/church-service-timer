@@ -1897,7 +1897,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                               TextButton(
                                                 onPressed: () =>
                                                     openSettingsDetail(
-                                                      'Paired devices',
+                                                      'Screens & devices',
                                                       pairedDeviceSettings,
                                                     ),
                                                 child: const Text(

@@ -226,10 +226,10 @@ extension SettingsViews on HomeState {
             ),
             entry(
               Icons.devices,
-              'Paired devices',
-              'View, operate or use a second screen',
+              'Screens & devices',
+              'Stage screens, viewers and second operators',
               () => openSettingsDetail(
-                'Paired devices',
+                'Screens & devices',
                 pairedDeviceSettings,
                 showLiveShortcut: true,
               ),
