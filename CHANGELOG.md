@@ -4,6 +4,16 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Faster start.** Pinned or recent programs on Live load straight into Ready. Ready shows the display and a readiness verdict inline. When the display is connected and nothing needs attention, Start first segment starts at once, with an 8-second **Undo start**; otherwise a confirmation explains what to check.
+- **Live idle:** "Ready when you are" hero with Start, Share and Join; a last-service card with its timing and review note; Stage & display collapses while idle (it stays open while sharing).
+- **Quick message** has its own page: preview at the top, recipients, a collapsible Style section and a pinned Send bar with Test 5 s and Save as preset.
+- **Reports:** slim header with Select and a menu for Timing insights, Export and Clear; summary tiles for recent services; search with a date filter, type chips and List/Graph tabs; each row shows its total and outcome.
+- **Programs:** a floating New program button, Import/Export in a menu, All/Pinned/Recent/Rehearsals chips, and a segment bar and last-used date on each row. **Program details** has Load into Live and Edit up front, actions in a menu, a coloured rundown and an end-screen row.
+- **Program editor:** drag handles, tap-to-change duration chips, an end-screen row with a compact preview, and a pinned total and Save bar. Fixes "1 segments".
+- **Settings pages reworked:** About (identity card, What's new from this changelog), Ready for service (verdict with one-tap fixes), Warnings & alerts (rule cards with switches, Phone alerts, During a service), LED device management (status card, saved passwords, gated sign settings), Connect a display (three steps; simulator and Wi-Fi details in the menu), Appearance (pinned preview, Theme and Layout & accessibility tabs, pinned Save).
+- **Screens & devices** replaces the separate Paired devices and Stage screens pages.
+- **Five new themes:** Ocean Deep, Cobalt Night, Graphite, Paper & Ink and Meadow (twelve in total).
+
 ## 0.24.0, 5/November/2026
 
 - **Lock-screen controls:** during a service, a notification shows the current segment with a live countdown (counting up when overtime), Pause/Resume and Next segment (Next needs a second tap). On by default in Warnings & alerts; obeys Lock controls.
