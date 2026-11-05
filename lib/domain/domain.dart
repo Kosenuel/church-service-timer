@@ -1016,6 +1016,10 @@ class AppState {
   bool groupTemplates;
   String churchName, themeId, churchBanner;
   bool keepScreenAwake;
+
+  /// Show the service with Pause and Next on the lock-screen notification.
+  /// Local to this phone; not part of portable backups.
+  bool lockScreenControls;
   AppState(
     this.templates,
     this.defaults,
@@ -1030,6 +1034,7 @@ class AppState {
     this.churchBanner = '',
     this.themeId = 'midnight_lime',
     this.keepScreenAwake = true,
+    this.lockScreenControls = true,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -1110,6 +1115,7 @@ class AppState {
       churchBanner: churchBannerValue(j['churchBanner'] ?? ''),
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
       keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
+      lockScreenControls: boolSetting(j['lockScreenControls'] ?? true),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1239,6 +1245,7 @@ class AppState {
     'churchBanner': churchBanner,
     'themeId': themeId,
     'keepScreenAwake': keepScreenAwake,
+    'lockScreenControls': lockScreenControls,
   };
   AppState copy() => AppState.fromJson(toJson());
 

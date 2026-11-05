@@ -534,7 +534,25 @@ extension WarningSettingsViews on HomeState {
             const Text(
               'Keep the active-service notification running for stage warnings while the phone is locked. If unavailable, keep the app open. After interruption, reconnect and restore output.',
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              key: const ValueKey('lock-screen-controls'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Lock-screen controls'),
+              subtitle: const Text(
+                'Show the current segment, a live countdown, Pause and Next in a notification during every service. Next needs a second tap.',
+              ),
+              value: c.state.lockScreenControls,
+              onChanged: c.busy
+                  ? null
+                  : (v) async {
+                      await c.commit(
+                        (draft, _) => draft.lockScreenControls = v,
+                      );
+                      await c.syncActiveService();
+                    },
+            ),
+            const SizedBox(height: 8),
             phoneWarningSettings(),
           ],
         ),

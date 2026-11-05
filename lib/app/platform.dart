@@ -40,6 +40,14 @@ abstract class DevicePort {
   Future<void> forgetDisplay() async {}
 
   void setBackgroundHandler(Future<void> Function()? handler) {}
+
+  /// Receives Pause/Next taps from the active-service notification.
+  void setNotificationActionHandler(
+    Future<void> Function(String action)? handler,
+  ) {}
+
+  /// Updates the active-service notification card.
+  Future<void> updateServiceNotification(Json card) async {}
   Future<bool> setActiveService(bool enabled) async => false;
   Future<bool> activeServiceRunning() async => false;
   Future<Json> displayPreferences() async => {'hardware': false};
@@ -207,16 +215,36 @@ class AndroidPort extends DevicePort {
   @override
   Future<void> forgetDisplay() => channel.invokeMethod<void>('forgetDisplay');
 
+  Future<void> Function()? _backgroundHandler;
+  Future<void> Function(String action)? _notificationHandler;
+  void _dispatch() => channel.setMethodCallHandler(
+    _backgroundHandler == null && _notificationHandler == null
+        ? null
+        : (call) async {
+            if (call.method == 'backgroundTick')
+              await _backgroundHandler?.call();
+            if (call.method == 'notificationAction' && call.arguments is String)
+              await _notificationHandler?.call(call.arguments as String);
+          },
+  );
+
   @override
   void setBackgroundHandler(Future<void> Function()? handler) {
-    channel.setMethodCallHandler(
-      handler == null
-          ? null
-          : (call) async {
-              if (call.method == 'backgroundTick') await handler();
-            },
-    );
+    _backgroundHandler = handler;
+    _dispatch();
   }
+
+  @override
+  void setNotificationActionHandler(
+    Future<void> Function(String action)? handler,
+  ) {
+    _notificationHandler = handler;
+    _dispatch();
+  }
+
+  @override
+  Future<void> updateServiceNotification(Json card) =>
+      channel.invokeMethod<void>('serviceNotification', card);
 
   @override
   Future<bool> setActiveService(bool enabled) async =>

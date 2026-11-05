@@ -2,9 +2,135 @@ package org.kosenuel.cuekeeper
 
 import android.app.*
 import android.content.*
+import android.graphics.drawable.Icon
 import android.os.*
 import android.content.pm.ServiceInfo
 import io.flutter.plugin.common.MethodChannel
+
+/** The service card: current segment with a countdown Android draws itself,
+ * plus Pause/Resume and Next. Next needs a second tap within five seconds,
+ * matching the app's confirm-before-acting rule. The foreground service shows
+ * it while running; otherwise it is posted as an ordinary ongoing notification,
+ * so adding controls never changes when the foreground service runs. */
+object ServiceCard {
+    const val NOTICE = 701
+    /** The ordinary notification uses its own ID, so stopping the foreground
+     * service (which removes notice 701) cannot remove it. */
+    private const val STANDALONE = 704
+    const val CHANNEL = "active-service"
+    const val PAUSE = "org.kosenuel.cuekeeper.action.PAUSE"
+    const val NEXT = "org.kosenuel.cuekeeper.action.NEXT"
+    private const val CONFIRM_MS = 5000L
+    private val handler = Handler(Looper.getMainLooper())
+    var card: Map<*, *>? = null
+        private set
+    private var nextArmedUntil = 0L
+    private var appContext: Context? = null
+    private val disarm = Runnable { nextArmedUntil = 0L; appContext?.let { show(it) } }
+
+    val active get() = card?.get("active") == true
+
+    fun ensureChannel(c: Context) {
+        if (Build.VERSION.SDK_INT >= 26) c.getSystemService(NotificationManager::class.java)
+            .createNotificationChannel(NotificationChannel(CHANNEL, "Active service timing", NotificationManager.IMPORTANCE_LOW))
+    }
+
+    /** Replaces the card and shows it, through the service when it runs. */
+    fun update(c: Context, next: Map<*, *>) {
+        appContext = c.applicationContext
+        card = next
+        show(c)
+    }
+
+    fun show(c: Context) {
+        val manager = c.getSystemService(NotificationManager::class.java)
+        try {
+            when {
+                ActiveService.running -> { manager.cancel(STANDALONE); manager.notify(NOTICE, build(c)) }
+                active -> { ensureChannel(c); manager.notify(STANDALONE, build(c)) }
+                else -> manager.cancel(STANDALONE)
+            }
+        } catch (_: Exception) { /* Notification permission may have been withdrawn. */ }
+    }
+
+    fun clear(c: Context) {
+        card = null
+        c.getSystemService(NotificationManager::class.java).cancel(STANDALONE)
+    }
+
+    fun onAction(c: Context, action: String?) {
+        appContext = c.applicationContext
+        // After process death nothing can act on the tap: remove the stale card.
+        // Tapping the notification body still opens the app to recover.
+        if (MainActivity.bridge == null) { clear(c); return }
+        when (action) {
+            PAUSE -> MainActivity.bridge?.notificationAction("pause")
+            NEXT -> {
+                val now = SystemClock.elapsedRealtime()
+                handler.removeCallbacks(disarm)
+                if (nextArmedUntil > now) {
+                    nextArmedUntil = 0L
+                    MainActivity.bridge?.notificationAction("next")
+                } else {
+                    nextArmedUntil = now + CONFIRM_MS
+                    handler.postDelayed(disarm, CONFIRM_MS)
+                }
+                show(c)
+            }
+        }
+    }
+
+    private fun action(c: Context, name: String, code: Int) = PendingIntent.getBroadcast(c, code,
+        Intent(c, ServiceActionReceiver::class.java).setAction(name),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+    @Suppress("DEPRECATION")
+    fun build(c: Context): Notification {
+        val open = PendingIntent.getActivity(c, NOTICE, Intent(c, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(c, CHANNEL) else Notification.Builder(c)
+        builder.setSmallIcon(R.drawable.ic_warning_notification).setOngoing(true).setOnlyAlertOnce(true)
+            .setContentIntent(open).setCategory(Notification.CATEGORY_SERVICE)
+        val card = this.card
+        if (card == null || card["active"] != true) {
+            return builder.setContentTitle("Church Service Timer is active")
+                .setContentText("Display timing and warnings · tap to return").build()
+        }
+        val segment = card["segment"] as? String ?: ""
+        val next = card["next"] as? String ?: ""
+        val title = card["title"] as? String ?: ""
+        val paused = card["paused"] == true
+        val overtime = card["overtime"] == true
+        val deadline = (card["deadlineWall"] as? Number)?.toLong()
+        builder.setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setContentTitle(when { paused -> "Paused · $segment"; overtime -> "Overtime · $segment"; else -> segment })
+            .setSubText(title)
+            .setContentText(when {
+                deadline == null -> "${card["remaining"]}${if (next.isNotEmpty()) " · Next: $next" else ""}"
+                next.isNotEmpty() -> "Next: $next"
+                else -> "Final segment"
+            })
+        if (deadline != null) {
+            // Android animates the clock; it counts up from zero once overtime.
+            builder.setWhen(deadline).setShowWhen(true).setUsesChronometer(true)
+                .setChronometerCountDown(!overtime)
+        } else builder.setShowWhen(false)
+        val icon = Icon.createWithResource(c, R.drawable.ic_warning_notification)
+        if (card["canPause"] == true)
+            builder.addAction(Notification.Action.Builder(icon, if (paused) "Resume" else "Pause", action(c, PAUSE, 702)).build())
+        if (card["canNext"] == true) {
+            val armed = nextArmedUntil > SystemClock.elapsedRealtime()
+            builder.addAction(Notification.Action.Builder(icon,
+                if (armed) "Tap again: Next segment" else "Next segment", action(c, NEXT, 703)).build())
+        }
+        return builder.build()
+    }
+}
+
+/** Private receiver for the card's buttons; forwards them to the running app. */
+class ServiceActionReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) = ServiceCard.onAction(context, intent.action)
+}
 
 /** Keeps the existing engine and authenticated display session alive. No restart
  * after process death: a fresh process must reconnect and review output. */
@@ -20,7 +146,12 @@ class ActiveService : Service() {
                 if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(intent) else context.startService(intent)
             } catch (e: Exception) { awaiting.remove(result); throw e }
         }
-        fun stop(context: Context) { running = false; context.stopService(Intent(context, ActiveService::class.java)) }
+        fun stop(context: Context) {
+            running = false
+            context.stopService(Intent(context, ActiveService::class.java))
+            // The card continues as an ordinary notification while a service runs.
+            ServiceCard.show(context)
+        }
     }
     private val handler = Handler(Looper.getMainLooper())
     private var wake: PowerManager.WakeLock? = null
@@ -40,17 +171,10 @@ class ActiveService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
             check(MainActivity.bridge != null) { "Open the app and reconnect the sign" }
-            val manager = getSystemService(NotificationManager::class.java)
-            if (Build.VERSION.SDK_INT >= 26) manager.createNotificationChannel(NotificationChannel(
-                "active-service", "Active service timing", NotificationManager.IMPORTANCE_LOW))
-            val open = PendingIntent.getActivity(this, 701, Intent(this, MainActivity::class.java),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, "active-service") else Notification.Builder(this)
-            val notification = builder.setSmallIcon(R.drawable.ic_warning_notification).setContentTitle("Church Service Timer is active")
-                .setContentText("Display timing and warnings · tap to return")
-                .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(open).build()
-            if (Build.VERSION.SDK_INT >= 29) startForeground(701, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
-            else startForeground(701, notification)
+            ServiceCard.ensureChannel(this)
+            val notification = ServiceCard.build(this)
+            if (Build.VERSION.SDK_INT >= 29) startForeground(ServiceCard.NOTICE, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+            else startForeground(ServiceCard.NOTICE, notification)
             if (!running) {
                 wake = (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ChurchServiceTimer:active")
                 wake!!.setReferenceCounted(false)

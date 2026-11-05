@@ -73,6 +73,8 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
     private fun requestPermissions(permissions: Array<String>, code: Int) = activity().requestPermissions(permissions, code)
     val channel = MethodChannel(engine.dartExecutor.binaryMessenger, "church.timer/device")
     fun pulse() { channel.invokeMethod("backgroundTick", null) }
+    /** Forwards a Pause or Next tap from the active-service notification. */
+    fun notificationAction(action: String) { channel.invokeMethod("notificationAction", action) }
     fun closeDisplay() { displayIo.execute { w2.disconnect() } }
 
     private val io = Executors.newSingleThreadExecutor()
@@ -135,6 +137,10 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                 "forgetDisplay" -> { cancelSignWifi(); displayBackground(result) { val id = w2.preferences()["id"] as String; vault.forget(id); signWifi.forget(id); w2.forget(); null } }
 
                 "activeServiceRunning" -> result.success(ActiveService.running)
+                "serviceNotification" -> {
+                    ServiceCard.update(context, call.arguments as? Map<*, *> ?: emptyMap<String, Any>())
+                    result.success(null)
+                }
                 "activeService" -> {
                     if (call.arguments == true) {
                         try {
