@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Review notes** on reports: an after-service reflection kept apart from the recorded timings, editable from the report, optional when exporting (JSON/CSV) or printing, and shown as "Last time" when the same program is loaded into Ready.
 - **Delete selected** in Programs and Reports selection mode: shows the count, names items hidden by the current search or filter, confirms in red and offers a 10-second Undo that restores items exactly (order, pins, recent use). Deleting saved programs leaves a running service and past reports unchanged.
 - Internal clean-up with no visible change: stricter lint rules (`flutter_lints`), `lib/` and `test/` organised by feature, behaviour-named tests, `AppController` split into focused collaborators, and this changelog.
 

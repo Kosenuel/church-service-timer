@@ -969,6 +969,10 @@ class AppController extends ChangeNotifier {
         );
       }, revision: revision);
 
+  /// Sets or, with empty text, removes a report's review note. Recorded
+  /// timings are never changed.
+  Future<bool> setReviewNote(String reportId, String text) =>
+      commit((draft, at) => draft.setReviewNote(reportId, text, at.wall));
   /// Deletes the named saved programs atomically; null when nothing saved.
   Future<List<DeletedProgram>?> deletePrograms(Set<String> names) async {
     List<DeletedProgram>? removed;

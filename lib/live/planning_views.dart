@@ -44,7 +44,7 @@ extension PlanningViews on HomeState {
     Timeline? timeline, {
     ServiceReport? report,
   }) async {
-    var includeNotes = false, includeBanner = true;
+    var includeNotes = false, includeBanner = true, includeReview = false;
     var audience = 'stage';
     var watermark = c.state.printPreferences.watermark;
     var inkSaving = c.state.printPreferences.inkSaving;
@@ -160,6 +160,14 @@ extension PlanningViews on HomeState {
                           ? null
                           : (v) => update(() => includeNotes = v!),
                     ),
+                    if (report?.review != null)
+                      CheckboxListTile(
+                        key: const ValueKey('print-include-review'),
+                        title: const Text('Include review notes'),
+                        subtitle: const Text('Added after the service'),
+                        value: includeReview,
+                        onChanged: (v) => update(() => includeReview = v!),
+                      ),
                   ],
                 ),
               ],
@@ -212,6 +220,7 @@ extension PlanningViews on HomeState {
         includeBanner: includeBanner,
         includeNotes: audience == 'operator' && includeNotes,
         fullReport: fullReport,
+        includeReview: includeReview,
         watermark: watermark,
         inkSaving: inkSaving,
       );

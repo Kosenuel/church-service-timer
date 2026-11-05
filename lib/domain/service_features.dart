@@ -260,6 +260,9 @@ class ServiceReport {
   final bool uncertain;
   final List<ReportRow> rows;
   final List<ServiceEvent> events;
+
+  /// After-service reflection, separate from the recorded timings.
+  final ReviewNote? review;
   ServiceReport(
     this.id,
     this.name,
@@ -272,8 +275,25 @@ class ServiceReport {
     this.churchName = '',
     this.program,
     List<ServiceEvent> events = const [],
+    this.review,
   }) : rows = List.unmodifiable(rows),
        events = List.of(events);
+
+  /// A copy with a different review note; timings are unchanged.
+  ServiceReport withReview(ReviewNote? note) => ServiceReport(
+    id,
+    name,
+    startedWall,
+    endedWall,
+    totalMs,
+    rate,
+    uncertain,
+    rows,
+    churchName: churchName,
+    program: program,
+    events: events,
+    review: note,
+  );
   factory ServiceReport.fromSession(Session s, Stamp now) {
     require(s.phase == 'ended', 'Reports are finalized when a service ends.');
     return ServiceReport(
@@ -328,6 +348,7 @@ class ServiceReport {
         ? null
         : Timeline.fromJson(Map<String, dynamic>.from(j['program'])),
     events: readServiceEvents(j['events']),
+    review: j['review'] == null ? null : ReviewNote.fromJson(j['review']),
   );
   Json toJson() => {
     'id': id,
@@ -341,14 +362,22 @@ class ServiceReport {
     'uncertain': uncertain,
     'rows': rows.map((e) => e.toJson()).toList(),
     'events': events.map((e) => e.toJson()).toList(),
+    if (review != null) 'review': review!.toJson(),
   };
+
+  /// JSON for export; the review note is included only when asked.
+  Json exportJson({bool includeReview = false}) {
+    final j = toJson();
+    if (!includeReview) j.remove('review');
+    return j;
+  }
 }
 
-String exportReportJson(ServiceReport r) =>
+String exportReportJson(ServiceReport r, {bool includeReview = false}) =>
     const JsonEncoder.withIndent('  ').convert({
       'type': 'church-service-timer-report',
       'schemaVersion': 2,
-      ...r.toJson(),
+      ...r.exportJson(includeReview: includeReview),
     });
 
 class ReportSummary {
@@ -370,26 +399,33 @@ class ReportSummary {
   int get onTime => comparable.length - ahead - behind;
 }
 
-String exportReportsJson(List<ServiceReport> records) =>
-    const JsonEncoder.withIndent('  ').convert({
-      'type': 'church-service-timer-reports',
-      'schemaVersion': 2,
-      'recordCount': records.length,
-      'reports': records.map((r) => r.toJson()).toList(),
-    });
+String exportReportsJson(
+  List<ServiceReport> records, {
+  bool includeReview = false,
+}) => const JsonEncoder.withIndent('  ').convert({
+  'type': 'church-service-timer-reports',
+  'schemaVersion': 2,
+  'recordCount': records.length,
+  'reports': records
+      .map((r) => r.exportJson(includeReview: includeReview))
+      .toList(),
+});
 
 String reportCsvText(String s) {
   final safe = RegExp(r'^\s*[=+@\-]').hasMatch(s) ? "'$s" : s;
   return '"${safe.replaceAll('"', '""')}"';
 }
 
-String exportReportsCsv(List<ServiceReport> records) {
+String exportReportsCsv(
+  List<ServiceReport> records, {
+  bool includeReview = false,
+}) {
   String seconds(int? n) => n == null ? '' : (n / 1000).toStringAsFixed(3);
   String utc(int? n) => n == null
       ? ''
       : DateTime.fromMillisecondsSinceEpoch(n, isUtc: true).toIso8601String();
   final lines = <String>[
-    'Service ID,Service,Mode,Speed,Started UTC,Ended UTC,Timing uncertain,Service planned seconds,Service actual seconds,Segment number,Segment,Planned seconds,Actual seconds,Variance seconds,Paused seconds,Adjustment seconds,Status,Church',
+    'Service ID,Service,Mode,Speed,Started UTC,Ended UTC,Timing uncertain,Service planned seconds,Service actual seconds,Segment number,Segment,Planned seconds,Actual seconds,Variance seconds,Paused seconds,Adjustment seconds,Status,Church${includeReview ? ',Review note' : ''}',
   ];
   for (final r in records) {
     final metadata = [
@@ -416,6 +452,7 @@ String exportReportsCsv(List<ServiceReport> records) {
           '',
           'No segment records',
           reportCsvText(r.churchName),
+          if (includeReview) reportCsvText(r.review?.text ?? ''),
         ].join(','),
       );
     for (var i = 0; i < r.rows.length; i++) {
@@ -436,6 +473,7 @@ String exportReportsCsv(List<ServiceReport> records) {
               ? 'Not recorded'
               : 'Recorded',
           reportCsvText(r.churchName),
+          if (includeReview) reportCsvText(r.review?.text ?? ''),
         ].join(','),
       );
     }
@@ -443,14 +481,14 @@ String exportReportsCsv(List<ServiceReport> records) {
   return '${lines.join('\r\n')}\r\n';
 }
 
-String exportReportCsv(ServiceReport r) {
+String exportReportCsv(ServiceReport r, {bool includeReview = false}) {
   String textCell(String s) {
     return reportCsvText(s);
   }
 
   String seconds(int? n) => n == null ? '' : (n / 1000).toStringAsFixed(3);
   final header =
-      'Service,Mode,Speed,Started,Ended,Timing uncertain,Segment,Planned seconds,Actual seconds,Variance seconds,Paused seconds,Adjustment seconds,Status,Church';
+      'Service,Mode,Speed,Started,Ended,Timing uncertain,Segment,Planned seconds,Actual seconds,Variance seconds,Paused seconds,Adjustment seconds,Status,Church${includeReview ? ',Review note' : ''}';
   final metadata = [
     textCell(r.name),
     r.rehearsal ? 'Rehearsal' : 'Live',
@@ -465,7 +503,7 @@ String exportReportCsv(ServiceReport r) {
       ? 'Skipped'
       : row.actualMs == null
       ? 'Not recorded'
-      : 'Recorded', textCell(r.churchName)].join(',')).join('\r\n')}\r\n';
+      : 'Recorded', textCell(r.churchName), if (includeReview) textCell(r.review?.text ?? '')].join(',')).join('\r\n')}\r\n';
 }
 
 String durationLabel(int ms) {
