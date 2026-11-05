@@ -5,11 +5,15 @@ import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
 
 extension UndoActions on HomeState {
-  void offerUndo(String label, Future<bool> Function() restore) {
+  void offerUndo(
+    String label,
+    Future<bool> Function() restore, {
+    Duration duration = const Duration(seconds: 8),
+  }) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(label),
-        duration: const Duration(seconds: 8),
+        duration: duration,
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () async {
