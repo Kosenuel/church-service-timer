@@ -350,7 +350,8 @@ void main() {
       await t.tap(find.byKey(const ValueKey('open-report-rehearsal')));
       await t.pumpAndSettle();
       expect(find.byType(ReportDetailPage), findsOneWidget);
-      await t.ensureVisible(find.text('Clear report'));
+      await t.tap(find.byKey(const ValueKey('report-actions')));
+      await t.pumpAndSettle();
       expect(find.text('Clear report'), findsOneWidget);
       await t.pumpWidget(const SizedBox());
     },

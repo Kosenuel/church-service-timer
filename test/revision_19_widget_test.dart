@@ -9,6 +9,7 @@ import 'package:church_service_timer/app_theme.dart';
 import 'package:church_service_timer/pairing.dart';
 import 'domain_test.dart' show FakePort, timeline;
 import 'revision_16_test.dart' show eventually;
+import 'live_helpers.dart';
 
 void main() {
   setUpAll(() async {
@@ -149,7 +150,7 @@ void main() {
       await c.act('start');
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await tap(t, 'Focused operator view');
+      await openLiveMenu(t, 'Focused operator view');
       final overview = find.byKey(const ValueKey('focused-timing-overview'));
       expect(overview, findsOneWidget);
       await t.ensureVisible(overview);
@@ -172,7 +173,7 @@ void main() {
       await c.act('pause');
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await tap(t, 'Jump to segment');
+      await tapJump(t);
       await tap(t, 'Last');
       expect(find.textContaining('Mark as skipped: Second.'), findsOneWidget);
       await shot(t, 'jump-segment-confirm-019');
@@ -321,9 +322,12 @@ void main() {
       await tap(t, c.state.stageCues.first.text);
       await tap(t, 'Send cue');
       expect(c.state.session.outputMode(c.now), 'Cue');
-      await t.scrollUntilVisible(find.text('Clear message').hitTestable(), 250);
-      await tap(t, 'Clear message');
+      // The sent cue's button swaps to the way back to what was underneath.
+      expect(find.text(c.state.stageCues.first.text), findsNothing);
+      await passShowTimerGuard(t);
+      await tap(t, 'Back to clock');
       expect(c.state.session.outputMode(c.now), 'Clock');
+      expect(find.text(c.state.stageCues.first.text), findsOneWidget);
       expect(c.state.reports.single.toJson().toString(), report);
       await t.pumpWidget(const SizedBox());
     },

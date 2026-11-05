@@ -107,12 +107,6 @@ extension TemplateViews on _HomeState {
                         'Program',
                         (a) => programItemAction(values[i], a),
                       ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.chevron_right,
-                      color: appColors(context).muted,
-                      size: 22,
-                    ),
                   ],
                 ),
               ),
@@ -161,54 +155,43 @@ extension TemplateViews on _HomeState {
           ],
         ),
         const SizedBox(height: 16),
-        programSearch(),
+        programSearch(
+          trailing: [
+            if (!selectingPrograms) ...[
+              PopupMenuButton<bool>(
+                key: const ValueKey('program-list-options'),
+                icon: const Icon(Icons.tune),
+                tooltip: 'Program list options',
+                enabled: !disabled,
+                onSelected: (value) async {
+                  await c.commit((draft, _) => draft.groupTemplates = value);
+                },
+                itemBuilder: (ctx) => appMenuEntries(ctx, [
+                  AppMenuAction(
+                    false,
+                    'Single list',
+                    checked: !c.state.groupTemplates,
+                  ),
+                  AppMenuAction(
+                    true,
+                    'Services & rehearsals',
+                    checked: c.state.groupTemplates,
+                  ),
+                ]),
+              ),
+              selectToggle(programs: true),
+            ],
+          ],
+        ),
         exportSelectionBar(
           programs: true,
           shown: items.map((p) => p.name).toSet(),
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: PopupMenuButton<bool>(
-            tooltip: 'Program list options',
-            enabled: !disabled,
-            onSelected: (value) async {
-              await c.commit((draft, _) => draft.groupTemplates = value);
-            },
-            itemBuilder: (ctx) => appMenuEntries(ctx, [
-              AppMenuAction(
-                false,
-                'Single list',
-                checked: !c.state.groupTemplates,
-              ),
-              AppMenuAction(
-                true,
-                'Services & rehearsals',
-                checked: c.state.groupTemplates,
-              ),
-            ]),
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'List options',
-                    style: TextStyle(
-                      color: appColors(context).muted,
-                      fontSize: 12,
-                    ),
-                  ),
-                  SizedBox(width: 6),
-                  Icon(Icons.tune, size: 18, color: appColors(context).muted),
-                ],
-              ),
-            ),
-          ),
+          showToggle: false,
         ),
         if (items.isEmpty)
           panel(
             child: const Text(
-              'No matching programs. Try All programs or another search, create a program, or import JSON / CSV.',
+              'No matching programs. Try All or another search, create a program, or import JSON / CSV.',
             ),
           )
         else if (!c.state.groupTemplates)

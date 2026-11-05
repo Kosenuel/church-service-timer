@@ -23,7 +23,7 @@ class SettingsPort extends FakePort {
   }
 
   @override
-  Future<String> installedVersion() async => '0.21.0 (22)';
+  Future<String> installedVersion() async => '0.22.0 (23)';
   @override
   Future<Map<String, dynamic>?> pickBackup() async => backup;
   @override
@@ -67,20 +67,22 @@ void main() {
   }
 
   test(
-    'Source version and launcher name match release metadata; package stays stable',
+    'Source version and launcher name match release metadata; application ID is set',
     () {
       expect(
         File('pubspec.yaml').readAsStringSync(),
-        contains('version: 0.21.0+22'),
+        contains('version: 0.22.0+23'),
       );
-      expect(appVersion, '0.21.0 (22)');
+      expect(appVersion, '0.22.0 (23)');
       expect(
         File('android/app/src/main/AndroidManifest.xml').readAsStringSync(),
         contains('android:label="$appName"'),
       );
       expect(
         File('android/app/build.gradle.kts').readAsStringSync(),
-        contains('org.kosenuel.cuekeeper'),
+        contains(
+          'applicationId = "io.github.immanuelokose.churchservicetimer"',
+        ),
       );
     },
   );
@@ -217,7 +219,7 @@ void main() {
       await t.tap(find.text('About'));
       await t.pumpAndSettle();
       expect(find.text('Created by I-Proton'), findsOneWidget);
-      expect(find.text('Version 0.21.0 (22)'), findsOneWidget);
+      expect(find.text('Version 0.22.0 (23)'), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/about-phone.png'),

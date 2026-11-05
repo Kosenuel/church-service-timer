@@ -1,7 +1,7 @@
 part of 'domain.dart';
 
 const appName = 'Church Service Timer';
-const appVersion = '0.21.0 (22)';
+const appVersion = '0.22.0 (23)';
 
 /// Local interface preferences: never sent to stage peers or restored from a
 /// portable backup. Output animation is configured separately.

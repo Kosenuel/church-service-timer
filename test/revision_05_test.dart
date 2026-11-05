@@ -140,7 +140,7 @@ void main() {
     await t.pumpAndSettle();
     expect(c.state.session.index, 1);
     expect(c.state.session.paused, false);
-    await t.tap(find.text('Undo'));
+    await t.tap(find.byKey(const ValueKey('undo')));
     await t.pumpAndSettle();
     expect(c.state.session.index, 1);
     expect(
@@ -150,7 +150,7 @@ void main() {
     await t.tap(find.text('Cancel'));
     await t.pumpAndSettle();
     expect(c.state.session.index, 1);
-    await t.tap(find.text('Undo'));
+    await t.tap(find.byKey(const ValueKey('undo')));
     await t.pumpAndSettle();
     await t.tap(find.text('Restore previous segment'));
     await t.pumpAndSettle();
@@ -169,7 +169,13 @@ void main() {
       final c = await setup(port);
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      expect(find.text('Simulator'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('header-connection')),
+          matching: find.text('Simulator'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Display connected'), findsNothing);
       await c.act('disconnect');
       port.at = at(30);
@@ -179,7 +185,13 @@ void main() {
         find.byKey(const ValueKey('display-disconnected-banner')),
         findsOneWidget,
       );
-      expect(find.text('Disconnected'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('header-connection')),
+          matching: find.text('Disconnected'),
+        ),
+        findsOneWidget,
+      );
       expect(c.simulator.delivered!.text, '10:00');
       expect(c.state.session.formatted(c.now), '09:30');
       await c.act('connect');
@@ -188,7 +200,13 @@ void main() {
         find.byKey(const ValueKey('display-disconnected-banner')),
         findsNothing,
       );
-      expect(find.text('Simulator'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('header-connection')),
+          matching: find.text('Simulator'),
+        ),
+        findsOneWidget,
+      );
       expect(c.simulator.delivered!.text, '09:30');
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
@@ -249,7 +267,7 @@ void main() {
       ),
     );
     await t.pumpAndSettle();
-    expect(find.text('Allocated time · 00:00'), findsOneWidget);
+    expect(find.text('of 00:00 allocated'), findsOneWidget);
     expect(find.text('+00:23'), findsOneWidget);
     expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox());
@@ -276,7 +294,11 @@ void main() {
       greaterThan(t.getTopLeft(find.text('−2 min')).dy),
     );
     expect(t.takeException(), isNull);
-    await t.ensureVisible(find.text('Custom'));
+    await Scrollable.ensureVisible(
+      t.element(find.text('Custom')),
+      alignment: .5,
+    );
+    await t.pumpAndSettle();
     await t.tap(find.text('Custom'));
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);

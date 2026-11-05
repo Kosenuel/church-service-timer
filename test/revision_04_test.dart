@@ -224,13 +224,16 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/report-detail-phone.png'),
       );
-      await t.ensureVisible(find.text('Clear report'));
-      await t.tap(find.text('Clear report'));
+      await t.tap(find.byKey(const ValueKey('report-actions')).last);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Clear report').last);
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(TextButton, 'Cancel'));
       await t.pumpAndSettle();
       expect(find.byType(ReportDetailPage), findsOneWidget);
-      await t.tap(find.text('Clear report'));
+      await t.tap(find.byKey(const ValueKey('report-actions')).last);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Clear report').last);
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(FilledButton, 'Clear report'));
       await t.pumpAndSettle();

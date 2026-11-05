@@ -8,6 +8,7 @@ import 'package:church_service_timer/controller.dart';
 import 'package:church_service_timer/domain.dart';
 
 import 'domain_test.dart' show FakePort, start, after;
+import 'live_helpers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -78,7 +79,7 @@ void main() {
       await tester.pumpWidget(TimerApp(controller: c));
       await tester.pumpAndSettle();
       expect(find.text('13:30'), findsOneWidget);
-      expect(find.text('Selected cue: WRAP UP'), findsOneWidget);
+      expect(find.text('Showing cue: WRAP UP'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await expectLater(
         find.byType(MaterialApp),
@@ -90,7 +91,7 @@ void main() {
         180,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await passShowTimerGuard(tester);
       await tester.tap(find.text('Show timer').hitTestable());
       await tester.pumpAndSettle();
       expect(c.state.session.alert, isNull);

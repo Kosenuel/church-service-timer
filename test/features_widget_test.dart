@@ -45,8 +45,10 @@ void main() {
       await c.tick();
       await tester.pumpAndSettle();
       expect(find.text('00:40'), findsOneWidget);
-      await tester.ensureVisible(find.text('REHEARSAL TIMING · 10×'));
+      // The one-line status opens the full rehearsal overview.
+      await tester.tap(find.byKey(const ValueKey('timing-status-line')));
       await tester.pumpAndSettle();
+      expect(find.text('REHEARSAL TIMING · 10×'), findsOneWidget);
       expect(
         find.textContaining('Durations are simulated at 10×'),
         findsOneWidget,
@@ -182,10 +184,16 @@ void main() {
         find.byKey(ValueKey('open-report-${c.state.reports.single.id}')),
       );
       await tester.pumpAndSettle();
-      expect(find.descendant(of: find.byType(ReportDetailPage), matching: find.text('Rehearsal 10×')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ReportDetailPage),
+          matching: find.text('Rehearsal 10×'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('4m 0s'), findsOneWidget);
       expect(find.text('4m 10s'), findsOneWidget);
-      expect(find.text('Export report CSV'), findsOneWidget);
+      expect(find.byKey(const ValueKey('report-actions')), findsOneWidget);
       expect(tester.takeException(), isNull);
       await expectLater(
         find.byType(MaterialApp),
