@@ -138,7 +138,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('destination-led')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Scan for displays'));
+    await tester.tap(find.byKey(const ValueKey('scan-displays')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Test sign'));
     await tester.pumpAndSettle();
@@ -449,7 +449,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: HardwareConnectionPage(controller: c)),
     );
-    await tester.tap(find.text('Scan for displays'));
+    await tester.tap(find.byKey(const ValueKey('scan-displays')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Test sign'));
     await tester.pumpAndSettle();
