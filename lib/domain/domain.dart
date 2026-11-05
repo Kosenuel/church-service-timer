@@ -1101,6 +1101,7 @@ class AppState {
 
   /// Optional Settings PIN; never included in backups.
   SettingsLock? settingsLock;
+
   /// Presentation clickers and foot pedals drive Next and Pause on Live.
   bool clickerControls;
   AppState(

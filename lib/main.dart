@@ -159,6 +159,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   bool focused = false, controlsLocked = false;
+
+  /// The battery hint's × hides it until the app is next opened.
+  bool batteryHintDismissed = false;
   final homeScroll = ScrollController();
   bool? _completedService;
 
@@ -486,6 +489,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       SnackBar(
         key: const ValueKey('undo-start'),
         duration: const Duration(seconds: 8),
+        // An action normally keeps a snackbar up until tapped.
+        persist: false,
         content: Text(
           '${c.state.session.timeline!.segments.first.name} started',
         ),
@@ -493,8 +498,10 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
           label: 'Undo start',
           onPressed: () async {
             if (c.state.session.id != id || !c.state.session.active) return;
-            if (!await c.act('unstart') && mounted)
-              await showError(c.error ?? 'Could not undo the start.');
+            if (await c.act('unstart')) return;
+            final message = c.error ?? 'Could not undo the start.';
+            c.dismissError();
+            if (mounted) await showError(message);
           },
         ),
       ),
@@ -909,7 +916,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       width: width,
                       child: Material(
                         key: ValueKey('quick-load:${p.name}'),
-                        color: colors.background,
+                        color: colors.surface,
                         clipBehavior: Clip.antiAlias,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -991,7 +998,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       padding: const EdgeInsets.only(top: 14),
       child: Material(
         key: const ValueKey('last-service-card'),
-        color: colors.background,
+        color: colors.surface,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
@@ -1202,21 +1209,26 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
             children: [
               Expanded(
                 child: label(
-                  t == null
+                  standingBy
+                      ? 'Standing by'
+                      : t == null
                       ? 'Live production'
                       : 'Segment ${s.index + 1} of ${t.segments.length}',
                 ),
               ),
-              Chip(
-                label: Text(
-                  !standingBy && s.rehearsal ? '$phase · ${s.rate}×' : phase,
+              if (!standingBy)
+                Chip(
+                  label: Text(
+                    !standingBy && s.rehearsal ? '$phase · ${s.rate}×' : phase,
+                  ),
+                  avatar: Icon(
+                    s.active && !s.paused
+                        ? Icons.circle
+                        : Icons.circle_outlined,
+                    size: 12,
+                    color: appColors(context).accent,
+                  ),
                 ),
-                avatar: Icon(
-                  s.active && !s.paused ? Icons.circle : Icons.circle_outlined,
-                  size: 12,
-                  color: appColors(context).accent,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -1289,20 +1301,18 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 notes: t.segments[s.index].notes,
               ),
             SegmentGauge(session: s, now: c.now),
-          ] else ...[
-            const SizedBox(height: 6),
-            Text(
-              'Load a program, keep the room on time, and send discreet cues to the stage.',
-              style: TextStyle(color: appColors(context).muted),
-            ),
+          ] else
             const SizedBox(height: 18),
-          ],
           if (!s.active && s.phase != 'ready' && !c.reportSavePending)
-            button(
-              'Start service',
-              Icons.play_arrow,
-              c.busy || c.corrupt ? null : chooseService,
-              primary: true,
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: button(
+                'Start service',
+                Icons.play_arrow,
+                c.busy || c.corrupt ? null : chooseService,
+                primary: true,
+              ),
             ),
           if (standingBy) ...[
             const SizedBox(height: 10),
@@ -1320,7 +1330,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       : shareServiceSetup,
                   icon: const Icon(Icons.cast_connected),
                   label: Text(
-                    c.pairing.hosting ? 'Manage sharing' : 'Share service',
+                    c.pairing.hosting ? 'Manage sharing' : 'Share to screens',
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1335,21 +1345,19 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       : joinAsStageScreen,
                   icon: const Icon(Icons.tablet_mac_outlined),
                   label: const Text(
-                    'Join as stage screen',
+                    'Join as screen',
                     textAlign: TextAlign.center,
                   ),
                 ),
               ],
             ),
           ],
-          if (standingBy) ...[
-            pinnedPrograms(),
-            if (c.state.reports.isNotEmpty) lastServiceCard(),
-          ],
-          if ((s.phase == 'ready' || standingBy) &&
-              c.batteryUnrestricted == false)
+          // Ready already counts battery in its "things to check" row.
+          if (standingBy &&
+              c.batteryUnrestricted == false &&
+              !batteryHintDismissed)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(top: 12),
               child: Material(
                 key: const ValueKey('battery-hint'),
                 color: appColors(context).warning.withValues(alpha: .12),
@@ -1358,20 +1366,28 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                   borderRadius: BorderRadius.circular(12),
                   onTap: c.port.openBatterySettings,
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
                     child: Row(
                       children: [
                         Icon(
                           Icons.battery_alert_outlined,
+                          size: 20,
                           color: appColors(context).warning,
                         ),
                         const SizedBox(width: 10),
                         const Expanded(
                           child: Text(
-                            'Battery optimisation may pause warnings while the screen is off. Tap to allow unrestricted use.',
+                            'Battery optimisation may delay warnings with the screen off. Tap to fix.',
+                            style: TextStyle(fontSize: 13),
                           ),
                         ),
-                        const Icon(Icons.chevron_right),
+                        IconButton(
+                          key: const ValueKey('battery-hint-dismiss'),
+                          tooltip: 'Hide until the app is next opened',
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () =>
+                              refreshHome(() => batteryHintDismissed = true),
+                        ),
                       ],
                     ),
                   ),
@@ -2073,6 +2089,66 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 quickMessagePanel(),
               ],
               if (showRundown) ...[const SizedBox(height: 20), rundownPanel()],
+            ] else if (standingBy) ...[
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      timerPanelOf(wide: false),
+                      pinnedPrograms(),
+                      if (c.state.reports.isNotEmpty) lastServiceCard(),
+                      const SizedBox(height: 14),
+                      panel(
+                        padding: EdgeInsets.zero,
+                        child: Theme(
+                          data: Theme.of(
+                            context,
+                          ).copyWith(dividerColor: Colors.transparent),
+                          child: ExpansionTile(
+                            key: ValueKey(
+                              'stage-and-display-${c.pairing.hosting || c.destination == 'mobile'}',
+                            ),
+                            initiallyExpanded:
+                                c.pairing.hosting || c.destination == 'mobile',
+                            leading: Icon(
+                              connectionIcon(c.displayConnection),
+                              color: appColors(context).accent,
+                            ),
+                            title: const Text(
+                              'Stage & display',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              '${c.destinationName} · ${s.outputMode(c.now) == 'End screen' ? 'showing the end screen' : s.outputMode(c.now).toLowerCase()} · ${plural(c.state.stageCues.length, 'cue')}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: appColors(context).muted,
+                              ),
+                            ),
+                            childrenPadding: const EdgeInsets.fromLTRB(
+                              8,
+                              0,
+                              8,
+                              8,
+                            ),
+                            children: [
+                              cuePanel,
+                              if (c.destination == 'mobile') ...[
+                                const SizedBox(height: 12),
+                                quickMessagePanel(),
+                              ],
+                              const SizedBox(height: 12),
+                              displayPanel,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ] else if (wide) ...[
               if (s.active) ...[
                 timingStatusLine(bar: true),
@@ -2103,49 +2179,6 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                     ),
                   ),
                 ],
-              ),
-            ] else if (s.phase == 'idle') ...[
-              timerPanelOf(wide: false),
-              const SizedBox(height: 16),
-              panel(
-                padding: EdgeInsets.zero,
-                child: Theme(
-                  data: Theme.of(
-                    context,
-                  ).copyWith(dividerColor: Colors.transparent),
-                  child: ExpansionTile(
-                    key: ValueKey(
-                      'stage-and-display-${c.pairing.hosting || c.destination == 'mobile'}',
-                    ),
-                    initiallyExpanded:
-                        c.pairing.hosting || c.destination == 'mobile',
-                    leading: Icon(
-                      connectionIcon(c.displayConnection),
-                      color: appColors(context).accent,
-                    ),
-                    title: const Text(
-                      'Stage & display',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      '${c.destinationName} · ${plural(c.state.stageCues.length, 'cue')}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: appColors(context).muted,
-                      ),
-                    ),
-                    childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                    children: [
-                      cuePanel,
-                      if (c.destination == 'mobile') ...[
-                        const SizedBox(height: 12),
-                        quickMessagePanel(),
-                      ],
-                      const SizedBox(height: 12),
-                      displayPanel,
-                    ],
-                  ),
-                ),
               ),
             ] else ...[
               timerPanelOf(wide: false),
@@ -2417,6 +2450,14 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                                 ),
                                               ),
                                               const SizedBox(height: 8),
+                                              if (c.retry == null && !c.corrupt)
+                                                TextButton(
+                                                  key: const ValueKey(
+                                                    'dismiss-error',
+                                                  ),
+                                                  onPressed: c.dismissError,
+                                                  child: const Text('Dismiss'),
+                                                ),
                                               if (c.retry != null)
                                                 TextButton(
                                                   onPressed: c.busy

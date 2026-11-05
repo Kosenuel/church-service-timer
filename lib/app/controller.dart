@@ -1078,6 +1078,13 @@ class AppController extends ChangeNotifier {
     return count;
   }
 
+  /// Clears a shown error that has nothing to retry (the card's Dismiss).
+  void dismissError() {
+    if (error == null || retry != null || corrupt) return;
+    error = null;
+    notifyListeners();
+  }
+
   Future<void> reloadFonts() async {
     corrupt = false;
     error = null;

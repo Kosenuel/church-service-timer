@@ -309,6 +309,13 @@ void main() {
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       expect(find.text('View last service report'), findsOneWidget);
+      // Stage & display is folded while standing by; open it first.
+      await t.scrollUntilVisible(
+        find.text('Stage & display').hitTestable(),
+        300,
+      );
+      await t.tap(find.text('Stage & display'));
+      await t.pumpAndSettle();
       await t.scrollUntilVisible(find.text('Show clock').hitTestable(), 300);
       await tap(t, 'Show clock');
       expect(c.state.session.outputMode(c.now), 'Clock');

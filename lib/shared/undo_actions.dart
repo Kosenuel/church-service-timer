@@ -14,11 +14,15 @@ extension UndoActions on HomeState {
       SnackBar(
         content: Text(label),
         duration: duration,
+        // An action normally keeps a snackbar up until tapped.
+        persist: false,
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () async {
-            if (!await restore() && mounted)
-              await showError(c.error ?? 'Could not restore the item.');
+            if (await restore()) return;
+            final message = c.error ?? 'Could not restore the item.';
+            c.dismissError();
+            if (mounted) await showError(message);
           },
         ),
       ),

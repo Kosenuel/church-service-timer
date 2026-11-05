@@ -64,7 +64,7 @@ void main() {
       await host.retry!();
       await t.pumpAndSettle();
       expect(scroll.offset, 0);
-      expect(find.text('Standing by').hitTestable(), findsOneWidget);
+      expect(find.text('STANDING BY').hitTestable(), findsOneWidget);
       await host.act('load', value: host.state.templates.last);
       await host.act('start');
       await t.pumpAndSettle();
@@ -97,7 +97,7 @@ void main() {
       await t.pumpWidget(TimerApp(controller: restored));
       await t.pumpAndSettle();
       expect(t.takeException(), isNull);
-      expect(find.text('Standing by'), findsOneWidget);
+      expect(find.text('STANDING BY'), findsOneWidget);
       expect(find.text('View last service report'), findsOneWidget);
       expect(find.text('Send end screen'), findsOneWidget);
       await t.tap(find.byKey(const ValueKey('header-connection')));
@@ -125,7 +125,7 @@ void main() {
       await golden(t, 'report-save-retry');
       p.fail = false;
       await tap(t, 'Retry saving report');
-      expect(find.text('Standing by'), findsOneWidget);
+      expect(find.text('STANDING BY'), findsOneWidget);
       expect(find.text('Ready when you are'), findsOneWidget);
       expect(find.byType(SegmentGauge), findsNothing);
       expect(find.text('SERVICE RUNDOWN · SNAPSHOT'), findsNothing);
