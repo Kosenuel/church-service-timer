@@ -58,6 +58,11 @@ abstract class DevicePort {
   Future<void> disconnectDisplay() async {}
   Future<void> useSimulator() async {}
   Future<void> openWifiSettings() async {}
+
+  /// Whether Android exempts this app from battery optimisation; null when
+  /// unknown or not applicable.
+  Future<bool?> batteryUnrestricted() async => null;
+  Future<void> openBatterySettings() async {}
   Future<Json> checkDisplay() async => {'connected': false};
   Future<Json> sendDisplay(
     Uint8List bytes,
@@ -276,6 +281,12 @@ class AndroidPort extends DevicePort {
   Future<void> useSimulator() => channel.invokeMethod<void>('w2Simulator');
   @override
   Future<void> openWifiSettings() => channel.invokeMethod<void>('wifiSettings');
+  @override
+  Future<bool?> batteryUnrestricted() =>
+      channel.invokeMethod<bool>('batteryUnrestricted');
+  @override
+  Future<void> openBatterySettings() =>
+      channel.invokeMethod<void>('batterySettings');
   @override
   Future<Json> checkDisplay() async =>
       Map<String, dynamic>.from((await channel.invokeMethod<Map>('w2Status'))!);

@@ -57,3 +57,16 @@ For 0.10, follow `history/FEATURES-0.10.md`: global warning editing (including w
 For 0.12, follow `history/FEATURES-0.12.md`: scrolling warnings and return, locked-screen operation, overtime-to-next recovery, focused blank preview/control lock, rundown notes, custom themes, Reports banner and activity timeline. Verify acknowledgement separately from visible output; brief replacement blinking remains expected.
 
 For 0.13, follow `history/FEATURES-0.13.md`: paired-device approval, private-note isolation, handover/reclaim, loss/stale indication, stage cues, upcoming edits and Android print preview. Native administration builder checks are in `scripts/W2AdministrationChecks.kt`; codec tests do not replace an intentional setting-change/reconnection check. Do not reset sign networking during normal timer validation.
+
+## Publishing a release
+
+1. Update the version in `pubspec.yaml` (for example `0.24.0+24`) and `appVersion` in `lib/domain/app_settings.dart` (`0.24.0 (24)`).
+2. In `CHANGELOG.md`, rename `## Unreleased` to `## 0.24.0, <date>` and start a new empty `## Unreleased` above it.
+3. Merge those changes to `main`, then tag and push:
+
+   ```sh
+   git tag v0.24.0
+   git push origin v0.24.0
+   ```
+
+The [Release workflow](../.github/workflows/release.yml) checks that the tag matches both version strings, runs analysis and tests, builds the APK signed with the release key (it refuses to publish without the `CST_KEYSTORE_*` secrets), and publishes a GitHub Release with the APK, its SHA-256 checksum and that version's changelog section.

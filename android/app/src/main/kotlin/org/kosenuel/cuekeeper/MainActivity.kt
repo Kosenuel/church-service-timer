@@ -10,6 +10,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.content.Intent
 import android.content.ActivityNotFoundException
 import android.os.SystemClock
@@ -183,6 +184,19 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                         call.argument<Number>("deadline")?.toLong(), call.argument<Int>("generation") ?: -1)
                 }
                 "wifiSettings" -> { startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)); result.success(null) }
+                "batteryUnrestricted" -> {
+                    val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                    result.success(power.isIgnoringBatteryOptimizations(packageName))
+                }
+                "batterySettings" -> {
+                    // The system list avoids the restricted direct-request permission.
+                    try {
+                        startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    } catch (_: ActivityNotFoundException) {
+                        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+                    }
+                    result.success(null)
+                }
                 "composeFeedback" -> {
                     try {
                         val subject = call.argument<String>("subject") ?: ""

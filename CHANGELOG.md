@@ -6,6 +6,11 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 - **Lock-screen controls:** during a service, a notification shows the current segment with a live countdown (counting up when overtime), Pause/Resume and Next segment (Next needs a second tap). On by default in Warnings & alerts; obeys Lock controls.
 - **Watch-friendly warnings:** phone warnings use a distinct vibration pattern, which Wear OS watches mirror.
+- **Battery check:** Ready for service shows whether Android battery optimisation could pause warnings with the screen off, and Live shows a hint before a service starts; both open the system setting.
+- **GitHub Releases:** pushing a tag such as `v0.24.0` publishes a release with the signed APK, its checksum and the changelog section, after checking the tag matches the app version.
+- **Reconnecting indicators.** LED sign: the header chip shows a spinner and "Reconnecting…", and Live shows the attempt count with Reconnect display and Stop trying; timer controls and cues stay usable, and the sign receives current output when it returns. Paired phones: stage screens keep the last frame with a "Reconnecting to host…" chip; operator and viewer screens show a banner, dim the controls until the host answers, and suggest Wi-Fi settings after a minute.
+- **Review notes** on reports: an after-service reflection kept apart from the recorded timings, editable from the report, optional when exporting (JSON/CSV) or printing, and shown as "Last time" when the same program is loaded into Ready.
+- **Delete selected** in Programs and Reports selection mode: shows the count, names items hidden by the current search or filter, confirms in red and offers a 10-second Undo that restores items exactly (order, pins, recent use). Deleting saved programs leaves a running service and past reports unchanged.
 - Internal clean-up with no visible change: stricter lint rules (`flutter_lints`), `lib/` and `test/` organised by feature, behaviour-named tests, `AppController` split into focused collaborators, and this changelog.
 
 ## 0.22.0, 4 November 2026

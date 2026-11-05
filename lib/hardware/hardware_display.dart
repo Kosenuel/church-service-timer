@@ -21,6 +21,20 @@ class HardwareDisplay extends ChangeNotifier {
   String? _sessionPassword, _restoreSession;
   Stamp? _lostAt;
   final List<String> diagnostics = [];
+
+  /// Automatic recovery is under way: the link is being checked after missed
+  /// replies, or the remembered sign is being retried after a loss.
+  bool get reconnecting =>
+      enabled && ((connected && interrupted) || (!connected && retryEnabled));
+
+  /// Reconnection attempts since the link was lost (0 while only checking).
+  int get reconnectAttempt => connected ? 0 : _attempt;
+
+  /// How long the sign has been unreachable, when known.
+  int? get offlineMs =>
+      _lostAt == null || _now == null || !_now!.sameBoot(_lostAt!)
+      ? null
+      : _now!.since(_lostAt!);
   bool get retryEnabled =>
       enabled && autoReconnect && !credentialsNeeded && rememberedId.isNotEmpty;
   void record(String message) {
