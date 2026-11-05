@@ -208,7 +208,7 @@ String exportBackup(
     ..remove('appearance')
     ..remove('programLibrary')
     ..remove('lockScreenControls')
-    ..remove('settingsLock');
+    ..remove('settingsLock')
     ..remove('clickerControls');
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
