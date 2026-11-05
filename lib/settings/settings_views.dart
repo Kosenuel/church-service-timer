@@ -757,182 +757,257 @@ class _AppearancePageState extends State<AppearancePage> {
     ...appPalettes,
     if (selected.startsWith('custom:')) paletteFor(selected),
   ];
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Appearance'),
-      bottom: widget.controller.liveSession.active
-          ? RunningServiceBar.forContext(context, controller: widget.controller)
+  Future<void> save() async {
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    final saved = await widget.controller.commit((draft, _) {
+      draft.themeId = selected;
+      draft.appearance = appearance;
+    });
+    if (!mounted) return;
+    if (saved) {
+      Navigator.pop(context);
+    } else {
+      setState(() {
+        saving = false;
+        error = widget.controller.error ?? 'Could not save. Try again.';
+      });
+    }
+  }
+
+  Future<void> createCustom() async {
+    final value = await showDialog<String>(
+      context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
           : null,
-    ),
-    body: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Choose your atmosphere.',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Preview your colors, spacing and accessibility preferences. Save to keep changes, or go back to discard.',
-                  style: TextStyle(color: appColors(context).muted),
-                ),
-                const SizedBox(height: 20),
-                AppearanceControls(
-                  value: appearance,
-                  onChanged: saving
-                      ? null
-                      : (value) {
-                          setState(() => appearance = value);
-                          widget.controller.previewAppearance(value);
-                        },
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Color theme',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  color: appColors(context).surface,
-                  surfaceTintColor: Colors.transparent,
-                  clipBehavior: Clip.antiAlias,
-                  margin: EdgeInsets.zero,
-                  child: Column(
+      builder: (_) => CustomThemeEditor(initial: selected),
+    );
+    if (value != null && mounted) {
+      setState(() => selected = value);
+      widget.controller.previewTheme(value);
+    }
+  }
+
+  Widget themeTile(AppPalette p) {
+    final colors = appColors(context);
+    final on = selected == p.id;
+    return Material(
+      key: ValueKey('theme-${p.id}'),
+      color: colors.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: on ? colors.accent : colors.border,
+          width: on ? 2 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: saving
+            ? null
+            : () {
+                setState(() => selected = p.id);
+                widget.controller.previewTheme(p.id);
+              },
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  height: 34,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (var i = 0; i < choices.length; i++) ...[
-                        if (i > 0) const AppDivider(),
-                        Builder(
-                          builder: (context) {
-                            final p = choices[i];
-                            return ListTile(
-                              key: ValueKey('theme-${p.id}'),
-                              contentPadding: appLayout(context).tileInsets,
-                              selected: selected == p.id,
-                              leading: SizedBox(
-                                width: 40,
-                                height: 40,
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Row(
-                                    children: [
-                                      for (final color in [
-                                        p.background,
-                                        p.surface,
-                                        p.accent,
-                                      ])
-                                        Expanded(
-                                          child: ColoredBox(
-                                            color: color,
-                                            child: const SizedBox.expand(),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              title: Text(
-                                p.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              subtitle: Text(
-                                p.description,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              trailing: Icon(
-                                selected == p.id
-                                    ? Icons.check_circle
-                                    : Icons.circle_outlined,
-                                size: 22,
-                              ),
-                              onTap: saving
-                                  ? null
-                                  : () {
-                                      setState(() => selected = p.id);
-                                      widget.controller.previewTheme(p.id);
-                                    },
-                            );
-                          },
-                        ),
-                      ],
+                      Expanded(flex: 2, child: ColoredBox(color: p.background)),
+                      Expanded(flex: 2, child: ColoredBox(color: p.surface)),
+                      Expanded(child: ColoredBox(color: p.accent)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.palette_outlined),
-                  label: const Text('Create custom theme'),
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          final value = await showDialog<String>(
-                            context: context,
-                            animationStyle: reduceAppMotion(context)
-                                ? AnimationStyle.noAnimation
-                                : null,
-                            builder: (_) =>
-                                CustomThemeEditor(initial: selected),
-                          );
-                          if (value != null && mounted) {
-                            setState(() => selected = value);
-                            widget.controller.previewTheme(value);
-                          }
-                        },
-                ),
-                const SizedBox(height: 8),
-                if (error != null)
-                  Text(
-                    error!,
-                    style: TextStyle(color: appColors(context).error),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      p.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
-                FilledButton(
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          setState(() {
-                            saving = true;
-                            error = null;
-                          });
-                          final saved = await widget.controller.commit((
-                            draft,
-                            _,
-                          ) {
-                            draft.themeId = selected;
-                            draft.appearance = appearance;
-                          });
-                          if (!mounted || !context.mounted) return;
-                          if (saved) {
-                            Navigator.pop(context);
-                          } else {
-                            setState(() {
-                              saving = false;
-                              error =
-                                  widget.controller.error ??
-                                  'Could not save. Try again.';
-                            });
-                          }
-                        },
-                  child: const Text('Save appearance'),
-                ),
-                TextButton(
-                  onPressed: saving ? null : () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-              ],
+                  if (on)
+                    Icon(Icons.check_circle, size: 18, color: colors.accent),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    final palette = paletteFor(selected);
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Appearance'),
+          bottom: widget.controller.liveSession.active
+              ? RunningServiceBar.forContext(
+                  context,
+                  controller: widget.controller,
+                )
+              : null,
+        ),
+        body: SafeArea(
+          bottom: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: ThemePreviewCard(name: palette.name),
+                  ),
+                  TabBar(
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                    indicatorColor: colors.accent,
+                    labelColor: colors.text,
+                    unselectedLabelColor: colors.muted,
+                    tabs: const [
+                      Tab(text: 'Theme'),
+                      Tab(text: 'Layout & accessibility'),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: [
+                            LayoutBuilder(
+                              builder: (context, space) {
+                                final columns = space.maxWidth >= 520 ? 3 : 2;
+                                final width =
+                                    (space.maxWidth - 10 * (columns - 1)) /
+                                    columns;
+                                return Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    for (final p in choices)
+                                      SizedBox(
+                                        width: width,
+                                        child: themeTile(p),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(46),
+                              ),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create custom theme'),
+                              onPressed: saving ? null : createCustom,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              palette.description,
+                              style: TextStyle(
+                                color: colors.muted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
+                          child: AppearanceControls(
+                            value: appearance,
+                            onChanged: saving
+                                ? null
+                                : (value) {
+                                    setState(() => appearance = value);
+                                    widget.controller.previewAppearance(value);
+                                  },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        bottomNavigationBar: Material(
+          color: colors.surface,
+          child: SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: colors.border)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        error!,
+                        style: TextStyle(color: colors.error),
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 52),
+                        ),
+                        onPressed: saving ? null : () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                          ),
+                          onPressed: saving ? null : save,
+                          child: const Text('Save appearance'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class CustomThemeEditor extends StatefulWidget {

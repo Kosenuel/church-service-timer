@@ -28,6 +28,17 @@ void main() {
   }
 
   Future<void> tap(WidgetTester t, String text) async {
+    if (const [
+          'Layout density',
+          'High contrast',
+          'Reduced motion',
+        ].contains(text) &&
+        find.text('Layout & accessibility').evaluate().isNotEmpty &&
+        find.text(text).evaluate().isEmpty &&
+        find.byKey(const ValueKey('layout-density')).evaluate().isEmpty) {
+      await t.tap(find.text('Layout & accessibility'));
+      await t.pumpAndSettle();
+    }
     final target = text == 'Layout density'
         ? find.byKey(const ValueKey('layout-density'))
         : find.text(text).last;

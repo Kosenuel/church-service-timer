@@ -187,3 +187,98 @@ class AppearanceSample extends StatelessWidget {
     );
   }
 }
+
+/// Compact preview pinned above the Appearance tabs; follows the previewed
+/// theme because the whole app re-themes while previewing.
+class ThemePreviewCard extends StatelessWidget {
+  final String name;
+  const ThemePreviewCard({super.key, required this.name});
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    Widget action(String text, {bool filled = false}) => Expanded(
+      child: Container(
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: filled ? colors.accent : null,
+          border: filled ? null : Border.all(color: colors.accent, width: 2),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: filled ? colors.background : colors.accent,
+          ),
+        ),
+      ),
+    );
+    return Semantics(
+      label: 'Preview of the selected theme',
+      child: Container(
+        key: const ValueKey('theme-preview'),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.border),
+        ),
+        child: ExcludeSemantics(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'PREVIEW · ${name.toUpperCase()}',
+                style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 1,
+                  color: colors.muted,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Praise & Worship',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          '15 min · Now',
+                          style: TextStyle(fontSize: 12, color: colors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Text(
+                    '13:30',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w300,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  action('Pause', filled: true),
+                  const SizedBox(width: 8),
+                  action('Next segment'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
