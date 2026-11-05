@@ -33,6 +33,8 @@ void main() {
       await t.pumpAndSettle();
       expect(find.byKey(const ValueKey('ready-inline')), findsOneWidget);
       expect(find.textContaining('all set'), findsOneWidget);
+      await t.ensureVisible(find.text('Start first segment'));
+      await t.pumpAndSettle();
       await t.tap(find.text('Start first segment'));
       await t.pumpAndSettle();
       expect(find.byType(AlertDialog), findsNothing);

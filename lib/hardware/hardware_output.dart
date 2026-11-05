@@ -17,6 +17,7 @@ enum HardwareOutputReason {
   operatorBlank,
   idle,
   ready,
+  preService,
   held,
   disconnected,
   uncertain,
@@ -184,6 +185,31 @@ HardwareOutputPlan planHardwareOutput(
   }
   if (session.outputBlank) {
     return make(HardwareOutputKind.blank, HardwareOutputReason.operatorBlank);
+  }
+  if (session.phase == 'ready' && session.startsAtWall != null) {
+    final at = session.startsAtWall!;
+    final left = at - now.wall;
+    if (left > preServiceCountdownMs || left > maximumCountdownMs) {
+      return make(HardwareOutputKind.clock, HardwareOutputReason.preService);
+    }
+    if (left > 0) {
+      if (!now.sameBoot(session.anchor)) {
+        return blocked(HardwareOutputReason.untrustedClock);
+      }
+      return make(
+        HardwareOutputKind.countdown,
+        HardwareOutputReason.preService,
+        layout: const TextLayout('00:00', effect: 'static', height: 2),
+        deadlineWallMs: at,
+        deadlineMonoMs: session.anchor.mono + (at - session.anchor.wall),
+        deadlineBoot: session.anchor.boot,
+      );
+    }
+    return make(
+      HardwareOutputKind.text,
+      HardwareOutputReason.preService,
+      layout: startingSoonLayout,
+    );
   }
   if (session.phase == 'idle' || session.phase == 'ready') {
     return make(

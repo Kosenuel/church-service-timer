@@ -45,6 +45,9 @@ extension ItemMenuViews on HomeState {
       if (format != null) await export(program, format);
     }
     if (action == 'delete' &&
+        await ensureSettingsUnlocked(
+          reason: 'Enter the Settings PIN to delete programs.',
+        ) &&
         await confirm(
           'Delete program?',
           'Delete “${program.name}”? A service already running from this program stays unchanged.',

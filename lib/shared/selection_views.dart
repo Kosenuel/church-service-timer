@@ -187,6 +187,11 @@ extension SelectionViews on HomeState {
     required Set<String> chosen,
     required int hidden,
   }) async {
+    if (!await ensureSettingsUnlocked(
+      reason:
+          'Enter the Settings PIN to delete ${programs ? 'programs' : 'reports'}.',
+    ))
+      return;
     final count = chosen.length;
     final noun = programs
         ? (count == 1 ? 'program' : 'programs')

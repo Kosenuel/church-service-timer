@@ -207,7 +207,9 @@ String exportBackup(
     ..remove('version')
     ..remove('appearance')
     ..remove('programLibrary')
-    ..remove('lockScreenControls');
+    ..remove('lockScreenControls')
+    ..remove('settingsLock');
+    ..remove('clickerControls');
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
     // Version 8 only when sealed passwords are included, so plain backups

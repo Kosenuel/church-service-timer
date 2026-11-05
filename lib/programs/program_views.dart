@@ -330,6 +330,10 @@ extension TemplateViews on HomeState {
           }
 
           Future<void> delete() async {
+            if (!await ensureSettingsUnlocked(
+              reason: 'Enter the Settings PIN to delete programs.',
+            ))
+              return;
             if (!await confirm(
               'Delete ${t!.name}?',
               'Delete this saved program? Any loaded service and its report remain unchanged.',
