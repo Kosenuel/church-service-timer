@@ -1,5 +1,5 @@
 import 'dart:io';
-import '../test/w2_program_cases.dart';
+import '../test/hardware/w2_program_cases.dart';
 
 void main() {
   for (final entry in w2ProgramCases.entries) {

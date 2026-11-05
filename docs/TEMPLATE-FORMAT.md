@@ -22,7 +22,7 @@ Every text layout contains all fields:
 | `height` | 1 (7 pixels) or 2 (14 pixels) |
 | `font` | `cuekeeper_matrix`, `cuekeeper_sq_matrix`, `tinos`; legacy `times_new_roman` selections migrate to `tinos`; absent/retired `service_serif`/`clear_sans` selections migrate to `cuekeeper_matrix` |
 
-Each warning rule contains `seconds` (integer 0–5,999, unique within the shared rule set), `enabled` (boolean), `destination` (`operator` or `stage`), and `cue` (a complete text layout). Rules use time remaining per segment. Both destinations allow phone notifications. See `FEATURES-0.3.md`. `examples/quick-rehearsal.json` remains a version 1 compatibility example; `examples/styled-rehearsal.json` demonstrates version 2. Tinos faces are bundled with the Android app; font bytes are not exported. Import adopts the receiving device’s shared warning rules.
+Each warning rule contains `seconds` (integer 0–5,999, unique within the shared rule set), `enabled` (boolean), `destination` (`operator` or `stage`), and `cue` (a complete text layout). Rules use time remaining per segment. Both destinations allow phone notifications. See `history/FEATURES-0.3.md`. `examples/quick-rehearsal.json` remains a version 1 compatibility example; `examples/styled-rehearsal.json` demonstrates version 2. Tinos faces are bundled with the Android app; font bytes are not exported. Import adopts the receiving device’s shared warning rules.
 
 Static/flashing text must fit within 32 pixels. Scrolling is required when it does not fit. No image or video fields are accepted. Physical-layout approvals and local settings are never exported or accepted as part of this schema.
 

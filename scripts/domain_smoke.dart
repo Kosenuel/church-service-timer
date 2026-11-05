@@ -1,6 +1,6 @@
 // Runs with the Dart SDK alone when Flutter process launching is unavailable.
 import 'dart:io';
-import 'package:church_service_timer/domain.dart';
+import 'package:church_service_timer/domain/domain.dart';
 
 void main() {
   var checks = 0;

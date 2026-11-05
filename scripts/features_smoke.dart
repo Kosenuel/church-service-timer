@@ -1,5 +1,5 @@
 import 'dart:io';
-import '../test/feature_cases.dart';
+import '../test/domain/feature_cases.dart';
 
 void main() {
   for (final entry in featureCases.entries) {

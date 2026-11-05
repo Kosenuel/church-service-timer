@@ -1,9 +1,5 @@
 import 'dart:async';
 import 'dart:convert' show jsonDecode;
-import 'package:nsd/nsd.dart' as nsd;
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
-import 'pairing_pin.dart';
 import 'dart:ui' show ImageFilter;
 import 'dart:math' as math;
 
@@ -11,43 +7,67 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'app_theme.dart';
-import 'app_menu.dart';
-import 'ui_tools.dart';
-import 'running_service_bar.dart';
-import 'clock_text.dart';
-import 'time_picker.dart';
-import 'choice_field.dart';
-import 'service_pdf.dart';
-import 'church_banner.dart';
-import 'feedback_page.dart';
-import 'controller.dart';
-import 'domain.dart';
-import 'pixels.dart';
-import 'platform.dart';
-import 'native_fonts.dart';
-import 'display_connection.dart';
-import 'pairing.dart';
-import 'best_effort.dart';
+import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
+import 'package:church_service_timer/live/running_service_bar.dart';
+import 'package:church_service_timer/shared/time_picker.dart';
+import 'package:church_service_timer/shared/choice_field.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/display/pixels.dart';
+import 'package:church_service_timer/app/platform.dart';
+import 'package:church_service_timer/display/native_fonts.dart';
+import 'package:church_service_timer/hardware/display_connection.dart';
 
-part 'feature_views.dart';
-part 'update_19_views.dart';
-part 'appearance_views.dart';
-part 'report_views.dart';
-part 'live_views.dart';
-part 'template_views.dart';
-part 'settings_views.dart';
-part 'refined_settings.dart';
-part 'hardware_views.dart';
-part 'operator_settings.dart';
-part 'planning_views.dart';
-part 'pairing_views.dart';
-part 'device_management.dart';
-part 'mobile_display_views.dart';
-part 'improvement_views.dart';
-part 'update_21_views.dart';
-part 'wifi_reconnect_views.dart';
-part 'live_layout_views.dart';
+import 'package:church_service_timer/reports/report_views.dart';
+import 'package:church_service_timer/live/live_timer_views.dart';
+import 'package:church_service_timer/settings/settings_views.dart';
+import 'package:church_service_timer/settings/display_settings_views.dart';
+import 'package:church_service_timer/hardware/hardware_views.dart';
+import 'package:church_service_timer/settings/stage_cue_settings_views.dart';
+import 'package:church_service_timer/live/planning_views.dart';
+import 'package:church_service_timer/pairing/pairing_views.dart';
+import 'package:church_service_timer/pairing/stage_screen_views.dart';
+import 'package:church_service_timer/live/live_layout_views.dart';
+import 'package:church_service_timer/live/stage_output_views.dart';
+import 'package:church_service_timer/live/time_recovery_views.dart';
+import 'package:church_service_timer/live/timing_overview_views.dart';
+import 'package:church_service_timer/programs/program_editor_insights.dart';
+import 'package:church_service_timer/programs/program_import_export_views.dart';
+import 'package:church_service_timer/programs/program_library_views.dart';
+import 'package:church_service_timer/reports/report_library_views.dart';
+import 'package:church_service_timer/shared/format_labels.dart';
+
+export 'package:church_service_timer/settings/appearance_views.dart';
+export 'package:church_service_timer/reports/report_views.dart';
+export 'package:church_service_timer/live/live_timer_views.dart';
+export 'package:church_service_timer/programs/program_views.dart';
+export 'package:church_service_timer/settings/settings_views.dart';
+export 'package:church_service_timer/settings/display_settings_views.dart';
+export 'package:church_service_timer/hardware/hardware_views.dart';
+export 'package:church_service_timer/settings/stage_cue_settings_views.dart';
+export 'package:church_service_timer/live/planning_views.dart';
+export 'package:church_service_timer/pairing/pairing_views.dart';
+export 'package:church_service_timer/hardware/device_management_views.dart';
+export 'package:church_service_timer/pairing/stage_screen_views.dart';
+export 'package:church_service_timer/hardware/wifi_reconnect_views.dart';
+export 'package:church_service_timer/live/live_layout_views.dart';
+export 'package:church_service_timer/live/stage_output_views.dart';
+export 'package:church_service_timer/live/time_recovery_views.dart';
+export 'package:church_service_timer/live/timing_overview_views.dart';
+export 'package:church_service_timer/programs/program_editor_insights.dart';
+export 'package:church_service_timer/programs/program_import_export_views.dart';
+export 'package:church_service_timer/programs/program_library_views.dart';
+export 'package:church_service_timer/reports/report_actions.dart';
+export 'package:church_service_timer/reports/report_library_views.dart';
+export 'package:church_service_timer/reports/timing_insights_views.dart';
+export 'package:church_service_timer/settings/clock_settings_views.dart';
+export 'package:church_service_timer/settings/settings_search_views.dart';
+export 'package:church_service_timer/settings/warning_settings_views.dart';
+export 'package:church_service_timer/shared/format_labels.dart';
+export 'package:church_service_timer/shared/item_menu_views.dart';
+export 'package:church_service_timer/shared/selection_views.dart';
+export 'package:church_service_timer/shared/undo_actions.dart';
 
 String styleSummary(TextLayout l) =>
     '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
@@ -117,10 +137,10 @@ class Home extends StatefulWidget {
   final AppController controller;
   const Home({super.key, required this.controller});
   @override
-  State<Home> createState() => _HomeState();
+  State<Home> createState() => HomeState();
 }
 
-class _HomeState extends State<Home> with WidgetsBindingObserver {
+class HomeState extends State<Home> with WidgetsBindingObserver {
   AppController get c => widget.controller;
   int page = 0;
   QuickMessage quickDraft = const QuickMessage(body: '');
@@ -2202,10 +2222,10 @@ class TemplateEditor extends StatefulWidget {
     this.reports = const [],
   });
   @override
-  State<TemplateEditor> createState() => _TemplateEditorState();
+  State<TemplateEditor> createState() => TemplateEditorState();
 }
 
-class _TemplateEditorState extends State<TemplateEditor> {
+class TemplateEditorState extends State<TemplateEditor> {
   late TextEditingController name;
   late List<Segment> segments;
   late TextLayout endScreen;

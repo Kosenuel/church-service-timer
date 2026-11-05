@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:church_service_timer/w2_program.dart';
+import 'package:church_service_timer/hardware/w2_program.dart';
 
 void main(List<String> arguments) {
   if (arguments.length != 1) throw ArgumentError('Specify output file.');

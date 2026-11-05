@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:church_service_timer/domain.dart';
-import 'package:church_service_timer/service_pdf.dart';
+import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/reports/service_pdf.dart';
 
 Future<void> main(List<String> args) async {
   final out = Directory(args.single)..createSync(recursive: true);

@@ -10,7 +10,7 @@ No supported controller-side colon-blink setting was identified. The existing na
 
 ## Evidence
 
-These are ordinary retained JADX Java/smali observations, not REA MCP Evidence records; REA MCP tools were unavailable. Artifact identity and source hashes are recorded in [the 0.19 investigation](w2-clock-019.md). Sources below are relative to the workspace root.
+These are ordinary retained JADX Java/smali observations, not REA MCP Evidence records; REA MCP tools were unavailable. Artifact identity and source hashes are recorded in [the 0.19 investigation](history/w2-clock-019.md). Sources below are relative to the workspace root.
 
 | Source | Observation |
 | --- | --- |
