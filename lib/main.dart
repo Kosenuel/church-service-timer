@@ -1684,6 +1684,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                               key: const ValueKey('header-connection'),
                               connection: c.displayConnection,
                               label: headerDisplayLabel(),
+                              reconnecting: displayReconnecting,
                               onPressed:
                                   (controlsLocked || !c.pairing.localControl)
                                   ? null

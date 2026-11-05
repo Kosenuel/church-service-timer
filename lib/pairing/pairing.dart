@@ -247,6 +247,10 @@ class PairHub extends ChangeNotifier {
   bool get reconnecting =>
       joined && !pausedByHost && _client == null && _resumeCode != null;
 
+  /// Attempts since the host was lost, and when the loss began.
+  int get reconnectAttempt => reconnecting ? _retryCount : 0;
+  DateTime? reconnectingSince;
+
   void Function()? onOwnershipChanged;
   void Function(String message)? onControlChanged;
   bool get hosting => _server != null;
@@ -846,6 +850,7 @@ class PairHub extends ChangeNotifier {
       }
       clientId = pending['id'];
       _retryCount = 0;
+      reconnectingSince = null;
       _retry?.cancel();
       _timer?.cancel();
       status = resumeId == null
@@ -959,6 +964,7 @@ class PairHub extends ChangeNotifier {
   void _scheduleReconnect({bool immediate = false}) {
     if (_disposed || !joined || _resumeCode == null || _resumeId == null)
       return;
+    reconnectingSince ??= DateTime.now();
     _retry?.cancel();
     _timer?.cancel();
     _retryCount = (_retryCount + 1).clamp(1, 5);
@@ -1042,6 +1048,7 @@ class PairHub extends ChangeNotifier {
     _lifecycle++;
     _retry?.cancel();
     _retry = null;
+    reconnectingSince = null;
     _resumeCode = null;
     _resumeId = null;
     if (!preserveClient && _savedClient != null) {
