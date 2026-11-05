@@ -1022,6 +1022,62 @@ class AppController extends ChangeNotifier {
     return saved;
   }
 
+  /// Saved passwords on this phone that a backup may carry, sealed:
+  /// the LED sign's device password and its Wi-Fi reconnect details.
+  /// Paired-device approvals are never exported.
+  Future<Map<String, dynamic>> backupSecrets() async {
+    final id = hardware.rememberedId;
+    if (id.isEmpty) return {};
+    final device = await port.savedDisplayPassword(id);
+    final wifi = await port.signWifiProfile(id);
+    final wifiPassword = await port.savedDisplayPassword('wifi:$id');
+    return {
+      'display': {
+        'id': id,
+        'name': hardware.rememberedName,
+        'devicePassword': ?device,
+        if ((wifi['ssid'] as String? ?? '').isNotEmpty)
+          'wifi': {
+            'ssid': wifi['ssid'],
+            'security': wifi['security'] ?? 'wpa2',
+            'bssid': wifi['bssid'] ?? '',
+            'password': ?wifiPassword,
+          },
+      },
+    };
+  }
+
+  bool hasBackupSecrets(Map<String, dynamic> secrets) {
+    final d = secrets['display'];
+    return d is Map && (d['devicePassword'] != null || d['wifi'] != null);
+  }
+
+  /// Writes restored passwords back to this phone's encrypted storage.
+  /// Returns how many were restored.
+  Future<int> restoreBackupSecrets(Map<String, dynamic> secrets) async {
+    final d = secrets['display'];
+    if (d is! Map || d['id'] is! String || (d['id'] as String).isEmpty)
+      return 0;
+    final id = d['id'] as String;
+    var count = 0;
+    if (d['devicePassword'] is String) {
+      await port.saveDisplayPassword(id, d['devicePassword'] as String);
+      count++;
+    }
+    final wifi = d['wifi'];
+    if (wifi is Map && wifi['ssid'] is String) {
+      await port.saveSignWifiProfile({
+        'id': id,
+        'ssid': wifi['ssid'],
+        'security': wifi['security'] ?? 'wpa2',
+        'bssid': wifi['bssid'] ?? '',
+        'password': wifi['password'],
+      });
+      count++;
+    }
+    return count;
+  }
+
   Future<void> reloadFonts() async {
     corrupt = false;
     error = null;

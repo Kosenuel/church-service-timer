@@ -195,7 +195,11 @@ bool boolSetting(dynamic value) {
 
 /// Portable saved data only. Active clocks, alarms, hardware and font bytes are
 /// deliberately excluded; restoring starts at an idle operator screen.
-String exportBackup(AppState state, Stamp now) {
+String exportBackup(
+  AppState state,
+  Stamp now, {
+  Map<String, dynamic>? savedPasswords,
+}) {
   final data = state.toJson()
     ..remove('session')
     ..remove('editDrafts')
@@ -208,12 +212,15 @@ String exportBackup(AppState state, Stamp now) {
     ..remove('clickerControls');
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    'schemaVersion': 7,
+    // Version 8 only when sealed passwords are included, so plain backups
+    // remain readable by earlier versions.
+    'schemaVersion': savedPasswords == null ? 7 : 8,
     'createdUtc': DateTime.fromMillisecondsSinceEpoch(
       now.wall,
       isUtc: true,
     ).toIso8601String(),
     'data': data,
+    'savedPasswords': ?savedPasswords,
   });
   require(
     utf8.encode(result).length <= backupLimitBytes,
@@ -229,10 +236,16 @@ AppState importBackup(String raw, Stamp now) {
   );
   try {
     final envelope = Map<String, dynamic>.from(jsonDecode(raw));
-    keys(envelope, {'type', 'schemaVersion', 'createdUtc', 'data'}, 'Backup');
+    keys(envelope, {
+      'type',
+      'schemaVersion',
+      'createdUtc',
+      'data',
+      if (envelope['schemaVersion'] == 8) 'savedPasswords',
+    }, 'Backup');
     require(
       envelope['type'] == 'church-service-timer-backup' &&
-          {1, 2, 3, 4, 5, 6, 7}.contains(envelope['schemaVersion']),
+          {1, 2, 3, 4, 5, 6, 7, 8}.contains(envelope['schemaVersion']),
       'Choose a supported Church Service Timer backup.',
     );
     final data = Map<String, dynamic>.from(envelope['data']);
@@ -325,4 +338,11 @@ AppState importBackup(String raw, Stamp now) {
       'This backup is incomplete or invalid. No data was changed.',
     );
   }
+}
+
+/// The sealed saved-password block of a backup, or null when it has none.
+Map<String, dynamic>? backupSavedPasswords(String raw) {
+  final envelope = jsonDecode(raw);
+  if (envelope is! Map || envelope['savedPasswords'] is! Map) return null;
+  return Map<String, dynamic>.from(envelope['savedPasswords']);
 }

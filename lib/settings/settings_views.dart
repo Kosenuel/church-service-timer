@@ -8,6 +8,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/settings/backup_secret_views.dart';
 import 'package:church_service_timer/settings/whats_new_page.dart';
 
 extension SettingsViews on HomeState {
@@ -298,24 +299,12 @@ extension SettingsViews on HomeState {
             ),
             const SizedBox(height: 12),
             Text(
-              'Backups exclude the current running service and phone permissions. Tinos and both Matrix fonts are built in on every installation. Private operator notes are included in programs.',
+              'Backups exclude the current running service and phone permissions. Saved sign passwords are included only if you choose, encrypted with a passphrase. Tinos and both Matrix fonts are built in on every installation. Private operator notes are included in programs.',
               style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: c.busy
-                  ? null
-                  : () async {
-                      try {
-                        await c.port.exportFile(
-                          'Church-Service-Timer-backup-${c.now.wall}.json',
-                          exportBackup(c.state, c.now),
-                        );
-                      } catch (e) {
-                        if (mounted)
-                          await showError('Backup could not be exported: $e');
-                      }
-                    },
+              onPressed: c.busy ? null : exportSavedSetup,
               icon: const Icon(Icons.save_alt),
               label: const Text('Export backup'),
             ),
@@ -357,6 +346,62 @@ extension SettingsViews on HomeState {
     ],
   );
 
+  Future<void> exportSavedSetup() async {
+    try {
+      final secrets = await c.backupSecrets();
+      if (!mounted) return;
+      final choice = await showDialog<BackupExportChoice>(
+        context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
+        builder: (_) =>
+            BackupExportDialog(hasPasswords: c.hasBackupSecrets(secrets)),
+      );
+      if (choice == null || !mounted) return;
+      final sealed = choice.includePasswords
+          ? await sealBackupSecrets(secrets, choice.passphrase)
+          : null;
+      await c.port.exportFile(
+        'Church-Service-Timer-backup-${c.now.wall}.json',
+        exportBackup(c.state, c.now, savedPasswords: sealed),
+      );
+    } catch (e) {
+      if (mounted) await showError('Backup could not be exported: $e');
+    }
+  }
+
+  /// After a restore, offers to unseal and restore the backup's passwords.
+  Future<void> restoreSavedPasswords(Map<String, dynamic> sealed) async {
+    String? error;
+    while (true) {
+      if (!mounted) return;
+      final passphrase = await showDialog<String>(
+        context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
+        builder: (_) => BackupPassphraseDialog(error: error),
+      );
+      if (passphrase == null || !mounted) return;
+      final secrets = await openBackupSecrets(sealed, passphrase);
+      if (secrets == null) {
+        error = 'That passphrase is not correct.';
+        continue;
+      }
+      final count = await c.restoreBackupSecrets(secrets);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Restored ${plural(count, 'saved password')}. Connect to the sign to use them.',
+            ),
+          ),
+        );
+      return;
+    }
+  }
+
   Future<void> restoreSavedSetup() async {
     try {
       final file = await c.port.pickBackup();
@@ -380,6 +425,8 @@ extension SettingsViews on HomeState {
           content: Text('Backup restored. Ready for a new service.'),
         ),
       );
+      final sealed = backupSavedPasswords(file['content'] as String);
+      if (sealed != null) await restoreSavedPasswords(sealed);
     } catch (e) {
       if (mounted) await showError('Backup not restored: $e');
     }

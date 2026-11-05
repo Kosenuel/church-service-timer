@@ -8,6 +8,7 @@ export 'package:church_service_timer/domain/app_settings.dart';
 import 'package:church_service_timer/domain/program_library.dart';
 export 'package:church_service_timer/domain/program_library.dart';
 export 'package:church_service_timer/domain/service_planning.dart';
+export 'package:church_service_timer/domain/backup_secrets.dart';
 import 'package:church_service_timer/domain/settings_lock.dart';
 export 'package:church_service_timer/domain/settings_lock.dart';
 import 'package:church_service_timer/domain/quick_message.dart';
