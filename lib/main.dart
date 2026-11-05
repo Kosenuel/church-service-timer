@@ -246,7 +246,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       ],
     ),
   );
-  Future<bool> confirm(String title, String body, String button) async =>
+  Future<bool> confirm(
+    String title,
+    String body,
+    String button, {
+    bool destructive = false,
+  }) async =>
       await showDialog<bool>(
         context: context,
         animationStyle: reduceAppMotion(context)
@@ -261,7 +266,14 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               child: const Text('Cancel'),
             ),
             FilledButton(
+              key: const ValueKey('confirm-action'),
               onPressed: () => Navigator.pop(context, true),
+              style: destructive
+                  ? FilledButton.styleFrom(
+                      backgroundColor: const Color(0xffa73238),
+                      foregroundColor: Colors.white,
+                    )
+                  : null,
               child: Text(button),
             ),
           ],
@@ -903,6 +915,45 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               icon: const Icon(Icons.assessment_outlined),
               label: const Text('View last service report'),
             ),
+          if (s.phase == 'ready' && t != null)
+            if (c.state.latestReviewFor(t.name) case final last?)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Material(
+                  key: const ValueKey('last-review-note'),
+                  color: appColors(context).info.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.rate_review_outlined,
+                          size: 20,
+                          color: appColors(context).info,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Last time · ${serviceDateLabel(last.report.startedWall ?? last.report.endedWall)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(last.note.text),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           if (s.phase == 'ready') ...[
             ChoiceField<int>(
               key: ValueKey('speed-${s.id}'),
@@ -1684,6 +1735,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                               key: const ValueKey('header-connection'),
                               connection: c.displayConnection,
                               label: headerDisplayLabel(),
+                              reconnecting: displayReconnecting,
                               onPressed:
                                   (controlsLocked || !c.pairing.localControl)
                                   ? null

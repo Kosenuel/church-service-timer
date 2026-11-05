@@ -1,4 +1,5 @@
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/material.dart';
 
@@ -147,9 +148,94 @@ extension SelectionViews on HomeState {
                     ),
                   ],
                 ),
+                // Kept apart from Export, at the opposite edge, in the
+                // destructive colour, so it is hard to tap by accident.
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: UnavailableAction(
+                    reason: chosen.isEmpty
+                        ? 'Select at least one item to delete.'
+                        : null,
+                    child: TextButton.icon(
+                      key: ValueKey(
+                        'delete-selected-${programs ? 'programs' : 'reports'}',
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: appColors(context).error,
+                      ),
+                      onPressed: chosen.isEmpty || c.busy || c.corrupt
+                          ? null
+                          : () => deleteSelected(
+                              programs: programs,
+                              chosen: chosen,
+                              hidden: hidden,
+                            ),
+                      icon: const Icon(Icons.delete_outline),
+                      label: Text('Delete selected (${chosen.length})'),
+                    ),
+                  ),
+                ),
               ],
             ),
     );
+  }
+
+  /// Deletes the selected programs or reports after confirmation, then
+  /// offers a 10-second Undo that restores them exactly.
+  Future<void> deleteSelected({
+    required bool programs,
+    required Set<String> chosen,
+    required int hidden,
+  }) async {
+    final count = chosen.length;
+    final noun = programs
+        ? (count == 1 ? 'program' : 'programs')
+        : (count == 1 ? 'report' : 'reports');
+    final hiddenNote = hidden == 0
+        ? ''
+        : hidden == count
+        ? count == 1
+              ? ' It is hidden by your current search or filter.'
+              : ' All of them are hidden by your current search or filter.'
+        : ' $hidden of them ${hidden == 1 ? 'is' : 'are'} hidden by your current search or filter.';
+    final keeps = programs
+        ? ' A service already running and past reports stay unchanged.'
+        : ' Exported files and the current service are unaffected.';
+    if (!await confirm(
+      'Delete $count $noun?',
+      'Delete $count saved $noun from this device?$hiddenNote$keeps You can undo for 10 seconds.',
+      'Delete $count',
+      destructive: true,
+    ))
+      return;
+    final selected = programs ? selectedProgramExports : selectedReportExports;
+    if (programs) {
+      final removed = await c.deletePrograms(chosen);
+      if (removed == null) {
+        if (mounted) await showError(c.error ?? 'Could not delete programs.');
+        return;
+      }
+      refreshHome(() => selected.removeAll(chosen));
+      if (mounted)
+        offerUndo(
+          '$count $noun deleted',
+          () => c.restorePrograms(removed),
+          duration: const Duration(seconds: 10),
+        );
+    } else {
+      final removed = await c.deleteReports(chosen);
+      if (removed == null) {
+        if (mounted) await showError(c.error ?? 'Could not delete reports.');
+        return;
+      }
+      refreshHome(() => selected.removeAll(chosen));
+      if (mounted)
+        offerUndo(
+          '$count $noun deleted',
+          () => c.restoreReports(removed),
+          duration: const Duration(seconds: 10),
+        );
+    }
   }
 
   bool get useMasterDetail =>

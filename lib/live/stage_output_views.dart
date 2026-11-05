@@ -12,7 +12,10 @@ extension StageOutputViews on HomeState {
       !controlsLocked &&
       c.pairing.localControl &&
       !c.reportSavePending &&
-      c.destinationConnected &&
+      // While the LED sign recovers automatically, cues still apply to the
+      // service and paired screens; the sign gets current output on return.
+      (c.destinationConnected ||
+          (c.destination == 'led' && c.hardware.reconnecting)) &&
       (c.state.session.active || c.state.session.phase == 'ended');
 
   Future<void> sendStageMessage() async {
