@@ -140,9 +140,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Warnings & alerts'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('02:00 · 2 MIN LEFT'));
+      await tester.ensureVisible(find.text('2 MIN LEFT'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('02:00 · 2 MIN LEFT'));
+      await tester.tap(find.text('2 MIN LEFT'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Operator + stage display'));
       await tester.pumpAndSettle();

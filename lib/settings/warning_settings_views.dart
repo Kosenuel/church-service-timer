@@ -25,12 +25,6 @@ class WarningSettingsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = settings;
-    Widget button(String text, IconData icon, VoidCallback? action) =>
-        OutlinedButton.icon(
-          onPressed: action,
-          icon: Icon(icon, size: 20),
-          label: Text(text),
-        );
     Future<void> edit({int? index}) async {
       final initial = index == null
           ? const WarningRule(
@@ -65,96 +59,127 @@ class WarningSettingsPanel extends StatelessWidget {
       }
     }
 
-    return Material(
-      color: appColors(context).surface,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: appColors(context).border),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title.toUpperCase(),
-              style: TextStyle(
-                color: appColors(context).muted,
-                letterSpacing: 1.6,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
+    final colors = appColors(context);
+    Future<void> save(List<WarningRule> rules) => onSave(d.withWarnings(rules));
+    Future<void> toggle(int index, bool on) {
+      final rules = [...d.warnings];
+      rules[index] = WarningRule.fromJson({
+        ...rules[index].toJson(),
+        'enabled': on,
+      });
+      return save(rules);
+    }
+
+    Future<void> delete(int index) async {
+      final yes = await showDialog<bool>(
+        context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete warning for all services?'),
+          content: Text(
+            'Remove “${d.warnings[index].cue.text}”? A warning already on stage will finish normally.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
             ),
-            if (scope != null) ...[
-              const SizedBox(height: 8),
-              Text(scope!, style: TextStyle(color: appColors(context).muted)),
-            ],
-            const SizedBox(height: 8),
-            Text(
-              'Triggers once per segment at the selected time remaining. A stage cue returns to the timer after its duration. Blank sign suppresses stage cues; phone alerts follow Android sound and Do Not Disturb settings.',
-              style: TextStyle(color: appColors(context).muted),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete warning'),
             ),
-            for (final e in d.warnings.asMap().entries) ...[
-              if (e.key > 0) const AppDivider(indent: 0, endIndent: 0),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  '${e.value.enabled ? '' : 'Off · '}${formatTime(e.value.seconds * 1000)} · ${e.value.cue.text}',
+          ],
+        ),
+      );
+      if (yes != true) return;
+      await save([...d.warnings]..removeAt(index));
+    }
+
+    Widget card(int index) {
+      final w = d.warnings[index];
+      final timeColor = !w.enabled
+          ? colors.muted
+          : w.seconds == 0
+          ? colors.error
+          : w.seconds < 60
+          ? colors.warning
+          : colors.text;
+      final where = [
+        w.destination == 'stage' ? 'Operator and stage' : 'Operator only',
+        if (w.destination == 'stage')
+          w.scrollOnce ? 'scrolls once' : '${w.durationSeconds} seconds',
+        displayFontNames[w.cue.font] ?? w.cue.font,
+      ].join(' · ');
+      return Material(
+        key: ValueKey('warning-rule-$index'),
+        color: colors.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: colors.border),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: InkWell(
+          onTap: busy ? null : () => edit(index: index),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 68,
+                  child: Text(
+                    formatTime(w.seconds * 1000),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w300,
+                      color: timeColor,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
                 ),
-                subtitle: Text(
-                  '${e.value.destination == 'stage' ? 'Operator + stage' : 'Operator only'} · ${displayFontNames[e.value.cue.font]}',
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        w.cue.text,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: w.enabled ? null : colors.muted,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        where,
+                        style: TextStyle(fontSize: 12, color: colors.muted),
+                      ),
+                    ],
+                  ),
                 ),
-                onTap: busy ? null : () => edit(index: e.key),
-                trailing: PopupMenuButton<String>(
+                Switch(
+                  value: w.enabled,
+                  onChanged: busy ? null : (on) => toggle(index, on),
+                ),
+                PopupMenuButton<String>(
                   tooltip: 'Warning actions',
                   enabled: !busy,
                   onSelected: (action) async {
                     if (action == 'edit') {
-                      await edit(index: e.key);
-                      return;
-                    }
-                    if (action == 'delete') {
-                      final yes = await showDialog<bool>(
-                        context: context,
-                        animationStyle: reduceAppMotion(context)
-                            ? AnimationStyle.noAnimation
-                            : null,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Delete warning for all services?'),
-                          content: Text(
-                            'Remove “${e.value.cue.text}”? A warning already on stage will finish normally.',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancel'),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Delete warning'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (yes != true) return;
-                    }
-                    final rules = [...d.warnings];
-                    if (action == 'delete') {
-                      rules.removeAt(e.key);
+                      await edit(index: index);
+                    } else if (action == 'delete') {
+                      await delete(index);
                     } else {
-                      rules[e.key] = WarningRule.fromJson({
-                        ...e.value.toJson(),
-                        'enabled': !e.value.enabled,
-                      });
+                      await toggle(index, !w.enabled);
                     }
-                    await onSave(d.withWarnings(rules));
                   },
                   itemBuilder: (ctx) => appMenuEntries(ctx, [
                     const AppMenuAction('edit', 'Edit warning'),
                     AppMenuAction(
                       'toggle',
-                      e.value.enabled ? 'Disable warning' : 'Enable warning',
+                      w.enabled ? 'Disable warning' : 'Enable warning',
                     ),
                     const AppMenuAction(
                       'delete',
@@ -163,24 +188,67 @@ class WarningSettingsPanel extends StatelessWidget {
                     ),
                   ]),
                 ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
+                  title.toUpperCase(),
+                  style: TextStyle(
+                    color: colors.muted,
+                    letterSpacing: 1.2,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-            ],
-            const SizedBox(height: 8),
-            if (d.warnings.isEmpty)
-              button(
-                'Use suggested warnings',
-                Icons.auto_awesome_outlined,
-                busy ? null : () => onSave(d.withWarnings(defaultWarnings)),
-              ),
+            ),
             if (d.warnings.length < 6)
-              button(
-                'Add warning',
-                Icons.notification_add_outlined,
-                busy ? null : () => edit(),
+              TextButton.icon(
+                onPressed: busy ? null : () => edit(),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add'),
               ),
           ],
         ),
-      ),
+        if (scope != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Text(
+              scope!,
+              style: TextStyle(color: colors.muted, fontSize: 12),
+            ),
+          ),
+        for (var i = 0; i < d.warnings.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          card(i),
+        ],
+        if (d.warnings.isEmpty)
+          OutlinedButton.icon(
+            onPressed: busy ? null : () => save(defaultWarnings),
+            icon: const Icon(Icons.auto_awesome_outlined, size: 20),
+            label: const Text('Use suggested warnings'),
+          ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'Each warning fires once per segment at the time remaining. Stage cues return to the timer afterwards; Blank sign suppresses them.',
+            style: TextStyle(color: colors.muted, fontSize: 12),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -513,136 +581,158 @@ extension WarningSettingsViews on HomeState {
     children: [
       WarningSettingsPanel(
         settings: c.state.defaults,
-        title: 'Automatic warnings · all services',
+        title: 'Automatic warnings',
         scope:
-            'All services and rehearsals. Changes affect future warnings; earlier thresholds are not replayed.',
+            'All services and rehearsals. Changes apply to future warnings; earlier thresholds are not replayed.',
         busy: c.busy,
         onSave: saveWarningsWithUndo,
       ),
-      const SizedBox(height: 16),
-      panel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              c.backgroundActive
-                  ? 'Background operation active'
-                  : 'Background operation starts with a connected service',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Keep the active-service notification running for stage warnings while the phone is locked. If unavailable, keep the app open. After interruption, reconnect and restore output.',
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              key: const ValueKey('lock-screen-controls'),
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Lock-screen controls'),
-              subtitle: const Text(
-                'Show the current segment, a live countdown, Pause and Next in a notification during every service. Next needs a second tap.',
-              ),
-              value: c.state.lockScreenControls,
-              onChanged: c.busy
-                  ? null
-                  : (v) async {
-                      await c.commit(
-                        (draft, _) => draft.lockScreenControls = v,
-                      );
-                      await c.syncActiveService();
-                    },
-            ),
-            const SizedBox(height: 8),
-            phoneWarningSettings(),
-          ],
+      const SizedBox(height: 24),
+      phoneWarningSettings(),
+      settingsGroup('During a service', [
+        SwitchListTile(
+          key: const ValueKey('lock-screen-controls'),
+          contentPadding: appLayout(context).tileInsets,
+          title: const Text(
+            'Lock-screen controls',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            'Countdown, Pause and Next in a notification. Next needs a second tap.',
+            style: TextStyle(fontSize: 13, color: appColors(context).muted),
+          ),
+          value: c.state.lockScreenControls,
+          onChanged: c.busy
+              ? null
+              : (v) async {
+                  await c.commit((draft, _) => draft.lockScreenControls = v);
+                  await c.syncActiveService();
+                },
         ),
-      ),
+        settingsRow(
+          c.backgroundActive ? Icons.sync : Icons.info_outline,
+          c.backgroundActive
+              ? 'Background operation active'
+              : 'Background operation',
+          'Starts with the LED sign or sharing and keeps warnings running while locked. If unavailable, keep the app open; after an interruption, reconnect and review the output.',
+          null,
+        ),
+      ]),
     ],
   );
 
-  Widget phoneWarningSettings() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      ChoiceField<int>(
-        value: c.state.notificationClearSeconds,
-        decoration: const InputDecoration(
-          labelText: 'Clear phone warnings after',
+  Widget phoneWarningSettings() {
+    final colors = appColors(context);
+    final on = c.notificationState['enabled'] == true;
+    final exact = c.notificationState['exact'] == true;
+    Future<void> run(Future<void> Function() action) async {
+      try {
+        await action();
+      } catch (e) {
+        if (mounted) await showError('$e');
+      }
+    }
+
+    return settingsGroup('Phone alerts', [
+      ListTile(
+        key: const ValueKey('phone-alerts-status'),
+        contentPadding: appLayout(context).tileInsets,
+        leading: Icon(
+          on
+              ? Icons.notifications_active_outlined
+              : Icons.notifications_off_outlined,
+          color: on ? colors.accent : colors.warning,
         ),
-        options: const [
-          ChoiceOption(value: 15, label: '15 seconds'),
-          ChoiceOption(value: 30, label: '30 seconds'),
-          ChoiceOption(value: 60, label: '60 seconds'),
-          ChoiceOption(value: 0, label: 'Until dismissed'),
-        ],
-        onChanged: c.busy
+        title: Text(
+          on
+              ? (c.notificationState['sound'] == true
+                    ? 'Notifications and sound on'
+                    : 'Notifications on · channel sound off')
+              : 'Notifications are off',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          c.notificationError ??
+              (on
+                  ? 'Warnings also reach this phone'
+                  : 'Warnings show on the stage only'),
+          style: TextStyle(
+            fontSize: 13,
+            color: c.notificationError == null ? colors.muted : colors.warning,
+          ),
+        ),
+        trailing: on
             ? null
-            : (value) async {
-                if (!await c.commit(
-                      (draft, _) => draft.notificationClearSeconds = value!,
-                    ) &&
-                    mounted)
-                  await showError(
-                    c.error ?? 'Could not save notification preference.',
-                  );
-              },
+            : FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: c.busy ? null : c.enablePhoneWarnings,
+                child: const Text('Turn on'),
+              ),
       ),
-      const SizedBox(height: 8),
-      const Text(
-        'Clears phone warnings only. Stage cue duration and the silent active-service notification are unchanged.',
-      ),
-      const SizedBox(height: 16),
-      Text(
-        c.notificationState['enabled'] == true
-            ? (c.notificationState['sound'] == true
-                  ? 'Phone notifications and sound enabled'
-                  : 'Phone notifications enabled · channel sound is off')
-            : 'Phone notifications are off',
-        style: TextStyle(color: appColors(context).muted),
-      ),
-      if (c.notificationError != null)
-        Text(
-          c.notificationError!,
-          style: TextStyle(color: appColors(context).warning),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: ChoiceField<int>(
+          value: c.state.notificationClearSeconds,
+          decoration: const InputDecoration(
+            labelText: 'Clear phone warnings after',
+          ),
+          options: const [
+            ChoiceOption(value: 15, label: '15 seconds'),
+            ChoiceOption(value: 30, label: '30 seconds'),
+            ChoiceOption(value: 60, label: '60 seconds'),
+            ChoiceOption(value: 0, label: 'Until dismissed'),
+          ],
+          onChanged: c.busy
+              ? null
+              : (value) async {
+                  if (!await c.commit(
+                        (draft, _) => draft.notificationClearSeconds = value!,
+                      ) &&
+                      mounted) {
+                    await showError(
+                      c.error ?? 'Could not save notification preference.',
+                    );
+                  }
+                },
         ),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          if (c.notificationState['enabled'] != true)
-            button(
-              'Enable phone notifications',
-              Icons.notifications_active_outlined,
-              c.enablePhoneWarnings,
-            ),
-          button('Notification settings', Icons.settings_outlined, () async {
-            try {
-              await c.port.openNotificationSettings();
-            } catch (e) {
-              if (mounted) await showError('$e');
-            }
-          }),
-          button('Test notification sound', Icons.volume_up_outlined, () async {
-            try {
-              await c.port.testNotification();
-            } catch (e) {
-              if (mounted) await showError('$e');
-            }
-          }),
-          if (c.notificationState['exact'] != true)
-            button('Allow precise warnings', Icons.alarm, () async {
-              try {
-                await c.port.requestExactWarnings();
-              } catch (e) {
-                if (mounted) await showError('$e');
-              }
-            }),
-        ],
       ),
-      if (c.notificationState['exact'] != true)
-        Text(
-          'Without precise alarm access, Android may delay warnings while the phone sleeps.',
-          style: TextStyle(color: appColors(context).muted, fontSize: 12),
+      ListTile(
+        contentPadding: appLayout(context).tileInsets,
+        leading: Icon(Icons.volume_up_outlined, color: colors.muted),
+        title: const Text('Sound and vibration'),
+        subtitle: Text(
+          'Follows phone volume and Do Not Disturb · watches mirror the vibration',
+          style: TextStyle(fontSize: 13, color: colors.muted),
         ),
-    ],
-  );
+        trailing: TextButton(
+          onPressed: () => run(c.port.testNotification),
+          child: const Text('Test'),
+        ),
+      ),
+      if (!exact)
+        ListTile(
+          contentPadding: appLayout(context).tileInsets,
+          leading: Icon(Icons.alarm, color: colors.warning),
+          title: const Text('Precise timing'),
+          subtitle: Text(
+            'Without precise alarm access, Android may delay warnings while the phone sleeps.',
+            style: TextStyle(fontSize: 13, color: colors.muted),
+          ),
+          trailing: TextButton(
+            onPressed: () => run(c.port.requestExactWarnings),
+            child: const Text('Allow'),
+          ),
+        ),
+      settingsRow(
+        Icons.settings_outlined,
+        'Notification settings',
+        'Android channel, sound and lock-screen visibility',
+        () => run(c.port.openNotificationSettings),
+      ),
+    ]);
+  }
 }

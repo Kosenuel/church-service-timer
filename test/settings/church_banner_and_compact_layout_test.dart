@@ -114,12 +114,7 @@ void main() {
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    final edit = find
-        .descendant(
-          of: find.byType(WarningSettingsPanel),
-          matching: find.byType(ListTile),
-        )
-        .first;
+    final edit = find.byKey(const ValueKey('warning-rule-0'));
     await t.scrollUntilVisible(
       edit.hitTestable(),
       200,
