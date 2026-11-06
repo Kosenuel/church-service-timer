@@ -35,6 +35,7 @@ import 'package:church_service_timer/live/time_recovery_views.dart';
 import 'package:church_service_timer/live/timing_overview_views.dart';
 import 'package:church_service_timer/programs/program_editor_insights.dart';
 import 'package:church_service_timer/programs/program_import_export_views.dart';
+import 'package:church_service_timer/programs/segment_library_views.dart';
 import 'package:church_service_timer/programs/program_library_views.dart';
 import 'package:church_service_timer/settings/settings_pin_views.dart';
 import 'package:church_service_timer/live/clicker_controls.dart';
@@ -3144,7 +3145,23 @@ class TemplateEditorState extends State<TemplateEditor> {
       text: index == null ? '' : segments[index].notes,
     );
     var protected = index == null ? false : segments[index].protected;
-    String? issue;
+    String? issue, saved;
+    Segment build() {
+      final s = Segment.fromJson({
+        'name': label.text,
+        'minutes': durationSeconds ~/ 60,
+        'seconds': durationSeconds % 60,
+        'speaker': speaker.text,
+        'notes': notes.text,
+        'protected': protected,
+      });
+      require(
+        s.durationMs <= supportedCountdownMs,
+        'Keep each segment within 59:59.',
+      );
+      return s;
+    }
+
     final result = await showDialog<Segment>(
       context: context,
       animationStyle: reduceAppMotion(context)
@@ -3209,9 +3226,40 @@ class TemplateEditorState extends State<TemplateEditor> {
                   issue!,
                   style: TextStyle(color: appColors(context).warning),
                 ),
+              if (saved != null)
+                Text(
+                  saved!,
+                  style: TextStyle(color: appColors(context).accent),
+                ),
             ],
           ),
           actions: [
+            if (widget.draftController case final library?)
+              TextButton.icon(
+                key: const ValueKey('save-segment-to-library'),
+                onPressed: () async {
+                  try {
+                    final s = build();
+                    if (!await library.commit(
+                      (draft, _) => draft.saveLibrarySegment(s),
+                    ))
+                      throw RuleError(
+                        library.error ?? 'Could not save to the library.',
+                      );
+                    update(() {
+                      issue = null;
+                      saved = 'Saved “${s.name}” to the segment library.';
+                    });
+                  } catch (e) {
+                    update(() {
+                      saved = null;
+                      issue = e.toString();
+                    });
+                  }
+                },
+                icon: const Icon(Icons.bookmark_add_outlined),
+                label: const Text('Save to library'),
+              ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
@@ -3219,19 +3267,7 @@ class TemplateEditorState extends State<TemplateEditor> {
             FilledButton(
               onPressed: () {
                 try {
-                  final s = Segment.fromJson({
-                    'name': label.text,
-                    'minutes': durationSeconds ~/ 60,
-                    'seconds': durationSeconds % 60,
-                    'speaker': speaker.text,
-                    'notes': notes.text,
-                    'protected': protected,
-                  });
-                  require(
-                    s.durationMs <= supportedCountdownMs,
-                    'Keep each segment within 59:59.',
-                  );
-                  Navigator.pop(ctx, s);
+                  Navigator.pop(ctx, build());
                 } catch (e) {
                   update(() => issue = e.toString());
                 }
@@ -3248,7 +3284,7 @@ class TemplateEditorState extends State<TemplateEditor> {
       speaker.dispose();
       notes.dispose();
     });
-    if (result != null && mounted)
+    if (result != null && mounted) {
       change(() {
         if (index == null) {
           segments.add(result);
@@ -3256,6 +3292,10 @@ class TemplateEditorState extends State<TemplateEditor> {
           segments[index] = result;
         }
       });
+    } else if (saved != null && mounted) {
+      // Shows From library after a save to the library, even on Cancel.
+      setState(() {});
+    }
   }
 
   void save() {
@@ -3529,13 +3569,43 @@ class TemplateEditorState extends State<TemplateEditor> {
                 ),
               ),
             const SizedBox(height: 10),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-              ),
-              onPressed: segments.length < 200 ? segment : null,
-              icon: const Icon(Icons.add),
-              label: const Text('Add segment'),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(46),
+                    ),
+                    onPressed: segments.length < 200 ? segment : null,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add segment'),
+                  ),
+                ),
+                if (widget.draftController case final library?
+                    when library.state.segmentLibrary.isNotEmpty) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('add-from-library'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(46),
+                      ),
+                      onPressed: segments.length < 200
+                          ? () async {
+                              final s = await pickLibrarySegment(
+                                context,
+                                library,
+                              );
+                              if (s != null && mounted)
+                                change(() => segments.add(s));
+                            }
+                          : null,
+                      icon: const Icon(Icons.bookmark_outline),
+                      label: const Text('From library'),
+                    ),
+                  ),
+                ],
+              ],
             ),
             if (!widget.upcomingOnly) ...[
               const SizedBox(height: 16),
