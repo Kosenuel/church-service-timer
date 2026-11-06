@@ -4,11 +4,14 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+## 0.25.1, 6/November/2026
+
 - **Fewer "Output held" cards:** Undo start no longer holds the display, and cancelling a setup holds it only if the display missed the previous service's output. The card and label now appear only for a running or finished service that was interrupted, and read "Output paused after an interruption".
 - **Pre-service countdown fixes:** setting a start time now releases a held LED sign, so the clock and countdown actually reach it. If output is held while the countdown waits, the row says so and offers **Show on display**. Tapping Start first segment before the scheduled time asks "Start now?" first, and the row explains that the service starts only when you tap Start.
-- **Default layout density is now Automatic.** Phones use Comfortable (larger touch targets), small tablets Comfortable and large tablets Spacious. A density you choose in Appearance is kept.
+- **Default layout density is now Automatic.** Phones use Comfortable (larger touch targets), small tablets Comfortable and large tablets Spacious. Existing installs keep their saved density until it is changed in Settings → Appearance.
 - **Appearance:** the pinned preview follows the tab. Theme shows the colour preview; Layout & accessibility shows the selected density ("PREVIEW · COMFORTABLE") with sample rows and dividers, replacing the duplicate sample at the bottom of that tab.
 - **Fixes:** the Live idle screen now matches its design, including right after a service ends and on tablets: a Standing by hero, Pinned or Recent programs, a Last service card, and a folded Stage & display row. Undo start and the Undo after deleting now disappear after 8 seconds instead of staying until tapped. An Undo tapped too late no longer leaves an error card that can't be closed; error cards with nothing to retry have a Dismiss button. The battery hint shows only while standing by, is shorter, and can be hidden until the app is next opened.
+
 ## 0.25.0, 5/November/2026
 - **Saved passwords in backups (optional).** Export backup can include the LED sign's device password and Wi-Fi reconnect details, encrypted (AES-256-GCM, PBKDF2 key) with a passphrase you choose. It is off by default. Restoring asks for the passphrase; skipping it or a wrong passphrase still restores everything else. Paired-device approvals are never included, and backups without passwords stay readable by earlier versions.
 - **Settings PIN.** Optional 4–8 digit PIN (Settings → Settings PIN) that locks Settings, deleting programs and reports, and LED sign administration; Live, Programs and Reports stay open. Setting it shows a one-time recovery code that removes the PIN if forgotten. Five wrong tries wait 30 seconds, and Settings lock again whenever the app leaves the screen. Only a salted hash is stored, and it is never included in backups.
