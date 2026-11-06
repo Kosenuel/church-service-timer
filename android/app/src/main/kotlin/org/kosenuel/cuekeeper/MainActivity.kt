@@ -317,6 +317,19 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                         null
                     }
                 }
+                "multicastLock" -> {
+                    // Android drops multicast packets unless an app holds this,
+                    // which the .local name for web screens needs.
+                    val on = call.arguments as? Boolean ?: false
+                    if (on && multicastLock?.isHeld != true) {
+                        val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+                        multicastLock = wifi.createMulticastLock("church-timer-web").apply { setReferenceCounted(false); acquire() }
+                    } else if (!on) {
+                        multicastLock?.let { if (it.isHeld) it.release() }
+                        multicastLock = null
+                    }
+                    result.success(null)
+                }
                 "deviceDescription" -> result.success(
                     "${android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
                 )
@@ -451,6 +464,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
         return mapOf("name" to name, "content" to decoder.decode(ByteBuffer.wrap(bytes.toByteArray())).toString())
     }
 
+    private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
     private var incomingUri: android.net.Uri? = null
     private var incomingType: String? = null
 

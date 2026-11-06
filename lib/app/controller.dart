@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:church_service_timer/diagnostics/service_metrics.dart';
 import 'package:church_service_timer/diagnostics/performance_report.dart';
+import 'package:church_service_timer/web_stage/web_stage_server.dart';
+import 'package:church_service_timer/web_stage/mdns_responder.dart';
+import 'package:church_service_timer/shared/format_labels.dart';
 
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/domain/domain.dart'
@@ -484,6 +487,7 @@ class AppController extends ChangeNotifier {
         port.advertisePairHost(portNumber, hostId: pairing.hostId);
     pairing.unadvertise = port.stopPairAdvertisement;
     pairing.addListener(() {
+      unawaited(_syncWebStage());
       if (ready) {
         quickMessages.keepRecipients(
           pairing.syncedStagePeers.map((p) => p.id).toSet(),
@@ -622,6 +626,12 @@ class AppController extends ChangeNotifier {
       error = 'Saved state could not be recovered. Output is held. $e';
     }
     ready = true;
+    // Create the order-of-service code and easy name once, so they stay the
+    // same week after week (and slides stay valid).
+    final web = webStageSettings;
+    if (state.webStage['orderCode'] != web.orderCode ||
+        state.webStage['localName'] != web.localName)
+      await commit((draft, _) => draft.webStage = web.toJson());
     // Replace any card left by an earlier process with the restored state.
     unawaited(syncServiceNotification());
     await pairing.restoreMemory();
@@ -1353,6 +1363,97 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  /// Browsers following the service: started and stopped with sharing.
+  late final webStage = WebStageServer(
+    settings: () => webStageSettings,
+    snapshot: webStageSnapshot,
+  )..onChanged = notifyChanged;
+  final mdns = MdnsResponder();
+
+  /// Why web screens are not available, shown in their panel only.
+  String? webStageError;
+
+  /// The address on the last exported join slide, to spot a stale slide.
+  String? joinSlideAddress;
+
+  /// Whether the easy .local name is being answered on this Wi-Fi.
+  bool localNameActive = false;
+  bool _webSyncing = false;
+
+  WebStageSettings get webStageSettings =>
+      WebStageSettings.fromJson(state.webStage, churchName: state.churchName);
+
+  /// The address browsers open, e.g. `http://192.168.1.23:8080`.
+  String? get webStageUrl =>
+      webStage.running ? 'http://${webStage.address}:${webStage.port}' : null;
+  String? get webStageLocalUrl => localNameActive
+      ? 'http://${webStageSettings.localName}.local:${webStage.port}'
+      : null;
+
+  Future<void> _syncWebStage() async {
+    if (_webSyncing || _disposed) return;
+    _webSyncing = true;
+    try {
+      final address = pairing.hosting ? pairing.code?.address : null;
+      if (address == null) {
+        if (webStage.running) {
+          await webStage.stop();
+          await mdns.stop();
+          localNameActive = false;
+          unawaited(port.setMulticastLock(false).catchError((_) {}));
+          notifyChanged();
+        }
+        return;
+      }
+      if (webStage.running && webStage.address == address) return;
+      final saved = webStageSettings;
+      webStageError = null;
+      await webStage.start(address);
+      try {
+        await port.setMulticastLock(true);
+      } catch (_) {
+        /* The name may still work; the QR and address always do. */
+      }
+      localNameActive = await mdns.start(saved.localName, address);
+      notifyChanged();
+    } catch (e) {
+      // Paired phones and the service carry on; only the panel says so.
+      webStageError = 'Web screens could not start on this network.';
+      notifyChanged();
+    } finally {
+      _webSyncing = false;
+    }
+  }
+
+  Future<bool> setWebStageSettings(WebStageSettings next) async {
+    final before = webStageSettings;
+    if (!await commit((draft, _) => draft.webStage = next.toJson()))
+      return false;
+    if (next.orderCode.toLowerCase() != before.orderCode.toLowerCase())
+      webStage.forgetOrderViewers();
+    if (next.localName != before.localName && webStage.running) {
+      localNameActive = await mdns.start(next.localName, webStage.address!);
+    }
+    notifyChanged();
+    return true;
+  }
+
+  /// The paired-screen snapshot without private notes, plus timing for
+  /// Service overview.
+  Json webStageSnapshot() {
+    final base = pairedSnapshot(false);
+    final s = state.session;
+    if (!ready || !s.active || s.timeline == null) return base;
+    final projected = s.projectedTotal(now);
+    final eta = now.wall + ((projected - s.totalElapsed(now)) / s.rate).round();
+    return {
+      ...base,
+      'variance': varianceLabel(projected - s.plannedMs),
+      'behind': projected > s.plannedMs + 999,
+      'finish': clockLabel(eta),
+    };
+  }
+
   TimingsCallback? _timings;
   bool _timingsOn = false;
   void _frameTimings(bool on) {
@@ -1594,6 +1695,8 @@ class AppController extends ChangeNotifier {
   @override
   void dispose() {
     _frameTimings(false);
+    unawaited(webStage.stop());
+    unawaited(mdns.stop());
     editDrafts.dispose();
     liveClock.dispose();
     previewClock.dispose();

@@ -1165,6 +1165,10 @@ class AppState {
   /// Column mappings chosen for imported spreadsheets, by header row, so
   /// next week's sheet in the same layout imports in one tap. Local only.
   Map<String, Json> importMappings;
+
+  /// Web screen settings (order-of-service access and code, speakers, the
+  /// .local name). Local only; see WebStageSettings.
+  Json webStage;
   String? outputDestination;
   List<QuickMessage> quickMessages;
   List<Timeline> templates;
@@ -1216,7 +1220,9 @@ class AppState {
     this.recordMetrics = false,
     this.metricsBatteryBaseline,
     Map<String, Json>? importMappings,
-  }) : importMappings = importMappings ?? {},
+    Json? webStage,
+  }) : webStage = webStage ?? {},
+       importMappings = importMappings ?? {},
        segmentLibrary = segmentLibrary ?? [],
        programLibrary = programLibrary ?? ProgramLibrary(),
        programHistory = programHistory ?? {},
@@ -1342,6 +1348,7 @@ class AppState {
       segmentLibrary: readSegmentLibrary(j['segmentLibrary']),
       recordMetrics: j['recordMetrics'] == true,
       metricsBatteryBaseline: (j['metricsBatteryBaseline'] as num?)?.toDouble(),
+      webStage: Map<String, dynamic>.from(j['webStage'] as Map? ?? {}),
       importMappings: {
         for (final e in (j['importMappings'] as Map? ?? {}).entries)
           if (e.key is String && e.value is Map)
@@ -1480,6 +1487,7 @@ class AppState {
     'recordMetrics': recordMetrics,
     'metricsBatteryBaseline': metricsBatteryBaseline,
     'importMappings': importMappings,
+    'webStage': webStage,
     'clockFormat': clockFormat,
     'clockBlink': clockBlink,
     'notificationClearSeconds': notificationClearSeconds,

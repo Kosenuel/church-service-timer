@@ -96,6 +96,9 @@ abstract class DevicePort {
 
   /// Phone make, model and Android version for a metrics report.
   Future<String> deviceDescription() async => '';
+
+  /// Lets multicast through while web screens are served (Android).
+  Future<void> setMulticastLock(bool on) async {}
   Future<Json> checkDisplay() async => {'connected': false};
   Future<Json> sendDisplay(
     Uint8List bytes,
@@ -448,6 +451,10 @@ class AndroidPort extends DevicePort {
     });
     return result == null ? null : Map<String, dynamic>.from(result);
   }
+
+  @override
+  Future<void> setMulticastLock(bool on) =>
+      channel.invokeMethod<void>('multicastLock', on);
 
   @override
   Future<String> deviceDescription() async =>
