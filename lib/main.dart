@@ -385,7 +385,43 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
+  /// Starting while the pre-service countdown is still running asks first.
+  Future<bool> confirmEarlyStart() async {
+    final at = c.state.session.startsAtWall;
+    if (at == null) return true;
+    final left = at - c.now.wall;
+    if (left <= 0) return true;
+    final wait = left >= 3600000
+        ? '${left ~/ 3600000} h ${(left % 3600000) ~/ 60000} min'
+        : formatTime(left);
+    final start = await showDialog<bool>(
+      context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
+      builder: (ctx) => AlertDialog(
+        key: const ValueKey('early-start'),
+        title: Text('The service is scheduled for ${wallTime(at)}'),
+        content: Text(
+          'That is $wait from now. Start now? The countdown on the display stops and the first segment begins.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep waiting'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Start now'),
+          ),
+        ],
+      ),
+    );
+    return start == true;
+  }
+
   Future<void> startFirst() async {
+    if (!await confirmEarlyStart() || !mounted) return;
     final s = c.state.session, revision = c.state.session.revision;
     final problems = readinessChecks()
         .where((x) => !x.ok && x.key != 'program')
@@ -1098,13 +1134,24 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     final colors = appColors(context);
     final at = c.state.session.startsAtWall;
     final left = at == null ? 0 : at - c.now.wall;
+    // A hold (after Undo start, a cancelled setup or a reconnect) stops the
+    // pre-service output reaching the display until it is released.
+    final outputHeld =
+        at != null &&
+        (c.state.session.held ||
+            (c.destination == 'led' &&
+                c.hardware.connected &&
+                c.hardware.held));
+    final preServiceHint = outputHeld
+        ? 'Output is held, so the display does not show it yet.'
+        : 'Tap Start first segment when the service begins.';
     final summary = at == null
         ? 'Off · the display keeps its current output'
         : left > preServiceCountdownMs
-        ? 'Starts ${wallTime(at)} · clock now, countdown from ${wallTime(at - preServiceCountdownMs - 1000)}'
+        ? 'Starts ${wallTime(at)} · clock now, countdown from ${wallTime(at - preServiceCountdownMs - 1000)}\n$preServiceHint'
         : left > 0
-        ? 'Starts ${wallTime(at)} · counting down on the display'
-        : 'Start time reached · display shows “Starting soon”';
+        ? 'Starts ${wallTime(at)} · counting down on the display\n$preServiceHint'
+        : 'Start time reached · display shows “Starting soon”\n$preServiceHint';
     return Material(
       key: const ValueKey('pre-service-row'),
       color: colors.background,
@@ -1127,6 +1174,19 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
             ? TextButton(
                 onPressed: c.busy ? null : pickServiceStart,
                 child: const Text('Set time'),
+              )
+            : outputHeld
+            ? TextButton(
+                key: const ValueKey('show-pre-service'),
+                onPressed: c.busy
+                    ? null
+                    : () async {
+                        if (!await c.showPreService() && mounted)
+                          await showError(
+                            c.error ?? 'Connect the display, then try again.',
+                          );
+                      },
+                child: const Text('Show on display'),
               )
             : IconButton(
                 tooltip: 'Turn off pre-service countdown',

@@ -91,4 +91,60 @@ void main() {
     expect(c.error, isNull);
     await t.pumpWidget(const SizedBox());
   });
+
+  testWidgets('Starting during the pre-service countdown asks first', (
+    t,
+  ) async {
+    size(t);
+    final c = AppController(ReadyPort());
+    await c.initialize(startTicker: false);
+    await c.act('load', value: c.state.templates.last);
+    await c.act('schedule', value: c.now.wall + 20 * 60000);
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    expect(
+      find.textContaining('Tap Start first segment when the service begins'),
+      findsOneWidget,
+    );
+    await t.ensureVisible(find.text('Start first segment'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Start first segment'));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('early-start')), findsOneWidget);
+    expect(find.textContaining('20:00 from now'), findsOneWidget);
+    await t.tap(find.text('Keep waiting'));
+    await t.pumpAndSettle();
+    expect(c.state.session.phase, 'ready');
+    expect(c.state.session.startsAtWall, isNotNull);
+    await t.tap(find.text('Start first segment'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Start now'));
+    await t.pumpAndSettle();
+    expect(c.state.session.active, isTrue);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('A held display offers Show on display for the countdown', (
+    t,
+  ) async {
+    size(t);
+    final c = AppController(ReadyPort());
+    await c.initialize(startTicker: false);
+    await c.act('load', value: c.state.templates.last);
+    await c.act('schedule', value: c.now.wall + 20 * 60000);
+    await c.commit((draft, _) => draft.session.held = true);
+    c.simulator.clear();
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('show-pre-service')), findsOneWidget);
+    expect(find.textContaining('Output is held'), findsOneWidget);
+    await t.ensureVisible(find.byKey(const ValueKey('show-pre-service')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('show-pre-service')));
+    await t.pumpAndSettle();
+    expect(c.state.session.held, isFalse);
+    expect(c.simulator.delivered?.text, '20:00');
+    expect(find.byKey(const ValueKey('show-pre-service')), findsNothing);
+    await t.pumpWidget(const SizedBox());
+  });
 }
