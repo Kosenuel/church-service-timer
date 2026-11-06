@@ -94,15 +94,16 @@ class AppearanceControls extends StatelessWidget {
         'These preferences stay on this device. Your phone’s accessibility settings are also respected.',
         style: TextStyle(color: appColors(context).muted),
       ),
-      const SizedBox(height: 16),
-      const AppearanceSample(),
     ],
   );
 }
 
 /// Non-interactive examples use the same tokens as real list rows and menus.
 class AppearanceSample extends StatelessWidget {
-  const AppearanceSample({super.key});
+  /// Compact: program row, divider, action and delete only, for the pinned
+  /// preview above the Appearance tabs.
+  final bool compact;
+  const AppearanceSample({super.key, this.compact = false});
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context), layout = appLayout(context);
@@ -122,13 +123,14 @@ class AppearanceSample extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: EdgeInsets.fromLTRB(16, compact ? 14 : 16, 16, 8),
               child: Text(
                 'PREVIEW · ${densityName(layout.density).toUpperCase()}',
                 style: TextStyle(
                   color: colors.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                  fontSize: compact ? 11 : 12,
+                  letterSpacing: compact ? 1 : null,
+                  fontWeight: compact ? FontWeight.w400 : FontWeight.bold,
                 ),
               ),
             ),
@@ -158,16 +160,18 @@ class AppearanceSample extends StatelessWidget {
                 ],
               ),
             ),
-            const AppDivider(),
-            ListTile(
-              selected: true,
-              leading: Icon(Icons.play_arrow, color: colors.accent),
-              title: const Text(
-                'Praise & Worship',
-                style: TextStyle(fontWeight: FontWeight.w800),
+            if (!compact) ...[
+              const AppDivider(),
+              ListTile(
+                selected: true,
+                leading: Icon(Icons.play_arrow, color: colors.accent),
+                title: const Text(
+                  'Praise & Worship',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text('15 min · Now'),
               ),
-              subtitle: const Text('15 min · Now'),
-            ),
+            ],
             const AppDivider(),
             const ListTile(
               leading: Icon(Icons.ios_share),
