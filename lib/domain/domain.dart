@@ -495,6 +495,9 @@ class Session {
 
   /// Scheduled start while in Ready; drives the pre-service countdown.
   int? startsAtWall;
+
+  /// A test or practice run: ending it saves no report.
+  bool noReport;
   Session({
     required this.id,
     required this.anchor,
@@ -530,6 +533,7 @@ class Session {
     this.automaticCueDurationMs = 8000,
     this.targetFinishWall,
     this.startsAtWall,
+    this.noReport = false,
     List<ServiceEvent>? events,
   }) : checkpoint = checkpoint ?? anchor,
        warningSeen = warningSeen ?? [],
@@ -692,6 +696,7 @@ class Session {
       events: readServiceEvents(j['events']),
       targetFinishWall: j['targetFinishWall'] as int?,
       startsAtWall: j['startsAtWall'] as int?,
+      noReport: j['noReport'] == true,
       automaticCueDurationMs: readCueDuration(j['automaticCueDurationMs']),
       churchName: churchNameValue(j['churchName'] ?? ''),
       phase: j['phase'],
@@ -809,6 +814,7 @@ class Session {
     'events': events.map((e) => e.toJson()).toList(),
     'targetFinishWall': targetFinishWall,
     'startsAtWall': startsAtWall,
+    if (noReport) 'noReport': true,
   };
   Session copy() => Session.fromJson(toJson());
 }
@@ -852,6 +858,7 @@ Session transition(
       held: swap && original.held,
       rate: swap ? original.rate : 1,
       startsAtWall: swap ? original.startsAtWall : null,
+      noReport: swap && original.noReport,
       prior: swap ? original.prior : (original.copy()..prior = null),
     );
   } else if (action == 'cancelReady') {
@@ -1145,6 +1152,14 @@ class AppState {
 
   /// Reusable segments to insert into any program, newest first.
   List<Segment> segmentLibrary;
+
+  /// Record performance metrics during the next service (Diagnostics).
+  /// Switches itself off when that service ends.
+  bool recordMetrics;
+
+  /// Battery use (% per hour) in this phone's last measured recording; the
+  /// next report marks against it. Local only.
+  double? metricsBatteryBaseline;
   String? outputDestination;
   List<QuickMessage> quickMessages;
   List<Timeline> templates;
@@ -1193,6 +1208,8 @@ class AppState {
     Map<String, List<ProgramRevision>>? programHistory,
     List<ReceivedProgram>? programInbox,
     List<Segment>? segmentLibrary,
+    this.recordMetrics = false,
+    this.metricsBatteryBaseline,
   }) : segmentLibrary = segmentLibrary ?? [],
        programLibrary = programLibrary ?? ProgramLibrary(),
        programHistory = programHistory ?? {},
@@ -1316,6 +1333,8 @@ class AppState {
       programHistory: readProgramHistory(j['programHistory']),
       programInbox: readReceivedPrograms(j['programInbox']),
       segmentLibrary: readSegmentLibrary(j['segmentLibrary']),
+      recordMetrics: j['recordMetrics'] == true,
+      metricsBatteryBaseline: (j['metricsBatteryBaseline'] as num?)?.toDouble(),
       quickMessages: (j['quickMessages'] as List?)
           ?.map((e) => QuickMessage.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1446,6 +1465,8 @@ class AppState {
     'programHistory': writeProgramHistory(programHistory),
     'programInbox': [for (final p in programInbox) p.toJson()],
     'segmentLibrary': [for (final s in segmentLibrary) s.toJson()],
+    'recordMetrics': recordMetrics,
+    'metricsBatteryBaseline': metricsBatteryBaseline,
     'clockFormat': clockFormat,
     'clockBlink': clockBlink,
     'notificationClearSeconds': notificationClearSeconds,

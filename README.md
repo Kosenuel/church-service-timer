@@ -79,6 +79,7 @@ CSV uses UTF-8 with the headers `Segment Name,Duration (Minutes)` and an optiona
 
 - [CHANGELOG](CHANGELOG.md): release history, with links to each release guide in [docs/history](docs/history/).
 - [BUILD](docs/BUILD.md): toolchain, build helper and device checklists.
+- [PERFORMANCE-REVIEW](docs/PERFORMANCE-REVIEW.md): the per-release performance and endurance check, its targets and results.
 - [PROTOTYPE-SCOPE](docs/PROTOTYPE-SCOPE.md): implemented behaviour and hardware-dependent work.
 - [PRD](docs/PRD.md): the original requirements.
 - [TEMPLATE-FORMAT](docs/TEMPLATE-FORMAT.md), [DISPLAY-FONTS](docs/DISPLAY-FONTS.md) and [DEVICE-ADMIN-0.13](docs/DEVICE-ADMIN-0.13.md): formats, fonts and W2 administration.

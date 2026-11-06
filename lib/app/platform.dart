@@ -89,6 +89,13 @@ abstract class DevicePort {
   /// unknown or not applicable.
   Future<bool?> batteryUnrestricted() async => null;
   Future<void> openBatterySettings() async {}
+
+  /// Battery level (%), temperature (°C) and whether charging, for
+  /// Diagnostics; empty when unavailable.
+  Future<Json> batteryStatus() async => {};
+
+  /// Phone make, model and Android version for a metrics report.
+  Future<String> deviceDescription() async => '';
   Future<Json> checkDisplay() async => {'connected': false};
   Future<Json> sendDisplay(
     Uint8List bytes,
@@ -441,6 +448,15 @@ class AndroidPort extends DevicePort {
     });
     return result == null ? null : Map<String, dynamic>.from(result);
   }
+
+  @override
+  Future<String> deviceDescription() async =>
+      await channel.invokeMethod<String>('deviceDescription') ?? '';
+
+  @override
+  Future<Json> batteryStatus() async => Map<String, dynamic>.from(
+    await channel.invokeMethod<Map>('batteryStatus') ?? {},
+  );
 
   @override
   Future<void> exportFile(String filename, String content) => channel

@@ -212,7 +212,9 @@ String exportBackup(
     ..remove('clickerControls')
     ..remove('programHistory')
     ..remove('programInbox')
-    ..remove('segmentLibrary');
+    ..remove('segmentLibrary')
+    ..remove('recordMetrics')
+    ..remove('metricsBatteryBaseline');
   if (state.segmentLibrary.isNotEmpty)
     data['segmentLibrary'] = [for (final s in state.segmentLibrary) s.toJson()];
   // Earlier program versions, keyed by name because IDs stay on the phone.
