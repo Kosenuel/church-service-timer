@@ -2259,6 +2259,29 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     );
   }
 
+  bool get backHandledInApp =>
+      selectingPrograms ||
+      selectingReports ||
+      (page == 0 &&
+          c.ready &&
+          c.state.session.phase == 'ready' &&
+          c.pairing.localControl &&
+          !controlsLocked);
+
+  void handleBack() {
+    if (selectingPrograms || selectingReports) {
+      refreshHome(() {
+        selectingPrograms = false;
+        selectingReports = false;
+        selectedProgramExports.clear();
+        selectedReportExports.clear();
+      });
+      return;
+    }
+    if (page == 0 && c.state.session.phase == 'ready' && !c.busy)
+      unawaited(c.act('cancelReady'));
+  }
+
   double headerHeight(BuildContext context) => math.max(
     76,
     MediaQuery.textScalerOf(context).scale(18) * 2.4 +
@@ -2273,357 +2296,377 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     animation: c,
     builder: (context, _) => c.pairing.joined
         ? PairedScreen(controller: c)
-        : Scaffold(
-            body: navigationShell(
-              Listener(
-                onPointerDown: (e) => menuAnchor = e.position,
-                child: CustomScrollView(
-                  controller: homeScroll,
-                  slivers: [
-                    SliverAppBar(
-                      bottom: c.ready && page != 0 && c.liveSession.active
-                          ? RunningServiceBar.forContext(context, controller: c)
-                          : null,
-                      pinned: true,
-                      clipBehavior: Clip.antiAlias,
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      scrolledUnderElevation: 0,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(26),
-                        ),
-                      ),
-                      flexibleSpace: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(26),
-                        ),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Color.alphaBlend(
-                                    appColors(
-                                      context,
-                                    ).accent.withValues(alpha: .04),
-                                    appColors(context).surface,
-                                  ).withValues(
-                                    alpha: appColors(context).highContrast
-                                        ? 1
-                                        : .84,
-                                  ),
-                                  appColors(context).surface.withValues(
-                                    alpha: appColors(context).highContrast
-                                        ? 1
-                                        : .92,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            child: const SizedBox.expand(),
+        : PopScope(
+            // Android Back leaves selection mode, or cancels a service that
+            // is loaded but not started, before it would leave the app.
+            canPop: !backHandledInApp,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) handleBack();
+            },
+            child: Scaffold(
+              body: navigationShell(
+                Listener(
+                  onPointerDown: (e) => menuAnchor = e.position,
+                  child: CustomScrollView(
+                    controller: homeScroll,
+                    slivers: [
+                      SliverAppBar(
+                        bottom: c.ready && page != 0 && c.liveSession.active
+                            ? RunningServiceBar.forContext(
+                                context,
+                                controller: c,
+                              )
+                            : null,
+                        pinned: true,
+                        clipBehavior: Clip.antiAlias,
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        scrolledUnderElevation: 0,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                            bottom: Radius.circular(26),
                           ),
                         ),
-                      ),
-                      actions: [
-                        if (c.ready)
-                          UnavailableAction(
-                            reason: controlsLocked
-                                ? 'Unlock the controls to change the display.'
-                                : !c.pairing.localControl
-                                ? 'Take back control to change the display.'
-                                : null,
-                            child: HeaderDisplayChip(
-                              key: const ValueKey('header-connection'),
-                              connection: c.displayConnection,
-                              label: headerDisplayLabel(),
-                              reconnecting: displayReconnecting,
-                              onPressed:
-                                  (controlsLocked || !c.pairing.localControl)
-                                  ? null
-                                  : chooseDisplay,
-                            ),
+                        flexibleSpace: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(26),
                           ),
-                        if (c.ready && page == 0 && c.liveSession.active)
-                          IconButton(
-                            key: const ValueKey('control-lock'),
-                            tooltip: controlsLocked
-                                ? 'Controls locked'
-                                : 'Lock controls',
-                            onPressed: controlsLocked
-                                ? null
-                                : () => setState(
-                                    () => c.uiLocked = controlsLocked = true,
-                                  ),
-                            icon: Icon(
-                              controlsLocked ? Icons.lock : Icons.lock_open,
-                            ),
-                          ),
-                        if (c.ready && page == 0) liveMenu(),
-                        const SizedBox(width: 4),
-                      ],
-                      toolbarHeight: headerHeight(context),
-                      title: Row(
-                        children: [
-                          const ChurchTimerMark(),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  headerTitle(),
-                                  key: const ValueKey('header-title'),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                if (headerSubtitle().isNotEmpty)
-                                  Tooltip(
-                                    message: headerSubtitle(),
-                                    child: Text(
-                                      headerSubtitle(),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: appColors(context).muted,
-                                      ),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color.alphaBlend(
+                                      appColors(
+                                        context,
+                                      ).accent.withValues(alpha: .04),
+                                      appColors(context).surface,
+                                    ).withValues(
+                                      alpha: appColors(context).highContrast
+                                          ? 1
+                                          : .84,
                                     ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (!c.ready)
-                      SliverFillRemaining(
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const ChurchTimerMark(size: 84),
-                                const SizedBox(height: 20),
-                                const Text(
-                                  appName,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                if (c.loadingChurchName.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: Text(
-                                      c.loadingChurchName,
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                const SizedBox(height: 24),
-                                const CircularProgressIndicator(),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      SliverToBoxAdapter(
-                        child: SafeArea(
-                          top: false,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                            child: Center(
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 1200,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    if (c.pairing.hosting)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        child: panel(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.stretch,
-                                            children: [
-                                              Text(
-                                                c.pairing.localControl
-                                                    ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices'
-                                                    : 'Control is with a paired operator. This phone remains the service host.',
-                                              ),
-                                              TextButton(
-                                                onPressed: () =>
-                                                    openSettingsDetail(
-                                                      'Screens & devices',
-                                                      pairedDeviceSettings,
-                                                    ),
-                                                child: const Text(
-                                                  'Manage devices and control',
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    if (c.backgroundError != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        child: Text(
-                                          c.backgroundError!,
-                                          style: TextStyle(
-                                            color: appColors(context).error,
-                                          ),
-                                        ),
-                                      ),
-                                    if (c.error != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 16,
-                                        ),
-                                        child: panel(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                c.error!,
-                                                style: TextStyle(
-                                                  color: appColors(
-                                                    context,
-                                                  ).warning,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              if (c.retry == null && !c.corrupt)
-                                                TextButton(
-                                                  key: const ValueKey(
-                                                    'dismiss-error',
-                                                  ),
-                                                  onPressed: c.dismissError,
-                                                  child: const Text('Dismiss'),
-                                                ),
-                                              if (c.retry != null)
-                                                TextButton(
-                                                  onPressed: c.busy
-                                                      ? null
-                                                      : () => c.retry!(),
-                                                  child: Text(
-                                                    c.reportSavePending
-                                                        ? 'Retry saving report'
-                                                        : 'Retry failed action',
-                                                  ),
-                                                ),
-                                              if (c.corrupt)
-                                                TextButton(
-                                                  onPressed: () async {
-                                                    if (await confirm(
-                                                      'Reset local state?',
-                                                      'This replaces unreadable local service and program data with starter programs. No physical display is connected.',
-                                                      'Reset local data',
-                                                    ))
-                                                      await c.resetCorrupt();
-                                                  },
-                                                  child: const Text(
-                                                    'Reset local data…',
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    AbsorbPointer(
-                                      absorbing:
-                                          c.corrupt || !c.pairing.localControl,
-                                      child: page == 0
-                                          ? live()
-                                          : page == 1
-                                          ? programsResponsive()
-                                          : page == 2
-                                          ? reportsResponsive()
-                                          : settingsHub(),
+                                    appColors(context).surface.withValues(
+                                      alpha: appColors(context).highContrast
+                                          ? 1
+                                          : .92,
                                     ),
                                   ],
                                 ),
                               ),
+                              child: const SizedBox.expand(),
                             ),
                           ),
                         ),
+                        actions: [
+                          if (c.ready)
+                            UnavailableAction(
+                              reason: controlsLocked
+                                  ? 'Unlock the controls to change the display.'
+                                  : !c.pairing.localControl
+                                  ? 'Take back control to change the display.'
+                                  : null,
+                              child: HeaderDisplayChip(
+                                key: const ValueKey('header-connection'),
+                                connection: c.displayConnection,
+                                label: headerDisplayLabel(),
+                                reconnecting: displayReconnecting,
+                                onPressed:
+                                    (controlsLocked || !c.pairing.localControl)
+                                    ? null
+                                    : chooseDisplay,
+                              ),
+                            ),
+                          if (c.ready && page == 0 && c.liveSession.active)
+                            IconButton(
+                              key: const ValueKey('control-lock'),
+                              tooltip: controlsLocked
+                                  ? 'Controls locked'
+                                  : 'Lock controls',
+                              onPressed: controlsLocked
+                                  ? null
+                                  : () => setState(
+                                      () => c.uiLocked = controlsLocked = true,
+                                    ),
+                              icon: Icon(
+                                controlsLocked ? Icons.lock : Icons.lock_open,
+                              ),
+                            ),
+                          if (c.ready && page == 0) liveMenu(),
+                          const SizedBox(width: 4),
+                        ],
+                        toolbarHeight: headerHeight(context),
+                        title: Row(
+                          children: [
+                            const ChurchTimerMark(),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    headerTitle(),
+                                    key: const ValueKey('header-title'),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  if (headerSubtitle().isNotEmpty)
+                                    Tooltip(
+                                      message: headerSubtitle(),
+                                      child: Text(
+                                        headerSubtitle(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: appColors(context).muted,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                  ],
-                ),
-              ),
-            ),
-            floatingActionButton:
-                c.ready &&
-                    page == 1 &&
-                    !focused &&
-                    !selectingPrograms &&
-                    !controlsLocked
-                ? FloatingActionButton.extended(
-                    key: const ValueKey('new-template'),
-                    backgroundColor: appColors(context).accent,
-                    foregroundColor: appColors(context).background,
-                    onPressed: c.busy || c.corrupt
-                        ? null
-                        : () async {
-                            await editTemplate();
-                          },
-                    icon: const Icon(Icons.add),
-                    label: const Text('New program'),
-                  )
-                : null,
-            bottomNavigationBar: focused
-                ? SafeArea(
-                    top: false,
-                    child: TextButton.icon(
-                      onPressed: () => setFocused(false),
-                      icon: const Icon(Icons.fullscreen_exit),
-                      label: const Text('Exit focused view'),
-                    ),
-                  )
-                : useNavigationRail
-                ? null
-                : NavigationBar(
-                    selectedIndex: page,
-                    onDestinationSelected: (v) {
-                      if (!controlsLocked) goToPage(v);
-                    },
-                    destinations: const [
-                      NavigationDestination(
-                        icon: Icon(Icons.radio_button_checked),
-                        label: 'Live',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.view_timeline_outlined),
-                        label: 'Programs',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.assessment_outlined),
-                        label: 'Reports',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.settings_outlined),
-                        label: 'Settings',
-                      ),
+                      if (!c.ready)
+                        SliverFillRemaining(
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const ChurchTimerMark(size: 84),
+                                  const SizedBox(height: 20),
+                                  const Text(
+                                    appName,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (c.loadingChurchName.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        c.loadingChurchName,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  const SizedBox(height: 24),
+                                  const CircularProgressIndicator(),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        SliverToBoxAdapter(
+                          child: SafeArea(
+                            top: false,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                12,
+                                20,
+                                32,
+                              ),
+                              child: Center(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 1200,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (c.pairing.hosting)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: panel(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                Text(
+                                                  c.pairing.localControl
+                                                      ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices'
+                                                      : 'Control is with a paired operator. This phone remains the service host.',
+                                                ),
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      openSettingsDetail(
+                                                        'Screens & devices',
+                                                        pairedDeviceSettings,
+                                                      ),
+                                                  child: const Text(
+                                                    'Manage devices and control',
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      if (c.backgroundError != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: Text(
+                                            c.backgroundError!,
+                                            style: TextStyle(
+                                              color: appColors(context).error,
+                                            ),
+                                          ),
+                                        ),
+                                      if (c.error != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 16,
+                                          ),
+                                          child: panel(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  c.error!,
+                                                  style: TextStyle(
+                                                    color: appColors(
+                                                      context,
+                                                    ).warning,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                if (c.retry == null &&
+                                                    !c.corrupt)
+                                                  TextButton(
+                                                    key: const ValueKey(
+                                                      'dismiss-error',
+                                                    ),
+                                                    onPressed: c.dismissError,
+                                                    child: const Text(
+                                                      'Dismiss',
+                                                    ),
+                                                  ),
+                                                if (c.retry != null)
+                                                  TextButton(
+                                                    onPressed: c.busy
+                                                        ? null
+                                                        : () => c.retry!(),
+                                                    child: Text(
+                                                      c.reportSavePending
+                                                          ? 'Retry saving report'
+                                                          : 'Retry failed action',
+                                                    ),
+                                                  ),
+                                                if (c.corrupt)
+                                                  TextButton(
+                                                    onPressed: () async {
+                                                      if (await confirm(
+                                                        'Reset local state?',
+                                                        'This replaces unreadable local service and program data with starter programs. No physical display is connected.',
+                                                        'Reset local data',
+                                                      ))
+                                                        await c.resetCorrupt();
+                                                    },
+                                                    child: const Text(
+                                                      'Reset local data…',
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      AbsorbPointer(
+                                        absorbing:
+                                            c.corrupt ||
+                                            !c.pairing.localControl,
+                                        child: page == 0
+                                            ? live()
+                                            : page == 1
+                                            ? programsResponsive()
+                                            : page == 2
+                                            ? reportsResponsive()
+                                            : settingsHub(),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
+                ),
+              ),
+              floatingActionButton:
+                  c.ready &&
+                      page == 1 &&
+                      !focused &&
+                      !selectingPrograms &&
+                      !controlsLocked
+                  ? FloatingActionButton.extended(
+                      key: const ValueKey('new-template'),
+                      backgroundColor: appColors(context).accent,
+                      foregroundColor: appColors(context).background,
+                      onPressed: c.busy || c.corrupt
+                          ? null
+                          : () async {
+                              await editTemplate();
+                            },
+                      icon: const Icon(Icons.add),
+                      label: const Text('New program'),
+                    )
+                  : null,
+              bottomNavigationBar: focused
+                  ? SafeArea(
+                      top: false,
+                      child: TextButton.icon(
+                        onPressed: () => setFocused(false),
+                        icon: const Icon(Icons.fullscreen_exit),
+                        label: const Text('Exit focused view'),
+                      ),
+                    )
+                  : useNavigationRail
+                  ? null
+                  : NavigationBar(
+                      selectedIndex: page,
+                      onDestinationSelected: (v) {
+                        if (!controlsLocked) goToPage(v);
+                      },
+                      destinations: const [
+                        NavigationDestination(
+                          icon: Icon(Icons.radio_button_checked),
+                          label: 'Live',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.view_timeline_outlined),
+                          label: 'Programs',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.assessment_outlined),
+                          label: 'Reports',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.settings_outlined),
+                          label: 'Settings',
+                        ),
+                      ],
+                    ),
+            ),
           ),
   );
 }
