@@ -8,6 +8,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/programs/program_history_views.dart';
 import 'package:church_service_timer/programs/send_program_views.dart';
+import 'package:church_service_timer/programs/segment_library_views.dart';
 
 String templateSummary(Timeline t) {
   final total = t.segments.fold<int>(
@@ -246,8 +247,11 @@ extension TemplateViews on HomeState {
               PopupMenuButton<String>(
                 tooltip: 'More program actions',
                 enabled: !disabled,
-                onSelected: (action) =>
-                    action == 'import' ? importFile() : exportAllPrograms(),
+                onSelected: (action) => switch (action) {
+                  'import' => importFile(),
+                  'segments' => openSegmentLibrary(),
+                  _ => exportAllPrograms(),
+                },
                 itemBuilder: (ctx) => appMenuEntries(ctx, [
                   const AppMenuAction(
                     'import',
@@ -255,6 +259,12 @@ extension TemplateViews on HomeState {
                   ),
                   if (c.state.templates.isNotEmpty)
                     const AppMenuAction('export', 'Export all programs'),
+                  AppMenuAction(
+                    'segments',
+                    c.state.segmentLibrary.isEmpty
+                        ? 'Segment library'
+                        : 'Segment library (${c.state.segmentLibrary.length})',
+                  ),
                 ]),
               ),
             ],

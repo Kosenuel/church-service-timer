@@ -211,7 +211,10 @@ String exportBackup(
     ..remove('settingsLock')
     ..remove('clickerControls')
     ..remove('programHistory')
-    ..remove('programInbox');
+    ..remove('programInbox')
+    ..remove('segmentLibrary');
+  if (state.segmentLibrary.isNotEmpty)
+    data['segmentLibrary'] = [for (final s in state.segmentLibrary) s.toJson()];
   // Earlier program versions, keyed by name because IDs stay on the phone.
   final history = <String, dynamic>{
     for (final t in state.templates)
@@ -232,9 +235,10 @@ String exportBackup(
   ];
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    // Version 9 only with program history, 8 only with sealed passwords,
-    // so plain backups remain readable by earlier versions.
-    'schemaVersion': history.isNotEmpty
+    // Version 9 only with program history or a segment library, 8 only
+    // with sealed passwords, so plain backups remain readable by earlier
+    // versions.
+    'schemaVersion': history.isNotEmpty || state.segmentLibrary.isNotEmpty
         ? 9
         : savedPasswords == null
         ? 7
@@ -290,8 +294,10 @@ AppState importBackup(String raw, Stamp now) {
       'keepScreenAwake',
       if (envelope['schemaVersion'] >= 2) 'churchBanner',
       if (envelope['schemaVersion'] >= 9) 'programHistory',
+      if (envelope['schemaVersion'] >= 9) 'segmentLibrary',
     }, 'Backup data');
     final history = data.remove('programHistory');
+    final segments = readSegmentLibrary(data.remove('segmentLibrary'));
     require(
       data.length ==
               (envelope['schemaVersion'] >= 7
@@ -330,6 +336,7 @@ AppState importBackup(String raw, Stamp now) {
           : 8,
       'session': Session(id: 'restored', anchor: now, held: true).toJson(),
     });
+    restored.segmentLibrary = segments;
     for (final e in versions.entries) {
       final program = restored.templates.where((t) => t.name == e.key);
       require(program.isNotEmpty, 'Backup history names a missing program.');
