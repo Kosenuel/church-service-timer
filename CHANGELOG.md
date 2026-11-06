@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Pre-service countdown fixes:** setting a start time now releases a held LED sign, so the clock and countdown actually reach it. If output is held while the countdown waits, the row says so and offers **Show on display**. Tapping Start first segment before the scheduled time asks "Start now?" first, and the row explains that the service starts only when you tap Start.
 - **Default layout density is now Automatic.** Phones use Comfortable (larger touch targets), small tablets Comfortable and large tablets Spacious. A density you choose in Appearance is kept.
 - **Appearance:** the pinned preview follows the tab. Theme shows the colour preview; Layout & accessibility shows the selected density ("PREVIEW · COMFORTABLE") with sample rows and dividers, replacing the duplicate sample at the bottom of that tab.
 - **Fixes:** the Live idle screen now matches its design, including right after a service ends and on tablets: a Standing by hero, Pinned or Recent programs, a Last service card, and a folded Stage & display row. Undo start and the Undo after deleting now disappear after 8 seconds instead of staying until tapped. An Undo tapped too late no longer leaves an error card that can't be closed; error cards with nothing to retry have a Dismiss button. The battery hint shows only while standing by, is shorter, and can be hidden until the app is next opened.

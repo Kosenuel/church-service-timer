@@ -771,6 +771,14 @@ class AppController extends ChangeNotifier {
           hardware.connected) {
         hardware.release(state.session);
       }
+      // Scheduling a start is a deliberate "show this on the display": the
+      // sign's own hold is released so the pre-service output can be sent.
+      if (state.session.phase == 'ready' &&
+          state.session.startsAtWall != null &&
+          state.session.startsAtWall != previous.startsAtWall &&
+          hardware.connected) {
+        hardware.release(state.session);
+      }
       await syncActiveService();
       _publish();
       return true;
@@ -1083,6 +1091,20 @@ class AppController extends ChangeNotifier {
     if (error == null || retry != null || corrupt) return;
     error = null;
     notifyListeners();
+  }
+
+  /// Releases a held display so the scheduled pre-service output shows.
+  Future<bool> showPreService() async {
+    if (state.session.phase != 'ready' || state.session.startsAtWall == null)
+      return false;
+    if (state.session.held && !await act('release')) return false;
+    if (hardware.connected) {
+      hardware.release(state.session);
+      hardware.reconcile(state.session, now);
+    }
+    _publish();
+    notifyListeners();
+    return true;
   }
 
   Future<void> reloadFonts() async {
