@@ -7,8 +7,10 @@ import 'package:church_service_timer/domain/app_settings.dart';
 export 'package:church_service_timer/domain/app_settings.dart';
 import 'package:church_service_timer/domain/program_library.dart';
 import 'package:church_service_timer/domain/program_history.dart';
+import 'package:church_service_timer/domain/segment_library.dart';
 export 'package:church_service_timer/domain/program_library.dart';
 export 'package:church_service_timer/domain/program_history.dart';
+export 'package:church_service_timer/domain/segment_library.dart';
 export 'package:church_service_timer/domain/service_planning.dart';
 export 'package:church_service_timer/domain/backup_secrets.dart';
 import 'package:church_service_timer/domain/settings_lock.dart';
@@ -1148,6 +1150,9 @@ class AppState {
   /// Programs sent from other phones, waiting for review.
   List<ReceivedProgram> programInbox;
 
+  /// Reusable segments to insert into any program, newest first.
+  List<Segment> segmentLibrary;
+
   /// Record performance metrics during the next service (Diagnostics).
   /// Switches itself off when that service ends.
   bool recordMetrics;
@@ -1198,8 +1203,10 @@ class AppState {
     ProgramLibrary? programLibrary,
     Map<String, List<ProgramRevision>>? programHistory,
     List<ReceivedProgram>? programInbox,
+    List<Segment>? segmentLibrary,
     this.recordMetrics = false,
-  }) : programLibrary = programLibrary ?? ProgramLibrary(),
+  }) : segmentLibrary = segmentLibrary ?? [],
+       programLibrary = programLibrary ?? ProgramLibrary(),
        programHistory = programHistory ?? {},
        programInbox = programInbox ?? [],
        editDrafts = editDrafts ?? {},
@@ -1320,6 +1327,7 @@ class AppState {
       editDrafts: readEditDrafts(j['editDrafts']),
       programHistory: readProgramHistory(j['programHistory']),
       programInbox: readReceivedPrograms(j['programInbox']),
+      segmentLibrary: readSegmentLibrary(j['segmentLibrary']),
       recordMetrics: j['recordMetrics'] == true,
       quickMessages: (j['quickMessages'] as List?)
           ?.map((e) => QuickMessage.fromJson(Map<String, dynamic>.from(e)))
@@ -1450,6 +1458,7 @@ class AppState {
     'programLibrary': programLibrary.toJson(),
     'programHistory': writeProgramHistory(programHistory),
     'programInbox': [for (final p in programInbox) p.toJson()],
+    'segmentLibrary': [for (final s in segmentLibrary) s.toJson()],
     'recordMetrics': recordMetrics,
     'clockFormat': clockFormat,
     'clockBlink': clockBlink,
