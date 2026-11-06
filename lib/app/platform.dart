@@ -3,7 +3,17 @@ import 'dart:convert';
 
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:nsd/nsd.dart' as nsd;
+
+/// A file handed to the Android share sheet (Bluetooth, messaging, email…).
+class SharedFile {
+  final String name, mimeType;
+  final Uint8List bytes;
+  const SharedFile(this.name, this.bytes, this.mimeType);
+  SharedFile.text(this.name, String content, this.mimeType)
+    : bytes = Uint8List.fromList(utf8.encode(content));
+}
 
 abstract class DevicePort {
   Future<Json> signWifiProfile(String id) async => {
@@ -24,6 +34,11 @@ abstract class DevicePort {
     String name,
     Future<Uint8List> Function(double, double) layout,
   ) async => throw RuleError('Printing requires Android.');
+
+  /// Opens the system share sheet with [files]. Returns false when the
+  /// person closed the sheet without sending.
+  Future<bool> shareFiles(List<SharedFile> files, {String? subject}) async =>
+      throw RuleError('Sharing requires Android.');
   Future<String?> loadPairing() async => null;
   Future<void> savePairing(String value) async {}
   Future<List<Json>> discoverPairHosts() async => [];
@@ -45,6 +60,12 @@ abstract class DevicePort {
   Future<void> forgetDisplay() async {}
 
   void setBackgroundHandler(Future<void> Function()? handler) {}
+
+  /// Called when a file is opened with, or shared to, the app.
+  void setIncomingFileHandler(Future<void> Function()? handler) {}
+
+  /// The file most recently opened with, or shared to, the app, read once.
+  Future<Map<String, dynamic>?> takeIncomingFile() async => null;
 
   /// Receives Pause/Next taps from the active-service notification.
   void setNotificationActionHandler(
@@ -137,6 +158,22 @@ class AndroidPort extends DevicePort {
       name: name,
       onLayout: (format) => layout(format.width, format.height),
     );
+  }
+
+  @override
+  Future<bool> shareFiles(List<SharedFile> files, {String? subject}) async {
+    final result = await SharePlus.instance.share(
+      ShareParams(
+        subject: subject,
+        title: subject,
+        files: [
+          for (final f in files)
+            XFile.fromData(f.bytes, mimeType: f.mimeType, name: f.name),
+        ],
+        fileNameOverrides: [for (final f in files) f.name],
+      ),
+    );
+    return result.status != ShareResultStatus.dismissed;
   }
 
   @override
@@ -242,16 +279,32 @@ class AndroidPort extends DevicePort {
 
   Future<void> Function()? _backgroundHandler;
   Future<void> Function(String action)? _notificationHandler;
+  Future<void> Function()? _incomingHandler;
   void _dispatch() => channel.setMethodCallHandler(
-    _backgroundHandler == null && _notificationHandler == null
+    _backgroundHandler == null &&
+            _notificationHandler == null &&
+            _incomingHandler == null
         ? null
         : (call) async {
             if (call.method == 'backgroundTick')
               await _backgroundHandler?.call();
             if (call.method == 'notificationAction' && call.arguments is String)
               await _notificationHandler?.call(call.arguments as String);
+            if (call.method == 'incomingFile') await _incomingHandler?.call();
           },
   );
+
+  @override
+  void setIncomingFileHandler(Future<void> Function()? handler) {
+    _incomingHandler = handler;
+    _dispatch();
+  }
+
+  @override
+  Future<Map<String, dynamic>?> takeIncomingFile() async {
+    final result = await channel.invokeMethod<Map>('takeIncomingFile');
+    return result == null ? null : Map<String, dynamic>.from(result);
+  }
 
   @override
   void setBackgroundHandler(Future<void> Function()? handler) {

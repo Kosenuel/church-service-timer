@@ -4,12 +4,20 @@ import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/app/platform.dart';
+import 'package:church_service_timer/reports/service_pdf.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:flutter/material.dart';
 
 extension ProgramImportExportViews on HomeState {
-  Future<void> exportAllPrograms({List<Timeline>? selected}) async {
+  /// Exports programs to a file, or with [share] sends them through the
+  /// Android share sheet (Bluetooth, messaging, email), where a PDF per
+  /// program is also offered.
+  Future<void> exportAllPrograms({
+    List<Timeline>? selected,
+    bool share = false,
+  }) async {
     final programs = List<Timeline>.of(selected ?? c.state.templates);
     if (programs.isEmpty) return;
     var notes = false;
@@ -21,15 +29,13 @@ extension ProgramImportExportViews on HomeState {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
           title: Text(
-            selected == null
-                ? 'Export all programs'
-                : 'Export selected programs',
+            '${share ? 'Share' : 'Export'} ${selected == null ? 'all' : 'selected'} programs',
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '${programs.length} ${selected == null ? 'saved' : 'selected'} programs. JSON preserves formatting; CSV contains the rundown for spreadsheets.',
+                '${programs.length} ${selected == null ? 'saved' : 'selected'} programs. JSON preserves formatting and can be imported on another phone; CSV contains the rundown for spreadsheets.${share ? ' PDF makes one printable sheet per program.' : ''}',
               ),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -44,8 +50,9 @@ extension ProgramImportExportViews on HomeState {
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
             ),
-            for (final f in ['json', 'csv'])
+            for (final f in ['json', 'csv', if (share) 'pdf'])
               FilledButton(
+                key: ValueKey('${share ? 'share' : 'export'}-programs-$f'),
                 onPressed: () => Navigator.pop(ctx, f),
                 child: Text(f.toUpperCase()),
               ),
@@ -54,16 +61,57 @@ extension ProgramImportExportViews on HomeState {
       ),
     );
     if (format == null) return;
+    final name =
+        'Church-Service-Timer-${selected == null ? 'all' : 'selected'}-programs.$format';
+    String content() => format == 'json'
+        ? exportProgramsJson(programs, privateNotes: notes)
+        : exportProgramsCsv(programs, privateNotes: notes);
     try {
-      await c.port.exportFile(
-        'Church-Service-Timer-${selected == null ? 'all' : 'selected'}-programs.$format',
-        format == 'json'
-            ? exportProgramsJson(programs, privateNotes: notes)
-            : exportProgramsCsv(programs, privateNotes: notes),
+      if (!share) {
+        await c.port.exportFile(name, content());
+        return;
+      }
+      final files = format == 'pdf'
+          ? [for (final p in programs) await programPdf(p, privateNotes: notes)]
+          : [
+              SharedFile.text(
+                name,
+                content(),
+                format == 'json' ? 'application/json' : 'text/csv',
+              ),
+            ];
+      await c.port.shareFiles(
+        files,
+        subject: programs.length == 1
+            ? programs.single.name
+            : '${programs.length} service programs',
       );
     } catch (e) {
-      if (mounted) await showError('Export failed: $e');
+      if (mounted)
+        await showError('${share ? 'Sharing' : 'Export'} failed: $e');
     }
+  }
+
+  Future<SharedFile> programPdf(
+    Timeline p, {
+    required bool privateNotes,
+  }) async {
+    final document = ServicePrintDocument(
+      program: p,
+      church: c.state.churchName,
+      serviceDate: c.now.wall,
+      preparedAt: c.now.wall,
+      banner: c.state.churchBanner,
+      audience: privateNotes ? 'operator' : 'stage',
+      includeNotes: privateNotes,
+      watermark: c.state.printPreferences.watermark,
+      inkSaving: c.state.printPreferences.inkSaving,
+    );
+    return SharedFile(
+      servicePdfName(document),
+      await servicePdfBytes(document),
+      'application/pdf',
+    );
   }
 
   Future<void> importProgramBundle(List<Timeline> candidates) async {

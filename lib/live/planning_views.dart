@@ -7,6 +7,7 @@ import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/reports/service_pdf.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/app/platform.dart';
 
 extension PlanningViews on HomeState {
   Future<void> editUpcoming() async {
@@ -59,7 +60,7 @@ extension PlanningViews on HomeState {
     var selectedDate = DateTime.fromMillisecondsSinceEpoch(
       actualDate ?? c.now.wall,
     );
-    final yes = await showDialog<bool>(
+    final choice = await showDialog<String>(
       context: context,
       animationStyle: reduceAppMotion(context)
           ? AnimationStyle.noAnimation
@@ -72,7 +73,7 @@ extension PlanningViews on HomeState {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Print or choose Save as PDF in Android’s print screen.',
+                  'Print, or share the sheet as a PDF by Bluetooth, messaging or email.',
                 ),
                 const SizedBox(height: 12),
                 AppMenuList(
@@ -175,18 +176,24 @@ extension PlanningViews on HomeState {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
             ),
+            OutlinedButton.icon(
+              key: const ValueKey('share-service-pdf'),
+              onPressed: () => Navigator.pop(ctx, 'share'),
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Share PDF'),
+            ),
             FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Continue'),
+              onPressed: () => Navigator.pop(ctx, 'print'),
+              child: const Text('Print'),
             ),
           ],
         ),
       ),
     );
-    if (yes != true) return;
+    if (choice == null) return;
     try {
       if (!await c.commit(
         (draft, _) => draft.printPreferences = PrintPreferences(
@@ -224,6 +231,16 @@ extension PlanningViews on HomeState {
         watermark: watermark,
         inkSaving: inkSaving,
       );
+      if (choice == 'share') {
+        await c.port.shareFiles([
+          SharedFile(
+            servicePdfName(document),
+            await servicePdfBytes(document),
+            'application/pdf',
+          ),
+        ], subject: report?.name ?? printProgram.name);
+        return;
+      }
       final regular = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
       final bold = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
       await c.port.printServicePdf(
@@ -237,7 +254,29 @@ extension PlanningViews on HomeState {
         ),
       );
     } catch (e) {
-      if (mounted) await showError('Printing failed: $e');
+      if (mounted)
+        await showError(
+          '${choice == 'share' ? 'Sharing' : 'Printing'} failed: $e',
+        );
     }
+  }
+
+  /// A4 PDF bytes for [document], used for sharing instead of printing.
+  Future<Uint8List> servicePdfBytes(ServicePrintDocument document) async =>
+      createServicePdf(
+        document,
+        regularFont: await rootBundle.load('assets/fonts/Roboto-Regular.ttf'),
+        boldFont: await rootBundle.load('assets/fonts/Roboto-Bold.ttf'),
+      );
+
+  String servicePdfName(ServicePrintDocument document) {
+    final name = (document.report?.name ?? document.program.name).replaceAll(
+      RegExp(r'[^a-zA-Z0-9_-]+'),
+      '_',
+    );
+    final date = DateTime.fromMillisecondsSinceEpoch(document.serviceDate);
+    final day =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    return '$name-$day.pdf';
   }
 }

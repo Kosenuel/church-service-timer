@@ -237,7 +237,7 @@ void main() {
       find.byType(MaterialApp),
       matchesGoldenFile('../goldens/print-service-sheet.png'),
     );
-    await t.tap(find.text('Continue'));
+    await t.tap(find.text('Print'));
     await t.pumpAndSettle();
     expect(p.pdf, isNotNull);
     expect(String.fromCharCodes(p.pdf!.take(5)), '%PDF-');

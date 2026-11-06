@@ -142,8 +142,38 @@ extension SelectionViews on HomeState {
                                         .toList(),
                                   );
                               },
-                        icon: const Icon(Icons.ios_share),
+                        icon: const Icon(Icons.download_outlined),
                         label: const Text('Export selected'),
+                      ),
+                    ),
+                    UnavailableAction(
+                      reason: chosen.isEmpty
+                          ? 'Select at least one item to share.'
+                          : null,
+                      child: OutlinedButton.icon(
+                        key: ValueKey(
+                          'share-selected-${programs ? 'programs' : 'reports'}',
+                        ),
+                        onPressed: chosen.isEmpty || c.busy
+                            ? null
+                            : () async {
+                                if (programs)
+                                  await exportAllPrograms(
+                                    share: true,
+                                    selected: c.state.templates
+                                        .where((p) => chosen.contains(p.name))
+                                        .toList(),
+                                  );
+                                else
+                                  await exportAllReports(
+                                    share: true,
+                                    selected: c.state.reports
+                                        .where((r) => chosen.contains(r.id))
+                                        .toList(),
+                                  );
+                              },
+                        icon: const Icon(Icons.share_outlined),
+                        label: const Text('Share'),
                       ),
                     ),
                     if (programs)
