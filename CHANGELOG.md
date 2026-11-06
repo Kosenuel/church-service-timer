@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Program IDs.** Each saved program now has a permanent ID on this phone, so renaming one keeps its pin, recent use, unsaved edits and the review-note link from its past services. Existing programs get IDs automatically on first launch. Shared files, exports and backups leave the ID out, so earlier versions still open them, and a received program always gets its own. This is groundwork for version history and sending programs between phones.
 - **Programs list:** a pin icon marks pinned programs (the star toggle and each row's ⋮ menu are gone). Long-press a program to start selecting; the selection bar exports, pins or unpins, and deletes the selected programs. The Android Back key leaves selection mode.
 - **Reports list:** each row's ⋮ menu is gone too; long-press a report to start selecting, then export or delete from the selection bar. Single reports still have Export, Print and Delete on their report page.
 - **Live:** the Android Back key on a loaded service that has not started cancels the setup and returns to Standing by.

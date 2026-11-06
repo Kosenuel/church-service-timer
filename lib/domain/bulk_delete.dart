@@ -20,27 +20,28 @@ class DeletedReport {
 /// reports keep their own program snapshots, so deleting a saved program
 /// never changes an active service or its history.
 extension BulkDelete on AppState {
-  List<DeletedProgram> deletePrograms(Set<String> names) {
+  /// Deletes the saved programs with these IDs.
+  List<DeletedProgram> deletePrograms(Set<String> ids) {
     final removed = <DeletedProgram>[];
     for (var i = 0; i < templates.length; i++) {
       final t = templates[i];
-      if (names.contains(t.name))
+      if (ids.contains(t.id))
         removed.add(
           DeletedProgram(
             i,
             t,
-            programLibrary.favourites.contains(t.name),
-            programLibrary.recent[t.name],
+            programLibrary.favourites.contains(t.id),
+            programLibrary.recent[t.id],
           ),
         );
     }
     require(
-      removed.length == names.length,
+      removed.length == ids.length,
       'Some selected programs changed. Review the selection again.',
     );
     for (final d in removed.reversed) {
       templates.removeAt(d.index);
-      programLibrary.remove(d.program.name);
+      programLibrary.remove(d.program.id);
     }
     return removed;
   }
@@ -56,9 +57,8 @@ extension BulkDelete on AppState {
     }
     for (final d in removed) {
       templates.insert(d.index.clamp(0, templates.length), d.program);
-      if (d.favourite) programLibrary.favourites.add(d.program.name);
-      if (d.lastUsed != null)
-        programLibrary.recent[d.program.name] = d.lastUsed!;
+      if (d.favourite) programLibrary.favourites.add(d.program.id);
+      if (d.lastUsed != null) programLibrary.recent[d.program.id] = d.lastUsed!;
     }
   }
 

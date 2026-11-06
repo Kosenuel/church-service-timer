@@ -296,16 +296,41 @@ class Segment {
   };
 }
 
+/// Stable identity for a saved program, independent of its name. Local
+/// only: portable exports and backups leave it out so earlier versions can
+/// read them, and the receiving phone assigns its own.
+String newProgramId([math.Random? random]) {
+  final r = random ?? math.Random.secure();
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  return 'p${List.generate(12, (_) => chars[r.nextInt(chars.length)]).join()}';
+}
+
+/// A repeatable ID for a program saved before IDs existed, so migrating
+/// the same saved state twice gives the same IDs.
+String legacyProgramId(String name) {
+  var hash = 0xcbf29ce484222325;
+  for (final unit in name.toLowerCase().codeUnits) {
+    hash = ((hash ^ unit) * 0x100000001b3) & 0x7fffffffffffffff;
+  }
+  return 'm${hash.toRadixString(36)}';
+}
+
+final _programIdPattern = RegExp(r'^[a-z0-9-]{4,40}$');
+
 class Timeline {
   final String name;
   final String type;
   final List<Segment> segments;
   final DisplaySettings display;
+
+  /// Empty until the program is saved to this phone's library.
+  final String id;
   Timeline(
     this.name,
     List<Segment> segments,
     this.display, {
     this.type = 'service',
+    this.id = '',
   }) : segments = List.unmodifiable(segments);
   factory Timeline.fromJson(Json j) {
     keys(j, {
@@ -314,7 +339,13 @@ class Timeline {
       'segments',
       'display',
       'type',
+      'id',
     }, 'Program');
+    require(
+      j['id'] == null ||
+          (j['id'] is String && _programIdPattern.hasMatch(j['id'] as String)),
+      'Invalid program id.',
+    );
     require(
       j['schemaVersion'] is int && {1, 2, 3, 4, 5}.contains(j['schemaVersion']),
       'Supported program schema versions are 1–5.',
@@ -349,14 +380,23 @@ class Timeline {
       segs,
       DisplaySettings.fromJson(Map<String, dynamic>.from(j['display'])),
       type: type as String,
+      id: j['id'] as String? ?? '',
     );
   }
-  Timeline renamed(String n) =>
-      Timeline(nameValue(n, 'Program name'), segments, display, type: type);
+  Timeline renamed(String n) => Timeline(
+    nameValue(n, 'Program name'),
+    segments,
+    display,
+    type: type,
+    id: id,
+  );
   Timeline withDisplay(DisplaySettings value) =>
-      Timeline(name, segments, value, type: type);
+      Timeline(name, segments, value, type: type, id: id);
+  Timeline withId(String value) =>
+      Timeline(name, segments, display, type: type, id: value);
   Json toJson() => {
     'schemaVersion': segments.any((s) => s.seconds != 0) ? 5 : 4,
+    if (id.isNotEmpty) 'id': id,
     'name': name,
     'type': type,
     'segments': segments.map((s) => s.toJson()).toList(),
@@ -1141,7 +1181,62 @@ class AppState {
        editDrafts = editDrafts ?? {},
        reports = reports ?? [],
        quickMessages = quickMessages ?? [...defaultQuickMessages],
-       stageCues = stageCues ?? [...defaults.cues];
+       stageCues = stageCues ?? [...defaults.cues] {
+    ensureProgramIds();
+  }
+
+  /// Gives every saved program an ID and moves name-keyed pins, recents
+  /// and unsaved edits over to it. Programs saved before IDs existed get a
+  /// repeatable ID from their name.
+  void ensureProgramIds() {
+    if (templates.every((t) => t.id.isNotEmpty) &&
+        templates.map((t) => t.id).toSet().length == templates.length)
+      return;
+    final taken = <String>{};
+    final byName = <String, String>{};
+    templates = [
+      for (final t in templates)
+        () {
+          var id = t.id.isEmpty || taken.contains(t.id)
+              ? legacyProgramId(t.name)
+              : t.id;
+          for (var n = 2; taken.contains(id); n++) {
+            id = '${legacyProgramId(t.name)}-$n';
+          }
+          taken.add(id);
+          byName[t.name] = id;
+          return t.id == id ? t : t.withId(id);
+        }(),
+    ];
+    final lib = programLibrary;
+    String? key(String k) => taken.contains(k) ? k : byName[k];
+    final pins = {...lib.favourites.map(key).nonNulls};
+    final recent = <String, int>{
+      for (final e in lib.recent.entries) ?key(e.key): e.value,
+    };
+    lib.favourites
+      ..clear()
+      ..addAll(pins);
+    lib.recent
+      ..clear()
+      ..addAll(recent);
+    for (final k in editDrafts.keys.toList()) {
+      if (!k.startsWith('program:') || k == 'program:new') continue;
+      final id = key(k.substring(8));
+      final draft = editDrafts.remove(k);
+      if (id != null && draft != null) editDrafts['program:$id'] = draft;
+    }
+    void link(Session? s) {
+      final t = s?.timeline;
+      if (s == null || t == null) return;
+      if (t.id.isEmpty && byName[t.name] != null)
+        s.timeline = t.withId(byName[t.name]!);
+      link(s.prior);
+    }
+
+    link(session);
+  }
+
   factory AppState.fresh(Stamp now) => AppState(
     [
       Timeline('Sunday Service', const [
@@ -1166,7 +1261,7 @@ class AppState {
   );
   factory AppState.fromJson(Json j, {Stamp? now}) {
     require(
-      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}.contains(j['version']),
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -1323,7 +1418,7 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 13,
+    'version': 14,
     'appearance': appearance.toJson(),
     'programLibrary': programLibrary.toJson(),
     'clockFormat': clockFormat,
@@ -1430,16 +1525,33 @@ class AppState {
       'A program named "${t.name}" already exists. Rename it before saving.',
     );
     if (replacing == null) {
-      templates.add(t);
+      // A program from elsewhere, or a copy, gets an ID of its own.
+      final taken = templates.map((p) => p.id).toSet();
+      var id = t.id;
+      while (id.isEmpty || taken.contains(id)) {
+        id = newProgramId();
+      }
+      templates.add(t.withId(id));
     } else {
-      programLibrary.rename(templates[replacing].name, t.name);
-      templates[replacing] = t;
+      // Edits keep the program's identity, so pins and history follow it.
+      templates[replacing] = t.withId(templates[replacing].id);
     }
+  }
+
+  /// The saved program with [id], if it still exists.
+  Timeline? programById(String id) {
+    for (final t in templates) {
+      if (t.id == id) return t;
+    }
+    return null;
   }
 
   /// Identify the reviewed saved template, never a stale list position.
   int templateIndex(Timeline expected) {
-    final index = templates.indexWhere((t) => t.name == expected.name);
+    final index = templates.indexWhere(
+      (t) =>
+          expected.id.isEmpty ? t.name == expected.name : t.id == expected.id,
+    );
     require(
       index >= 0 &&
           jsonEncode(templates[index].toJson()) ==
@@ -1461,19 +1573,25 @@ class AppState {
     } while (templates.any(
       (t) => t.name.toLowerCase() == candidate.toLowerCase(),
     ));
-    final copy = Timeline.fromJson(original.toJson()).renamed(candidate);
+    final copy = Timeline.fromJson(
+      original.toJson(),
+    ).renamed(candidate).withId('');
     saveTemplate(copy);
-    return copy;
+    return templates.last;
   }
 
   void deleteTemplate(Timeline expected) {
-    templates.removeAt(templateIndex(expected));
-    programLibrary.remove(expected.name);
+    final removed = templates.removeAt(templateIndex(expected));
+    programLibrary.remove(removed.id);
   }
 }
 
 String exportJson(Timeline t) =>
-    const JsonEncoder.withIndent('  ').convert(t.toJson());
+    const JsonEncoder.withIndent('  ').convert(portableProgram(t.toJson()));
+
+/// Program JSON for other phones and backups: without this phone's program
+/// ID, which earlier versions do not accept.
+Json portableProgram(Json program) => Map.of(program)..remove('id');
 String exportCsv(Timeline t) {
   final precise = t.segments.any((s) => s.seconds != 0);
   String field(String s) => '"${s.replaceAll('"', '""')}"';

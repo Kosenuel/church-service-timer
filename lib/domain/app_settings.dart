@@ -210,6 +210,17 @@ String exportBackup(
     ..remove('lockScreenControls')
     ..remove('settingsLock')
     ..remove('clickerControls');
+  // Program IDs stay on this phone; a restore assigns them afresh.
+  data['templates'] = [
+    for (final t in data['templates'] as List) portableProgram(t as Json),
+  ];
+  data['reports'] = [
+    for (final r in data['reports'] as List)
+      if ((r as Json)['program'] is Json)
+        {...r, 'program': portableProgram(r['program'] as Json)}
+      else
+        r,
+  ];
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
     // Version 8 only when sealed passwords are included, so plain backups

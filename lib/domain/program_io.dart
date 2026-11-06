@@ -34,7 +34,7 @@ String exportProgramsJson(
   'schemaVersion': 1,
   'programs': [
     for (final p in programs)
-      (privateNotes ? p : programWithoutNotes(p)).toJson(),
+      portableProgram((privateNotes ? p : programWithoutNotes(p)).toJson()),
   ],
 });
 

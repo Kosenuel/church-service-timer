@@ -96,7 +96,7 @@ extension TemplateViews on HomeState {
                   refreshHome(
                     () => toggleExportSelection(
                       selectedProgramExports,
-                      values[i].name,
+                      values[i].id,
                     ),
                   );
                   return;
@@ -115,7 +115,7 @@ extension TemplateViews on HomeState {
                         selectingPrograms = true;
                         selectedProgramExports.clear();
                       }
-                      selectedProgramExports.add(values[i].name);
+                      selectedProgramExports.add(values[i].id);
                     }),
               child: Container(
                 color: useMasterDetail && selectedProgram == values[i].name
@@ -126,11 +126,11 @@ extension TemplateViews on HomeState {
                   children: [
                     if (selectingPrograms)
                       Checkbox(
-                        value: selectedProgramExports.contains(values[i].name),
+                        value: selectedProgramExports.contains(values[i].id),
                         onChanged: (_) => refreshHome(
                           () => toggleExportSelection(
                             selectedProgramExports,
-                            values[i].name,
+                            values[i].id,
                           ),
                         ),
                       ),
@@ -161,7 +161,7 @@ extension TemplateViews on HomeState {
                                 ),
                               ),
                               Text(
-                                '· ${lastUsedLabel(c.state.programLibrary.recent[values[i].name])}',
+                                '· ${lastUsedLabel(c.state.programLibrary.recent[values[i].id])}',
                                 style: TextStyle(
                                   color: appColors(context).muted,
                                   fontSize: 12,
@@ -173,7 +173,7 @@ extension TemplateViews on HomeState {
                       ),
                     ),
                     if (c.state.programLibrary.favourites.contains(
-                      values[i].name,
+                      values[i].id,
                     ))
                       Padding(
                         padding: const EdgeInsets.only(left: 8),
@@ -262,7 +262,7 @@ extension TemplateViews on HomeState {
         programSearch(),
         exportSelectionBar(
           programs: true,
-          shown: items.map((p) => p.name).toSet(),
+          shown: items.map((p) => p.id).toSet(),
           showToggle: false,
         ),
         if (items.isEmpty)
@@ -312,7 +312,7 @@ extension TemplateViews on HomeState {
 
           final colors = appColors(pageContext);
           final pinned =
-              t != null && c.state.programLibrary.favourites.contains(t.name);
+              t != null && c.state.programLibrary.favourites.contains(t.id);
           Future<void> duplicate() async {
             Timeline? copy;
             final ok = await c.commit(
@@ -428,7 +428,7 @@ extension TemplateViews on HomeState {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${t.type == 'rehearsal' ? 'Rehearsal' : 'Service'} · ${templateSummary(t)} · ${lastUsedLabel(c.state.programLibrary.recent[t.name])}',
+                        '${t.type == 'rehearsal' ? 'Rehearsal' : 'Service'} · ${templateSummary(t)} · ${lastUsedLabel(c.state.programLibrary.recent[t.id])}',
                         style: TextStyle(color: colors.muted, fontSize: 13),
                       ),
                       const SizedBox(height: 14),

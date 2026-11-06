@@ -70,7 +70,7 @@ class _ProgramChooserState extends State<ProgramChooser> {
                         ? 'Loaded · ${templateSummary(p)}'
                         : templateSummary(p),
                   ),
-                  leading: c.state.programLibrary.favourites.contains(p.name)
+                  leading: c.state.programLibrary.favourites.contains(p.id)
                       ? const Icon(Icons.push_pin, semanticLabel: 'Pinned')
                       : null,
                   trailing: Icon(
@@ -133,8 +133,8 @@ extension ProgramLibraryViews on HomeState {
   Future<void> toggleFavourite(Timeline p) async {
     final ok = await c.commit((draft, _) {
       draft.templateIndex(p);
-      if (!draft.programLibrary.favourites.remove(p.name))
-        draft.programLibrary.favourites.add(p.name);
+      if (!draft.programLibrary.favourites.remove(p.id))
+        draft.programLibrary.favourites.add(p.id);
     });
     if (!ok && mounted) await showError(c.error ?? 'Could not save favourite.');
   }

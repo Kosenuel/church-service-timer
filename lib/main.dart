@@ -713,7 +713,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     final initial = index == null
         ? Timeline('', [], c.state.defaults)
         : c.state.templates[index];
-    final draftKey = index == null ? 'program:new' : 'program:${initial.name}';
+    final draftKey = index == null ? 'program:new' : 'program:${initial.id}';
     await c.flushEditDrafts();
     var editorInitial = initial;
     final savedDraft = c.state.editDrafts[draftKey];
@@ -1023,11 +1023,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   Widget pinnedPrograms() {
     final lib = c.state.programLibrary;
     final pinned = c.state.templates
-        .where((p) => lib.favourites.contains(p.name))
+        .where((p) => lib.favourites.contains(p.id))
         .toList();
     final recent =
-        c.state.templates.where((p) => lib.recent.containsKey(p.name)).toList()
-          ..sort((a, b) => lib.recent[b.name]!.compareTo(lib.recent[a.name]!));
+        c.state.templates.where((p) => lib.recent.containsKey(p.id)).toList()
+          ..sort((a, b) => lib.recent[b.id]!.compareTo(lib.recent[a.id]!));
     final items = (pinned.isNotEmpty ? pinned : recent).take(4).toList();
     if (items.isEmpty) return const SizedBox.shrink();
     final colors = appColors(context);
@@ -1555,7 +1555,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               ),
             ),
           if (s.phase == 'ready' && t != null)
-            if (c.state.latestReviewFor(t.name) case final last?)
+            if (c.state.latestReviewFor(t) case final last?)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Material(

@@ -17,9 +17,7 @@ void main() {
         });
   });
   tearDown(
-    () => TestDefaultBinaryMessengerBinding
-        .instance
-        .defaultBinaryMessenger
+    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null),
   );
 
@@ -35,9 +33,7 @@ void main() {
     return c;
   }
 
-  testWidgets('Back asks for a second press before leaving the app', (
-    t,
-  ) async {
+  testWidgets('Back asks for a second press before leaving the app', (t) async {
     await app(t);
     await t.binding.handlePopRoute();
     await t.pump();

@@ -15,7 +15,7 @@ final revision06Cases = <String, void Function()>{
     equal(a.templates.first.type, 'service');
     equal(a.templates.last.type, 'rehearsal');
     equal(a.templates.first.display.end.bold, true);
-    equal(a.toJson()['version'], 13);
+    equal(a.toJson()['version'], 14);
   },
   'Template group and list preference survive restart and JSON import': () {
     final a = AppState.fresh(epoch)..groupTemplates = true;
@@ -55,9 +55,9 @@ final revision06Cases = <String, void Function()>{
       jsonEncode(original.display.toJson()),
     );
     equal(first.segments.length, original.segments.length);
-    final long = original.renamed('A' * 80);
-    a.saveTemplate(long);
-    final longCopy = a.duplicateTemplate(long);
+    a.saveTemplate(original.renamed('A' * 80).withId(''));
+    final longCopy = a.duplicateTemplate(a.templates.last);
+    equal(first.id == original.id, false);
     equal(longCopy.name.runes.length, 80);
     equal(longCopy.name.endsWith(' (copy)'), true);
   },
