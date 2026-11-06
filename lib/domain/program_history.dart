@@ -86,6 +86,41 @@ extension ProgramHistory on AppState {
     programHistory[id] = list;
   }
 
+  /// The saved program named [name], ignoring case.
+  Timeline? programNamed(String name) {
+    for (final t in templates) {
+      if (t.name.toLowerCase() == name.toLowerCase()) return t;
+    }
+    return null;
+  }
+
+  /// Saves a program received from another phone. With [update], it replaces
+  /// the program of the same name, whose current version goes into history;
+  /// otherwise it is added, with a numbered name if that name is taken.
+  Timeline saveReceivedProgram(
+    Timeline program, {
+    required bool update,
+    required int at,
+  }) {
+    final existing = programNamed(program.name);
+    if (update && existing != null) {
+      final i = templates.indexOf(existing);
+      saveTemplate(
+        program.renamed(existing.name),
+        replacing: i,
+        replacedAt: at,
+      );
+      return templates[i];
+    }
+    var name = program.name;
+    for (var n = 2; programNamed(name) != null; n++) {
+      final base = String.fromCharCodes(program.name.runes.take(74));
+      name = '$base ($n)';
+    }
+    saveTemplate(program.renamed(name).withId(''));
+    return templates.last;
+  }
+
   /// Puts version [index] of program [id] back, keeping the current name.
   /// The version it replaces is kept in history, so a restore can itself
   /// be undone from there.
