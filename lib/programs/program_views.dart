@@ -261,6 +261,7 @@ extension TemplateViews on HomeState {
           ],
         ),
         const SizedBox(height: 14),
+        ReceivedProgramCards(controller: c),
         programSearch(),
         exportSelectionBar(
           programs: true,

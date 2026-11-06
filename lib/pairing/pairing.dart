@@ -162,17 +162,6 @@ class PairPeer {
 }
 
 /// Local encrypted links. The host remains the single timer/output authority.
-/// A program another phone sent over the pairing link, waiting for review.
-class ReceivedProgram {
-  final Timeline program;
-  final String from;
-  final int receivedAt;
-  const ReceivedProgram(this.program, this.from, this.receivedAt);
-}
-
-/// Keep at most this many unreviewed received programs.
-const receivedProgramLimit = 5;
-
 class PairHub extends ChangeNotifier {
   bool stageSharingEnabled = true;
   int _snapshotSequence = 0;
@@ -213,9 +202,8 @@ class PairHub extends ChangeNotifier {
   PairWire? _client;
   final peers = <PairPeer>[];
 
-  /// Programs the host sent to this phone, newest first, not yet saved or
-  /// dismissed.
-  final receivedPrograms = <ReceivedProgram>[];
+  /// Receives a program the host sent, already validated and without an ID.
+  void Function(Timeline program, String from)? onProgramReceived;
   final changingDevices = <String>{};
   PairCode? code;
   String pin = '';
@@ -320,30 +308,13 @@ class PairHub extends ChangeNotifier {
         Map<String, dynamic>.from(raw),
       ).withId('');
       final from = msg['from'] is String ? (msg['from'] as String).trim() : '';
-      receivedPrograms
-        ..removeWhere((p) => p.program.name == program.name)
-        ..insert(
-          0,
-          ReceivedProgram(
-            program,
-            from.isEmpty
-                ? 'the host'
-                : String.fromCharCodes(from.runes.take(60)),
-            DateTime.now().millisecondsSinceEpoch,
-          ),
-        );
-      if (receivedPrograms.length > receivedProgramLimit)
-        receivedPrograms.removeRange(
-          receivedProgramLimit,
-          receivedPrograms.length,
-        );
+      onProgramReceived?.call(
+        program,
+        from.isEmpty ? 'the host' : String.fromCharCodes(from.runes.take(60)),
+      );
     } catch (_) {
       /* An invalid program is ignored, as a file import would refuse it. */
     }
-  }
-
-  void dismissReceivedProgram(ReceivedProgram p) {
-    if (receivedPrograms.remove(p)) changed();
   }
 
   bool get joined => mode == 'viewer' || mode == 'stage' || mode == 'operator';

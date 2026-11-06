@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
@@ -17,28 +19,45 @@ void main() {
         h.dispose();
       }
     });
+    final got = <(Timeline, String)>[], stageGot = <Timeline>[];
+    viewer.onProgramReceived = (p, from) => got.add((p, from));
+    stage.onProgramReceived = (p, _) => stageGot.add(p);
     host.snapshotFor = (_) => {'revision': 1};
     await host.host('127.0.0.1');
     final viewerId = await pair(host, viewer, role: 'viewer');
     final stageId = await pair(host, stage);
     await eventually(() => host.syncedStagePeers.isNotEmpty);
     expect(host.programRecipients.map((p) => p.id), [viewerId]);
-    final program = portableProgram(timeline().toJson());
-    final sent = await host.sendProgram(program, {
+    final sent = await host.sendProgram(portableProgram(timeline().toJson()), {
       viewerId,
       stageId,
     }, 'Grace Chapel');
     expect(sent, 1);
-    await eventually(() => viewer.receivedPrograms.isNotEmpty);
-    final received = viewer.receivedPrograms.single;
-    expect(received.program.name, 'Sunday');
-    expect(received.program.id, isEmpty);
-    expect(received.from, 'Grace Chapel');
-    expect(stage.receivedPrograms, isEmpty);
-    // Sending again replaces, rather than stacks, the same program.
-    await host.sendProgram(program, {viewerId}, 'Grace Chapel');
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    expect(viewer.receivedPrograms, hasLength(1));
+    await eventually(() => got.isNotEmpty);
+    expect(got.single.$1.name, 'Sunday');
+    expect(got.single.$1.id, isEmpty);
+    expect(got.single.$2, 'Grace Chapel');
+    expect(stageGot, isEmpty);
+  });
+
+  test('Received programs wait in saved state, not in backups', () {
+    final s = AppState.fresh(start);
+    s.receiveProgram(timeline(), 'Grace Chapel', 10);
+    s.receiveProgram(timeline(), 'Grace Chapel', 20);
+    expect(s.programInbox, hasLength(1), reason: 'Same name replaces');
+    for (var i = 0; i < 7; i++) {
+      s.receiveProgram(timeline().renamed('P$i'), 'Grace Chapel', 30 + i);
+    }
+    expect(s.programInbox, hasLength(receivedProgramLimit));
+    expect(s.programInbox.first.program.name, 'P6');
+    // Kept across a restart, so leaving the pairing loses nothing.
+    final reloaded = AppState.fromJson(jsonDecode(jsonEncode(s.toJson())));
+    expect(reloaded.programInbox.map((p) => p.program.name).toList(), [
+      for (final p in s.programInbox) p.program.name,
+    ]);
+    expect(exportBackup(s, start), isNot(contains('programInbox')));
+    reloaded.dismissReceived(reloaded.programInbox.first);
+    expect(reloaded.programInbox, hasLength(receivedProgramLimit - 1));
   });
 
   test('A received program updates the same-named one or adds a copy', () {
@@ -57,18 +76,20 @@ void main() {
     expect(copy.id, isNot(mine.id));
   });
 
-  testWidgets('Review on the paired phone updates its program', (t) async {
+  testWidgets('Review on Programs updates the program and clears the card', (
+    t,
+  ) async {
     final c = AppController(FakePort());
     await c.initialize(startTicker: false);
     final mine = c.state.templates.first;
-    c.pairing.receivedPrograms.add(
-      ReceivedProgram(
+    await c.commit(
+      (d, at) => d.receiveProgram(
         Timeline(mine.name, [
           ...mine.segments,
           const Segment('Offering', 4),
         ], mine.display),
         'Grace Chapel',
-        0,
+        at.wall,
       ),
     );
     await t.pumpWidget(
@@ -82,12 +103,13 @@ void main() {
     expect(find.text('Update mine'), findsOneWidget);
     await t.runAsync(() async {
       await t.tap(find.byKey(const ValueKey('save-received')));
-      for (var i = 0; i < 50 && c.pairing.receivedPrograms.isNotEmpty; i++) {
+      for (var i = 0; i < 50 && c.state.programInbox.isNotEmpty; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
     });
     await t.pumpAndSettle();
-    expect(c.pairing.receivedPrograms, isEmpty);
+    expect(c.state.programInbox, isEmpty);
+    expect(find.text('Program received: ${mine.name}'), findsNothing);
     expect(c.state.templates.first.segments.last.name, 'Offering');
     expect(c.state.versionsOf(mine.id), hasLength(1));
     await t.pumpWidget(const SizedBox());

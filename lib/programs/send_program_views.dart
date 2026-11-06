@@ -3,7 +3,6 @@ import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
-import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -168,7 +167,7 @@ Future<void> reviewReceivedProgram(
   );
   if (choice == null) return;
   if (choice == 'discard') {
-    c.pairing.dismissReceivedProgram(received);
+    await c.commit((draft, _) => draft.dismissReceived(received));
     return;
   }
   String? error;
@@ -177,10 +176,10 @@ Future<void> reviewReceivedProgram(
       AppState([p], c.state.defaults, Session(id: 'received', anchor: c.now)),
     );
     validateTimelinePixels(p);
-    if (!await c.commit(
-      (draft, at) =>
-          draft.saveReceivedProgram(p, update: choice == 'update', at: at.wall),
-    )) {
+    if (!await c.commit((draft, at) {
+      draft.saveReceivedProgram(p, update: choice == 'update', at: at.wall);
+      draft.dismissReceived(received);
+    })) {
       error = c.error ?? 'The program could not be saved.';
     }
   } catch (e) {
@@ -203,7 +202,6 @@ Future<void> reviewReceivedProgram(
     );
     return;
   }
-  c.pairing.dismissReceivedProgram(received);
   if (context.mounted)
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -216,13 +214,19 @@ Future<void> reviewReceivedProgram(
     );
 }
 
-/// Cards for programs received while paired, shown on the paired screen.
+/// Cards for programs other phones sent, until each is reviewed. Shown on
+/// the paired screen and on Programs.
 class ReceivedProgramCards extends StatelessWidget {
   final AppController controller;
   const ReceivedProgramCards({super.key, required this.controller});
   @override
-  Widget build(BuildContext context) {
-    final received = controller.pairing.receivedPrograms;
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: controller,
+    builder: (context, _) => _cards(context),
+  );
+
+  Widget _cards(BuildContext context) {
+    final received = controller.state.programInbox;
     if (received.isEmpty) return const SizedBox.shrink();
     final colors = appColors(context);
     return Column(

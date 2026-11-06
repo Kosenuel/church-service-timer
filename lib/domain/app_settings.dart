@@ -210,7 +210,8 @@ String exportBackup(
     ..remove('lockScreenControls')
     ..remove('settingsLock')
     ..remove('clickerControls')
-    ..remove('programHistory');
+    ..remove('programHistory')
+    ..remove('programInbox');
   // Earlier program versions, keyed by name because IDs stay on the phone.
   final history = <String, dynamic>{
     for (final t in state.templates)
