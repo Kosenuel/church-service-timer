@@ -7,6 +7,7 @@ import 'package:church_service_timer/live/running_service_bar.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/programs/program_history_views.dart';
+import 'package:church_service_timer/programs/send_program_views.dart';
 
 String templateSummary(Timeline t) {
   final total = t.segments.fold<int>(
@@ -260,6 +261,7 @@ extension TemplateViews on HomeState {
           ],
         ),
         const SizedBox(height: 14),
+        ReceivedProgramCards(controller: c),
         programSearch(),
         exportSelectionBar(
           programs: true,
@@ -384,6 +386,8 @@ extension TemplateViews on HomeState {
                           await printServiceSheet(t);
                         case 'history':
                           await openVersionHistory(t);
+                        case 'send':
+                          await sendProgramToPhones(t);
                         case 'delete':
                           await delete();
                       }
@@ -393,6 +397,8 @@ extension TemplateViews on HomeState {
                       const AppMenuAction('json', 'Export JSON'),
                       const AppMenuAction('csv', 'Export CSV'),
                       const AppMenuAction('print', 'Print Service'),
+                      if (c.pairing.hosting)
+                        const AppMenuAction('send', 'Send to paired phone'),
                       AppMenuAction(
                         'history',
                         c.state.versionsOf(t.id).isEmpty

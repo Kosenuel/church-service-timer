@@ -478,6 +478,11 @@ class AppController extends ChangeNotifier {
     pairing.snapshotFor = pairedSnapshot;
     pairing.decorateSnapshot = decoratePairedSnapshot;
     pairing.onMessageSeen = receiveMessageSeen;
+    // Saved at once, so a received program waits for review even after
+    // leaving the pairing or closing the app.
+    pairing.onProgramReceived = (program, from) => unawaited(
+      commit((draft, at) => draft.receiveProgram(program, from, at.wall)),
+    );
     pairing.onControlChanged = (message) {
       if (ready && state.session.active && _events.length < 2000) {
         _events.add((

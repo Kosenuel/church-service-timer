@@ -2,6 +2,50 @@ import 'dart:convert';
 
 import 'package:church_service_timer/domain/domain.dart';
 
+/// A program another phone sent, kept on this phone until it is reviewed.
+class ReceivedProgram {
+  final Timeline program;
+  final String from;
+  final int receivedWall;
+  const ReceivedProgram(this.program, this.from, this.receivedWall);
+
+  factory ReceivedProgram.fromJson(Json j) {
+    keys(j, {'program', 'from', 'receivedWall'}, 'Received program');
+    require(
+      j['from'] is String && j['receivedWall'] is int,
+      'Invalid received program.',
+    );
+    return ReceivedProgram(
+      Timeline.fromJson(
+        Map<String, dynamic>.from(j['program'] as Map),
+      ).withId(''),
+      j['from'] as String,
+      j['receivedWall'] as int,
+    );
+  }
+
+  Json toJson() => {
+    'program': portableProgram(program.toJson()),
+    'from': from,
+    'receivedWall': receivedWall,
+  };
+}
+
+/// Keep at most this many received programs waiting for review.
+const receivedProgramLimit = 5;
+
+List<ReceivedProgram> readReceivedPrograms(Object? raw) {
+  if (raw == null) return [];
+  require(
+    raw is List && raw.length <= receivedProgramLimit,
+    'Invalid received programs.',
+  );
+  return [
+    for (final e in raw as List)
+      ReceivedProgram.fromJson(Map<String, dynamic>.from(e as Map)),
+  ];
+}
+
 /// How many earlier versions each program keeps.
 const programHistoryLimit = 10;
 
@@ -69,6 +113,27 @@ bool sameProgram(Timeline a, Timeline b) =>
     jsonEncode(portableProgram(b.toJson()));
 
 extension ProgramHistory on AppState {
+  /// Keeps a program from another phone for review, newest first. The same
+  /// name sent again replaces the waiting one.
+  void receiveProgram(Timeline program, String from, int at) {
+    programInbox
+      ..removeWhere(
+        (p) => p.program.name.toLowerCase() == program.name.toLowerCase(),
+      )
+      ..insert(0, ReceivedProgram(program.withId(''), from, at));
+    if (programInbox.length > receivedProgramLimit)
+      programInbox.removeRange(receivedProgramLimit, programInbox.length);
+  }
+
+  /// Removes a reviewed (saved or discarded) program from the inbox.
+  void dismissReceived(ReceivedProgram received) {
+    programInbox.removeWhere(
+      (p) =>
+          p.receivedWall == received.receivedWall &&
+          p.program.name == received.program.name,
+    );
+  }
+
   /// Earlier versions of the program with [id], newest first.
   List<ProgramRevision> versionsOf(String id) => programHistory[id] ?? const [];
 
@@ -84,6 +149,41 @@ extension ProgramHistory on AppState {
       list.removeRange(programHistoryLimit, list.length);
     }
     programHistory[id] = list;
+  }
+
+  /// The saved program named [name], ignoring case.
+  Timeline? programNamed(String name) {
+    for (final t in templates) {
+      if (t.name.toLowerCase() == name.toLowerCase()) return t;
+    }
+    return null;
+  }
+
+  /// Saves a program received from another phone. With [update], it replaces
+  /// the program of the same name, whose current version goes into history;
+  /// otherwise it is added, with a numbered name if that name is taken.
+  Timeline saveReceivedProgram(
+    Timeline program, {
+    required bool update,
+    required int at,
+  }) {
+    final existing = programNamed(program.name);
+    if (update && existing != null) {
+      final i = templates.indexOf(existing);
+      saveTemplate(
+        program.renamed(existing.name),
+        replacing: i,
+        replacedAt: at,
+      );
+      return templates[i];
+    }
+    var name = program.name;
+    for (var n = 2; programNamed(name) != null; n++) {
+      final base = String.fromCharCodes(program.name.runes.take(74));
+      name = '$base ($n)';
+    }
+    saveTemplate(program.renamed(name).withId(''));
+    return templates.last;
   }
 
   /// Puts version [index] of program [id] back, keeping the current name.

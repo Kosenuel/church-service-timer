@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:church_service_timer/pairing/pairing_pin.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/programs/send_program_views.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
@@ -1580,6 +1581,7 @@ class _PairedScreenState extends State<PairedScreen> {
     Widget content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (!stage) ReceivedProgramCards(controller: controller),
         Text(data?['church'] ?? '', textAlign: TextAlign.center),
         Text(
           data?['service'] ?? 'Waiting for host',

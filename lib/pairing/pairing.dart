@@ -201,6 +201,9 @@ class PairHub extends ChangeNotifier {
   ServerSocket? _server;
   PairWire? _client;
   final peers = <PairPeer>[];
+
+  /// Receives a program the host sent, already validated and without an ID.
+  void Function(Timeline program, String from)? onProgramReceived;
   final changingDevices = <String>{};
   PairCode? code;
   String pin = '';
@@ -264,6 +267,56 @@ class PairHub extends ChangeNotifier {
   void Function()? onOwnershipChanged;
   void Function(String message)? onControlChanged;
   bool get hosting => _server != null;
+
+  /// Approved phones connected now that can review a program; stage
+  /// screens cannot.
+  List<PairPeer> get programRecipients => [
+    for (final p in peers)
+      if (p.connected && !p.viewingStage) p,
+  ];
+
+  /// Sends [program] (portable JSON, without this phone's ID) to the
+  /// connected phones in [peerIds]. Returns how many it reached.
+  Future<int> sendProgram(
+    Json program,
+    Set<String> peerIds,
+    String from,
+  ) async {
+    require(hosting, 'Share to screens first, then send.');
+    var sent = 0;
+    for (final peer in programRecipients) {
+      if (!peerIds.contains(peer.id)) continue;
+      try {
+        await peer.wire.send({
+          'type': 'program',
+          'program': program,
+          'from': from,
+        });
+        sent++;
+      } catch (_) {
+        /* A dropped phone just misses this program. */
+      }
+    }
+    return sent;
+  }
+
+  void _receiveProgram(Json msg) {
+    try {
+      final raw = msg['program'];
+      if (raw is! Map || jsonEncode(raw).length > 300000) return;
+      final program = Timeline.fromJson(
+        Map<String, dynamic>.from(raw),
+      ).withId('');
+      final from = msg['from'] is String ? (msg['from'] as String).trim() : '';
+      onProgramReceived?.call(
+        program,
+        from.isEmpty ? 'the host' : String.fromCharCodes(from.runes.take(60)),
+      );
+    } catch (_) {
+      /* An invalid program is ignored, as a file import would refuse it. */
+    }
+  }
+
   bool get joined => mode == 'viewer' || mode == 'stage' || mode == 'operator';
   bool get stale =>
       lastSnapshot == 0 ||
@@ -938,6 +991,7 @@ class PairHub extends ChangeNotifier {
           status = 'Connected';
           _rememberHost(msg, invitation);
         }
+        if (msg['type'] == 'program') _receiveProgram(msg);
         if (msg['type'] == 'result')
           requestResult =
               msg['message'] as String? ??

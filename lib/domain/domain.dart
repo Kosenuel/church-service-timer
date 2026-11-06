@@ -1137,6 +1137,9 @@ class AppState {
 
   /// Earlier versions of saved programs by program ID, newest first.
   Map<String, List<ProgramRevision>> programHistory;
+
+  /// Programs sent from other phones, waiting for review.
+  List<ReceivedProgram> programInbox;
   String? outputDestination;
   List<QuickMessage> quickMessages;
   List<Timeline> templates;
@@ -1183,8 +1186,10 @@ class AppState {
     Map<String, Json>? editDrafts,
     ProgramLibrary? programLibrary,
     Map<String, List<ProgramRevision>>? programHistory,
+    List<ReceivedProgram>? programInbox,
   }) : programLibrary = programLibrary ?? ProgramLibrary(),
        programHistory = programHistory ?? {},
+       programInbox = programInbox ?? [],
        editDrafts = editDrafts ?? {},
        reports = reports ?? [],
        quickMessages = quickMessages ?? [...defaultQuickMessages],
@@ -1302,6 +1307,7 @@ class AppState {
       ),
       editDrafts: readEditDrafts(j['editDrafts']),
       programHistory: readProgramHistory(j['programHistory']),
+      programInbox: readReceivedPrograms(j['programInbox']),
       quickMessages: (j['quickMessages'] as List?)
           ?.map((e) => QuickMessage.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1430,6 +1436,7 @@ class AppState {
     'appearance': appearance.toJson(),
     'programLibrary': programLibrary.toJson(),
     'programHistory': writeProgramHistory(programHistory),
+    'programInbox': [for (final p in programInbox) p.toJson()],
     'clockFormat': clockFormat,
     'clockBlink': clockBlink,
     'notificationClearSeconds': notificationClearSeconds,
