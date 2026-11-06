@@ -302,8 +302,13 @@ void main() {
       await t.pumpAndSettle();
       await tap(t, 'Settings');
       await tap(t, 'Appearance');
+      // The pinned preview shows the theme, then the layout on its tab.
+      expect(find.byKey(const ValueKey('preview-theme')), findsOneWidget);
       await tap(t, 'Layout density');
+      expect(find.byKey(const ValueKey('preview-layout')), findsOneWidget);
+      expect(find.byKey(const ValueKey('preview-theme')), findsNothing);
       await tap(t, 'Spacious');
+      expect(find.text('PREVIEW · SPACIOUS'), findsOneWidget);
       expect(c.appearanceSelection.value.density, 'spacious');
       expect(c.state.appearance.density, 'automatic');
       await tap(t, 'High contrast');

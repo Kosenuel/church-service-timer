@@ -932,9 +932,32 @@ class _AppearancePageState extends State<AppearancePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: ThemePreviewCard(name: palette.name),
+                  // The pinned preview follows the tab: colours on Theme,
+                  // spacing and dividers on Layout & accessibility.
+                  Builder(
+                    builder: (context) {
+                      final tabs = DefaultTabController.of(context);
+                      return AnimatedBuilder(
+                        animation: tabs,
+                        builder: (context, _) => Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                          child: AnimatedSwitcher(
+                            duration: reduceAppMotion(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 180),
+                            child: tabs.index == 0
+                                ? ThemePreviewCard(
+                                    key: const ValueKey('preview-theme'),
+                                    name: palette.name,
+                                  )
+                                : const AppearanceSample(
+                                    key: ValueKey('preview-layout'),
+                                    compact: true,
+                                  ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   TabBar(
                     labelStyle: const TextStyle(
