@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:nsd/nsd.dart' as nsd;
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:church_service_timer/web_stage/web_stage_views.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:church_service_timer/pairing/pairing_pin.dart';
 import 'package:flutter/material.dart';
@@ -664,6 +665,7 @@ extension PairingViews on HomeState {
         ],
         const SizedBox(height: 20),
         pairedDeviceList(),
+        if (hub.hosting) ...[const SizedBox(height: 16), webScreensPanel()],
         if (hub.hosting) ...[
           const SizedBox(height: 16),
           FilledButton.icon(

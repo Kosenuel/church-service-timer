@@ -78,7 +78,15 @@ void main() {
     (t) async {
       size(t);
       final c = await open(t);
-      await t.runAsync(() => c.pairing.host('127.0.0.1'));
+      await t.runAsync(() async {
+        await c.pairing.host('127.0.0.1');
+        for (var i = 0; i < 100 && !c.webStage.running; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      });
+      // Web-screen codes are random; fix them for a stable screenshot.
+      c.state.webStage['orderCode'] = '4821';
+      c.webStage.teamCode = '246810';
       c.pairing.pin = '001234';
       c.pairing.code = PairCode(
         '192.168.1.17',
