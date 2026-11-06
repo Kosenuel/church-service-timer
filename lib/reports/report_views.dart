@@ -522,14 +522,16 @@ extension ReportViews on HomeState {
                       else
                         openReport(history[i]);
                     },
-                    onMenu: () => showItemActions(
-                      'Report',
-                      (a) => reportItemAction(history[i], a),
-                    ),
-                    menu: itemMenu(
-                      'Report',
-                      (a) => reportItemAction(history[i], a),
-                    ),
+                    // Long-press starts selection with this report ticked;
+                    // the selection bar then exports or deletes.
+                    onMenu: () => refreshHome(() {
+                      if (!selectingReports) {
+                        selectingReports = true;
+                        reportView = 'list';
+                        selectedReportExports.clear();
+                      }
+                      selectedReportExports.add(history[i].id);
+                    }),
                   ),
                 ],
               ],
