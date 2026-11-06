@@ -93,8 +93,14 @@ void main() {
   );
   test('Automatic density follows window space, manual mode stays fixed', () {
     const auto = AppearancePreferences(density: 'automatic');
-    expect(AppLayout.resolve(auto, const Size(430, 960)).density, 'compact');
-    expect(AppLayout.resolve(auto, const Size(960, 430)).density, 'compact');
+    expect(
+      AppLayout.resolve(auto, const Size(430, 960)).density,
+      'comfortable',
+    );
+    expect(
+      AppLayout.resolve(auto, const Size(960, 430)).density,
+      'comfortable',
+    );
     expect(
       AppLayout.resolve(auto, const Size(800, 1100)).density,
       'comfortable',
@@ -205,9 +211,9 @@ void main() {
       await c.initialize(startTicker: false);
       c.previewAppearance(const AppearancePreferences(density: 'spacious'));
       expect(c.appearanceSelection.value.density, 'spacious');
-      expect(c.state.appearance.density, 'compact');
+      expect(c.state.appearance.density, 'automatic');
       c.previewAppearance(null);
-      expect(c.appearanceSelection.value.density, 'compact');
+      expect(c.appearanceSelection.value.density, 'automatic');
       expect(
         await c.commit(
           (draft, _) => draft.appearance = const AppearancePreferences(

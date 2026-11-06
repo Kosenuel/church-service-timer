@@ -11,7 +11,7 @@ class AppearancePreferences {
   final String density, dividers, pickerFeedback;
   final bool highContrast, reducedMotion;
   const AppearancePreferences({
-    this.density = 'compact',
+    this.density = 'automatic',
     this.dividers = 'subtle',
     this.pickerFeedback = 'haptics',
     this.highContrast = false,
@@ -24,7 +24,7 @@ class AppearancePreferences {
         'comfortable',
         'spacious',
         'automatic',
-      }.contains(j['density'] ?? 'compact'),
+      }.contains(j['density'] ?? 'automatic'),
       'Unknown layout density.',
     );
     require(
@@ -46,7 +46,7 @@ class AppearancePreferences {
       'Unknown picker feedback.',
     );
     return AppearancePreferences(
-      density: j['density'] ?? 'compact',
+      density: j['density'] ?? 'automatic',
       dividers: j['dividers'] ?? 'subtle',
       pickerFeedback: j['pickerFeedback'] ?? 'haptics',
       highContrast: j['highContrast'] ?? false,

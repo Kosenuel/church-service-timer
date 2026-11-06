@@ -15,8 +15,10 @@ class AppLayout extends ThemeExtension<AppLayout> {
   final String density;
   const AppLayout(this.preferences, this.density);
   factory AppLayout.resolve(AppearancePreferences preferences, Size size) {
+    // Phones get Comfortable: larger touch targets for one-handed use
+    // under time pressure, while a full rundown still fits.
     final automatic = size.shortestSide < 600
-        ? 'compact'
+        ? 'comfortable'
         : size.width >= 1000 && size.height >= 700
         ? 'spacious'
         : 'comfortable';
