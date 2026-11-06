@@ -1,9 +1,19 @@
 import 'package:church_service_timer/app/platform.dart';
 import 'package:church_service_timer/diagnostics/service_metrics.dart';
+import 'package:church_service_timer/diagnostics/performance_report.dart';
 import 'package:church_service_timer/feedback/feedback_page.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:flutter/material.dart';
+
+/// The table rows (measure, result, target, mark) of a markdown report.
+List<List<String>> reportRows(String markdown) => [
+  for (final l in markdown.split('\n'))
+    if (l.startsWith('| ') &&
+        !l.startsWith('| Measure') &&
+        l.split('|').length >= 6)
+      [for (final v in l.split('|').sublist(1, 5)) v.trim()],
+];
 
 /// The summary written at the end of a recording file.
 List<String> recordingSummaryLines(String csv) {
@@ -25,7 +35,6 @@ extension DiagnosticsViews on HomeState {
     final s = c.state.session;
     final recording = c.metrics.recording;
     final armed = c.state.recordMetrics;
-    final summary = c.lastMetrics?.lines;
     Widget section(String title, List<Widget> children) => Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: panel(
@@ -79,40 +88,96 @@ extension DiagnosticsViews on HomeState {
           ),
         ]),
         section('Last recording', [
-          FutureBuilder<String?>(
-            future: c.metrics.store.read(),
+          FutureBuilder<(String?, String?)>(
+            future: _readRecording(),
             builder: (context, snap) {
-              final lines =
-                  summary ??
-                  (snap.data == null
-                      ? null
-                      : recordingSummaryLines(snap.data!));
-              final hasFile = snap.data != null && !recording;
+              final csv = snap.data?.$1, report = snap.data?.$2;
+              final rows = report == null
+                  ? const <List<String>>[]
+                  : reportRows(report);
+              final hasFile = csv != null && !recording;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (recording)
                     const Text('Recording in progress.')
-                  else if (lines == null || lines.isEmpty)
+                  else if (rows.isEmpty)
                     Text(
                       hasFile
-                          ? 'A recording is saved, without a summary (it may have been interrupted).'
+                          ? 'A recording is saved, without a report (it may have been interrupted).'
                           : 'No recording yet.',
                     )
-                  else
-                    for (final l in lines)
+                  else ...[
+                    for (final r in rows)
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Text(l),
+                        key: ValueKey('report-row:${r[0]}'),
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(right: 10, top: 1),
+                              child: switch (r[3]) {
+                                '✅' => Icon(
+                                  Icons.check_circle,
+                                  size: 18,
+                                  color: colors.accent,
+                                  semanticLabel: 'Pass',
+                                ),
+                                '❌' => Icon(
+                                  Icons.cancel,
+                                  size: 18,
+                                  color: colors.error,
+                                  semanticLabel: 'Check',
+                                ),
+                                _ => Icon(
+                                  Icons.remove_circle_outline,
+                                  size: 18,
+                                  color: colors.muted,
+                                  semanticLabel: 'No mark yet',
+                                ),
+                              },
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    r[0],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text('${r[1]} · target ${r[2]}'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    const SizedBox(height: 6),
+                    Text(
+                      PerformanceReport.watermark,
+                      style: TextStyle(
+                        color: colors.muted,
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     key: const ValueKey('share-recording'),
                     onPressed: hasFile
-                        ? () => shareRecording(snap.data!)
+                        ? () => shareRecording(csv, report)
                         : null,
                     icon: const Icon(Icons.share_outlined),
                     label: const Text('Share recording'),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Shares a report with pass marks (.md) and the minute-by-minute data (.csv).',
+                    style: TextStyle(color: colors.muted, fontSize: 12),
                   ),
                 ],
               );
@@ -162,12 +227,21 @@ extension DiagnosticsViews on HomeState {
     );
   }
 
-  Future<void> shareRecording(String csv) async {
+  Future<(String?, String?)> _readRecording() async =>
+      (await c.metrics.store.read(), await c.metrics.store.readReport());
+
+  Future<void> shareRecording(String csv, String? report) async {
     try {
       final day = DateTime.now().toIso8601String().substring(0, 10);
       await c.port.shareFiles([
+        if (report != null)
+          SharedFile.text(
+            'Church-Service-Timer-$day-report.md',
+            report,
+            'text/markdown',
+          ),
         SharedFile.text(
-          'Church-Service-Timer-metrics-$day.csv',
+          'Church-Service-Timer-$day-metrics.csv',
           csv,
           'text/csv',
         ),

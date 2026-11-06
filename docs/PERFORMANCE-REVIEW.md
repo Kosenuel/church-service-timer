@@ -31,7 +31,7 @@ Use real phones, not emulators. Flutter recommends profiling on physical devices
 | Reconnect after a Wi-Fi drop | ≤ 15 s | App recording |
 | Battery | No more than the previous release's figure on the same phone, within 10% | App recording and batterystats |
 
-`scripts/perf_report.py` applies these marks; keep its `BUDGETS` in step with this table.
+The app (`PerformanceTargets` in `lib/diagnostics/performance_report.dart`) and `scripts/perf_report.py` apply these marks; a test fails if the two disagree.
 
 ## 1. Scrolling benchmarks
 
@@ -63,7 +63,9 @@ When asked, start the test service on the phone: **Settings → About → Diagno
 
 ## 3. Report
 
-When the test service ends, open **Diagnostics → Share recording** and save the file as `metrics.csv` in the run's folder (the script prints the path). Copy `build/perf/scroll_benchmarks.json` there too, then:
+When the test service ends, the phone writes its own report: **Diagnostics** shows each measure with ✅ or ❌, and **Share recording** sends it as a markdown file (`…-report.md`) together with the minute-by-minute data (`…-metrics.csv`). For a quick check after a real Sunday service, that report is all you need. The phone marks battery use against its own previous recording, so the first one sets the baseline.
+
+For the full pre-release review, which also covers the scrolling benchmarks and Android's own memory figures, save the CSV as `metrics.csv` in the run's folder (the script prints the path), copy `build/perf/scroll_benchmarks.json` there too, then:
 
 ```bash
 python scripts/perf_report.py build/perf/<run folder>

@@ -1156,6 +1156,10 @@ class AppState {
   /// Record performance metrics during the next service (Diagnostics).
   /// Switches itself off when that service ends.
   bool recordMetrics;
+
+  /// Battery use (% per hour) in this phone's last measured recording; the
+  /// next report marks against it. Local only.
+  double? metricsBatteryBaseline;
   String? outputDestination;
   List<QuickMessage> quickMessages;
   List<Timeline> templates;
@@ -1205,6 +1209,7 @@ class AppState {
     List<ReceivedProgram>? programInbox,
     List<Segment>? segmentLibrary,
     this.recordMetrics = false,
+    this.metricsBatteryBaseline,
   }) : segmentLibrary = segmentLibrary ?? [],
        programLibrary = programLibrary ?? ProgramLibrary(),
        programHistory = programHistory ?? {},
@@ -1329,6 +1334,7 @@ class AppState {
       programInbox: readReceivedPrograms(j['programInbox']),
       segmentLibrary: readSegmentLibrary(j['segmentLibrary']),
       recordMetrics: j['recordMetrics'] == true,
+      metricsBatteryBaseline: (j['metricsBatteryBaseline'] as num?)?.toDouble(),
       quickMessages: (j['quickMessages'] as List?)
           ?.map((e) => QuickMessage.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1460,6 +1466,7 @@ class AppState {
     'programInbox': [for (final p in programInbox) p.toJson()],
     'segmentLibrary': [for (final s in segmentLibrary) s.toJson()],
     'recordMetrics': recordMetrics,
+    'metricsBatteryBaseline': metricsBatteryBaseline,
     'clockFormat': clockFormat,
     'clockBlink': clockBlink,
     'notificationClearSeconds': notificationClearSeconds,

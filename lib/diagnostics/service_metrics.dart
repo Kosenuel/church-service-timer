@@ -10,6 +10,10 @@ abstract class MetricsStore {
   Future<void> reset(String header);
   Future<void> append(String line);
   Future<String?> read();
+
+  /// The marked markdown report written when a recording ends.
+  Future<void> writeReport(String markdown);
+  Future<String?> readReport();
 }
 
 class FileMetricsStore implements MetricsStore {
@@ -19,9 +23,25 @@ class FileMetricsStore implements MetricsStore {
   Future<File> _target() async => _file ??= File(
     '${(await getApplicationSupportDirectory()).path}/service-metrics.csv',
   );
+  Future<File> _report() async => File(
+    '${(await getApplicationSupportDirectory()).path}/service-metrics.md',
+  );
   @override
-  Future<void> reset(String header) async =>
-      (await _target()).writeAsString(header, flush: true);
+  Future<void> reset(String header) async {
+    final report = await _report();
+    if (await report.exists()) await report.delete();
+    await (await _target()).writeAsString(header, flush: true);
+  }
+
+  @override
+  Future<void> writeReport(String markdown) async =>
+      (await _report()).writeAsString(markdown, flush: true);
+  @override
+  Future<String?> readReport() async {
+    final f = await _report();
+    return await f.exists() ? f.readAsString() : null;
+  }
+
   @override
   Future<void> append(String line) async {
     final f = await _target();
@@ -39,13 +59,20 @@ class FileMetricsStore implements MetricsStore {
 class MemoryMetricsStore implements MetricsStore {
   final buffer = StringBuffer();
   bool written = false;
+  String? report;
   @override
   Future<void> reset(String header) async {
     buffer
       ..clear()
       ..write(header);
     written = true;
+    report = null;
   }
+
+  @override
+  Future<void> writeReport(String markdown) async => report = markdown;
+  @override
+  Future<String?> readReport() async => report;
 
   @override
   Future<void> append(String line) async => buffer.write(line);

@@ -317,6 +317,9 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                         null
                     }
                 }
+                "deviceDescription" -> result.success(
+                    "${android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
+                )
                 "batteryStatus" -> {
                     // A sticky broadcast: reading it registers nothing.
                     val b = context.registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))

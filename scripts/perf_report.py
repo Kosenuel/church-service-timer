@@ -10,7 +10,8 @@ The folder may contain any of:
   scroll_benchmarks.json   copied from build/perf after the benchmark run
 
 Writes report.md into the folder and prints it. Marks are in
-docs/performance-review.md; change BUDGETS here when they change there.
+docs/PERFORMANCE-REVIEW.md and lib/diagnostics/performance_report.dart
+(PerformanceTargets); a test fails if BUDGETS here drifts from the app.
 Standard library only.
 """
 
@@ -189,6 +190,7 @@ def main():
         out += [f"| {m} | {v} | {t} | {mark(ok)} |" for m, v, t, ok in results]
     if summary:
         out += ["", "App summary:", ""] + [f"- {l}" for l in summary]
+    out += ["", "---", "", "*Created by I-Proton · Church Service Timer*"]
     text = "\n".join(out) + "\n"
     (folder / "report.md").write_text(text, encoding="utf-8")
     print(text)

@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:church_service_timer/diagnostics/service_metrics.dart';
+import 'package:church_service_timer/diagnostics/performance_report.dart';
 
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/domain/domain.dart'
@@ -464,6 +465,9 @@ class AppController extends ChangeNotifier {
 
   /// What the last finished recording found, until the app restarts.
   MetricsSummary? lastMetrics;
+
+  /// The marked report of the last finished recording.
+  PerformanceReport? lastReport;
   String _metricsDisplay = '';
 
   AppController(this.port, {MetricsStore? metricsStore})
@@ -1354,10 +1358,15 @@ class AppController extends ChangeNotifier {
   void _frameTimings(bool on) {
     if (on == _timingsOn) return;
     _timings ??= metrics.addFrames;
-    on
-        ? SchedulerBinding.instance.addTimingsCallback(_timings!)
-        : SchedulerBinding.instance.removeTimingsCallback(_timings!);
-    _timingsOn = on;
+    try {
+      on
+          ? SchedulerBinding.instance.addTimingsCallback(_timings!)
+          : SchedulerBinding.instance.removeTimingsCallback(_timings!);
+      _timingsOn = on;
+    } catch (_) {
+      // Without a running Flutter engine there are no frames to time; the
+      // rest of the recording still works.
+    }
   }
 
   /// Starts, samples and stops a metrics recording around a service. Runs
@@ -1418,7 +1427,47 @@ class AppController extends ChangeNotifier {
 
   Future<void> _stopMetrics() async {
     _frameTimings(false);
+    final started = metrics.summary?.startedWall;
     lastMetrics = await metrics.stop(now, battery: await port.batteryStatus());
+    final csv = await metrics.store.read();
+    if (csv == null) return;
+    String device = '';
+    try {
+      device = await port.deviceDescription();
+    } catch (_) {
+      /* The report is still useful without the model. */
+    }
+    final report = buildPerformanceReport(
+      csv,
+      device: device,
+      when: started == null ? '' : _reportDate(started),
+      batteryBaseline: state.metricsBatteryBaseline,
+    );
+    lastReport = report;
+    await metrics.store.writeReport(report.markdown);
+    // A rising level means it was charged; that is no baseline.
+    if (report.batteryPerHour case final rate? when rate > 0)
+      await commit((draft, _) => draft.metricsBatteryBaseline = rate);
+  }
+
+  static String _reportDate(int wall) {
+    final d = DateTime.fromMillisecondsSinceEpoch(wall);
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${d.day} ${months[d.month - 1]} ${d.year}, '
+        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   }
 
   Future<bool> setRecordMetrics(bool on) async {
