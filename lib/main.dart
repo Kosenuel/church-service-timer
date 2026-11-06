@@ -757,10 +757,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     );
     await c.flushEditDrafts();
     if (result == null) return null;
-    final ok = await c.commit((draft, _) {
+    final ok = await c.commit((draft, at) {
       draft.saveTemplate(
         result,
         replacing: index == null ? null : draft.templateIndex(initial),
+        replacedAt: at.wall,
       );
       draft.editDrafts.remove(draftKey);
     });

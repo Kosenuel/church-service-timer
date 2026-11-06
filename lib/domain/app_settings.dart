@@ -209,7 +209,15 @@ String exportBackup(
     ..remove('programLibrary')
     ..remove('lockScreenControls')
     ..remove('settingsLock')
-    ..remove('clickerControls');
+    ..remove('clickerControls')
+    ..remove('programHistory');
+  // Earlier program versions, keyed by name because IDs stay on the phone.
+  final history = <String, dynamic>{
+    for (final t in state.templates)
+      if (state.versionsOf(t.id).isNotEmpty)
+        t.name: [for (final v in state.versionsOf(t.id)) v.toJson()],
+  };
+  if (history.isNotEmpty) data['programHistory'] = history;
   // Program IDs stay on this phone; a restore assigns them afresh.
   data['templates'] = [
     for (final t in data['templates'] as List) portableProgram(t as Json),
@@ -223,9 +231,13 @@ String exportBackup(
   ];
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    // Version 8 only when sealed passwords are included, so plain backups
-    // remain readable by earlier versions.
-    'schemaVersion': savedPasswords == null ? 7 : 8,
+    // Version 9 only with program history, 8 only with sealed passwords,
+    // so plain backups remain readable by earlier versions.
+    'schemaVersion': history.isNotEmpty
+        ? 9
+        : savedPasswords == null
+        ? 7
+        : 8,
     'createdUtc': DateTime.fromMillisecondsSinceEpoch(
       now.wall,
       isUtc: true,
@@ -252,11 +264,11 @@ AppState importBackup(String raw, Stamp now) {
       'schemaVersion',
       'createdUtc',
       'data',
-      if (envelope['schemaVersion'] == 8) 'savedPasswords',
+      if (envelope['schemaVersion'] >= 8) 'savedPasswords',
     }, 'Backup');
     require(
       envelope['type'] == 'church-service-timer-backup' &&
-          {1, 2, 3, 4, 5, 6, 7, 8}.contains(envelope['schemaVersion']),
+          {1, 2, 3, 4, 5, 6, 7, 8, 9}.contains(envelope['schemaVersion']),
       'Choose a supported Church Service Timer backup.',
     );
     final data = Map<String, dynamic>.from(envelope['data']);
@@ -276,7 +288,9 @@ AppState importBackup(String raw, Stamp now) {
       'themeId',
       'keepScreenAwake',
       if (envelope['schemaVersion'] >= 2) 'churchBanner',
+      if (envelope['schemaVersion'] >= 9) 'programHistory',
     }, 'Backup data');
+    final history = data.remove('programHistory');
     require(
       data.length ==
               (envelope['schemaVersion'] >= 7
@@ -299,6 +313,7 @@ AppState importBackup(String raw, Stamp now) {
           data['stageCues'] is List,
       'Backup is missing programs, reports or cues.',
     );
+    final versions = readProgramHistory(history);
     final restored = AppState.fromJson({
       ...data,
       'version': envelope['schemaVersion'] >= 7
@@ -314,6 +329,11 @@ AppState importBackup(String raw, Stamp now) {
           : 8,
       'session': Session(id: 'restored', anchor: now, held: true).toJson(),
     });
+    for (final e in versions.entries) {
+      final program = restored.templates.where((t) => t.name == e.key);
+      require(program.isNotEmpty, 'Backup history names a missing program.');
+      restored.programHistory[program.single.id] = e.value;
+    }
     require(
       restored.reports.map((r) => r.id).toSet().length ==
           restored.reports.length,
