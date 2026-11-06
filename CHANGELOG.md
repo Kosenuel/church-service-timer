@@ -7,6 +7,10 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 - **Programs list:** a pin icon marks pinned programs (the star toggle and each row's ⋮ menu are gone). Long-press a program to start selecting; the selection bar exports, pins or unpins, and deletes the selected programs. The Android Back key leaves selection mode.
 - **Reports list:** each row's ⋮ menu is gone too; long-press a report to start selecting, then export or delete from the selection bar. Single reports still have Export, Print and Delete on their report page.
 - **Live:** the Android Back key on a loaded service that has not started cancels the setup and returns to Standing by.
+- **Share by Bluetooth, messaging or email.** The selection bar on Programs and Reports has **Share**, which opens Android's share sheet with a JSON or CSV file, or one PDF sheet per selected item. Print Service also has **Share PDF**. The private-notes and review-note choices work as they do for Export.
+- **Open received files.** A program `.json` or `.csv` opened with, or shared to, the app goes to the usual import review. Reports and backups explain where they belong instead of failing to import.
+- **Back to exit.** Back on Programs, Reports or Settings returns to Live. On Live, it asks you to press Back again before leaving the app. During a service, it asks for confirmation and explains that the timer keeps running.
+
 ## 0.25.1, 6/November/2026
 
 - **Fewer "Output held" cards:** Undo start no longer holds the display, and cancelling a setup holds it only if the display missed the previous service's output. The card and label now appear only for a running or finished service that was interrupted, and read "Output paused after an interruption".

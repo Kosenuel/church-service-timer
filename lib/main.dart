@@ -278,17 +278,35 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     c.addListener(_followServiceCompletion);
     c.liveNavigation.addListener(returnToLive);
     HardwareKeyboard.instance.addHandler(onClickerKey);
+    c.port.setIncomingFileHandler(receiveIncomingFile);
     if (!c.ready) {
-      c.initialize().catchError((Object e) {
+      c.initialize().then((_) => receiveIncomingFile()).catchError((Object e) {
         if (mounted) showError('Could not initialize Android services: $e');
       });
+    } else {
+      unawaited(receiveIncomingFile());
     }
+  }
+
+  /// Opens a program file received through "Open with" or Share in the
+  /// same import review as Import from file.
+  Future<void> receiveIncomingFile() async {
+    if (!c.ready || !mounted) return;
+    final Map<String, dynamic>? file;
+    try {
+      file = await c.port.takeIncomingFile();
+    } catch (e) {
+      if (mounted) await showError('Could not open the received file: $e');
+      return;
+    }
+    if (file != null && mounted) await importFile(received: file);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(onClickerKey);
+    c.port.setIncomingFileHandler(null);
     c.removeListener(_followServiceCompletion);
     c.liveNavigation.removeListener(returnToLive);
     homeScroll.dispose();
@@ -692,10 +710,30 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     return result;
   }
 
-  Future<void> importFile() async {
+  /// Explains files from this app that are not programs, so a shared
+  /// report or backup does not fail with a parser error.
+  String? otherExportKind(Map<String, dynamic> file) {
+    final name = (file['name'] as String).toLowerCase();
+    if (!name.endsWith('.json')) return null;
     try {
-      final file = await c.port.pickFile();
+      final type =
+          (jsonDecode((file['content'] as String).replaceFirst('\uFEFF', ''))
+              as Map)['type'];
+      if (type == 'church-service-timer-report' ||
+          type == 'church-service-timer-reports')
+        return 'This file contains service reports, not programs. Reports can be opened in a spreadsheet (CSV) or printed, but not imported.';
+      if (type == 'church-service-timer-backup')
+        return 'This file is a full backup. Restore it from Settings › Backup & restore.';
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> importFile({Map<String, dynamic>? received}) async {
+    try {
+      final file = received ?? await c.port.pickFile();
       if (file == null || !mounted) return;
+      final other = otherExportKind(file);
+      if (other != null) throw RuleError(other);
       final candidates = importPrograms(
         file['content'] as String,
         file['name'] as String,
@@ -2259,15 +2297,6 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     );
   }
 
-  bool get backHandledInApp =>
-      selectingPrograms ||
-      selectingReports ||
-      (page == 0 &&
-          c.ready &&
-          c.state.session.phase == 'ready' &&
-          c.pairing.localControl &&
-          !controlsLocked);
-
   void handleBack() {
     if (selectingPrograms || selectingReports) {
       refreshHome(() {
@@ -2278,8 +2307,58 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       });
       return;
     }
-    if (page == 0 && c.state.session.phase == 'ready' && !c.busy)
-      unawaited(c.act('cancelReady'));
+    if (page == 0 &&
+        c.ready &&
+        c.state.session.phase == 'ready' &&
+        c.pairing.localControl &&
+        !controlsLocked) {
+      if (!c.busy) unawaited(c.act('cancelReady'));
+      return;
+    }
+    if (page != 0) {
+      navigatePage(0);
+      return;
+    }
+    unawaited(confirmExit());
+  }
+
+  bool _exitArmed = false;
+  static const exitConfirmWindow = Duration(seconds: 2);
+
+  /// Back on the Live tab asks for a second press while the hint is shown,
+  /// or during a service for confirmation, so a stray gesture does not
+  /// close the app.
+  Future<void> confirmExit() async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (c.ready && c.liveSession.active) {
+      messenger.hideCurrentSnackBar();
+      if (await confirm(
+        'Leave the app?',
+        'A service is running. The timer, the display and warnings keep running in the background; open the app again to control it.',
+        'Leave',
+      ))
+        await SystemNavigator.pop();
+      return;
+    }
+    if (_exitArmed) {
+      _exitArmed = false;
+      messenger.hideCurrentSnackBar();
+      await SystemNavigator.pop();
+      return;
+    }
+    messenger.hideCurrentSnackBar();
+    _exitArmed = true;
+    messenger
+        .showSnackBar(
+          const SnackBar(
+            key: ValueKey('exit-confirm'),
+            duration: exitConfirmWindow,
+            persist: false,
+            content: Text('Press Back again to exit'),
+          ),
+        )
+        .closed
+        .then((_) => _exitArmed = false);
   }
 
   double headerHeight(BuildContext context) => math.max(
@@ -2297,9 +2376,10 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     builder: (context, _) => c.pairing.joined
         ? PairedScreen(controller: c)
         : PopScope(
-            // Android Back leaves selection mode, or cancels a service that
-            // is loaded but not started, before it would leave the app.
-            canPop: !backHandledInApp,
+            // Android Back leaves selection mode, cancels a service that is
+            // loaded but not started, returns to Live, and only then asks
+            // for a second press before leaving the app.
+            canPop: false,
             onPopInvokedWithResult: (didPop, _) {
               if (!didPop) handleBack();
             },

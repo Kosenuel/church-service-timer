@@ -8,6 +8,8 @@ import 'package:church_service_timer/shared/church_banner.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/app/platform.dart';
+import 'package:church_service_timer/reports/service_pdf.dart';
 
 String reportDate(int wall) {
   final d = DateTime.fromMillisecondsSinceEpoch(wall).toLocal();
@@ -69,7 +71,12 @@ Widget reportMetric(
 );
 
 extension ReportViews on HomeState {
-  Future<void> exportAllReports({List<ServiceReport>? selected}) async {
+  /// Exports reports to a file, or with [share] sends them through the
+  /// Android share sheet, where a PDF per report is also offered.
+  Future<void> exportAllReports({
+    List<ServiceReport>? selected,
+    bool share = false,
+  }) async {
     final records = List<ServiceReport>.unmodifiable(
       selected ?? c.state.reports,
     );
@@ -81,7 +88,11 @@ extension ReportViews on HomeState {
           : null,
       builder: (ctx) => AlertDialog(
         title: Text(
-          selected == null ? 'Export all records' : 'Export selected reports',
+          share
+              ? 'Share ${selected == null ? 'all' : 'selected'} reports'
+              : selected == null
+              ? 'Export all records'
+              : 'Export selected reports',
         ),
         content: Text(
           selected == null
@@ -94,10 +105,18 @@ extension ReportViews on HomeState {
             child: const Text('Cancel'),
           ),
           OutlinedButton(
+            key: ValueKey('${share ? 'share' : 'export'}-reports-json'),
             onPressed: () => Navigator.pop(ctx, 'json'),
             child: const Text('JSON'),
           ),
+          if (share)
+            OutlinedButton(
+              key: const ValueKey('share-reports-pdf'),
+              onPressed: () => Navigator.pop(ctx, 'pdf'),
+              child: const Text('PDF'),
+            ),
           FilledButton(
+            key: ValueKey('${share ? 'share' : 'export'}-reports-csv'),
             onPressed: () => Navigator.pop(ctx, 'csv'),
             child: const Text('CSV'),
           ),
@@ -107,16 +126,73 @@ extension ReportViews on HomeState {
     if (format == null || !mounted) return;
     final includeReview = await askIncludeReview(records);
     if (includeReview == null) return;
+    final name =
+        'Church-Service-Timer-${selected == null ? 'all' : 'selected'}-reports-${c.now.wall}.$format';
+    String content() => format == 'csv'
+        ? exportReportsCsv(records, includeReview: includeReview)
+        : exportReportsJson(records, includeReview: includeReview);
     try {
-      await c.port.exportFile(
-        'Church-Service-Timer-${selected == null ? 'all' : 'selected'}-reports-${c.now.wall}.$format',
-        format == 'csv'
-            ? exportReportsCsv(records, includeReview: includeReview)
-            : exportReportsJson(records, includeReview: includeReview),
+      if (!share) {
+        await c.port.exportFile(name, content());
+        return;
+      }
+      final files = format == 'pdf'
+          ? [
+              for (final r in records)
+                await reportPdf(r, includeReview: includeReview),
+            ]
+          : [
+              SharedFile.text(
+                name,
+                content(),
+                format == 'json' ? 'application/json' : 'text/csv',
+              ),
+            ];
+      await c.port.shareFiles(
+        files,
+        subject: records.length == 1
+            ? records.single.name
+            : '${records.length} service reports',
       );
     } catch (e) {
-      if (mounted) await showError('Export failed: $e');
+      if (mounted)
+        await showError('${share ? 'Sharing' : 'Export'} failed: $e');
     }
+  }
+
+  Future<SharedFile> reportPdf(
+    ServiceReport r, {
+    required bool includeReview,
+  }) async {
+    final document = ServicePrintDocument(
+      program:
+          r.program ??
+          Timeline(
+            r.name,
+            r.rows
+                .map(
+                  (row) =>
+                      Segment(row.name, (row.plannedMs ~/ 60000).clamp(1, 99)),
+                )
+                .toList(),
+            DisplaySettings(),
+          ),
+      report: r,
+      church: r.churchName,
+      serviceDate: r.startedWall ?? r.endedWall,
+      preparedAt: c.now.wall,
+      banner: c.state.churchBanner,
+      audience: 'operator',
+      fullReport: true,
+      includeReview: includeReview && r.review != null,
+      watermark: c.state.printPreferences.watermark,
+      inkSaving: c.state.printPreferences.inkSaving,
+    );
+    return SharedFile(
+      servicePdfName(document),
+      await servicePdfBytes(document),
+      'application/pdf',
+    );
   }
 
   Future<void> openReport(ServiceReport r) async {

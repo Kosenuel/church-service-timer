@@ -38,6 +38,18 @@ class MainActivity : FlutterActivity() {
         if (bridge == null) bridge = DeviceBridge(applicationContext, flutterEngine)
         bridge!!.attach(this)
     }
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        // A recreated Activity or one reopened from Recents carries the old
+        // intent; only a fresh "Open with"/Share delivers a file.
+        if (savedInstanceState == null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0)
+            bridge?.receive(intent)
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        bridge?.receive(intent)
+    }
     override fun onDestroy() { bridge?.detach(this); super.onDestroy() }
     @Deprecated("Activity result bridge")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -305,6 +317,13 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                         null
                     }
                 }
+                "takeIncomingFile" -> {
+                    val uri = incomingUri
+                    val type = incomingType
+                    incomingUri = null; incomingType = null
+                    if (uri == null) result.success(null)
+                    else background(result) { readImport(uri, 16 * 1024 * 1024, type) }
+                }
                 "pick" -> {
                     if (pending != null) result.error("BUSY", "A document picker is already open", null)
                     else {
@@ -377,31 +396,57 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                 stream.use { it.write(text.toByteArray(Charsets.UTF_8)); it.flush() }
                 null
             }
-        } else background(result) {
-            var name = "template.json"
-            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val ni = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    val si = cursor.getColumnIndex(OpenableColumns.SIZE)
-                    if (ni >= 0) name = cursor.getString(ni)
-                    if (si >= 0 && !cursor.isNull(si) && cursor.getLong(si) > maxBytes.toLong()) error("Import exceeds ${maxBytes / 1048576} MiB")
-                }
+        } else background(result) { readImport(uri, maxBytes) }
+    }
+
+    /** Reads a picked or received CSV/JSON document as UTF-8 text. */
+    private fun readImport(uri: android.net.Uri, maxBytes: Int, mimeType: String? = null): Map<String, String> {
+        var name = "template.json"
+        var named = false
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val ni = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                val si = cursor.getColumnIndex(OpenableColumns.SIZE)
+                if (ni >= 0 && !cursor.isNull(ni)) { name = cursor.getString(ni); named = true }
+                if (si >= 0 && !cursor.isNull(si) && cursor.getLong(si) > maxBytes.toLong()) error("Import exceeds ${maxBytes / 1048576} MiB")
             }
-            if (!name.endsWith(".csv", true) && !name.endsWith(".json", true)) error("Choose CSV or JSON. Export Excel as CSV first.")
-            val bytes = ByteArrayOutputStream()
-            val stream = contentResolver.openInputStream(uri) ?: error("Cannot open selected file")
-            stream.use { input ->
-                val buffer = ByteArray(8192)
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    if (bytes.size() + count > maxBytes) error("Import exceeds ${maxBytes / 1048576} MiB")
-                    bytes.write(buffer, 0, count)
-                }
-            }
-            val decoder = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT)
-            mapOf("name" to name, "content" to decoder.decode(ByteBuffer.wrap(bytes.toByteArray())).toString())
         }
+        // Some senders (Bluetooth, messengers) give no usable file name.
+        if (!named || (!name.endsWith(".csv", true) && !name.endsWith(".json", true))) when (mimeType ?: contentResolver.getType(uri)) {
+            "application/json" -> name = if (named) "$name.json" else "received.json"
+            "text/csv", "text/comma-separated-values" -> name = if (named) "$name.csv" else "received.csv"
+        }
+        if (!name.endsWith(".csv", true) && !name.endsWith(".json", true)) error("Choose CSV or JSON. Export Excel as CSV first.")
+        val bytes = ByteArrayOutputStream()
+        val stream = contentResolver.openInputStream(uri) ?: error("Cannot open selected file")
+        stream.use { input ->
+            val buffer = ByteArray(8192)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                if (bytes.size() + count > maxBytes) error("Import exceeds ${maxBytes / 1048576} MiB")
+                bytes.write(buffer, 0, count)
+            }
+        }
+        val decoder = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT)
+        return mapOf("name" to name, "content" to decoder.decode(ByteBuffer.wrap(bytes.toByteArray())).toString())
+    }
+
+    private var incomingUri: android.net.Uri? = null
+    private var incomingType: String? = null
+
+    /** Remembers a file opened with, or shared to, the app and tells Dart. */
+    @Suppress("DEPRECATION")
+    fun receive(intent: Intent?) {
+        if (intent == null) return
+        val uri = when (intent.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND -> intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
+            else -> null
+        } ?: return
+        incomingUri = uri
+        incomingType = intent.type
+        channel.invokeMethod("incomingFile", null)
     }
 
     @Suppress("DEPRECATION")
