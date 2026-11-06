@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Fewer "Output held" cards:** Undo start no longer holds the display, and cancelling a setup holds it only if the display missed the previous service's output. The card and label now appear only for a running or finished service that was interrupted, and read "Output paused after an interruption".
 - **Pre-service countdown fixes:** setting a start time now releases a held LED sign, so the clock and countdown actually reach it. If output is held while the countdown waits, the row says so and offers **Show on display**. Tapping Start first segment before the scheduled time asks "Start now?" first, and the row explains that the service starts only when you tap Start.
 - **Default layout density is now Automatic.** Phones use Comfortable (larger touch targets), small tablets Comfortable and large tablets Spacious. A density you choose in Appearance is kept.
 - **Appearance:** the pinned preview follows the tab. Theme shows the colour preview; Layout & accessibility shows the selected density ("PREVIEW · COMFORTABLE") with sample rows and dividers, replacing the duplicate sample at the bottom of that tab.

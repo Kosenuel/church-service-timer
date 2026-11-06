@@ -1610,12 +1610,13 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                     fontSize: 12,
                   ),
                 ),
-                if (s.held || s.disconnected) ...[
+                if (s.disconnected ||
+                    (s.held && (s.active || s.phase == 'ended'))) ...[
                   const SizedBox(height: 8),
                   Text(
                     s.disconnected
                         ? 'Output unavailable · showing the last simulated frame'
-                        : 'Output held · review before restoring',
+                        : 'Output paused after an interruption · resume below',
                     style: TextStyle(color: appColors(context).error),
                   ),
                 ],
@@ -2066,7 +2067,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Review before restoring output',
+                        'Output paused after an interruption',
                         style: TextStyle(
                           color: appColors(context).warning,
                           fontSize: 18,
@@ -2075,7 +2076,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${s.timeline!.name}\nLast activity: ${DateTime.fromMillisecondsSinceEpoch(s.checkpoint.wall).toLocal()}\n${s.uncertain ? 'Elapsed time is uncertain after a reboot or clock change. ' : ''}${s.phase == 'ended' ? 'The service has ended.' : 'The timer continues locally.'} Confirm before replacing the simulator output.',
+                        '${s.timeline!.name}\nLast activity: ${DateTime.fromMillisecondsSinceEpoch(s.checkpoint.wall).toLocal()}\n${s.uncertain ? 'Elapsed time is uncertain after a reboot or clock change. ' : ''}${s.phase == 'ended' ? 'The service has ended.' : 'The timer continues locally.'} Check the time, then resume to update the simulator.',
                       ),
                       const SizedBox(height: 12),
                       Wrap(
