@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
+import 'package:church_service_timer/shared/undo_actions.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
 import 'package:church_service_timer/shared/time_picker.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
@@ -402,6 +403,67 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       if (mounted) await showError('$e');
     }
   }
+
+  /// Swaps the program in Ready for another, keeping the start time and
+  /// service mode, with a short Undo for a wrong tap.
+  Future<void> changeProgram() async {
+    final previous = c.state.session.timeline;
+    if (previous == null || c.state.session.phase != 'ready') return;
+    final picked = await showAppSelection<Timeline>(
+      context,
+      title: 'Change program',
+      builder: (ctx) => ProgramChooser(
+        controller: c,
+        current: previous.name,
+        onCreate: () async {
+          Navigator.pop(ctx);
+          await editTemplate();
+          if (mounted) await changeProgram();
+        },
+      ),
+    );
+    if (!mounted || picked == null || picked.name == previous.name) return;
+    try {
+      c.state.templateIndex(picked);
+      if (!await c.act('load', value: picked)) {
+        if (mounted) await showError(c.error ?? 'Could not change program.');
+        return;
+      }
+    } catch (e) {
+      if (mounted) await showError('$e');
+      return;
+    }
+    if (mounted)
+      offerUndo('Switched to ${picked.name}', () async {
+        // Nothing to undo once the service started or the setup was cancelled.
+        if (c.state.session.phase != 'ready') return true;
+        return c.act('load', value: previous);
+      });
+  }
+
+  /// The loaded program's name with a one-tap way to switch it.
+  Widget readyProgramRow(Timeline t) => Row(
+    key: const ValueKey('ready-program'),
+    children: [
+      Icon(Icons.event_note_outlined, color: appColors(context).muted),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(
+          t.name,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+        ),
+      ),
+      TextButton.icon(
+        key: const ValueKey('change-program'),
+        onPressed:
+            c.busy || controlsLocked || !c.pairing.localControl || c.corrupt
+            ? null
+            : changeProgram,
+        icon: const Icon(Icons.swap_horiz),
+        label: const Text('Change'),
+      ),
+    ],
+  );
 
   /// Starting while the pre-service countdown is still running asks first.
   Future<bool> confirmEarlyStart() async {
@@ -1532,6 +1594,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
               ),
           if (s.phase == 'ready') ...[
+            if (t != null) ...[readyProgramRow(t), const SizedBox(height: 8)],
             readyInline(),
             const SizedBox(height: 10),
             preServiceRow(),

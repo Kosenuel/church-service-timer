@@ -790,20 +790,25 @@ Session transition(
   var s = original.copy();
   s.settleMetrics(now);
   if (action == 'load') {
-    require(
-      !s.active && s.phase != 'ready',
-      'End the current service before loading another.',
-    );
+    require(!s.active, 'End the current service before loading another.');
     final t = Timeline.fromJson((value as Timeline).toJson());
     validateProgramDuration(t);
+    // Loading over a setup swaps the program: the setup's start time and
+    // service mode stay, and Cancel setup still returns to what was before.
+    final swap = s.phase == 'ready';
+    final scheduled = swap && original.startsAtWall != null;
     s = Session(
       id: '${now.boot}-${now.mono}-${original.revision + 1}',
-      anchor: now,
+      // Keeping the anchor keeps the sign's countdown deadline unchanged.
+      anchor: scheduled ? original.anchor : now,
       phase: 'ready',
       timeline: t,
       baseMs: t.segments.first.durationMs,
       disconnected: original.disconnected,
-      prior: original.copy()..prior = null,
+      held: swap && original.held,
+      rate: swap ? original.rate : 1,
+      startsAtWall: swap ? original.startsAtWall : null,
+      prior: swap ? original.prior : (original.copy()..prior = null),
     );
   } else if (action == 'cancelReady') {
     require(s.phase == 'ready', 'No setup to cancel.');

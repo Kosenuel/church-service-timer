@@ -9,10 +9,14 @@ import 'package:flutter/material.dart';
 class ProgramChooser extends StatefulWidget {
   final AppController controller;
   final VoidCallback onCreate;
+
+  /// The program already in Ready, when changing it; shown as loaded.
+  final String? current;
   const ProgramChooser({
     super.key,
     required this.controller,
     required this.onCreate,
+    this.current,
   });
   @override
   State<ProgramChooser> createState() => _ProgramChooserState();
@@ -34,8 +38,10 @@ class _ProgramChooserState extends State<ProgramChooser> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Choose a program to load into Ready. Timing begins only when you start the first segment.',
+          Text(
+            widget.current == null
+                ? 'Choose a program to load into Ready. Timing begins only when you start the first segment.'
+                : 'Switch the program in Ready. The start time and service mode stay; timing begins only when you start the first segment.',
           ),
           SizedBox(height: appLayout(context).gap),
           TextField(
@@ -59,12 +65,22 @@ class _ProgramChooserState extends State<ProgramChooser> {
                 ListTile(
                   key: ValueKey('start-program:${p.name}'),
                   title: Text(p.name),
-                  subtitle: Text(templateSummary(p)),
+                  subtitle: Text(
+                    p.name == widget.current
+                        ? 'Loaded · ${templateSummary(p)}'
+                        : templateSummary(p),
+                  ),
                   leading: c.state.programLibrary.favourites.contains(p.name)
-                      ? const Icon(Icons.star)
+                      ? const Icon(Icons.push_pin, semanticLabel: 'Pinned')
                       : null,
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: c.busy ? null : () => Navigator.pop(context, p),
+                  trailing: Icon(
+                    p.name == widget.current
+                        ? Icons.check
+                        : Icons.chevron_right,
+                  ),
+                  onTap: c.busy || p.name == widget.current
+                      ? null
+                      : () => Navigator.pop(context, p),
                 ),
             ],
           ),

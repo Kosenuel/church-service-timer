@@ -10,6 +10,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 - **Share by Bluetooth, messaging or email.** The selection bar on Programs and Reports has **Share**, which opens Android's share sheet with a JSON or CSV file, or one PDF sheet per selected item. Print Service also has **Share PDF**. The private-notes and review-note choices work as they do for Export.
 - **Open received files.** A program `.json` or `.csv` opened with, or shared to, the app goes to the usual import review. Reports and backups explain where they belong instead of failing to import.
 - **Back to exit.** Back on Programs, Reports or Settings returns to Live. On Live, it asks you to press Back again before leaving the app. During a service, it asks for confirmation and explains that the timer keeps running.
+- **Change program in Ready.** Ready now shows the loaded program with a **Change** button. Pick another program (pinned first, with search) and it replaces the loaded one. The pre-service start time and service mode stay, and the sign's countdown is unchanged. An 8-second Undo switches back. Load into Live from Program details does the same while in Ready. The start chooser marks pinned programs with a pin.
 
 ## 0.25.1, 6/November/2026
 
