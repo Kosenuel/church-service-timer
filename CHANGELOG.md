@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Default layout density is now Automatic.** Phones use Comfortable (larger touch targets), small tablets Comfortable and large tablets Spacious. A density you choose in Appearance is kept.
 - **Fixes:** the Live idle screen now matches its design, including right after a service ends and on tablets: a Standing by hero, Pinned or Recent programs, a Last service card, and a folded Stage & display row. Undo start and the Undo after deleting now disappear after 8 seconds instead of staying until tapped. An Undo tapped too late no longer leaves an error card that can't be closed; error cards with nothing to retry have a Dismiss button. The battery hint shows only while standing by, is shorter, and can be hidden until the app is next opened.
 ## 0.25.0, 5/November/2026
 - **Saved passwords in backups (optional).** Export backup can include the LED sign's device password and Wi-Fi reconnect details, encrypted (AES-256-GCM, PBKDF2 key) with a passphrase you choose. It is off by default. Restoring asks for the passphrase; skipping it or a wrong passphrase still restores everything else. Paired-device approvals are never included, and backups without passwords stay readable by earlier versions.

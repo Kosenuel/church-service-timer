@@ -150,7 +150,7 @@ void main() {
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       AppLayout current() => appLayout(t.element(find.byType(Scaffold).first));
-      expect(current().density, 'compact');
+      expect(current().density, 'comfortable');
       expect(current().preferences.highContrast, isTrue);
       expect(current().preferences.reducedMotion, isTrue);
       t.view.physicalSize = const Size(1280, 800);
@@ -305,7 +305,7 @@ void main() {
       await tap(t, 'Layout density');
       await tap(t, 'Spacious');
       expect(c.appearanceSelection.value.density, 'spacious');
-      expect(c.state.appearance.density, 'compact');
+      expect(c.state.appearance.density, 'automatic');
       await tap(t, 'High contrast');
       expect(c.appearanceSelection.value.highContrast, isTrue);
       await tap(t, 'Cancel');
