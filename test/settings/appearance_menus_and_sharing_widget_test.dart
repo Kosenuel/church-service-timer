@@ -338,7 +338,7 @@ void main() {
   );
 
   testWidgets(
-    'Long press and three-dot menus match and retain a delete divider',
+    'Long press selects programs; Android Back leaves selection mode',
     (t) async {
       size(t);
       final c = AppController(FakePort());
@@ -350,21 +350,18 @@ void main() {
         find.byKey(const ValueKey('template-row:Sunday Service')),
       );
       await t.pumpAndSettle();
-      expect(find.text('Export program'), findsOneWidget);
-      expect(find.text('Delete program'), findsOneWidget);
-      final firstBounds = t.getSize(find.byType(PopupMenuItem<String>).first);
-      await shot(t, 'program-menu-020');
-      await t.tapAt(const Offset(5, 5));
-      await t.pumpAndSettle();
-      await t.tap(find.byTooltip('Program actions').first);
-      await t.pumpAndSettle();
-      expect(t.getSize(find.byType(PopupMenuItem<String>).first), firstBounds);
+      expect(find.text('1 selected'), findsOneWidget);
       expect(
-        find.byWidgetPredicate((w) => w is AppDivider && w.essential),
+        find.byKey(const ValueKey('pin-selected-programs')),
         findsOneWidget,
       );
-      await t.tapAt(const Offset(5, 5));
+      expect(find.byTooltip('Program actions'), findsNothing);
+      await shot(t, 'program-menu-020');
+      // The system Back key leaves selection instead of closing the app.
+      await t.binding.handlePopRoute();
       await t.pumpAndSettle();
+      expect(find.text('1 selected'), findsNothing);
+      expect(find.text('Programs'), findsWidgets);
       await t.tap(find.byTooltip('More program actions'));
       await t.pumpAndSettle();
       expect(find.text('Import programs (JSON or CSV)'), findsOneWidget);

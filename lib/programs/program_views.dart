@@ -106,10 +106,17 @@ extension TemplateViews on HomeState {
                 else
                   openTemplate(values[i].name);
               },
-              onLongPress: () => showItemActions(
-                'Program',
-                (a) => programItemAction(values[i], a),
-              ),
+              // Long-press starts selection with this program ticked; the
+              // selection bar then exports, pins or deletes.
+              onLongPress: disabled
+                  ? null
+                  : () => refreshHome(() {
+                      if (!selectingPrograms) {
+                        selectingPrograms = true;
+                        selectedProgramExports.clear();
+                      }
+                      selectedProgramExports.add(values[i].name);
+                    }),
               child: Container(
                 color: useMasterDetail && selectedProgram == values[i].name
                     ? appColors(context).accent.withValues(alpha: .12)
@@ -165,30 +172,18 @@ extension TemplateViews on HomeState {
                         ],
                       ),
                     ),
-                    if (!selectingPrograms)
-                      IconButton(
-                        tooltip:
-                            c.state.programLibrary.favourites.contains(
-                              values[i].name,
-                            )
-                            ? 'Unpin ${values[i].name}'
-                            : 'Pin ${values[i].name}',
-                        onPressed: disabled
-                            ? null
-                            : () => toggleFavourite(values[i]),
-                        icon: Icon(
-                          c.state.programLibrary.favourites.contains(
-                                values[i].name,
-                              )
-                              ? Icons.star
-                              : Icons.star_border,
-                          size: 20,
+                    if (c.state.programLibrary.favourites.contains(
+                      values[i].name,
+                    ))
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Icon(
+                          Icons.push_pin,
+                          key: ValueKey('pinned:${values[i].name}'),
+                          size: 18,
+                          color: appColors(context).accent,
+                          semanticLabel: 'Pinned',
                         ),
-                      ),
-                    if (!selectingPrograms)
-                      itemMenu(
-                        'Program',
-                        (a) => programItemAction(values[i], a),
                       ),
                   ],
                 ),
@@ -369,7 +364,9 @@ extension TemplateViews on HomeState {
                   IconButton(
                     tooltip: pinned ? 'Unpin program' : 'Pin program',
                     onPressed: disabled ? null : () => toggleFavourite(t),
-                    icon: Icon(pinned ? Icons.star : Icons.star_border),
+                    icon: Icon(
+                      pinned ? Icons.push_pin : Icons.push_pin_outlined,
+                    ),
                   ),
                   PopupMenuButton<String>(
                     tooltip: 'Program options',

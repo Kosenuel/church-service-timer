@@ -83,7 +83,11 @@ void main() {
       final name = c.state.templates.first.name;
       await t.longPress(find.byKey(ValueKey('template-row:$name')));
       await t.pumpAndSettle();
-      await t.tap(find.text('Delete program'));
+      await t.ensureVisible(
+        find.byKey(const ValueKey('delete-selected-programs')),
+      );
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('delete-selected-programs')));
       await t.pumpAndSettle();
       expect(find.text('Settings are locked'), findsOneWidget);
       await t.enterText(find.byKey(const ValueKey('pin-field')), '2468');
@@ -93,7 +97,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 600));
       });
       await t.pumpAndSettle();
-      expect(find.text('Delete program?'), findsOneWidget);
+      expect(find.text('Delete 1 program?'), findsOneWidget);
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
       expect(c.state.templates.any((p) => p.name == name), isTrue);

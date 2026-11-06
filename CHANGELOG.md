@@ -4,6 +4,8 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Programs list:** a pin icon marks pinned programs (the star toggle and each row's ⋮ menu are gone). Long-press a program to start selecting; the selection bar exports, pins or unpins, and deletes the selected programs. The Android Back key leaves selection mode.
+- **Live:** the Android Back key on a loaded service that has not started cancels the setup and returns to Standing by.
 ## 0.25.1, 6/November/2026
 
 - **Fewer "Output held" cards:** Undo start no longer holds the display, and cancelling a setup holds it only if the display missed the previous service's output. The card and label now appear only for a running or finished service that was interrupted, and read "Output paused after an interruption".

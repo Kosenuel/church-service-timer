@@ -146,6 +146,42 @@ extension SelectionViews on HomeState {
                         label: const Text('Export selected'),
                       ),
                     ),
+                    if (programs)
+                      Builder(
+                        builder: (context) {
+                          final allPinned =
+                              chosen.isNotEmpty &&
+                              chosen.every(
+                                c.state.programLibrary.favourites.contains,
+                              );
+                          return OutlinedButton.icon(
+                            key: const ValueKey('pin-selected-programs'),
+                            onPressed: chosen.isEmpty || c.busy || c.corrupt
+                                ? null
+                                : () async {
+                                    if (!await c.commit((draft, _) {
+                                          final pins =
+                                              draft.programLibrary.favourites;
+                                          allPinned
+                                              ? pins.removeAll(chosen)
+                                              : pins.addAll(chosen);
+                                        }) &&
+                                        mounted)
+                                      await showError(
+                                        c.error ?? 'Could not update pins.',
+                                      );
+                                  },
+                            icon: Icon(
+                              allPinned
+                                  ? Icons.push_pin_outlined
+                                  : Icons.push_pin,
+                            ),
+                            label: Text(
+                              allPinned ? 'Unpin selected' : 'Pin selected',
+                            ),
+                          );
+                        },
+                      ),
                   ],
                 ),
                 // Kept apart from Export, at the opposite edge, in the

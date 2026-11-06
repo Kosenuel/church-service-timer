@@ -119,8 +119,18 @@ void main() {
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await tap(t, find.text('Programs').last);
-      await tap(t, find.byTooltip('Pin Sunday Service'));
+      // Long-press selects the program; the selection bar pins it.
+      await t.longPress(
+        find.byKey(const ValueKey('template-row:Sunday Service')),
+      );
+      await t.pumpAndSettle();
+      await tap(t, find.byKey(const ValueKey('pin-selected-programs')));
       expect(c.state.programLibrary.favourites, contains('Sunday Service'));
+      await tap(t, find.text('Done'));
+      expect(
+        find.byKey(const ValueKey('pinned:Sunday Service')),
+        findsOneWidget,
+      );
       await t.enterText(find.byKey(const ValueKey('program-search')), 'sunday');
       await t.pumpAndSettle();
       expect(

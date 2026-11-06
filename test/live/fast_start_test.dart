@@ -147,4 +147,19 @@ void main() {
     expect(find.byKey(const ValueKey('show-pre-service')), findsNothing);
     await t.pumpWidget(const SizedBox());
   });
+
+  testWidgets('Android Back in Ready returns to Standing by', (t) async {
+    size(t);
+    final c = AppController(ReadyPort());
+    await c.initialize(startTicker: false);
+    await c.act('load', value: c.state.templates.last);
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    expect(c.state.session.phase, 'ready');
+    await t.binding.handlePopRoute();
+    await t.pumpAndSettle();
+    expect(c.state.session.phase, 'idle');
+    expect(find.text('STANDING BY'), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
+  });
 }

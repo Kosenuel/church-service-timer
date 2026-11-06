@@ -185,7 +185,7 @@ void main() {
     },
   );
   testWidgets(
-    'Program long-press menu puts export first and confirms before deleting',
+    'Program long-press starts selection and confirms before deleting',
     (t) async {
       size(t);
       final c = AppController(FakePort());
@@ -197,13 +197,12 @@ void main() {
       await tap(t, 'Programs');
       await t.longPress(find.byKey(ValueKey('template-row:$name')));
       await t.pumpAndSettle();
-      expect(
-        t.getTopLeft(find.text('Export program')).dy,
-        lessThan(t.getTopLeft(find.text('Delete program')).dy),
-      );
+      expect(find.text('1 selected'), findsOneWidget);
+      expect(find.byTooltip('Program actions'), findsNothing);
       await shot(t, 'program-actions-019');
-      await tap(t, 'Delete program');
-      expect(find.text('Delete program?'), findsOneWidget);
+      await t.tap(find.byKey(const ValueKey('delete-selected-programs')));
+      await t.pumpAndSettle();
+      expect(find.text('Delete 1 program?'), findsOneWidget);
       expect(c.state.templates.length, count);
       await tap(t, 'Cancel');
       expect(c.state.templates.length, count);
