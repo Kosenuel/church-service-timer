@@ -51,7 +51,8 @@ void main() {
     final c = AppController(ReadyPort());
     await c.initialize(startTicker: false);
     final name = c.state.templates.first.name;
-    await c.commit((draft, _) => draft.programLibrary.favourites.add(name));
+    final id = c.state.templates.first.id;
+    await c.commit((draft, _) => draft.programLibrary.favourites.add(id));
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
     await t.tap(find.byKey(ValueKey('quick-load:$name')));

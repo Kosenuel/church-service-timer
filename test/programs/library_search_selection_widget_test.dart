@@ -125,7 +125,12 @@ void main() {
       );
       await t.pumpAndSettle();
       await tap(t, find.byKey(const ValueKey('pin-selected-programs')));
-      expect(c.state.programLibrary.favourites, contains('Sunday Service'));
+      expect(
+        c.state.programLibrary.favourites,
+        contains(
+          c.state.templates.firstWhere((p) => p.name == 'Sunday Service').id,
+        ),
+      );
       await tap(t, find.text('Done'));
       expect(
         find.byKey(const ValueKey('pinned:Sunday Service')),
@@ -154,7 +159,12 @@ void main() {
       await shot(t, 'start-search-021');
       await tap(t, find.byKey(const ValueKey('start-program:Sunday Service')));
       expect(c.state.session.phase, 'ready');
-      expect(c.state.programLibrary.recent.keys, contains('Sunday Service'));
+      expect(
+        c.state.programLibrary.recent.keys,
+        contains(
+          c.state.templates.firstWhere((p) => p.name == 'Sunday Service').id,
+        ),
+      );
       await t.pumpWidget(const SizedBox());
     },
   );

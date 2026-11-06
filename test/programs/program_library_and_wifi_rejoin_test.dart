@@ -50,16 +50,20 @@ void main() {
       final old = s.toJson()..remove('programLibrary');
       expect(AppState.fromJson(old).programLibrary.favourites, isEmpty);
       s.saveTemplate(timeline());
-      s.programLibrary.favourites.add('Sunday');
-      s.programLibrary.recent['Sunday'] = start.wall;
+      final id = s.templates.last.id;
+      expect(id, isNotEmpty);
+      s.programLibrary.favourites.add(id);
+      s.programLibrary.recent[id] = start.wall;
       final restored = AppState.fromJson(jsonDecode(jsonEncode(s.toJson())));
-      expect(restored.programLibrary.favourites, {'Sunday'});
+      expect(restored.programLibrary.favourites, {id});
+      // Renaming keeps the ID, so pins and recent use follow the program.
       restored.saveTemplate(
         timeline().renamed('Youth Sunday'),
         replacing: restored.templates.indexWhere((p) => p.name == 'Sunday'),
       );
-      expect(restored.programLibrary.favourites, {'Youth Sunday'});
-      expect(restored.programLibrary.recent['Youth Sunday'], start.wall);
+      expect(restored.templates.last.id, id);
+      expect(restored.programLibrary.favourites, {id});
+      expect(restored.programLibrary.recent[id], start.wall);
       restored.deleteTemplate(
         restored.templates.firstWhere((p) => p.name == 'Youth Sunday'),
       );
@@ -72,13 +76,13 @@ void main() {
     'Library search matches words, favs sort first and recent uses last load',
     () {
       final programs = [
-        timeline(),
-        timeline().renamed('Youth Sunday'),
-        timeline().renamed('Prayer'),
+        timeline().withId('p-sunday'),
+        timeline().renamed('Youth Sunday').withId('p-youth'),
+        timeline().renamed('Prayer').withId('p-prayer'),
       ];
       final library = ProgramLibrary(
-        favourites: {'Prayer'},
-        recent: {'Sunday': 100, 'Youth Sunday': 200},
+        favourites: {'p-prayer'},
+        recent: {'p-sunday': 100, 'p-youth': 200},
       );
       expect(library.find(programs, '', 'all').map((p) => p.name), [
         'Prayer',
@@ -110,7 +114,10 @@ void main() {
       expect(c.state.programLibrary.recent, isEmpty);
       port.fail = false;
       expect(await c.act('load', value: timeline()), true);
-      expect(c.state.programLibrary.recent['Sunday'], start.wall);
+      expect(
+        c.state.programLibrary.recent[c.state.templates.last.id],
+        start.wall,
+      );
       final s = AppState.fromJson(jsonDecode(port.data!));
       expect(s.appearance.pickerFeedback, 'both');
       expect(AppearancePreferences.fromJson({}).pickerFeedback, 'haptics');

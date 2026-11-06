@@ -858,9 +858,18 @@ class AppController extends ChangeNotifier {
         }
         if (action == 'load') {
           draft.session.churchName = draft.churchName;
-          final name = draft.session.timeline?.name;
-          if (name != null && draft.templates.any((p) => p.name == name))
-            draft.programLibrary.recent[name] = at.wall;
+          // A program handed over without its ID is matched by its name.
+          final loaded = draft.session.timeline;
+          final saved = loaded == null
+              ? null
+              : loaded.id.isNotEmpty
+              ? draft.programById(loaded.id)
+              : draft.templates.where((p) => p.name == loaded.name).firstOrNull;
+          if (loaded != null && saved != null) {
+            if (loaded.id.isEmpty)
+              draft.session.timeline = loaded.withId(saved.id);
+            draft.programLibrary.recent[saved.id] = at.wall;
+          }
         }
         if ({
               'start',
@@ -1239,11 +1248,9 @@ class AppController extends ChangeNotifier {
       commit((draft, at) => draft.setReviewNote(reportId, text, at.wall));
 
   /// Deletes the named saved programs atomically; null when nothing saved.
-  Future<List<DeletedProgram>?> deletePrograms(Set<String> names) async {
+  Future<List<DeletedProgram>?> deletePrograms(Set<String> ids) async {
     List<DeletedProgram>? removed;
-    final ok = await commit(
-      (draft, _) => removed = draft.deletePrograms(names),
-    );
+    final ok = await commit((draft, _) => removed = draft.deletePrograms(ids));
     return ok ? removed : null;
   }
 

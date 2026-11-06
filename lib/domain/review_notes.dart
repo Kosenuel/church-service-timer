@@ -34,14 +34,20 @@ class ReviewNote {
 }
 
 extension ReviewNotes on AppState {
-  /// The newest review note left on a past service of [programName].
-  ({ReviewNote note, ServiceReport report})? latestReviewFor(
-    String programName,
-  ) {
+  /// The newest review note left on a past service of [program]. Reports
+  /// match by program ID, or by name for reports saved before IDs.
+  ({ReviewNote note, ServiceReport report})? latestReviewFor(Timeline program) {
     ServiceReport? newest;
+    bool same(ServiceReport r) {
+      final id = r.program?.id ?? '';
+      return id.isNotEmpty && program.id.isNotEmpty
+          ? id == program.id
+          : r.name == program.name;
+    }
+
     // Later in the list means saved later, which breaks ties on end time.
     for (final r in reports) {
-      if (r.review == null || r.name != programName) continue;
+      if (r.review == null || !same(r)) continue;
       if (newest == null || r.endedWall >= newest.endedWall) newest = r;
     }
     return newest == null ? null : (note: newest.review!, report: newest);

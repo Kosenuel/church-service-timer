@@ -135,7 +135,7 @@ final revision05Cases = <String, void Function()>{
     state.session = service(firstMinutes: 1, warnings: []);
     final data = state.toJson()..['version'] = 4;
     final restored = AppState.fromJson(data);
-    equal(restored.toJson()['version'], 13);
+    equal(restored.toJson()['version'], 14);
     equal(
       restored.stageCues.map((v) => v.toJson()).toList(),
       state.stageCues.map((v) => v.toJson()).toList(),

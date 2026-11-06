@@ -28,24 +28,34 @@ void main() {
     return c;
   }
 
+  Set<String> ids(AppController c, Set<String> names) => {
+    for (final t in c.state.templates)
+      if (names.contains(t.name)) t.id,
+    if (names.contains('Missing')) 'missing',
+  };
+  String id(AppController c, String name) =>
+      c.state.templates.firstWhere((t) => t.name == name).id;
+
   group('Bulk delete in the domain', () {
     test(
       'Programs restore to their positions with pins and recent use',
       () async {
         final c = await withPrograms(['Alpha', 'Beta', 'Gamma']);
+        final beta = id(c, 'Beta'), gamma = id(c, 'Gamma');
         await c.commit((draft, _) {
-          draft.programLibrary.favourites.add('Beta');
-          draft.programLibrary.recent['Gamma'] = 42;
+          draft.programLibrary.favourites.add(beta);
+          draft.programLibrary.recent[gamma] = 42;
         });
         final before = c.state.templates.map((t) => t.name).toList();
-        final removed = await c.deletePrograms({'Beta', 'Gamma'});
+        final removed = await c.deletePrograms({beta, gamma});
         expect(removed, hasLength(2));
         expect(c.state.templates.map((t) => t.name), isNot(contains('Beta')));
-        expect(c.state.programLibrary.favourites, isNot(contains('Beta')));
+        expect(c.state.programLibrary.favourites, isNot(contains(beta)));
         expect(await c.restorePrograms(removed!), isTrue);
         expect(c.state.templates.map((t) => t.name).toList(), before);
-        expect(c.state.programLibrary.favourites, contains('Beta'));
-        expect(c.state.programLibrary.recent['Gamma'], 42);
+        expect(id(c, 'Beta'), beta, reason: 'Restored with the same ID');
+        expect(c.state.programLibrary.favourites, contains(beta));
+        expect(c.state.programLibrary.recent[gamma], 42);
       },
     );
 
@@ -60,7 +70,7 @@ void main() {
         await c.act('load', value: alpha);
         await c.act('start');
         final reports = c.state.reports.length;
-        expect(await c.deletePrograms({'Alpha'}), isNotNull);
+        expect(await c.deletePrograms(ids(c, {'Alpha'})), isNotNull);
         expect(c.state.session.active, isTrue);
         expect(c.state.session.timeline!.name, 'Alpha');
         expect(c.state.reports, hasLength(reports));
@@ -71,13 +81,13 @@ void main() {
     test('A stale selection deletes nothing', () async {
       final c = await withPrograms(['Alpha', 'Beta']);
       final count = c.state.templates.length;
-      expect(await c.deletePrograms({'Alpha', 'Missing'}), isNull);
+      expect(await c.deletePrograms(ids(c, {'Alpha', 'Missing'})), isNull);
       expect(c.state.templates, hasLength(count));
     });
 
     test('Restore refuses a name that was reused meanwhile', () async {
       final c = await withPrograms(['Alpha']);
-      final removed = await c.deletePrograms({'Alpha'});
+      final removed = await c.deletePrograms(ids(c, {'Alpha'}));
       await c.commit(
         (draft, _) => draft.saveTemplate(timeline().renamed('Alpha')),
       );

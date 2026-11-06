@@ -59,7 +59,7 @@ extension SelectionViews on HomeState {
     final selecting = programs ? selectingPrograms : selectingReports;
     final selected = programs ? selectedProgramExports : selectedReportExports;
     final available = programs
-        ? c.state.templates.map((p) => p.name).toSet()
+        ? c.state.templates.map((p) => p.id).toSet()
         : c.state.reports.map((r) => r.id).toSet();
     final chosen = selected.intersection(available);
     final hidden = chosen.difference(shown).length;
@@ -132,7 +132,7 @@ extension SelectionViews on HomeState {
                                 if (programs)
                                   await exportAllPrograms(
                                     selected: c.state.templates
-                                        .where((p) => chosen.contains(p.name))
+                                        .where((p) => chosen.contains(p.id))
                                         .toList(),
                                   );
                                 else
@@ -161,7 +161,7 @@ extension SelectionViews on HomeState {
                                   await exportAllPrograms(
                                     share: true,
                                     selected: c.state.templates
-                                        .where((p) => chosen.contains(p.name))
+                                        .where((p) => chosen.contains(p.id))
                                         .toList(),
                                   );
                                 else

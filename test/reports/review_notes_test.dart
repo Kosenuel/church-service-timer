@@ -86,8 +86,8 @@ void main() {
       await c.act('load', value: timeline().renamed('Midweek'));
       await c.act('start');
       await c.act('end');
-      expect(c.state.latestReviewFor('Sunday')!.note.text, 'Second week.');
-      expect(c.state.latestReviewFor('Midweek'), isNull);
+      expect(c.state.latestReviewFor(timeline())!.note.text, 'Second week.');
+      expect(c.state.latestReviewFor(timeline().renamed('Midweek')), isNull);
     });
   });
 

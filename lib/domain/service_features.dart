@@ -369,6 +369,7 @@ class ServiceReport {
   Json exportJson({bool includeReview = false}) {
     final j = toJson();
     if (!includeReview) j.remove('review');
+    if (j['program'] is Json) j['program'] = portableProgram(j['program']);
     return j;
   }
 }
