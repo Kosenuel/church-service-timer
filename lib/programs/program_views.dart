@@ -6,6 +6,7 @@ import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/programs/program_history_views.dart';
 
 String templateSummary(Timeline t) {
   final total = t.segments.fold<int>(
@@ -381,6 +382,8 @@ extension TemplateViews on HomeState {
                           await export(t, 'csv');
                         case 'print':
                           await printServiceSheet(t);
+                        case 'history':
+                          await openVersionHistory(t);
                         case 'delete':
                           await delete();
                       }
@@ -390,6 +393,12 @@ extension TemplateViews on HomeState {
                       const AppMenuAction('json', 'Export JSON'),
                       const AppMenuAction('csv', 'Export CSV'),
                       const AppMenuAction('print', 'Print Service'),
+                      AppMenuAction(
+                        'history',
+                        c.state.versionsOf(t.id).isEmpty
+                            ? 'Version history'
+                            : 'Version history (${c.state.versionsOf(t.id).length})',
+                      ),
                       const AppMenuAction(
                         'delete',
                         'Delete program',

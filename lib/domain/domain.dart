@@ -6,7 +6,9 @@ export 'package:church_service_timer/domain/service_features.dart';
 import 'package:church_service_timer/domain/app_settings.dart';
 export 'package:church_service_timer/domain/app_settings.dart';
 import 'package:church_service_timer/domain/program_library.dart';
+import 'package:church_service_timer/domain/program_history.dart';
 export 'package:church_service_timer/domain/program_library.dart';
+export 'package:church_service_timer/domain/program_history.dart';
 export 'package:church_service_timer/domain/service_planning.dart';
 export 'package:church_service_timer/domain/backup_secrets.dart';
 import 'package:church_service_timer/domain/settings_lock.dart';
@@ -1132,6 +1134,9 @@ class AppState {
   int notificationClearSeconds;
   PrintPreferences printPreferences;
   Map<String, Json> editDrafts;
+
+  /// Earlier versions of saved programs by program ID, newest first.
+  Map<String, List<ProgramRevision>> programHistory;
   String? outputDestination;
   List<QuickMessage> quickMessages;
   List<Timeline> templates;
@@ -1177,7 +1182,9 @@ class AppState {
     this.printPreferences = const PrintPreferences(),
     Map<String, Json>? editDrafts,
     ProgramLibrary? programLibrary,
+    Map<String, List<ProgramRevision>>? programHistory,
   }) : programLibrary = programLibrary ?? ProgramLibrary(),
+       programHistory = programHistory ?? {},
        editDrafts = editDrafts ?? {},
        reports = reports ?? [],
        quickMessages = quickMessages ?? [...defaultQuickMessages],
@@ -1294,6 +1301,7 @@ class AppState {
         Map<String, dynamic>.from(j['printPreferences'] ?? {}),
       ),
       editDrafts: readEditDrafts(j['editDrafts']),
+      programHistory: readProgramHistory(j['programHistory']),
       quickMessages: (j['quickMessages'] as List?)
           ?.map((e) => QuickMessage.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1421,6 +1429,7 @@ class AppState {
     'version': 14,
     'appearance': appearance.toJson(),
     'programLibrary': programLibrary.toJson(),
+    'programHistory': writeProgramHistory(programHistory),
     'clockFormat': clockFormat,
     'clockBlink': clockBlink,
     'notificationClearSeconds': notificationClearSeconds,
@@ -1511,7 +1520,9 @@ class AppState {
     apply(session);
   }
 
-  void saveTemplate(Timeline t, {int? replacing}) {
+  /// Saves [t] as a new program, or over the program at [replacing]. With
+  /// [replacedAt], the replaced version is kept in its history.
+  void saveTemplate(Timeline t, {int? replacing, int? replacedAt}) {
     validateProgramDuration(t);
     t = t.withDisplay(
       t.display.withZero(defaults.zero).withWarnings(defaults.warnings),
@@ -1534,7 +1545,9 @@ class AppState {
       templates.add(t.withId(id));
     } else {
       // Edits keep the program's identity, so pins and history follow it.
-      templates[replacing] = t.withId(templates[replacing].id);
+      final previous = templates[replacing];
+      templates[replacing] = t.withId(previous.id);
+      if (replacedAt != null) recordVersion(previous.id, previous, replacedAt);
     }
   }
 
@@ -1583,6 +1596,7 @@ class AppState {
   void deleteTemplate(Timeline expected) {
     final removed = templates.removeAt(templateIndex(expected));
     programLibrary.remove(removed.id);
+    programHistory.remove(removed.id);
   }
 }
 

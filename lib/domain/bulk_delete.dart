@@ -7,7 +7,14 @@ class DeletedProgram {
   final Timeline program;
   final bool favourite;
   final int? lastUsed;
-  const DeletedProgram(this.index, this.program, this.favourite, this.lastUsed);
+  final List<ProgramRevision> versions;
+  const DeletedProgram(
+    this.index,
+    this.program,
+    this.favourite,
+    this.lastUsed, [
+    this.versions = const [],
+  ]);
 }
 
 class DeletedReport {
@@ -32,6 +39,7 @@ extension BulkDelete on AppState {
             t,
             programLibrary.favourites.contains(t.id),
             programLibrary.recent[t.id],
+            [...versionsOf(t.id)],
           ),
         );
     }
@@ -42,6 +50,7 @@ extension BulkDelete on AppState {
     for (final d in removed.reversed) {
       templates.removeAt(d.index);
       programLibrary.remove(d.program.id);
+      programHistory.remove(d.program.id);
     }
     return removed;
   }
@@ -59,6 +68,7 @@ extension BulkDelete on AppState {
       templates.insert(d.index.clamp(0, templates.length), d.program);
       if (d.favourite) programLibrary.favourites.add(d.program.id);
       if (d.lastUsed != null) programLibrary.recent[d.program.id] = d.lastUsed!;
+      if (d.versions.isNotEmpty) programHistory[d.program.id] = [...d.versions];
     }
   }
 
