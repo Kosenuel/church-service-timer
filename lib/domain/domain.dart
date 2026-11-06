@@ -11,6 +11,7 @@ import 'package:church_service_timer/domain/segment_library.dart';
 export 'package:church_service_timer/domain/program_library.dart';
 export 'package:church_service_timer/domain/program_history.dart';
 export 'package:church_service_timer/domain/segment_library.dart';
+export 'package:church_service_timer/domain/import_mapping.dart';
 export 'package:church_service_timer/domain/service_planning.dart';
 export 'package:church_service_timer/domain/backup_secrets.dart';
 import 'package:church_service_timer/domain/settings_lock.dart';
@@ -1160,6 +1161,10 @@ class AppState {
   /// Battery use (% per hour) in this phone's last measured recording; the
   /// next report marks against it. Local only.
   double? metricsBatteryBaseline;
+
+  /// Column mappings chosen for imported spreadsheets, by header row, so
+  /// next week's sheet in the same layout imports in one tap. Local only.
+  Map<String, Json> importMappings;
   String? outputDestination;
   List<QuickMessage> quickMessages;
   List<Timeline> templates;
@@ -1210,7 +1215,9 @@ class AppState {
     List<Segment>? segmentLibrary,
     this.recordMetrics = false,
     this.metricsBatteryBaseline,
-  }) : segmentLibrary = segmentLibrary ?? [],
+    Map<String, Json>? importMappings,
+  }) : importMappings = importMappings ?? {},
+       segmentLibrary = segmentLibrary ?? [],
        programLibrary = programLibrary ?? ProgramLibrary(),
        programHistory = programHistory ?? {},
        programInbox = programInbox ?? [],
@@ -1335,6 +1342,11 @@ class AppState {
       segmentLibrary: readSegmentLibrary(j['segmentLibrary']),
       recordMetrics: j['recordMetrics'] == true,
       metricsBatteryBaseline: (j['metricsBatteryBaseline'] as num?)?.toDouble(),
+      importMappings: {
+        for (final e in (j['importMappings'] as Map? ?? {}).entries)
+          if (e.key is String && e.value is Map)
+            e.key as String: Map<String, dynamic>.from(e.value as Map),
+      },
       quickMessages: (j['quickMessages'] as List?)
           ?.map((e) => QuickMessage.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1467,6 +1479,7 @@ class AppState {
     'segmentLibrary': [for (final s in segmentLibrary) s.toJson()],
     'recordMetrics': recordMetrics,
     'metricsBatteryBaseline': metricsBatteryBaseline,
+    'importMappings': importMappings,
     'clockFormat': clockFormat,
     'clockBlink': clockBlink,
     'notificationClearSeconds': notificationClearSeconds,

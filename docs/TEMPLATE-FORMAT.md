@@ -31,6 +31,18 @@ Single-program CSV headers are `Segment Name,Duration (Minutes)` with optional `
 Single-program imports are at most 1,048,576 bytes; bundles are at most 16 MiB. The native document reader enforces the outer 16 MiB limit while reading; the parser applies the smaller single-program limit before accepting it. Invalid UTF-8 is rejected. No incoming data is committed before Accept Import.
 
 
+## Other spreadsheets (0.26)
+
+A CSV without the headers above (for example a church's own `Item,Time (mins),Who` sheet) opens **Match spreadsheet columns** instead of an error. The app shows the sheet, guesses each column from its title or, without titles, from its values, and lets the operator choose:
+
+- **Segment name** and **Duration** (required);
+- how durations are written: detected automatically, minutes (`5`, `5.5`), minutes:seconds (`05:30`, also `1:05:30`) or seconds (`330`); detection also reads `5 min`, `5m 30s`, `90s` and `1 hour`;
+- **Speaker** and **Private operator notes** (optional);
+- a **Program name** column (optional), which splits the rows into one program per name; otherwise all rows form one program named after the file;
+- whether the first row holds column titles.
+
+Rows with neither a name nor a duration are left out. Any other row without a name, with an unreadable duration or longer than 59:59 is listed by its spreadsheet row number, and nothing is imported until it is fixed. A valid result goes to the usual import review. The choice is remembered on the phone for up to 20 layouts, keyed by the header row, so next week's sheet in the same layout only needs Continue. Excel and Google Sheets files must be saved as CSV first.
+
 ## Bulk program bundles (0.19)
 
 JSON has `type: "church-service-timer-programs"`, `schemaVersion: 1`, and a `programs` array of 1–200 complete program objects. Formatting and second precision are preserved; private notes are omitted unless the export checkbox is selected. At Zero and warning rules adopt the receiving phone's shared settings.

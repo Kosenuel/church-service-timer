@@ -37,6 +37,7 @@ import 'package:church_service_timer/live/timing_overview_views.dart';
 import 'package:church_service_timer/programs/program_editor_insights.dart';
 import 'package:church_service_timer/programs/program_import_export_views.dart';
 import 'package:church_service_timer/programs/segment_library_views.dart';
+import 'package:church_service_timer/programs/import_mapping_views.dart';
 import 'package:church_service_timer/programs/program_library_views.dart';
 import 'package:church_service_timer/settings/settings_pin_views.dart';
 import 'package:church_service_timer/live/clicker_controls.dart';
@@ -799,6 +800,23 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       if (file == null || !mounted) return;
       final other = otherExportKind(file);
       if (other != null) throw RuleError(other);
+      // Someone else's spreadsheet: match its columns first.
+      if ((file['name'] as String).toLowerCase().endsWith('.csv')) {
+        final rows = spreadsheetRows(file['content'] as String);
+        if (rows.isNotEmpty && !isStandardProgramCsv(rows)) {
+          final mapped = await Navigator.of(context).push<List<Timeline>>(
+            MaterialPageRoute(
+              builder: (_) => ImportMappingPage(
+                controller: c,
+                rows: rows,
+                fileName: file['name'] as String,
+              ),
+            ),
+          );
+          if (mapped != null && mounted) await importProgramBundle(mapped);
+          return;
+        }
+      }
       final candidates = importPrograms(
         file['content'] as String,
         file['name'] as String,
