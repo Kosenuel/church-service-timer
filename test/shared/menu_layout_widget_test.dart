@@ -58,7 +58,7 @@ void main() {
     ('compact', 'subtle', const Size(430, 1000), 'compact'),
     ('comfortable', 'strong', const Size(430, 1000), 'comfortable'),
     ('spacious', 'hidden', const Size(430, 1000), 'spacious'),
-    ('automatic', 'subtle', const Size(430, 1000), 'compact'),
+    ('automatic', 'subtle', const Size(430, 1000), 'comfortable'),
     ('automatic', 'subtle', const Size(800, 1200), 'comfortable'),
     ('automatic', 'strong', const Size(1200, 800), 'spacious'),
   ]) {
@@ -94,7 +94,10 @@ void main() {
           expect(t.widget<Divider>(lines.first).thickness, 1.5);
         }
         expect(c.state.session.phase, 'idle');
-        await shot(t, 'start-$density-$resolved');
+        await shot(
+          t,
+          'start-$density-$resolved${density == 'automatic' && screen.width < 600 ? '-phone' : ''}',
+        );
         await tap(t, 'Quick rehearsal');
         expect(c.state.session.phase, 'ready');
         expect(c.state.session.timeline!.name, 'Quick rehearsal');

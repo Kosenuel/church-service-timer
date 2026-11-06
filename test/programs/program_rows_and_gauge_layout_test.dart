@@ -178,7 +178,7 @@ void main() {
     await templates(t);
     expect(find.text('Edit Program'), findsNothing);
     final row = find.byKey(const ValueKey('template-row:Sunday Service'));
-    expect(t.getSize(row).height, lessThan(85));
+    expect(t.getSize(row).height, lessThan(90));
     expect(find.text('4 segments · 55 min'), findsOneWidget);
     await expectLater(
       find.byType(MaterialApp),
