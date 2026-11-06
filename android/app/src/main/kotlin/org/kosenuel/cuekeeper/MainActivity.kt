@@ -317,6 +317,22 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                         null
                     }
                 }
+                "batteryStatus" -> {
+                    // A sticky broadcast: reading it registers nothing.
+                    val b = context.registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                    if (b == null) result.success(emptyMap<String, Any>())
+                    else {
+                        val level = b.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1)
+                        val scale = b.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1)
+                        val temp = b.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+                        val plugged = b.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0)
+                        result.success(buildMap<String, Any> {
+                            if (level >= 0 && scale > 0) put("level", level * 100 / scale)
+                            if (temp != Int.MIN_VALUE) put("temperature", temp / 10.0)
+                            put("charging", plugged != 0)
+                        })
+                    }
+                }
                 "takeIncomingFile" -> {
                     val uri = incomingUri
                     val type = incomingType

@@ -23,6 +23,7 @@ import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/reports/report_views.dart';
 import 'package:church_service_timer/live/live_timer_views.dart';
 import 'package:church_service_timer/settings/settings_views.dart';
+import 'package:church_service_timer/settings/diagnostics_views.dart';
 import 'package:church_service_timer/settings/display_settings_views.dart';
 import 'package:church_service_timer/hardware/hardware_views.dart';
 import 'package:church_service_timer/settings/stage_cue_settings_views.dart';
@@ -1377,6 +1378,24 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       : 'Segment ${s.index + 1} of ${t.segments.length}',
                 ),
               ),
+              // Visible whenever recording is on, so it is never left on by
+              // accident.
+              if (c.state.recordMetrics || c.metrics.recording)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ActionChip(
+                    key: const ValueKey('metrics-chip'),
+                    avatar: Icon(
+                      Icons.fiber_manual_record,
+                      size: 12,
+                      color: appColors(context).error,
+                    ),
+                    label: Text(
+                      s.noReport ? 'Test · recording' : 'Recording metrics',
+                    ),
+                    onPressed: openDiagnostics,
+                  ),
+                ),
               if (!standingBy)
                 Chip(
                   label: Text(

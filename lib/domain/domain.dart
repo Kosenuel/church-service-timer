@@ -493,6 +493,9 @@ class Session {
 
   /// Scheduled start while in Ready; drives the pre-service countdown.
   int? startsAtWall;
+
+  /// A test or practice run: ending it saves no report.
+  bool noReport;
   Session({
     required this.id,
     required this.anchor,
@@ -528,6 +531,7 @@ class Session {
     this.automaticCueDurationMs = 8000,
     this.targetFinishWall,
     this.startsAtWall,
+    this.noReport = false,
     List<ServiceEvent>? events,
   }) : checkpoint = checkpoint ?? anchor,
        warningSeen = warningSeen ?? [],
@@ -690,6 +694,7 @@ class Session {
       events: readServiceEvents(j['events']),
       targetFinishWall: j['targetFinishWall'] as int?,
       startsAtWall: j['startsAtWall'] as int?,
+      noReport: j['noReport'] == true,
       automaticCueDurationMs: readCueDuration(j['automaticCueDurationMs']),
       churchName: churchNameValue(j['churchName'] ?? ''),
       phase: j['phase'],
@@ -807,6 +812,7 @@ class Session {
     'events': events.map((e) => e.toJson()).toList(),
     'targetFinishWall': targetFinishWall,
     'startsAtWall': startsAtWall,
+    if (noReport) 'noReport': true,
   };
   Session copy() => Session.fromJson(toJson());
 }
@@ -850,6 +856,7 @@ Session transition(
       held: swap && original.held,
       rate: swap ? original.rate : 1,
       startsAtWall: swap ? original.startsAtWall : null,
+      noReport: swap && original.noReport,
       prior: swap ? original.prior : (original.copy()..prior = null),
     );
   } else if (action == 'cancelReady') {
@@ -1140,6 +1147,10 @@ class AppState {
 
   /// Programs sent from other phones, waiting for review.
   List<ReceivedProgram> programInbox;
+
+  /// Record performance metrics during the next service (Diagnostics).
+  /// Switches itself off when that service ends.
+  bool recordMetrics;
   String? outputDestination;
   List<QuickMessage> quickMessages;
   List<Timeline> templates;
@@ -1187,6 +1198,7 @@ class AppState {
     ProgramLibrary? programLibrary,
     Map<String, List<ProgramRevision>>? programHistory,
     List<ReceivedProgram>? programInbox,
+    this.recordMetrics = false,
   }) : programLibrary = programLibrary ?? ProgramLibrary(),
        programHistory = programHistory ?? {},
        programInbox = programInbox ?? [],
@@ -1308,6 +1320,7 @@ class AppState {
       editDrafts: readEditDrafts(j['editDrafts']),
       programHistory: readProgramHistory(j['programHistory']),
       programInbox: readReceivedPrograms(j['programInbox']),
+      recordMetrics: j['recordMetrics'] == true,
       quickMessages: (j['quickMessages'] as List?)
           ?.map((e) => QuickMessage.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1437,6 +1450,7 @@ class AppState {
     'programLibrary': programLibrary.toJson(),
     'programHistory': writeProgramHistory(programHistory),
     'programInbox': [for (final p in programInbox) p.toJson()],
+    'recordMetrics': recordMetrics,
     'clockFormat': clockFormat,
     'clockBlink': clockBlink,
     'notificationClearSeconds': notificationClearSeconds,

@@ -15,9 +15,14 @@ dependencies:
   flutter:
     sdk: flutter
   share_plus: ^13.3.1
+  path_provider: ^2.1.6
 dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_driver:
     sdk: flutter
 flutter:
   uses-material-design: true

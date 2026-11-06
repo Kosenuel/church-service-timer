@@ -10,6 +10,7 @@ import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/settings/backup_secret_views.dart';
 import 'package:church_service_timer/settings/whats_new_page.dart';
+import 'package:church_service_timer/settings/diagnostics_views.dart';
 
 extension SettingsViews on HomeState {
   Future<void> openSettingsDetail(
@@ -529,6 +530,15 @@ extension SettingsViews on HomeState {
         () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => FeedbackCenterPage(controller: c)),
         ),
+      ),
+      row(
+        Icons.monitor_heart_outlined,
+        'Diagnostics',
+        c.state.recordMetrics || c.metrics.recording
+            ? 'Recording service metrics'
+            : 'Record performance during a service, for troubleshooting',
+        openDiagnostics,
+        key: const ValueKey('about-diagnostics'),
       ),
     ];
     return Column(

@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:church_service_timer/diagnostics/service_metrics.dart';
 
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/domain/domain.dart'
@@ -170,7 +173,8 @@ class AppController extends ChangeNotifier {
       (draft, _) {
         draft.session = ended.copy();
         draft.reports.removeWhere((r) => r.id == ended.id);
-        draft.reports.add(ServiceReport.fromSession(ended, ended.anchor));
+        if (!ended.noReport)
+          draft.reports.add(ServiceReport.fromSession(ended, ended.anchor));
       },
       revision: _pendingEndRevision,
       ending: true,
@@ -454,7 +458,16 @@ class AppController extends ChangeNotifier {
   Json get notificationState => phoneWarnings.status;
   Future<bool> Function()? retry;
   Timer? _timer;
-  AppController(this.port) {
+
+  /// Records performance during a service when Diagnostics asks for it.
+  final ServiceMetricsRecorder metrics;
+
+  /// What the last finished recording found, until the app restarts.
+  MetricsSummary? lastMetrics;
+  String _metricsDisplay = '';
+
+  AppController(this.port, {MetricsStore? metricsStore})
+    : metrics = ServiceMetricsRecorder(store: metricsStore) {
     pairing.readMemory = port.loadPairing;
     pairing.writeMemory = port.savePairing;
     pairing.discoverHosts = port.discoverPairHosts;
@@ -671,8 +684,18 @@ class AppController extends ChangeNotifier {
         if (!busy &&
             retry == null &&
             dueWarnings(state.session, now).isNotEmpty) {
+          final s = state.session;
+          final remaining = s.remaining(now);
+          final late = dueWarnings(s, now)
+              .map(
+                (i) =>
+                    s.timeline!.display.warnings[i].seconds * 1000 - remaining,
+              )
+              .fold(0, math.max);
           await act('warnings');
+          unawaited(metrics.warning(now, late));
         }
+        await _trackMetrics();
         _publish();
         await syncActiveService();
         if (destination == 'led') unawaited(hardware.check(now));
@@ -888,7 +911,7 @@ class AppController extends ChangeNotifier {
             }.contains(action) &&
             hardware.connected)
           draft.session.disconnected = false;
-        if (action == 'end') {
+        if (action == 'end' && !draft.session.noReport) {
           draft.reports.add(ServiceReport.fromSession(draft.session, at));
         }
       },
@@ -1326,7 +1349,106 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  TimingsCallback? _timings;
+  bool _timingsOn = false;
+  void _frameTimings(bool on) {
+    if (on == _timingsOn) return;
+    _timings ??= metrics.addFrames;
+    on
+        ? SchedulerBinding.instance.addTimingsCallback(_timings!)
+        : SchedulerBinding.instance.removeTimingsCallback(_timings!);
+    _timingsOn = on;
+  }
+
+  /// Starts, samples and stops a metrics recording around a service. Runs
+  /// on every tick; cheap when Diagnostics is off.
+  Future<void> _trackMetrics() async {
+    final s = state.session;
+    if (!metrics.recording) {
+      if (!state.recordMetrics || !s.active) return;
+      _frameTimings(true);
+      _metricsDisplay = displayConnection.label;
+      await metrics.start(
+        now,
+        label: s.noReport ? 'Test service' : 'Service',
+        app: '$appName ${appVersion.split(' ').first}',
+      );
+      await metrics.sample(
+        now,
+        battery: await port.batteryStatus(),
+        detail: 'start; display=$_metricsDisplay',
+      );
+      notifyListeners();
+      return;
+    }
+    metrics.touch(now);
+    final display = displayConnection.label;
+    if (display != _metricsDisplay) {
+      unawaited(
+        metrics.event(
+          now,
+          // Back to connected after a drop counts as a reconnection.
+          {
+                    DisplayConnection.connected.label,
+                    DisplayConnection.stageConnected.label,
+                  }.contains(display) &&
+                  _metricsDisplay != DisplayConnection.simulator.label
+              ? 'reconnected'
+              : 'display',
+          'display=$display',
+        ),
+      );
+      _metricsDisplay = display;
+    }
+    if (!s.active) {
+      await _stopMetrics();
+      // Recording is for one service, so it is never left on by accident.
+      if (state.recordMetrics)
+        await commit((draft, _) => draft.recordMetrics = false);
+      notifyListeners();
+      return;
+    }
+    if (metrics.sampleDue(now))
+      await metrics.sample(
+        now,
+        battery: await port.batteryStatus(),
+        detail: 'display=$display; peers=${pairing.peers.length}',
+      );
+  }
+
+  Future<void> _stopMetrics() async {
+    _frameTimings(false);
+    lastMetrics = await metrics.stop(now, battery: await port.batteryStatus());
+  }
+
+  Future<bool> setRecordMetrics(bool on) async {
+    final ok = await commit((draft, _) => draft.recordMetrics = on);
+    if (ok && !on && metrics.recording) {
+      await _stopMetrics();
+      notifyListeners();
+    }
+    return ok;
+  }
+
+  /// Loads and starts a 2-hour generated service that saves no report,
+  /// with metrics recording on.
+  Future<bool> startTestService() async {
+    if (state.session.active || state.session.phase == 'ready') {
+      error = 'End or cancel the current service before a test service.';
+      notifyListeners();
+      return false;
+    }
+    if (!await act('load', value: testServiceProgram())) return false;
+    if (!await commit((draft, _) {
+      draft.session.noReport = true;
+      draft.recordMetrics = true;
+    }))
+      return false;
+    return act('start');
+  }
+
   Future<void> suspend() async {
+    unawaited(metrics.event(now, 'background'));
     await flushEditDrafts();
     if (backgroundActive && await port.activeServiceRunning()) {
       _foreground = false;
@@ -1346,6 +1468,8 @@ class AppController extends ChangeNotifier {
 
   Future<void> resume() async {
     unawaited(refreshBatteryStatus());
+    if (metrics.recording)
+      unawaited(port.clock().then((at) => metrics.event(at, 'foreground')));
     if (backgroundActive && await port.activeServiceRunning()) {
       _foreground = true;
       await tick();
@@ -1420,6 +1544,7 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _frameTimings(false);
     editDrafts.dispose();
     liveClock.dispose();
     previewClock.dispose();
