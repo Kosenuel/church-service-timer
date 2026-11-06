@@ -810,7 +810,9 @@ Session transition(
     final previous = s.prior;
     s = previous ?? Session(id: s.id, anchor: now);
     s.id = '${original.id}-cancelled';
-    s.held = true; // Cancelling Ready must never resurrect a prior output job.
+    // Never resurrect output the display did not receive (an end screen
+    // pending while disconnected or held); otherwise nothing needs review.
+    s.held = previous != null && (previous.held || previous.disconnected);
     s.prior = null;
   } else if (action == 'schedule') {
     require(s.phase == 'ready', 'Load a service before scheduling its start.');
@@ -866,7 +868,9 @@ Session transition(
     s.warningCeiling = s.baseMs + 1;
     s.anchor = now;
     s.checkpoint = now;
-    s.held = true; // The display keeps its last frame until the next start.
+    // Nothing is timed in Ready, so there is nothing to review; the display
+    // keeps its last frame until a start time is set or the service starts.
+    s.held = false;
   } else if (action == 'disconnect') {
     s.disconnected = true;
     s.outage ??= now;
