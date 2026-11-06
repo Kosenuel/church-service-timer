@@ -50,6 +50,16 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
+  testWidgets('The battery hint can be hidden until the next launch', (
+    t,
+  ) async {
+    await start(t, false);
+    await t.tap(find.byKey(const ValueKey('battery-hint-dismiss')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('battery-hint')), findsNothing);
+    await t.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Unrestricted or unknown status shows no hint', (t) async {
     await start(t, true);
     expect(find.byKey(const ValueKey('battery-hint')), findsNothing);

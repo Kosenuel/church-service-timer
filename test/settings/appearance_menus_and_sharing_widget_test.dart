@@ -65,11 +65,11 @@ void main() {
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       final share = find.byKey(const ValueKey('share-service-live'));
-      final join = find.widgetWithText(OutlinedButton, 'Join as stage screen');
+      final join = find.widgetWithText(OutlinedButton, 'Join as screen');
       expect(t.getRect(share).top, t.getRect(join).top);
       expect(t.getSize(share).height, t.getSize(join).height);
       await shot(t, 'welcome-sharing-020');
-      await tap(t, 'Share service');
+      await tap(t, 'Share to screens');
       expect(find.text('Your stage, on another screen'), findsOneWidget);
       expect(find.text('Share to stage screens'), findsOneWidget);
       expect(c.destination, 'mobile');
@@ -162,7 +162,7 @@ void main() {
       await t.pumpAndSettle();
       await c.act('end');
       await t.pumpAndSettle();
-      expect(find.text('LIVE PRODUCTION'), findsOneWidget);
+      expect(find.text('STANDING BY'), findsOneWidget);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
     },

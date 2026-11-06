@@ -60,4 +60,35 @@ void main() {
     expect(c.state.session.timeline!.name, name);
     await t.pumpWidget(const SizedBox());
   });
+
+  testWidgets('Undo start times out; a late failure leaves no stuck card', (
+    t,
+  ) async {
+    size(t);
+    final c = AppController(ReadyPort());
+    await c.initialize(startTicker: false);
+    await c.act('load', value: c.state.templates.last);
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.text('Start first segment'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Start first segment'));
+    await t.pumpAndSettle();
+    expect(find.text('Undo start'), findsOneWidget);
+    await t.pump(const Duration(seconds: 9));
+    await t.pumpAndSettle();
+    expect(find.text('Undo start'), findsNothing);
+    expect(c.state.session.active, isTrue);
+    // A refused action shows its error card with a Dismiss button.
+    expect(await c.act('advance'), isTrue);
+    expect(await c.act('unstart'), isFalse);
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('dismiss-error')), findsOneWidget);
+    await t.ensureVisible(find.byKey(const ValueKey('dismiss-error')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('dismiss-error')));
+    await t.pumpAndSettle();
+    expect(c.error, isNull);
+    await t.pumpWidget(const SizedBox());
+  });
 }

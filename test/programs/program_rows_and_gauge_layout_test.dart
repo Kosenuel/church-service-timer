@@ -99,7 +99,7 @@ void main() {
         await c.act('end');
         await t.pumpAndSettle();
         expect(find.byType(SegmentGauge), findsNothing);
-        expect(find.text('Standing by'), findsOneWidget);
+        expect(find.text('STANDING BY'), findsOneWidget);
         await t.pumpWidget(const SizedBox());
       },
     );

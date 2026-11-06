@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Fixes:** the Live idle screen now matches its design, including right after a service ends and on tablets: a Standing by hero, Pinned or Recent programs, a Last service card, and a folded Stage & display row. Undo start and the Undo after deleting now disappear after 8 seconds instead of staying until tapped. An Undo tapped too late no longer leaves an error card that can't be closed; error cards with nothing to retry have a Dismiss button. The battery hint shows only while standing by, is shorter, and can be hidden until the app is next opened.
 ## 0.25.0, 5/November/2026
 - **Saved passwords in backups (optional).** Export backup can include the LED sign's device password and Wi-Fi reconnect details, encrypted (AES-256-GCM, PBKDF2 key) with a passphrase you choose. It is off by default. Restoring asks for the passphrase; skipping it or a wrong passphrase still restores everything else. Paired-device approvals are never included, and backups without passwords stay readable by earlier versions.
 - **Settings PIN.** Optional 4–8 digit PIN (Settings → Settings PIN) that locks Settings, deleting programs and reports, and LED sign administration; Live, Programs and Reports stay open. Setting it shows a one-time recovery code that removes the PIN if forgotten. Five wrong tries wait 30 seconds, and Settings lock again whenever the app leaves the screen. Only a salted hash is stored, and it is never included in backups.
