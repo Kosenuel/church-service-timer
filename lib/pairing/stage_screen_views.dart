@@ -321,7 +321,8 @@ extension MobileDisplayViews on HomeState {
         label: Text(
           !c.pairing.hosting
               ? 'Share to stage screens'
-              : c.pairing.stagePeers.isEmpty
+              : c.pairing.stagePeers.isEmpty &&
+                    c.webStage.syncedStageDevices.isEmpty
               ? 'Pair screen'
               : 'Manage screens',
         ),
