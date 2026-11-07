@@ -5,7 +5,14 @@ import 'package:church_service_timer/shared/ui_tools.dart';
 class ChoiceOption<T> {
   final T value;
   final String label;
-  const ChoiceOption({required this.value, required this.label});
+
+  /// Shown but not choosable, e.g. a screen that has gone offline.
+  final bool enabled;
+  const ChoiceOption({
+    required this.value,
+    required this.label,
+    this.enabled = true,
+  });
 }
 
 /// Controlled, themed selection: short choices stay visible; longer lists open
@@ -48,7 +55,9 @@ class ChoiceField<T> extends StatelessWidget {
                   label: Text(option.label),
                   selected: option.value == value,
                   showCheckmark: true,
-                  onSelected: enabled ? (_) => onChanged!(option.value) : null,
+                  onSelected: enabled && option.enabled
+                      ? (_) => onChanged!(option.value)
+                      : null,
                 ),
             ],
           ),
@@ -153,6 +162,7 @@ class _ChoiceSheetState<T> extends State<_ChoiceSheet<T>> {
             trailing: filtered[i].value == widget.value
                 ? Icon(Icons.check_circle, color: colors.accent)
                 : null,
+            enabled: filtered[i].enabled,
             onTap: () => Navigator.pop(context, filtered[i].value),
           ),
         ],
