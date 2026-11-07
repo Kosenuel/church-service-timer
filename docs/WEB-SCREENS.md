@@ -34,7 +34,7 @@ Screens & devices → **Web screens** shows three ways in:
 2. **QR code**, which every phone camera reads.
 3. **Address**, e.g. `192.168.1.23:8080`, as a last resort.
 
-**Export join slide** makes a 1920 × 1080 image (light or dark) with the church name, a large QR, the easy name, the guest code and the address, ready to project. If the phone's address changes afterwards, the panel says the slide is out of date.
+**Export join slide** makes an image (light or dark) with the church name, a large QR, the easy name, the guest code and the address, ready to project. Pick the screen it is for: 16:9 HD or 4K, 16:10, 4:3, Portrait 9:16 or Square. Each is laid out for its shape. If the phone's address changes afterwards, the panel says the slide is out of date.
 
 ## Requests from the stage
 

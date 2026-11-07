@@ -64,6 +64,29 @@ void main() {
     await c.pairing.stop();
   });
 
+  test('Every join slide size comes out at its exact size', () async {
+    for (final size in joinSlideSizes) {
+      final png = await joinSlidePng(
+        church: 'Grace Chapel',
+        url: 'http://192.168.1.23:8080',
+        localUrl: 'http://grace-chapel.local:8080',
+        code: '4821',
+        width: size.w,
+        height: size.h,
+      );
+      final frame = await (await ui.instantiateImageCodec(png)).getNextFrame();
+      expect((frame.image.width, frame.image.height), (size.w, size.h));
+    }
+    expect(joinSlideSizes.map((s) => s.label), [
+      '16:9 HD',
+      '16:9 4K',
+      '16:10',
+      '4:3',
+      'Portrait 9:16',
+      'Square',
+    ]);
+  });
+
   test('The join slide is a 1920 × 1080 PNG', () async {
     final png = await joinSlidePng(
       church: 'Grace Chapel',
