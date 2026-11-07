@@ -73,6 +73,8 @@ void main() {
     },
   );
 
+  networkChangeTests();
+
   test('The name responder answers a direct question and counts it', () async {
     final responder = MdnsResponder(listenPort: 0);
     final started = await responder.start('grace-chapel', '127.0.0.1');
@@ -100,4 +102,64 @@ void main() {
     expect(bytes.sublist(bytes.length - 4), [127, 0, 0, 1]);
     expect(responder.answered, 1);
   });
+}
+
+class MovingPort extends FakePort {
+  String address = '127.0.0.2';
+  @override
+  Future<String> localNetworkAddress() async => address;
+}
+
+void networkChangeTests() {
+  test(
+    'A network change shares again, keeping the team code and browsers',
+    () async {
+      final port = MovingPort();
+      final c = AppController(port);
+      await c.initialize(startTicker: false);
+      addTearDown(c.dispose);
+      final notes = <String>[];
+      c.onWebJoined = notes.add;
+      await c.pairing.host(port.address);
+      await eventually(() => c.webStage.running);
+      final code = c.webStage.teamCode;
+      final client = HttpClient();
+      Future<(int, Json)> call(String base, String path, [Json? body]) async {
+        final uri = Uri.parse('$base$path');
+        final req = body == null
+            ? await client.getUrl(uri)
+            : await client.postUrl(uri);
+        if (body != null) req.write(jsonEncode(body));
+        final res = await req.close();
+        return (
+          res.statusCode,
+          jsonDecode(await res.transform(utf8.decoder).join()) as Json,
+        );
+      }
+
+      final (_, join) = await call(c.webStageUrl!, '/api/join', {'code': code});
+      // The phone moves to another network.
+      port.address = '127.0.0.3';
+      port.at = Stamp(port.at.mono + 11000, port.at.wall + 11000, port.at.boot);
+      await c.tick();
+      await eventually(
+        () =>
+            c.pairing.code?.address == '127.0.0.3' &&
+            c.webStage.address == '127.0.0.3',
+      );
+      expect(c.webStageUrl, startsWith('http://127.0.0.3:'));
+      expect(c.webStage.teamCode, code, reason: 'Team code kept');
+      final (status, _) = await call(
+        c.webStageUrl!,
+        '/api/state?token=${join['token']}',
+      );
+      expect(
+        status,
+        200,
+        reason: 'A joined browser carries on at the new address',
+      );
+      expect(notes.last, contains('Network changed'));
+      await c.pairing.stop();
+    },
+  );
 }

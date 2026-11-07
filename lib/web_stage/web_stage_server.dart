@@ -9,7 +9,7 @@ import 'package:church_service_timer/web_stage/web_page.dart';
 /// Who may follow the order of service from a browser.
 enum OrderAccess {
   off('Off'),
-  code('Needs its code'),
+  code('Needs the guest code'),
   open('Open to anyone on this Wi-Fi');
 
   final String label;
@@ -27,7 +27,7 @@ enum WebRole {
   bool get team => this != WebRole.order;
 }
 
-/// Saved on the host phone. The order-of-service code stays until changed,
+/// Saved on the host device. The guest code stays until changed,
 /// so it can go on a slide week after week.
 class WebStageSettings {
   final OrderAccess orderAccess;
@@ -267,8 +267,8 @@ class WebDevice {
   bool get active => DateTime.now().millisecondsSinceEpoch - lastSeen < 30000;
 }
 
-/// Serves the web stage page while the host phone shares to screens.
-/// Browsers join with the order-of-service code (or none, when open) or
+/// Serves the web stage page while the host device shares to screens.
+/// Browsers join with the guest code (or none, when open) or
 /// the team code; nothing private (notes, cues) and no controls are served.
 class WebStageServer {
   static const preferredPort = 8080;
@@ -296,7 +296,12 @@ class WebStageServer {
   int? get port => _server?.port;
   String? address;
 
-  Future<void> start(String host) async {
+  /// Serves on [host]. With [keepSession] (a network change, not a new
+  /// share) the team code and joined browsers carry over, so browsers that
+  /// reach the page again by the easy name carry on without a new code.
+  Future<void> start(String host, {bool keepSession = false}) async {
+    final code = teamCode;
+    final joined = Map.of(devices);
     await stop();
     try {
       _server = await HttpServer.bind(host, preferredPort);
@@ -304,7 +309,8 @@ class WebStageServer {
       _server = await HttpServer.bind(host, 0);
     }
     address = host;
-    teamCode = newTeamCode();
+    teamCode = keepSession ? code : newTeamCode();
+    if (keepSession) devices.addAll(joined);
     _server!.listen((r) => unawaited(_handle(r)));
     onChanged?.call();
   }
@@ -326,7 +332,7 @@ class WebStageServer {
     onChanged?.call();
   }
 
-  /// Order-of-service browsers that joined with an old order code.
+  /// Order-of-service browsers that joined with an old guest code.
   void forgetOrderViewers() {
     devices.removeWhere((_, d) => !d.team);
     onChanged?.call();
@@ -374,7 +380,7 @@ class WebStageServer {
     );
   }
 
-  /// Which roles a code unlocks: the team code all three, the order code
+  /// Which roles a code unlocks: the team code all three, the guest code
   /// (or none, when open) only the order of service.
   bool? _codeTier(String? code) {
     final c = (code ?? '').trim();
@@ -473,7 +479,7 @@ class WebStageServer {
           if (_codeTier(body['code'] as String?) != true) {
             _fail(ip);
             _json(res, {
-              'error': 'Enter the team code from the host phone.',
+              'error': 'Enter the team code from the host device.',
             }, 403);
             return;
           }

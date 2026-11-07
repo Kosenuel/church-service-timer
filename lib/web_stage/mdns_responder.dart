@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-/// Answers multicast DNS questions for `<name>.local` with the host phone's
+/// Answers multicast DNS questions for `<name>.local` with the host device's
 /// Wi-Fi address, so browsers can open an easy name that keeps working when
 /// the address changes. Works offline, on the church router or a hotspot.
 /// Devices that do not support `.local` names use the QR or the address.

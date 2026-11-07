@@ -720,6 +720,7 @@ class AppController extends ChangeNotifier {
           unawaited(metrics.warning(now, late));
         }
         await _trackMetrics();
+        unawaited(_followNetworkChange());
         // A web display that stops fetching drops out like a paired screen.
         final synced = webStage.syncedStageDevices.length;
         if (synced != _webStageSynced) {
@@ -1394,6 +1395,41 @@ class AppController extends ChangeNotifier {
 
   /// Shown by the home screen as a short note when a team browser joins.
   void Function(String message)? onWebJoined;
+
+  bool _rehosting = false;
+  int _lastAddressCheck = 0;
+
+  /// While sharing, a change of network (another Wi-Fi, the hotspot turned
+  /// on or off) gives this device a new address and leaves the old one
+  /// advertised but dead. Share again on the new address, keeping approved
+  /// devices, the team code and joined browsers.
+  Future<void> _followNetworkChange() async {
+    if (!pairing.hosting || _rehosting || now.mono - _lastAddressCheck < 10000)
+      return;
+    _lastAddressCheck = now.mono;
+    final old = pairing.code?.address;
+    String next;
+    try {
+      next = await port.localNetworkAddress();
+    } catch (_) {
+      return;
+    }
+    if (old == null || next == old || !localPairAddress(next)) return;
+    if (next == '127.0.0.1') return;
+    _rehosting = true;
+    try {
+      await pairing.host(next);
+      // The listener restarts web screens; wait for them to move over.
+      await _syncWebStage();
+      onWebJoined?.call('Network changed · sharing again at $next');
+    } catch (_) {
+      webStageError = 'The network changed and sharing could not restart.';
+    } finally {
+      _rehosting = false;
+      notifyChanged();
+    }
+  }
+
   int _webStageSynced = 0;
   final mdns = MdnsResponder();
 
@@ -1423,6 +1459,9 @@ class AppController extends ChangeNotifier {
     try {
       final address = pairing.hosting ? pairing.code?.address : null;
       if (address == null) {
+        // Sharing pauses for a moment while it moves to a new network;
+        // keep the web page and its browsers through that.
+        if (_rehosting) return;
         if (webStage.running) {
           await webStage.stop();
           await mdns.stop();
@@ -1435,7 +1474,7 @@ class AppController extends ChangeNotifier {
       if (webStage.running && webStage.address == address) return;
       final saved = webStageSettings;
       webStageError = null;
-      await webStage.start(address);
+      await webStage.start(address, keepSession: _rehosting);
       try {
         await port.setMulticastLock(true);
       } catch (_) {

@@ -28,7 +28,11 @@ li { display:flex; gap:12px; padding:12px 4px; border-bottom:1px solid var(--lin
 li:last-child { border-bottom:0; }
 li .n { width: 1.8em; color: var(--muted); text-align:right; flex:none; }
 li.past { color: var(--muted); }
-li.now { color: var(--accent); font-weight: 700; }
+li.now { background: #c8f56b; color: #10200a; font-weight: 700; border-radius: 12px; border-bottom-color: transparent; padding: 16px 12px; margin: 4px -8px; font-size: 19px; }
+li.now .n, li.now .muted { color: #2d4a12; }
+li.now .t { background: #10200a; color: #c8f56b; padding: 2px 10px; border-radius: 999px; font-size: 13px; letter-spacing: .06em; align-self: center; }
+li.past { opacity: .55; }
+li.next .t { color: var(--accent); }
 li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-nums; flex:none; }
 .tag { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); }
 .big { font-size: clamp(48px, 16vw, 120px); font-weight: 600; font-variant-numeric: tabular-nums; line-height:1.05; }
@@ -38,6 +42,11 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
 #stage .msg h2 { color:#fff; font-size:8vh; margin:0 0 2vh; }
 #stage .msg p { color:#ddd; font-size:5vh; margin:0; white-space:pre-wrap; }
+#lost { position:fixed; left:0; right:0; top:0; z-index:8; display:none; align-items:center; justify-content:center; gap:10px; padding:12px 16px; background:#7a1f1f; color:#fff; font-weight:700; font-size:16px; text-align:center; }
+#lost .dot { width:10px; height:10px; border-radius:50%; background:#ffb3b3; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity:.25; } }
+#stage.stale .text, #stage.stale .msg { opacity:.35; }
+body.stale #app { opacity:.6; }
 #tools { position:fixed; top:10px; right:10px; display:flex; gap:8px; z-index:5; transition:opacity .4s; }
 #sheet { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end; justify-content:center; z-index:9; }
 #sheet .card { width:100%; max-width:520px; margin:0; border-radius:18px 18px 0 0; }
@@ -50,6 +59,7 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 <body>
 <div id="app" class="wrap"></div>
 <div id="stage"><div class="text" id="stageText"></div><div class="note" id="stageNote"></div></div>
+<div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
 <div id="sheet"><div class="card" id="sheetCard"></div></div>
 <script>
@@ -76,9 +86,9 @@ function showJoin(message) {
   app.append(el('div', 'tag', 'Church Service Timer'), el('h1', '', info.church || 'Welcome'));
   const card = el('div', 'card');
   if (info.orderAccess === 'off') {
-    card.append(el('p', '', 'Enter the team code from the host phone.'));
+    card.append(el('p', '', 'Enter the team code from the host device.'));
   } else {
-    card.append(el('p', '', 'Enter the code shown on the screen to follow the order of service.'));
+    card.append(el('p', '', 'Enter the guest code shown on the screen to follow the order of service.'));
   }
   const input = el('input'); input.inputMode = 'text'; input.autocomplete = 'off'; input.placeholder = 'Code'; input.maxLength = 8;
   const go = el('button', 'btn', 'Continue');
@@ -89,7 +99,7 @@ function showJoin(message) {
       const r = await api('/api/join', { code, role: role && role !== 'order' ? role : 'stage' });
       if (r.status === 200) { token = r.body.token; role = r.body.role; team = r.body.team; save(); start(); }
       else err.textContent = r.body.error || 'Could not join.';
-    } catch (_) { err.textContent = 'The host phone did not answer. Check you are on the same Wi-Fi.'; }
+    } catch (_) { err.textContent = 'The host device did not answer. Check you are on the same Wi-Fi.'; }
     go.disabled = false;
   };
   go.onclick = () => join(input.value.trim());
@@ -123,7 +133,7 @@ $('sheet').onclick = (e) => { if (e.target === $('sheet')) closeSheet(); };
 async function switchRole(next, code) {
   if (next !== 'order' && !team && code == null) {
     const card = $('sheetCard'); clear(card);
-    card.append(el('h1', '', ROLES[next][0]), el('p', 'muted', 'Enter the team code from the host phone.'));
+    card.append(el('h1', '', ROLES[next][0]), el('p', 'muted', 'Enter the team code from the host device.'));
     const input = el('input'); input.placeholder = 'Team code'; input.maxLength = 6; input.inputMode = 'numeric';
     const go = el('button', 'btn', 'Continue'); const err = el('div', 'err'); err.id = 'sheetErr';
     go.onclick = () => switchRole(next, input.value.trim());
@@ -137,7 +147,7 @@ async function switchRole(next, code) {
     if (r.status === 200) { role = r.body.role; team = r.body.team; save(); closeSheet(); start(); }
     else if (r.status === 401) { closeSheet(); showJoin('Please join again.'); }
     else { const e = $('sheetErr'); if (e) e.textContent = r.body.error || 'Could not switch.'; }
-  } catch (_) { const e = $('sheetErr'); if (e) e.textContent = 'The host phone did not answer.'; }
+  } catch (_) { const e = $('sheetErr'); if (e) e.textContent = 'The host device did not answer.'; }
 }
 
 function tools(onStage) {
@@ -152,7 +162,14 @@ function tools(onStage) {
   clearTimeout(hideTools);
   if (onStage) hideTools = setTimeout(() => { t.style.opacity = '0'; }, 4000);
 }
-document.addEventListener('pointerdown', () => { if (role === 'stage') tools(true); });
+// Reveal the tools on a stage display without rebuilding them, so the tap
+// that reveals them can also press the chip.
+function revealTools() {
+  const t = $('tools'); t.style.opacity = '1';
+  clearTimeout(hideTools);
+  hideTools = setTimeout(() => { t.style.opacity = '0'; }, 4000);
+}
+document.addEventListener('pointerdown', () => { if (role === 'stage') revealTools(); });
 
 let wake = null;
 async function keepAwake() { try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (_) {} }
@@ -170,9 +187,19 @@ async function poll() {
   try {
     const r = await api('/api/state?token=' + encodeURIComponent(token));
     if (r.status === 401) { showJoin('The codes changed or this device was removed. Please join again.'); return; }
-    if (r.status === 200) { misses = 0; role = r.body.role; team = r.body.team; render(r.body); }
-  } catch (_) { misses++; if (misses === 3) render(Object.assign({}, lastState || {}, { offline: true })); }
+    if (r.status === 200) { misses = 0; setLost(false); role = r.body.role; team = r.body.team; render(r.body); }
+  } catch (_) { misses++; if (misses >= 3) { setLost(true); if (misses === 3) render(Object.assign({}, lastState || {}, { offline: true })); } }
   timer = setTimeout(poll, role === 'order' ? 3000 : 1000);
+}
+
+// A clear banner, and a faded screen, once the host device stops answering,
+// so nobody trusts a frozen countdown.
+function setLost(lost) {
+  $('lost').style.display = lost ? 'flex' : 'none';
+  document.body.classList.toggle('stale', lost);
+  $('stage').classList.toggle('stale', lost);
+  if (lost && navigator.vibrate) { try { if (!setLost.buzzed) navigator.vibrate(200); } catch (_) {} }
+  setLost.buzzed = lost;
 }
 
 function fit(node, text) {
@@ -191,7 +218,6 @@ function render(s) {
   const titles = el('div', 'grow');
   titles.append(el('div', 'tag', s.church || 'Church Service Timer'), el('h1', '', s.service || (s.role === 'order' ? 'Order of service' : 'Service overview')));
   head.append(titles); app.append(head);
-  if (s.offline) app.append(el('p', 'err', 'Reconnecting to the host phone…'));
   if (s.phase === 'idle' || !(s.rundown || []).length) {
     app.append(el('div', 'card', 'The service hasn’t started yet.'));
     app.append(el('div', 'foot', 'Created by I-Proton'));
@@ -216,15 +242,17 @@ function render(s) {
   }
   const list = el('ol'); const card = el('div', 'card'); card.append(list);
   s.rundown.forEach((item, i) => {
-    const state = !live ? (ended ? 'past' : '') : i < s.index ? 'past' : i === s.index ? 'now' : '';
+    const state = !live ? (ended ? 'past' : '') : i < s.index ? 'past' : i === s.index ? 'now' : i === s.index + 1 ? 'next' : '';
     const li = el('li', state);
     li.append(el('span', 'n', String(i + 1)));
     const body = el('div', '');
     body.append(el('div', '', item.name));
     if (item.speaker) body.append(el('div', 'muted', item.speaker));
     li.append(body);
-    if (s.role === 'overview') li.append(el('span', 't', (item.minutes || 0) + ':' + String(item.seconds || 0).padStart(2, '0')));
-    else if (state === 'now') li.append(el('span', 't', 'Now'));
+    if (state === 'now') li.append(el('span', 't', 'NOW'));
+    else if (state === 'next' && s.role === 'order') li.append(el('span', 't', 'Next'));
+    else if (state === 'past' && s.role === 'order') li.append(el('span', 't', '✓'));
+    else if (s.role === 'overview') li.append(el('span', 't', (item.minutes || 0) + ':' + String(item.seconds || 0).padStart(2, '0')));
     list.append(li);
   });
   app.append(card, el('div', 'foot', 'Created by I-Proton'));
@@ -236,7 +264,7 @@ function renderStage(s) {
   $('app').style.display = 'none';
   const stage = $('stage'); stage.style.display = 'flex';
   const text = $('stageText'); const note = $('stageNote');
-  clear(text); note.textContent = s.offline ? 'Reconnecting to the host phone…' : '';
+  clear(text); note.textContent = '';
   if (!s.sharing) { text.textContent = 'Waiting for the host to share the stage'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {
     const m = el('div', 'msg'); m.append(el('h2', '', s.message.headline || ''), el('p', '', s.message.body || '')); text.append(m); text.style.fontSize = ''; return;
