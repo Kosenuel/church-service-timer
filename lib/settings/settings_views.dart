@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/live/practice_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
 import 'package:church_service_timer/shared/church_banner.dart';
@@ -530,6 +531,15 @@ extension SettingsViews on HomeState {
         () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => FeedbackCenterPage(controller: c)),
         ),
+      ),
+      row(
+        Icons.school_outlined,
+        'Guided practice',
+        c.state.practisedWall == null
+            ? 'Learn the controls in a few minutes, on the Simulator'
+            : 'Practised on ${shortDate(c.state.practisedWall!)} · practise again',
+        startPractice,
+        key: const ValueKey('about-practice'),
       ),
       row(
         Icons.monitor_heart_outlined,

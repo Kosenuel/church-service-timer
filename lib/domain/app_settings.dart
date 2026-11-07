@@ -210,6 +210,8 @@ String exportBackup(
     ..remove('lockScreenControls')
     ..remove('settingsLock')
     ..remove('clickerControls')
+    ..remove('practisedWall')
+    ..remove('practicePrompt')
     ..remove('programHistory')
     ..remove('programInbox')
     ..remove('segmentLibrary')

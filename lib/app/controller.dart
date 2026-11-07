@@ -23,6 +23,7 @@ import 'package:church_service_timer/hardware/hardware_display.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/app/appearance_preview.dart';
 import 'package:church_service_timer/app/edit_draft_queue.dart';
+import 'package:church_service_timer/app/practice_controller.dart';
 import 'package:church_service_timer/app/quick_message_controller.dart';
 import 'package:church_service_timer/app/paired_command_bridge.dart';
 import 'package:church_service_timer/app/phone_warning_scheduler.dart';
@@ -83,6 +84,7 @@ class AppController extends ChangeNotifier {
       ? (hardware.rememberedName.isEmpty ? 'LED sign' : hardware.rememberedName)
       : 'Simulator';
   late final quickMessages = QuickMessageController(this);
+  late final practice = PracticeController(this);
   late final pairedCommands = PairedCommandBridge(this);
   String? get quickMessageId => quickMessages.messageId;
   Set<String> get quickSeen => quickMessages.seen;
@@ -690,6 +692,7 @@ class AppController extends ChangeNotifier {
       unawaited(syncServiceNotification());
       if (!corrupt && !reportSavePending) {
         quickMessages.expire();
+        practice.checkOvertime();
         if (!busy && _warningAccepted != null && retry == null) {
           final accepted = _warningAccepted!;
           final saved = await commit((draft, _) {
@@ -869,7 +872,11 @@ class AppController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-    if (action == 'end') return _finishService(revision: revision);
+    if (action == 'end') {
+      final ended = await _finishService(revision: revision);
+      if (ended) await practice.observe('end', null);
+      return ended;
+    }
     final controlEpoch = pairing.epoch;
     final saved = await commit(
       (draft, at) {
@@ -999,6 +1006,7 @@ class AppController extends ChangeNotifier {
       await syncActiveService();
       _publish();
     }
+    if (saved) await practice.observe(action, value);
     return saved;
   }
 

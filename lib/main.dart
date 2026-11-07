@@ -4,6 +4,7 @@ import 'dart:ui' show ImageFilter;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/live/practice_views.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -199,6 +200,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
 
   String reportFilter = 'all', reportView = 'list';
   bool selectingPrograms = false, selectingReports = false;
+  bool practiceSummaryQueued = false;
   final selectedProgramExports = <String>{}, selectedReportExports = <String>{};
   String reportQuery = '',
       programQuery = '',
@@ -1410,6 +1412,14 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
 
   Widget liveContent() {
     final s = c.liveSession;
+    // A practice run just ended: show its summary once, after this frame.
+    if (c.practice.finished != null && !practiceSummaryQueued) {
+      practiceSummaryQueued = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (mounted) await showPracticeSummary();
+        practiceSummaryQueued = false;
+      });
+    }
     final standingBy =
         s.phase == 'idle' || (s.phase == 'ended' && !c.reportSavePending);
     final t = standingBy ? null : s.timeline;
@@ -2219,6 +2229,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                   ),
                 ),
               ),
+            if (c.practice.active) practiceCoach(),
             if (!c.hardware.enabled &&
                 c.displayConnection == DisplayConnection.disconnected &&
                 (s.active || s.phase == 'ended'))
@@ -2360,6 +2371,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       timerPanelOf(wide: false),
+                      practicePrompt(),
                       pinnedPrograms(),
                       if (c.state.reports.isNotEmpty) lastServiceCard(),
                       const SizedBox(height: 14),

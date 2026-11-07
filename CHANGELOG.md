@@ -4,6 +4,12 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Guided practice.** A new operator can learn the controls in a few minutes, without touching the real service. Start it from the invitation on Live (until you choose "Don't show again") or from Settings → About → Guided practice.
+  - **The practice service:** a built-in 17-minute program that runs at 5× speed on the Simulator, so nothing appears on stage. It is never added to Programs, saves no report, and leaves your programs, reports and settings alone. If another display was in use, practice asks before switching to the Simulator and offers to switch back afterwards.
+  - **Eight steps** on a coach card, ticked off as you do them in any order: start, pause and resume, add and remove 2 minutes, next and Undo, show a cue and the timer, blank and unblank, see overtime, and end. You can skip a step or leave practice at any time.
+  - **The end:** a summary ("8 of 8 steps done · about 4 min") with Practise again, and About shows when this phone last practised.
+  - **Safety:** practice can't start while a service is loaded or running, or on a paired operator phone. If Change swaps in a real program during practice, practice ends and that service saves its report as usual.
+
 - **Send to lists only screens that can receive the message.** The list shows "All connected stage screens" with a count, groups only while one of their screens is connected (for example "Choir screens · 2"), and single screens only while connected. If a chosen screen drops off while you write, it stays in the list as "Pulpit tablet · offline" and can't be picked, so the choice never changes without you noticing. With nothing connected, the list says "No stage screens connected".
 
 ## 0.26.0, 7/November/2026
