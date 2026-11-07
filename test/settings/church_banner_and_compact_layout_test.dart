@@ -336,9 +336,9 @@ void main() {
       await t.pumpAndSettle();
       expect(find.byType(ReportListRow), findsNWidgets(3));
       expect(find.byIcon(Icons.delete_outline), findsNothing);
-      expect(find.text('Rehearsal 10×'), findsOneWidget);
-      expect(find.text('1m 0s behind'), findsOneWidget);
-      expect(find.text('4m 0s ahead'), findsOneWidget);
+      expect(find.textContaining('Rehearsal 10×'), findsOneWidget);
+      expect(find.text('+1m 0s over'), findsOneWidget);
+      expect(find.text('4m 0s under'), findsOneWidget);
       await t.tap(find.text('Rehearsals'));
       await t.pumpAndSettle();
       expect(find.byType(ReportListRow), findsOneWidget);

@@ -9,6 +9,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/programs/program_history_views.dart';
 import 'package:church_service_timer/programs/send_program_views.dart';
 import 'package:church_service_timer/programs/segment_library_views.dart';
+import 'package:church_service_timer/shared/list_views.dart';
 
 String templateSummary(Timeline t) {
   final total = t.segments.fold<int>(
@@ -120,10 +121,15 @@ extension TemplateViews on HomeState {
                       }
                       selectedProgramExports.add(values[i].id);
                     }),
+              highlightColor: appColors(context).accent.withValues(alpha: .1),
               child: Container(
-                color: useMasterDetail && selectedProgram == values[i].name
+                color:
+                    (selectingPrograms
+                        ? selectedProgramExports.contains(values[i].id)
+                        : useMasterDetail && selectedProgram == values[i].name)
                     ? appColors(context).accent.withValues(alpha: .12)
                     : null,
+                constraints: const BoxConstraints(minHeight: 72),
                 padding: appLayout(context).rowInsets,
                 child: Row(
                   children: [
@@ -188,6 +194,15 @@ extension TemplateViews on HomeState {
                           semanticLabel: 'Pinned',
                         ),
                       ),
+                    // A chevron says "opens"; selection shows checkboxes.
+                    if (!selectingPrograms && !useMasterDetail)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Icon(
+                          Icons.chevron_right,
+                          color: appColors(context).muted,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -199,85 +214,95 @@ extension TemplateViews on HomeState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Programs',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    programQuery.trim().isNotEmpty || programFilter != 'all'
-                        ? '${items.length} of ${c.state.templates.length} programs'
-                        : '${items.length} saved',
-                    style: TextStyle(
-                      color: appColors(context).muted,
-                      fontSize: 13,
+        if (selectingPrograms)
+          selectionHeader(programs: true, shown: items.map((p) => p.id).toSet())
+        else
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Programs',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
+                    Text(
+                      programQuery.trim().isNotEmpty || programFilter != 'all'
+                          ? '${items.length} of ${c.state.templates.length} programs'
+                          : '${items.length} saved',
+                      style: TextStyle(
+                        color: appColors(context).muted,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (!selectingPrograms) ...[
-              selectToggle(programs: true),
-              PopupMenuButton<bool>(
-                key: const ValueKey('program-list-options'),
-                icon: const Icon(Icons.tune),
-                tooltip: 'Program list options',
-                enabled: !disabled,
-                onSelected: (value) async {
-                  await c.commit((draft, _) => draft.groupTemplates = value);
-                },
-                itemBuilder: (ctx) => appMenuEntries(ctx, [
-                  AppMenuAction(
-                    false,
-                    'Single list',
-                    checked: !c.state.groupTemplates,
-                  ),
-                  AppMenuAction(
-                    true,
-                    'Services & rehearsals',
-                    checked: c.state.groupTemplates,
-                  ),
-                ]),
-              ),
-              PopupMenuButton<String>(
-                tooltip: 'More program actions',
-                enabled: !disabled,
-                onSelected: (action) => switch (action) {
-                  'import' => importFile(),
-                  'segments' => openSegmentLibrary(),
-                  _ => exportAllPrograms(),
-                },
-                itemBuilder: (ctx) => appMenuEntries(ctx, [
-                  const AppMenuAction(
-                    'import',
-                    'Import programs (JSON or CSV)',
-                  ),
-                  if (c.state.templates.isNotEmpty)
-                    const AppMenuAction('export', 'Export all programs'),
-                  AppMenuAction(
-                    'segments',
-                    c.state.segmentLibrary.isEmpty
-                        ? 'Segment library'
-                        : 'Segment library (${c.state.segmentLibrary.length})',
-                  ),
-                ]),
-              ),
+              if (!selectingPrograms) ...[
+                selectToggle(programs: true),
+                PopupMenuButton<bool>(
+                  key: const ValueKey('program-list-options'),
+                  icon: const Icon(Icons.tune),
+                  tooltip: 'Program list options',
+                  enabled: !disabled,
+                  onSelected: (value) async {
+                    await c.commit((draft, _) => draft.groupTemplates = value);
+                  },
+                  itemBuilder: (ctx) => appMenuEntries(ctx, [
+                    AppMenuAction(
+                      false,
+                      'Single list',
+                      checked: !c.state.groupTemplates,
+                    ),
+                    AppMenuAction(
+                      true,
+                      'Services & rehearsals',
+                      checked: c.state.groupTemplates,
+                    ),
+                  ]),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: 'More program actions',
+                  enabled: !disabled,
+                  onSelected: (action) => switch (action) {
+                    'import' => importFile(),
+                    'segments' => openSegmentLibrary(),
+                    _ => exportAllPrograms(),
+                  },
+                  itemBuilder: (ctx) => appMenuEntries(ctx, [
+                    const AppMenuAction(
+                      'import',
+                      'Import programs (JSON or CSV)',
+                    ),
+                    if (c.state.templates.isNotEmpty)
+                      const AppMenuAction('export', 'Export all programs'),
+                    AppMenuAction(
+                      'segments',
+                      c.state.segmentLibrary.isEmpty
+                          ? 'Segment library'
+                          : 'Segment library (${c.state.segmentLibrary.length})',
+                    ),
+                  ]),
+                ),
+              ],
             ],
-          ],
-        ),
-        const SizedBox(height: 14),
-        ReceivedProgramCards(controller: c),
-        programSearch(),
-        exportSelectionBar(
-          programs: true,
-          shown: items.map((p) => p.id).toSet(),
-          showToggle: false,
-        ),
+          ),
+        if (selectingPrograms)
+          programSearch()
+        else ...[
+          const SizedBox(height: 14),
+          ReceivedProgramCards(controller: c),
+          programSearch(),
+          if (c.state.templates.isNotEmpty)
+            listHint(
+              'programs-select',
+              'Tap a program to open it · press and hold to select',
+            ),
+        ],
         if (items.isEmpty)
           panel(
             child: const Text(

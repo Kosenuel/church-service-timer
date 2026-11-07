@@ -59,8 +59,10 @@ void main() {
     await selectFirstProgram(t, c);
     await t.tap(find.byKey(const ValueKey('share-selected-programs')));
     await t.pumpAndSettle();
-    expect(find.text('Share selected programs'), findsOneWidget);
+    expect(find.text('Share 1 program'), findsOneWidget);
     await t.tap(find.byKey(const ValueKey('share-programs-json')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('share-programs-go')));
     await t.pumpAndSettle();
     final file = port.shared.single.single;
     expect(file.mimeType, 'application/json');
@@ -79,8 +81,10 @@ void main() {
     expect(find.text('2 selected'), findsOneWidget);
     await t.tap(find.byKey(const ValueKey('share-selected-programs')));
     await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('share-programs-pdf')));
+    await t.pumpAndSettle();
     await t.runAsync(() async {
-      await t.tap(find.byKey(const ValueKey('share-programs-pdf')));
+      await t.tap(find.byKey(const ValueKey('share-programs-go')));
       for (var i = 0; i < 50 && port.shared.isEmpty; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 100));
       }
@@ -112,6 +116,8 @@ void main() {
     await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('share-reports-pdf')), findsOneWidget);
     await t.tap(find.byKey(const ValueKey('share-reports-csv')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('share-reports-go')));
     await t.pumpAndSettle();
     if (find.text('Continue').evaluate().isNotEmpty) {
       await t.tap(find.text('Continue'));

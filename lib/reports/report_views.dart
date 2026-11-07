@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/list_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
@@ -81,51 +82,27 @@ extension ReportViews on HomeState {
       selected ?? c.state.reports,
     );
     if (records.isEmpty) return;
-    final format = await showDialog<String>(
-      context: context,
-      animationStyle: reduceAppMotion(context)
-          ? AnimationStyle.noAnimation
-          : null,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          share
-              ? 'Share ${selected == null ? 'all' : 'selected'} reports'
-              : selected == null
-              ? 'Export all records'
-              : 'Export selected reports',
-        ),
-        content: Text(
-          selected == null
-              ? 'Export all ${records.length} saved services, including live services and rehearsals. Includes every segment, duration, pause and time adjustment, regardless of the current filter.'
-              : 'Export only the ${records.length} selected reports. Includes recorded segments, durations, pauses and time adjustments.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          OutlinedButton(
-            key: ValueKey('${share ? 'share' : 'export'}-reports-json'),
-            onPressed: () => Navigator.pop(ctx, 'json'),
-            child: const Text('JSON'),
-          ),
-          if (share)
-            OutlinedButton(
-              key: const ValueKey('share-reports-pdf'),
-              onPressed: () => Navigator.pop(ctx, 'pdf'),
-              child: const Text('PDF'),
-            ),
-          FilledButton(
-            key: ValueKey('${share ? 'share' : 'export'}-reports-csv'),
-            onPressed: () => Navigator.pop(ctx, 'csv'),
-            child: const Text('CSV'),
-          ),
-        ],
-      ),
+    final withNotes = records.where((r) => r.review != null).length;
+    final picked = await showFormatSheet(
+      title:
+          '${share ? 'Share' : 'Export'} ${selected == null ? 'all ' : ''}${plural(records.length, 'report')}',
+      subtitle: selected == null
+          ? 'Every saved service, including rehearsals, whatever the filter. Includes every segment, pause and time adjustment.'
+          : records.map((r) => r.name).toSet().join(', '),
+      formats: [
+        for (final f in reportFormats)
+          if (share || f.id != 'pdf') f,
+      ],
+      keyPrefix: '${share ? 'share' : 'export'}-reports',
+      share: share,
+      extraTitle: withNotes == 0 ? null : 'Include review notes',
+      extraHint: withNotes == 0
+          ? null
+          : '${withNotes == records.length ? (withNotes == 1 ? 'This report has' : 'All have') : '$withNotes of ${records.length} have'} review notes. Timings are included either way.',
+      extraKey: 'include-review',
     );
-    if (format == null || !mounted) return;
-    final includeReview = await askIncludeReview(records);
-    if (includeReview == null) return;
+    if (picked == null || !mounted) return;
+    final (format, includeReview) = picked;
     final name =
         'Church-Service-Timer-${selected == null ? 'all' : 'selected'}-reports-${c.now.wall}.$format';
     String content() => format == 'csv'
@@ -331,111 +308,115 @@ extension ReportViews on HomeState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 48,
-                height: 48,
-                child: c.state.churchBanner.isEmpty
-                    ? ColoredBox(
-                        color: colors.accent.withValues(alpha: .14),
-                        child: Icon(Icons.insights, color: colors.accent),
-                      )
-                    : FittedBox(
-                        fit: BoxFit.cover,
-                        clipBehavior: Clip.hardEdge,
-                        child: SizedBox(
-                          width: 160,
-                          height: 160,
-                          child: ChurchProfileBanner(
-                            image: c.state.churchBanner,
+        if (selectingReports)
+          selectionHeader(
+            programs: false,
+            shown: history.map((r) => r.id).toSet(),
+          )
+        else
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: c.state.churchBanner.isEmpty
+                      ? ColoredBox(
+                          color: colors.accent.withValues(alpha: .14),
+                          child: Icon(Icons.insights, color: colors.accent),
+                        )
+                      : FittedBox(
+                          fit: BoxFit.cover,
+                          clipBehavior: Clip.hardEdge,
+                          child: SizedBox(
+                            width: 160,
+                            height: 160,
+                            child: ChurchProfileBanner(
+                              image: c.state.churchBanner,
+                            ),
                           ),
                         ),
-                      ),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Reports',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reports',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      [
+                        if (c.state.churchName.isNotEmpty) c.state.churchName,
+                        plural(total, 'service'),
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: colors.muted, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              if (!selectingReports)
+                IconButton(
+                  key: const ValueKey('select-reports'),
+                  tooltip: 'Select',
+                  onPressed: total == 0
+                      ? null
+                      : () => refreshHome(() {
+                          selectingReports = true;
+                          reportView = 'list';
+                          selectedReportExports.clear();
+                        }),
+                  icon: const Icon(Icons.checklist),
+                ),
+              PopupMenuButton<String>(
+                tooltip: 'Report list options',
+                onSelected: (action) {
+                  switch (action) {
+                    case 'insights':
+                      openSettingsDetail('Timing insights', timingInsightsPage);
+                    case 'export':
+                      exportAllReports();
+                    case 'clear':
+                      confirmClearReports();
+                  }
+                },
+                itemBuilder: (ctx) => [
+                  PopupMenuItem<String>(
+                    value: 'insights',
+                    height: appLayout(ctx).controlHeight,
+                    child: const Text('Timing insights'),
                   ),
-                  Text(
-                    [
-                      if (c.state.churchName.isNotEmpty) c.state.churchName,
-                      plural(total, 'service'),
-                    ].join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: colors.muted, fontSize: 13),
+                  PopupMenuItem<String>(
+                    value: 'export',
+                    key: const ValueKey('export-all-reports'),
+                    enabled: total > 0 && !c.busy,
+                    height: appLayout(ctx).controlHeight,
+                    child: const Text('Export all records'),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'clear',
+                    enabled: total > 0 && !c.busy,
+                    key: const ValueKey('clear-all-reports'),
+                    height: appLayout(ctx).controlHeight,
+                    child: Text(
+                      'Clear all reports',
+                      style: TextStyle(color: appColors(ctx).error),
+                    ),
                   ),
                 ],
               ),
-            ),
-            if (!selectingReports)
-              IconButton(
-                key: const ValueKey('select-reports'),
-                tooltip: 'Select',
-                onPressed: total == 0
-                    ? null
-                    : () => refreshHome(() {
-                        selectingReports = true;
-                        reportView = 'list';
-                        selectedReportExports.clear();
-                      }),
-                icon: const Icon(Icons.checklist),
-              ),
-            PopupMenuButton<String>(
-              tooltip: 'Report list options',
-              onSelected: (action) {
-                switch (action) {
-                  case 'insights':
-                    openSettingsDetail('Timing insights', timingInsightsPage);
-                  case 'export':
-                    exportAllReports();
-                  case 'clear':
-                    confirmClearReports();
-                }
-              },
-              itemBuilder: (ctx) => [
-                PopupMenuItem<String>(
-                  value: 'insights',
-                  height: appLayout(ctx).controlHeight,
-                  child: const Text('Timing insights'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'export',
-                  key: const ValueKey('export-all-reports'),
-                  enabled: total > 0 && !c.busy,
-                  height: appLayout(ctx).controlHeight,
-                  child: const Text('Export all records'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'clear',
-                  enabled: total > 0 && !c.busy,
-                  key: const ValueKey('clear-all-reports'),
-                  height: appLayout(ctx).controlHeight,
-                  child: Text(
-                    'Clear all reports',
-                    style: TextStyle(color: appColors(ctx).error),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+            ],
+          ),
         const SizedBox(height: 14),
-        reportSummary(),
-        exportSelectionBar(
-          programs: false,
-          shown: history.map((r) => r.id).toSet(),
-          showToggle: false,
-        ),
+        if (!selectingReports) reportSummary(),
         Row(
           children: [
             Expanded(
@@ -506,51 +487,57 @@ extension ReportViews on HomeState {
           ],
         ),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: colors.border)),
-          ),
-          child: Row(
-            children: [
-              for (final view in const ['list', 'graph'])
-                Expanded(
-                  child: InkWell(
-                    onTap: () => selectReportView(view),
-                    child: Container(
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            width: 3,
-                            color: reportView == view
-                                ? colors.accent
-                                : Colors.transparent,
+        if (!selectingReports)
+          Container(
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: colors.border)),
+            ),
+            child: Row(
+              children: [
+                for (final view in const ['list', 'graph'])
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => selectReportView(view),
+                      child: Container(
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              width: 3,
+                              color: reportView == view
+                                  ? colors.accent
+                                  : Colors.transparent,
+                            ),
                           ),
                         ),
-                      ),
-                      child: Semantics(
-                        selected: reportView == view,
-                        button: true,
-                        child: Text(
-                          view == 'list' ? 'List' : 'Graph',
-                          style: TextStyle(
-                            fontWeight: reportView == view
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: reportView == view
-                                ? colors.text
-                                : colors.muted,
+                        child: Semantics(
+                          selected: reportView == view,
+                          button: true,
+                          child: Text(
+                            view == 'list' ? 'List' : 'Graph',
+                            style: TextStyle(
+                              fontWeight: reportView == view
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: reportView == view
+                                  ? colors.text
+                                  : colors.muted,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
         const SizedBox(height: 16),
+        if (!selectingReports && reportView == 'list' && history.isNotEmpty)
+          listHint(
+            'reports-select',
+            'Tap a report to open it · press and hold to select',
+          ),
         if (history.isEmpty)
           panel(
             child: Text(
@@ -617,6 +604,200 @@ extension ReportViews on HomeState {
     );
   }
 
+  /// Minutes over or under plan for the last few complete services. A tap
+  /// on a bar shows that service in a card with Open report.
+  Widget overUnderPanel(List<ServiceReport> chronological) {
+    final colors = appColors(context);
+    final recent = chronological.where((r) => r.comparable).toList();
+    final last = recent.sublist(math.max(0, recent.length - 8));
+    if (last.isEmpty) return const SizedBox.shrink();
+    final picked =
+        last.where((r) => r.id == graphReport).firstOrNull ?? last.last;
+    final pickedVariance = picked.totalMs! - picked.plannedMs;
+    final when = DateTime.fromMillisecondsSinceEpoch(
+      picked.startedWall ?? picked.endedWall,
+    );
+    const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    const months = [
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          panel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Over or under plan',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Last ${last.length}',
+                      style: TextStyle(color: colors.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                OverUnderChart(
+                  reports: last,
+                  selectedId: picked.id,
+                  onSelect: (id) => refreshHome(() => graphReport = id),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        reportDate(
+                          last.first.startedWall ?? last.first.endedWall,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: colors.muted, fontSize: 11),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Spacer(),
+                    Flexible(
+                      child: Text(
+                        reportDate(
+                          last.last.startedWall ?? last.last.endedWall,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: TextStyle(color: colors.muted, fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    for (final (name, tone) in [
+                      ('Over', colors.warning),
+                      ('Under', colors.info),
+                    ])
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: tone,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(name, style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.touch_app_outlined,
+                          size: 16,
+                          color: colors.muted,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tap a bar to see that service',
+                          style: TextStyle(color: colors.muted, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Material(
+            key: const ValueKey('graph-report-card'),
+            color: colors.accent.withValues(alpha: .1),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: BorderSide(color: colors.accent.withValues(alpha: .5)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${days[when.weekday - 1]} ${when.day} ${months[when.month - 1]}',
+                          style: TextStyle(
+                            color: colors.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          picked.name,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          '${durationLabel(picked.totalMs!)} · ${pickedVariance.abs() < 1000 ? 'on time' : '${durationLabel(pickedVariance.abs())} ${pickedVariance > 0 ? 'over' : 'under'} plan'}',
+                          style: TextStyle(color: colors.muted, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  FilledButton(
+                    key: const ValueKey('graph-open-report'),
+                    onPressed: () => openReport(picked),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Open report'),
+                        SizedBox(width: 2),
+                        Icon(Icons.chevron_right, size: 18),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget reportGraphs(List<ServiceReport> records) {
     final summary = ReportSummary(records);
     final chronological = [...records]
@@ -625,6 +806,7 @@ extension ReportViews on HomeState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        overUnderPanel(chronological),
         panel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -792,104 +974,260 @@ class ReportListRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = report, colors = appColors(context);
     final variance = r.comparable ? r.totalMs! - r.plannedMs : null;
-    final outcomeColor = variance == null || variance >= 1000
+    final outcome = variance == null
+        ? 'Partial'
+        : variance.abs() < 1000
+        ? 'On time'
+        : '${variance > 0 ? '+' : ''}${durationLabel(variance.abs())} ${variance > 0 ? 'over' : 'under'}';
+    // Over is warm, under is cool, on time is the accent; they also differ
+    // in lightness so they read apart without colour.
+    final tone = variance == null
+        ? colors.muted
+        : variance >= 1000
         ? colors.warning
         : variance <= -1000
         ? colors.info
         : colors.accent;
+    final when = DateTime.fromMillisecondsSinceEpoch(
+      r.startedWall ?? r.endedWall,
+    );
+    const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    final started = r.startedWall == null
+        ? null
+        : '${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}';
+    final meta = [
+      r.totalMs == null
+          ? 'Not fully recorded'
+          : '${durationLabel(r.totalMs!)}${r.rehearsal ? ' simulated' : ''}',
+      if (started != null) 'started $started',
+      if (r.rehearsal) reportMode(r),
+    ].join(' · ');
     return InkWell(
       key: ValueKey('open-report-${r.id}'),
       onTap: onTap,
       onLongPress: onMenu,
+      highlightColor: colors.accent.withValues(alpha: .1),
       child: Container(
-        color: selected ? colors.accent.withValues(alpha: .12) : null,
+        color: selected || checked == true
+            ? colors.accent.withValues(alpha: .12)
+            : null,
+        constraints: const BoxConstraints(minHeight: 72),
         padding: appLayout(context).rowInsets,
         child: Row(
           children: [
             if (checked != null) Checkbox(value: checked, onChanged: onChecked),
+            Semantics(
+              label: reportDate(r.startedWall ?? r.endedWall),
+              child: ExcludeSemantics(
+                child: Container(
+                  width: 48,
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colors.track,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        days[when.weekday - 1],
+                        style: TextStyle(
+                          color: colors.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        '${when.day}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    r.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  Row(
                     children: [
-                      Text(
-                        reportDate(r.startedWall ?? r.endedWall),
-                        style: TextStyle(color: colors.muted, fontSize: 13),
-                      ),
-                      if (r.rehearsal)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.track,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            reportMode(r),
-                            style: TextStyle(
-                              color: colors.muted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
+                      Flexible(
+                        child: Text(
+                          r.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
+                      ),
                       if (r.review != null)
-                        Icon(
-                          Icons.sticky_note_2_outlined,
-                          size: 14,
-                          color: colors.muted,
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: Icon(
+                            Icons.sticky_note_2_outlined,
+                            size: 14,
+                            color: colors.muted,
+                            semanticLabel: 'Has review notes',
+                          ),
                         ),
                     ],
                   ),
+                  const SizedBox(height: 3),
+                  Text(
+                    meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: colors.muted, fontSize: 13),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 132),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    r.totalMs == null
-                        ? '—'
-                        : '${durationLabel(r.totalMs!)}${r.rehearsal ? ' simulated' : ''}',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    variance == null
-                        ? 'Partial record'
-                        : varianceLabel(variance),
-                    textAlign: TextAlign.end,
-                    style: TextStyle(color: outcomeColor, fontSize: 12),
-                  ),
-                ],
+            const SizedBox(width: 8),
+            Container(
+              key: ValueKey('report-outcome-${r.id}'),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: tone.withValues(alpha: .16),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                outcome,
+                style: TextStyle(
+                  color: tone,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             if (menu != null && checked == null) menu!,
+            if (checked == null && menu == null && !selected)
+              Icon(Icons.chevron_right, color: colors.muted),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Bars above the line are minutes over plan, below are minutes under, on
+/// one scale. Each bar is a button; the chosen one is highlighted.
+class OverUnderChart extends StatelessWidget {
+  final List<ServiceReport> reports;
+  final String selectedId;
+  final ValueChanged<String> onSelect;
+  const OverUnderChart({
+    super.key,
+    required this.reports,
+    required this.selectedId,
+    required this.onSelect,
+  });
+  static const height = 200.0;
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    final variances = [for (final r in reports) r.totalMs! - r.plannedMs];
+    final most = variances.fold<int>(60000, (m, v) => math.max(m, v.abs()));
+    const half = height / 2 - 8;
+    return SizedBox(
+      height: height,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Center(child: Container(height: 1, color: colors.border)),
+          ),
+          Row(
+            children: [
+              for (var i = 0; i < reports.length; i++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 64),
+                        child: Semantics(
+                          button: true,
+                          selected: reports[i].id == selectedId,
+                          label:
+                              '${reports[i].name}, ${reportDate(reports[i].startedWall ?? reports[i].endedWall)}, ${variances[i].abs() < 1000 ? 'on time' : '${durationLabel(variances[i].abs())} ${variances[i] > 0 ? 'over' : 'under'}'}',
+                          child: Material(
+                            color: reports[i].id == selectedId
+                                ? colors.accent.withValues(alpha: .12)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            child: InkWell(
+                              key: ValueKey('graph-bar-${reports[i].id}'),
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () => onSelect(reports[i].id),
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: FractionallySizedBox(
+                                        widthFactor: .7,
+                                        child: Container(
+                                          height: variances[i] >= 1000
+                                              ? math.max(
+                                                  3,
+                                                  half * variances[i] / most,
+                                                )
+                                              : variances[i] > -1000
+                                              ? 4
+                                              : 0,
+                                          decoration: BoxDecoration(
+                                            color: variances[i] >= 1000
+                                                ? colors.warning
+                                                : colors.accent,
+                                            borderRadius:
+                                                const BorderRadius.vertical(
+                                                  top: Radius.circular(6),
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: FractionallySizedBox(
+                                        widthFactor: .7,
+                                        child: Container(
+                                          height: variances[i] <= -1000
+                                              ? math.max(
+                                                  3,
+                                                  half * -variances[i] / most,
+                                                )
+                                              : 0,
+                                          decoration: BoxDecoration(
+                                            color: colors.info,
+                                            borderRadius:
+                                                const BorderRadius.vertical(
+                                                  bottom: Radius.circular(6),
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -980,9 +1318,21 @@ class DurationChart extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${i + 1}. ${entries[i].title}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${i + 1}. ${entries[i].title}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      if (entries[i].onTap != null)
+                        Icon(
+                          Icons.chevron_right,
+                          size: 20,
+                          color: appColors(context).muted,
+                        ),
+                    ],
                   ),
                   Text(
                     entries[i].subtitle,

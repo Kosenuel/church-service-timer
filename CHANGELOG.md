@@ -4,6 +4,12 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Programs and Reports, tidied.** Both lists are grouped cards whose rows clearly open: each row has a **›**, highlights when pressed, and a short hint says "Tap to open · press and hold to select" until you dismiss it.
+  - **Report rows** show a date badge, the length and start time, and an outcome chip: "+3m over", "On time" or "2m under".
+  - **Selecting** replaces the title with **✕ · N selected · Select all**. The rows show checkboxes, with selected rows tinted, and a fixed bar at the bottom holds **Pin** (programs), **Share**, **Export** and, in red, **Delete**. Back or ✕ finishes. Search still works while selecting, and anything selected but hidden by a filter is noted.
+  - **Share and Export** open a sheet: pick a format from a short list, with a line on what each is for (program or report file, spreadsheet, printable PDF). Then choose whether to include private notes or review notes, and press Share or Export.
+  - **The Reports graph** starts with a chart of minutes over or under plan for the last few services. Tap a bar to see that service in a card with **Open report ›**. The planned-vs-actual rows also show a ›.
+
 ## 0.26.0, 7/November/2026
 - **Web Stage displays now count as stage screens.** When a browser opens Stage display, the host enables the cue buttons and quick messages as it does for a paired stage screen. Web displays appear in the message's **Send to** list, receive only messages sent to them, and Live reports "Sent to 1 web stage display". The host shows a short "Laptop · Chrome joined · Stage display" note, and the device summary counts web screens.
 - **Easy name on a hotspot.** The phone now answers `.local` lookups on the hotspot or Wi-Fi network itself, not on mobile data, and also replies directly to the device that asked. If joining the multicast group is refused, it still answers direct questions. Web screens shows how many lookups it has answered, to help tell a blocked network from one that never asks.

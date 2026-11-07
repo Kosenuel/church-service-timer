@@ -1190,6 +1190,10 @@ class AppState {
 
   /// Presentation clickers and foot pedals drive Next and Pause on Live.
   bool clickerControls;
+
+  /// One-time hints this phone has dismissed, such as "press and hold to
+  /// select". Local to this phone; not part of portable backups.
+  Set<String> dismissedHints;
   AppState(
     this.templates,
     this.defaults,
@@ -1207,6 +1211,7 @@ class AppState {
     this.lockScreenControls = true,
     this.settingsLock,
     this.clickerControls = true,
+    Set<String>? dismissedHints,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -1222,6 +1227,7 @@ class AppState {
     Map<String, Json>? importMappings,
     Json? webStage,
   }) : webStage = webStage ?? {},
+       dismissedHints = dismissedHints ?? {},
        importMappings = importMappings ?? {},
        segmentLibrary = segmentLibrary ?? [],
        programLibrary = programLibrary ?? ProgramLibrary(),
@@ -1370,6 +1376,10 @@ class AppState {
           ? null
           : SettingsLock.fromJson(Map<String, dynamic>.from(j['settingsLock'])),
       clickerControls: boolSetting(j['clickerControls'] ?? true),
+      dismissedHints: {
+        for (final h in (j['dismissedHints'] as List? ?? const []))
+          if (h is String && h.length <= 40) h,
+      },
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1507,6 +1517,7 @@ class AppState {
     'themeId': themeId,
     'keepScreenAwake': keepScreenAwake,
     'lockScreenControls': lockScreenControls,
+    'dismissedHints': [...dismissedHints],
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
   };
