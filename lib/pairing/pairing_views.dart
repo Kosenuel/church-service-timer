@@ -2029,11 +2029,19 @@ class _StageMessageState extends State<StageMessage>
           width: space.maxWidth,
           child: FittedBox(
             fit: BoxFit.scaleDown,
-            child: widget.data['outputMode'] == 'Clock'
+            // The clock and the countdown blink their colons; the countdown
+            // stays steady while paused, so a steady colon means stopped.
+            child:
+                widget.data['outputMode'] == 'Clock' ||
+                    (widget.data['displayIsTimer'] == true &&
+                        effect == 'static')
                 ? ClockText(
                     text: text,
                     style: style,
-                    blink: widget.data['clockBlink'] != false,
+                    blink:
+                        widget.data['clockBlink'] != false &&
+                        (widget.data['outputMode'] == 'Clock' ||
+                            widget.data['paused'] != true),
                     stale: widget.stale,
                   )
                 : Text(

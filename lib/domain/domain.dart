@@ -1194,6 +1194,9 @@ class AppState {
   /// Approved stage screens may send fixed requests (Need 2 minutes, Ready
   /// to finish, Microphone issue). Off by default; local to this phone.
   bool stageRequests;
+  /// One-time hints this phone has dismissed, such as "press and hold to
+  /// select". Local to this phone; not part of portable backups.
+  Set<String> dismissedHints;
   AppState(
     this.templates,
     this.defaults,
@@ -1212,6 +1215,7 @@ class AppState {
     this.settingsLock,
     this.clickerControls = true,
     this.stageRequests = false,
+    Set<String>? dismissedHints,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -1227,6 +1231,7 @@ class AppState {
     Map<String, Json>? importMappings,
     Json? webStage,
   }) : webStage = webStage ?? {},
+       dismissedHints = dismissedHints ?? {},
        importMappings = importMappings ?? {},
        segmentLibrary = segmentLibrary ?? [],
        programLibrary = programLibrary ?? ProgramLibrary(),
@@ -1376,6 +1381,10 @@ class AppState {
           : SettingsLock.fromJson(Map<String, dynamic>.from(j['settingsLock'])),
       clickerControls: boolSetting(j['clickerControls'] ?? true),
       stageRequests: boolSetting(j['stageRequests'] ?? false),
+      dismissedHints: {
+        for (final h in (j['dismissedHints'] as List? ?? const []))
+          if (h is String && h.length <= 40) h,
+      },
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1514,6 +1523,7 @@ class AppState {
     'keepScreenAwake': keepScreenAwake,
     'lockScreenControls': lockScreenControls,
     'stageRequests': stageRequests,
+    'dismissedHints': [...dismissedHints],
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
   };

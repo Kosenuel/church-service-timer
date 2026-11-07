@@ -208,6 +208,7 @@ String exportBackup(
     ..remove('appearance')
     ..remove('programLibrary')
     ..remove('lockScreenControls')
+    ..remove('dismissedHints')
     ..remove('settingsLock')
     ..remove('clickerControls')
     ..remove('stageRequests')
