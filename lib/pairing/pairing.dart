@@ -229,6 +229,9 @@ class PairHub extends ChangeNotifier {
   Json Function(bool privateNotes)? snapshotFor;
   Json Function(PairPeer peer, Json data)? decorateSnapshot;
   void Function(PairPeer peer, String messageId)? onMessageSeen;
+
+  /// A stage screen asked the operator for something (one of a fixed set).
+  bool Function(PairPeer peer, String kind)? onStageRequest;
   Future<bool> Function(String action, dynamic value, int revision)? command;
   String Function(bool ok, String action)? commandMessage;
   final _approvals = <String, SavedPairDevice>{};
@@ -575,6 +578,13 @@ class PairHub extends ChangeNotifier {
             peer.viewingStage &&
             message['messageId'] is String) {
           onMessageSeen?.call(peer, message['messageId']);
+          continue;
+        }
+        if (message['type'] == 'stageRequest' &&
+            peer.role != 'operator' &&
+            peer.viewingStage &&
+            message['kind'] is String) {
+          onStageRequest?.call(peer, message['kind'] as String);
           continue;
         }
         if (message['type'] == 'requestControl' && peer.role == 'operator') {
@@ -1108,6 +1118,15 @@ class PairHub extends ChangeNotifier {
         changed();
       }
     }
+  }
+
+  /// Sends one of the fixed stage requests from this stage screen.
+  Future<void> sendStageRequest(String kind) async {
+    require(
+      mode == 'stage' && !stale && snapshot?['stageRequests'] == true,
+      'Requests are not available right now.',
+    );
+    await _client?.send({'type': 'stageRequest', 'kind': kind});
   }
 
   Future<void> requestControl() async {

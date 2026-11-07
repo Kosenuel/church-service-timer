@@ -41,6 +41,8 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .text { color:#fff; font-weight:500; white-space:pre-wrap; word-break:break-word; line-height:1; margin:0 auto; font-variant-numeric: tabular-nums; }
 #stage .lane { position:absolute; inset:0; overflow:hidden; }
 #stage .run { position:absolute; left:0; top:50%; white-space:pre; line-height:1.1; will-change:transform; }
+#stage .colon { transition: opacity .1s; }
+#stage .colon.dim { opacity: .2; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
@@ -51,6 +53,9 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage.stale .text, #stage.stale .msg { opacity:.35; }
 body.stale #app { opacity:.6; }
 #tools { position:fixed; top:10px; right:10px; display:flex; gap:8px; z-index:5; transition:opacity .4s; }
+#req { position:fixed; left:10px; bottom:10px; z-index:5; display:none; align-items:center; gap:8px; }
+#reqNote { color:#bbb; font-size:13px; }
+#req .chip { opacity:.75; }
 #sheet { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end; justify-content:center; z-index:9; }
 #sheet .card { width:100%; max-width:520px; margin:0; border-radius:18px 18px 0 0; }
 .role { display:block; width:100%; text-align:left; padding:14px; margin:8px 0; border-radius:12px; border:1px solid var(--line); background:#0f1714; color:var(--text); cursor:pointer; }
@@ -64,6 +69,7 @@ body.stale #app { opacity:.6; }
 <div id="stage"><div class="text" id="stageText"></div><div class="note" id="stageNote"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
+<div id="req"><span id="reqNote"></span><button class="chip" id="reqBtn">Request</button></div>
 <div id="sheet"><div class="card" id="sheetCard"></div></div>
 <script>
 'use strict';
@@ -89,7 +95,7 @@ function clear(node) { while (node.firstChild) node.removeChild(node.firstChild)
 async function loadInfo() { try { info = (await api('/api/info')).body; } catch (_) {} }
 
 function showJoin(message) {
-  stop(); stopMotion(); token = null; save(); setLost(false);
+  stop(); stopMotion(); token = null; save(); setLost(false); $('req').style.display = 'none';
   $('stage').style.display = 'none'; clear($('tools'));
   const app = $('app'); clear(app); app.style.display = 'block';
   app.append(el('div', 'tag', 'Church Service Timer'), el('h1', '', info.church || 'Welcome'));
@@ -137,6 +143,37 @@ function openSheet() {
   $('sheet').style.display = 'flex';
 }
 function closeSheet() { $('sheet').style.display = 'none'; }
+
+// Requests to the operator, for team Stage displays while the host allows
+// them. Three fixed choices; the note shows Sent, then Seen by operator.
+const REQUESTS = { time: 'Need 2 minutes', finish: 'Ready to finish', mic: 'Microphone issue' };
+function openRequests() {
+  const card = $('sheetCard'); clear(card);
+  card.append(el('h1', '', 'Ask the operator'));
+  for (const [kind, text] of Object.entries(REQUESTS)) {
+    const b = el('button', 'role'); b.append(el('b', '', text));
+    b.onclick = () => sendRequest(kind);
+    card.append(b);
+  }
+  const err = el('div', 'err'); err.id = 'sheetErr'; card.append(err);
+  const close = el('button', 'btn ghost', 'Close'); close.onclick = closeSheet; card.append(close);
+  $('sheet').style.display = 'flex';
+}
+async function sendRequest(kind) {
+  try {
+    const r = await api('/api/request', { token, kind });
+    if (r.status === 200) { closeSheet(); $('reqNote').textContent = 'Sent · ' + REQUESTS[kind]; return; }
+    $('sheetErr').textContent = 'Not sent. Wait a few seconds and try again.';
+  } catch (_) { $('sheetErr').textContent = 'Not sent. Check the connection and try again.'; }
+}
+$('reqBtn').onclick = openRequests;
+function showRequests(s) {
+  const on = s.role === 'stage' && s.requests === true;
+  $('req').style.display = on ? 'flex' : 'none';
+  if (!on) return;
+  const r = s.request;
+  $('reqNote').textContent = !r ? '' : r.state === 'sent' ? 'Sent · ' + (REQUESTS[r.kind] || '') : r.state === 'seen' ? 'Seen by operator' : r.state === 'added' ? '2 minutes added' : '';
+}
 $('sheet').onclick = (e) => { if (e.target === $('sheet')) closeSheet(); };
 
 async function switchRole(next, code) {
@@ -163,14 +200,21 @@ function tools(onStage) {
   const t = $('tools'); clear(t);
   const pick = el('button', 'chip', ROLES[role][0] + ' ▾'); pick.onclick = openSheet; t.append(pick);
   if (onStage && document.documentElement.requestFullscreen) {
-    const fs = el('button', 'chip', 'Full screen');
-    fs.onclick = () => { document.documentElement.requestFullscreen().catch(() => {}); };
-    t.append(fs);
+    const fs = el('button', 'chip'); fs.id = 'fs';
+    fs.onclick = () => {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else document.documentElement.requestFullscreen().catch(() => {});
+    };
+    t.append(fs); fullscreenLabel();
   }
   t.style.opacity = '1';
   clearTimeout(hideTools);
   if (onStage) hideTools = setTimeout(() => { t.style.opacity = '0'; }, 4000);
 }
+// The chip follows the real state, including when the browser leaves full
+// screen by itself (Esc, a swipe, or the system back gesture).
+function fullscreenLabel() { const fs = $('fs'); if (fs) fs.textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'; }
+document.addEventListener('fullscreenchange', fullscreenLabel);
 // Reveal the tools on a stage display without rebuilding them, so the tap
 // that reveals them can also press the chip.
 function revealTools() {
@@ -225,6 +269,7 @@ function fit(node, text) {
 
 function render(s) {
   lastState = s;
+  showRequests(s);
   if (s.role === 'stage') return renderStage(s);
   stopMotion();
   $('stage').style.display = 'none';
@@ -306,6 +351,15 @@ function startMotion(text, value, s, key) {
   motion = m; m.step(); m.raf = requestAnimationFrame(frame);
 }
 
+// The blinking colon: lit as each new second arrives, dimmed for the second
+// half, steady while paused or lost. The new second is the moment the time
+// text changes, so screens follow the host's seconds.
+const colon = { text: '', at: 0 };
+setInterval(() => {
+  const lit = $('stage').classList.contains('stale') || (performance.now() - colon.at) % 1000 < 500;
+  document.querySelectorAll('#stage .colon').forEach((c) => c.classList.toggle('dim', !lit));
+}, 50);
+
 function renderStage(s) {
   $('app').style.display = 'none';
   const stage = $('stage'); stage.style.display = 'flex';
@@ -327,7 +381,13 @@ function renderStage(s) {
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
   if (s.paused) note.textContent = 'PAUSED';
   if (moving) { startMotion(text, value, s, key); return; }
-  text.textContent = value;
+  if (s.ticking && value.includes(':')) {
+    // Each colon is its own span, so only its brightness changes.
+    for (const part of value.split(/(:)/)) text.append(part === ':' ? el('span', 'colon', ':') : document.createTextNode(part));
+    if (value !== colon.text) { colon.text = value; colon.at = performance.now(); }
+  } else {
+    text.textContent = value;
+  }
   fit(text, value || ' ');
 }
 // The quick message's palette and style, as the paired screens show it.

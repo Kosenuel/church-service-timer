@@ -1195,6 +1195,14 @@ class AppState {
   /// Live still offers it. Local to this phone; not part of backups.
   int? practisedWall;
   bool practicePrompt;
+
+  /// Approved stage screens may send fixed requests (Need 2 minutes, Ready
+  /// to finish, Microphone issue). Off by default; local to this phone.
+  bool stageRequests;
+
+  /// One-time hints this phone has dismissed, such as "press and hold to
+  /// select". Local to this phone; not part of portable backups.
+  Set<String> dismissedHints;
   AppState(
     this.templates,
     this.defaults,
@@ -1214,6 +1222,8 @@ class AppState {
     this.clickerControls = true,
     this.practisedWall,
     this.practicePrompt = true,
+    this.stageRequests = false,
+    Set<String>? dismissedHints,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -1229,6 +1239,7 @@ class AppState {
     Map<String, Json>? importMappings,
     Json? webStage,
   }) : webStage = webStage ?? {},
+       dismissedHints = dismissedHints ?? {},
        importMappings = importMappings ?? {},
        segmentLibrary = segmentLibrary ?? [],
        programLibrary = programLibrary ?? ProgramLibrary(),
@@ -1381,6 +1392,11 @@ class AppState {
           ? j['practisedWall'] as int
           : null,
       practicePrompt: boolSetting(j['practicePrompt'] ?? true),
+      stageRequests: boolSetting(j['stageRequests'] ?? false),
+      dismissedHints: {
+        for (final h in (j['dismissedHints'] as List? ?? const []))
+          if (h is String && h.length <= 40) h,
+      },
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1520,6 +1536,8 @@ class AppState {
     'lockScreenControls': lockScreenControls,
     if (practisedWall != null) 'practisedWall': practisedWall,
     'practicePrompt': practicePrompt,
+    'stageRequests': stageRequests,
+    'dismissedHints': [...dismissedHints],
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
   };

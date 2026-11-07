@@ -25,6 +25,7 @@ import 'package:church_service_timer/app/appearance_preview.dart';
 import 'package:church_service_timer/app/edit_draft_queue.dart';
 import 'package:church_service_timer/app/practice_controller.dart';
 import 'package:church_service_timer/app/quick_message_controller.dart';
+import 'package:church_service_timer/app/stage_request_controller.dart';
 import 'package:church_service_timer/app/paired_command_bridge.dart';
 import 'package:church_service_timer/app/phone_warning_scheduler.dart';
 import 'package:church_service_timer/app/simulator.dart';
@@ -85,14 +86,25 @@ class AppController extends ChangeNotifier {
       : 'Simulator';
   late final quickMessages = QuickMessageController(this);
   late final practice = PracticeController(this);
+  late final stageRequests = StageRequestController(this);
   late final pairedCommands = PairedCommandBridge(this);
   String? get quickMessageId => quickMessages.messageId;
   Set<String> get quickSeen => quickMessages.seen;
   Map<String, String> get quickRecipientNames => quickMessages.recipientNames;
   Set<String> get quickRecipients => quickMessages.recipients;
   QuickMessage? get currentQuickMessage => quickMessages.current;
-  Json decoratePairedSnapshot(PairPeer peer, Json data) =>
-      quickMessages.decorateSnapshot(peer, data);
+  Json decoratePairedSnapshot(PairPeer peer, Json data) {
+    quickMessages.decorateSnapshot(peer, data);
+    // A stage screen offers Request only while requests are on, and sees
+    // the state of the one it sent.
+    if (stageRequests.enabled && state.session.active) {
+      data['stageRequests'] = true;
+      final status = stageRequests.statusFor(peer.id);
+      if (status != null) data['stageRequest'] = status;
+    }
+    return data;
+  }
+
   void receiveMessageSeen(PairPeer peer, String id) =>
       quickMessages.receiveSeen(peer, id);
   void clearQuickMessage() => quickMessages.clear();
@@ -510,6 +522,8 @@ class AppController extends ChangeNotifier {
     pairing.snapshotFor = pairedSnapshot;
     pairing.decorateSnapshot = decoratePairedSnapshot;
     pairing.onMessageSeen = receiveMessageSeen;
+    pairing.onStageRequest = (peer, kind) =>
+        stageRequests.receive(peer.id, peer.name, kind);
     // Saved at once, so a received program waits for review even after
     // leaving the pairing or closing the app.
     pairing.onProgramReceived = (program, from) => unawaited(
@@ -693,6 +707,7 @@ class AppController extends ChangeNotifier {
       if (!corrupt && !reportSavePending) {
         quickMessages.expire();
         practice.checkOvertime();
+        stageRequests.prune();
         if (!busy && _warningAccepted != null && retry == null) {
           final accepted = _warningAccepted!;
           final saved = await commit((draft, _) {
@@ -1398,8 +1413,13 @@ class AppController extends ChangeNotifier {
         // A web display shows a quick message only if it was a recipient.
         ..showsMessage = ((d) =>
             quickMessages.recipients.contains('web:${d.token}'))
-        ..onJoined = (d) =>
-            onWebJoined?.call('${d.label} joined · ${d.role.label}');
+        ..onJoined = ((d) =>
+            onWebJoined?.call('${d.label} joined · ${d.role.label}'))
+        // Team Stage displays may send requests while they are on.
+        ..requestsOpen = (() => stageRequests.enabled && state.session.active)
+        ..onRequest = ((d, kind) =>
+            stageRequests.receive('web:${d.token}', '${d.label} (web)', kind))
+        ..requestFor = ((d) => stageRequests.statusFor('web:${d.token}'));
 
   /// Shown by the home screen as a short note when a team browser joins.
   void Function(String message)? onWebJoined;
