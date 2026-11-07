@@ -34,7 +34,7 @@ extension ClockSettingsViews on HomeState {
         const AppDivider(),
         SwitchListTile(
           key: const ValueKey('clock-blink'),
-          title: const Text('Blink clock colon'),
+          title: const Text('Blinking colon'),
           subtitle: Text(
             c.state.clockBlink ? 'Blinking · once per second' : 'Steady',
           ),
@@ -44,7 +44,7 @@ extension ClockSettingsViews on HomeState {
               : (v) => c.commit((draft, _) => draft.clockBlink = v),
         ),
         const Text(
-          'Blinking applies to the simulator and paired screens. The LED sign and its preview keep a steady colon.',
+          'The colon in the countdown and the clock blinks on paired phones, tablets and web screens, and in the simulator clock. It stays steady while paused or disconnected. The LED sign and its preview keep a steady colon.',
         ),
         const SizedBox(height: 12),
         const Text(

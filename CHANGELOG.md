@@ -4,6 +4,8 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Blinking colon.** On paired phones, tablets and web screens, the colon in the countdown and the clock now blinks once a second like a normal clock. It is fully lit as each second starts and dims to 20% for the second half, with a short fade, so it reads as a calm pulse rather than a flash. It follows the host's seconds, so screens blink together. The colon stays steady while the countdown is paused or the screen is disconnected, so a steady colon means time has stopped. Only the colon changes, so the digits never move, and cue or message text never blinks. The setting is now called **Blinking colon** (Settings → Clock), on by default. The LED sign keeps a steady colon, because its countdown and clock run on the sign's own controller.
+- **Exit full screen.** On a web Stage display, the Full screen chip becomes **Exit full screen** once full screen is on, and changes back when you leave full screen another way, for example with Esc.
 - **Send to lists only screens that can receive the message.** The list shows "All connected stage screens" with a count, groups only while one of their screens is connected (for example "Choir screens · 2"), and single screens only while connected. If a chosen screen drops off while you write, it stays in the list as "Pulpit tablet · offline" and can't be picked, so the choice never changes without you noticing. With nothing connected, the list says "No stage screens connected".
 
 ## 0.26.0, 7/November/2026

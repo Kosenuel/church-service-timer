@@ -604,6 +604,11 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         'speed': ((s['speed'] as num?)?.toDouble() ?? 12.0).clamp(1.0, 60.0),
         'overtime': s['overtime'] == true,
         'paused': s['paused'] == true,
+        // Whether the text is a countdown or clock, whose colon blinks.
+        'ticking':
+            s['clockBlink'] != false &&
+            (s['outputMode'] == 'Clock' ||
+                (s['displayIsTimer'] == true && s['paused'] != true)),
         if (s['quickMessage'] case final Map q)
           'message': {
             'headline': q['headline'] ?? '',

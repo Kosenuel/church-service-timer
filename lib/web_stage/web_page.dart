@@ -41,6 +41,8 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .text { color:#fff; font-weight:500; white-space:pre-wrap; word-break:break-word; line-height:1; margin:0 auto; font-variant-numeric: tabular-nums; }
 #stage .lane { position:absolute; inset:0; overflow:hidden; }
 #stage .run { position:absolute; left:0; top:50%; white-space:pre; line-height:1.1; will-change:transform; }
+#stage .colon { transition: opacity .1s; }
+#stage .colon.dim { opacity: .2; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
@@ -163,14 +165,21 @@ function tools(onStage) {
   const t = $('tools'); clear(t);
   const pick = el('button', 'chip', ROLES[role][0] + ' ▾'); pick.onclick = openSheet; t.append(pick);
   if (onStage && document.documentElement.requestFullscreen) {
-    const fs = el('button', 'chip', 'Full screen');
-    fs.onclick = () => { document.documentElement.requestFullscreen().catch(() => {}); };
-    t.append(fs);
+    const fs = el('button', 'chip'); fs.id = 'fs';
+    fs.onclick = () => {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else document.documentElement.requestFullscreen().catch(() => {});
+    };
+    t.append(fs); fullscreenLabel();
   }
   t.style.opacity = '1';
   clearTimeout(hideTools);
   if (onStage) hideTools = setTimeout(() => { t.style.opacity = '0'; }, 4000);
 }
+// The chip follows the real state, including when the browser leaves full
+// screen by itself (Esc, a swipe, or the system back gesture).
+function fullscreenLabel() { const fs = $('fs'); if (fs) fs.textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'; }
+document.addEventListener('fullscreenchange', fullscreenLabel);
 // Reveal the tools on a stage display without rebuilding them, so the tap
 // that reveals them can also press the chip.
 function revealTools() {
@@ -306,6 +315,15 @@ function startMotion(text, value, s, key) {
   motion = m; m.step(); m.raf = requestAnimationFrame(frame);
 }
 
+// The blinking colon: lit as each new second arrives, dimmed for the second
+// half, steady while paused or lost. The new second is the moment the time
+// text changes, so screens follow the host's seconds.
+const colon = { text: '', at: 0 };
+setInterval(() => {
+  const lit = $('stage').classList.contains('stale') || (performance.now() - colon.at) % 1000 < 500;
+  document.querySelectorAll('#stage .colon').forEach((c) => c.classList.toggle('dim', !lit));
+}, 50);
+
 function renderStage(s) {
   $('app').style.display = 'none';
   const stage = $('stage'); stage.style.display = 'flex';
@@ -327,7 +345,13 @@ function renderStage(s) {
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
   if (s.paused) note.textContent = 'PAUSED';
   if (moving) { startMotion(text, value, s, key); return; }
-  text.textContent = value;
+  if (s.ticking && value.includes(':')) {
+    // Each colon is its own span, so only its brightness changes.
+    for (const part of value.split(/(:)/)) text.append(part === ':' ? el('span', 'colon', ':') : document.createTextNode(part));
+    if (value !== colon.text) { colon.text = value; colon.at = performance.now(); }
+  } else {
+    text.textContent = value;
+  }
   fit(text, value || ' ');
 }
 // The quick message's palette and style, as the paired screens show it.
