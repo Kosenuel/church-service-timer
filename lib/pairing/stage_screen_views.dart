@@ -481,6 +481,21 @@ extension MobileDisplayViews on HomeState {
     return ok;
   }
 
+  /// The first thing stopping a send, in words the operator can act on.
+  String? get quickSendBlocker {
+    if (!c.pairing.localControl)
+      return 'Operator control is on another device.';
+    if (!c.stageConnected)
+      return 'Connect a stage screen to send. Your draft stays here.';
+    if (selectedMessageRecipients.isEmpty)
+      return 'None of the screens in "Send to" are connected. Choose All connected stage screens or another screen.';
+    if (!c.state.session.active && c.state.session.phase != 'ended')
+      return 'Start or end a service to send. Use Test to try it now.';
+    if (c.reportSavePending) return 'Saving the service report…';
+    if (c.busy || controlsLocked) return 'Wait a moment and try again.';
+    return null;
+  }
+
   bool get canSendQuickMessage =>
       c.stageConnected &&
       selectedMessageRecipients.isNotEmpty &&
@@ -622,9 +637,33 @@ extension MobileDisplayViews on HomeState {
                           seconds: 5,
                         ),
                         test: true,
+                        // The same screens a real send would reach.
+                        recipientIds: selectedMessageRecipients,
                       )
                     : null,
-                onSend: canSendQuickMessage ? sendLiveQuickMessage : null,
+                sendUnavailableReason: quickSendBlocker,
+                failureReason: () => c.error,
+                onSend: canSendQuickMessage
+                    ? (message) async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final ok = await sendLiveQuickMessage(message);
+                        // Sent: back to Live, where the message shows as On
+                        // stage with Return to timer and the Seen status.
+                        if (ok == true && ctx.mounted) {
+                          final count = c.quickRecipients.length;
+                          Navigator.pop(ctx);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              key: const ValueKey('quick-message-sent'),
+                              content: Text(
+                                'Message sent to ${plural(count, 'stage screen')}',
+                              ),
+                            ),
+                          );
+                        }
+                        return ok;
+                      }
+                    : null,
               ),
             ),
           ),
@@ -958,6 +997,12 @@ class QuickMessageComposer extends StatefulWidget {
   /// Fills its parent with a scrolling body and a pinned action bar.
   final bool sticky;
   final Future<bool?> Function(QuickMessage)? onTest;
+
+  /// Why Send is unavailable, shown on the disabled button.
+  final String? sendUnavailableReason;
+
+  /// The specific reason the last action failed, when the app knows it.
+  final String? Function()? failureReason;
   const QuickMessageComposer({
     super.key,
     required this.initial,
@@ -970,6 +1015,8 @@ class QuickMessageComposer extends StatefulWidget {
     this.previewLabel,
     this.sticky = false,
     this.onTest,
+    this.sendUnavailableReason,
+    this.failureReason,
   });
   @override
   State<QuickMessageComposer> createState() => _QuickMessageComposerState();
@@ -1055,7 +1102,8 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
               ? null
               : ok
               ? success
-              : 'Could not complete the action. Check the connection or storage and try again.',
+              : widget.failureReason?.call() ??
+                    'Could not complete the action. Check the connection or storage and try again.',
         );
     } catch (_) {
       if (mounted)
@@ -1307,7 +1355,8 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
       reason: busy
           ? 'Wait for the current message to finish.'
           : widget.onSend == null
-          ? 'Connect a stage screen and enable operator controls first.'
+          ? widget.sendUnavailableReason ??
+                'Connect a stage screen and enable operator controls first.'
           : null,
       child: FilledButton.icon(
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
