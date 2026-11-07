@@ -4,6 +4,8 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Join slide sizes.** Export join slide asks which screen it is for: 16:9 HD (1920 × 1080), 16:9 4K (3840 × 2160), 16:10 (1920 × 1200), 4:3 for older projectors (1600 × 1200), Portrait 9:16 (1080 × 1920) for a TV on its side or phone stories, or Square (1080 × 1080) for social posts and printing. Each is laid out for its shape rather than stretched: wide slides put the QR code beside the words, square ones put the title on top with the details beside the code, and portrait ones stack everything with a large code. Long names shrink to fit. Dark or light is chosen in the same dialog, the file name includes the size, and the last size is offered first next time.
+
 - **Send to lists only screens that can receive the message.** The list shows "All connected stage screens" with a count, groups only while one of their screens is connected (for example "Choir screens · 2"), and single screens only while connected. If a chosen screen drops off while you write, it stays in the list as "Pulpit tablet · offline" and can't be picked, so the choice never changes without you noticing. With nothing connected, the list says "No stage screens connected".
 
 ## 0.26.0, 7/November/2026

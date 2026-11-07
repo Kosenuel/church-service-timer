@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -9,149 +10,292 @@ import 'package:church_service_timer/web_stage/web_stage_server.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-/// A 1920 × 1080 slide for projecting: church name, a large QR, the easy
-/// name, the guest code and the address, and a small credit.
+/// The sizes the join slide can be exported in. Each is laid out for its
+/// own shape rather than stretched.
+const joinSlideSizes = [
+  (
+    id: 'hd',
+    label: '16:9 HD',
+    w: 1920,
+    h: 1080,
+    note: 'Most TVs and projectors',
+  ),
+  (id: '4k', label: '16:9 4K', w: 3840, h: 2160, note: 'Large 4K screens'),
+  (
+    id: 'wide',
+    label: '16:10',
+    w: 1920,
+    h: 1200,
+    note: 'Laptops and some projectors',
+  ),
+  (id: 'classic', label: '4:3', w: 1600, h: 1200, note: 'Older projectors'),
+  (
+    id: 'portrait',
+    label: 'Portrait 9:16',
+    w: 1080,
+    h: 1920,
+    note: 'A TV on its side, phone stories',
+  ),
+  (
+    id: 'square',
+    label: 'Square',
+    w: 1080,
+    h: 1080,
+    note: 'Social posts and printing',
+  ),
+];
+
+/// A slide for projecting: church name, a large QR, the easy name, the
+/// guest code and the address, and a small credit. Wide shapes put the QR
+/// beside the words, square ones put the title on top, tall ones stack it.
 Future<Uint8List> joinSlidePng({
   required String church,
   required String url,
   required String? localUrl,
   required String? code,
   bool light = false,
+  int width = 1920,
+  int height = 1080,
 }) async {
-  const w = 1920.0, h = 1080.0;
+  final w = width.toDouble(), h = height.toDouble();
   final bg = light ? const Color(0xFFF7F8F4) : const Color(0xFF0B1210);
   final ink = light ? const Color(0xFF14201B) : const Color(0xFFF2F6F1);
   final muted = light ? const Color(0xFF55645D) : const Color(0xFFA8B8AF);
   final accent = light ? const Color(0xFF2E6B2A) : const Color(0xFFC8F56B);
   final recorder = ui.PictureRecorder();
-  final canvas = Canvas(recorder, const Rect.fromLTWH(0, 0, w, h));
-  canvas.drawRect(const Rect.fromLTWH(0, 0, w, h), Paint()..color = bg);
+  final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, w, h));
+  canvas.drawRect(Rect.fromLTWH(0, 0, w, h), Paint()..color = bg);
+  final ratio = w / h;
+  final shape = ratio >= 1.2
+      ? 'wide'
+      : ratio >= 0.85
+      ? 'square'
+      : 'tall';
+  // One unit is a pixel on the 1080-pixel-high original design.
+  final u = (shape == 'wide' ? h : w) / 1080;
+  final m = (shape == 'wide' ? 120 : 80) * u;
 
-  /// Paints [value] at ([x], [y]) and returns its height, so lines stack
-  /// whatever the font does.
+  TextPainter layout(
+    String value,
+    double size,
+    double maxWidth, {
+    Color? color,
+    FontWeight weight = FontWeight.w500,
+    FontStyle style = FontStyle.normal,
+    int lines = 3,
+    TextAlign align = TextAlign.left,
+  }) {
+    // Shrinks the text until it fits its width in the lines allowed.
+    for (var s = size; ; s *= .92) {
+      final p = TextPainter(
+        text: TextSpan(
+          text: value,
+          style: TextStyle(
+            fontFamily: 'Roboto',
+            color: color ?? ink,
+            fontSize: s,
+            fontWeight: weight,
+            fontStyle: style,
+            height: 1.12,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        textAlign: align,
+        maxLines: lines,
+        ellipsis: '…',
+      )..layout(maxWidth: maxWidth);
+      if (!p.didExceedMaxLines || s < size * .4) return p;
+      p.dispose();
+    }
+  }
+
+  /// Paints [value] at ([x], [y]) and returns its height.
   double text(
     String value,
     double x,
     double y,
-    double size, {
+    double size,
+    double maxWidth, {
     Color? color,
     FontWeight weight = FontWeight.w500,
-    double width = 940,
     FontStyle style = FontStyle.normal,
+    int lines = 3,
+    TextAlign align = TextAlign.left,
   }) {
-    final p = TextPainter(
-      text: TextSpan(
-        text: value,
-        style: TextStyle(
-          fontFamily: 'Roboto',
-          color: color ?? ink,
-          fontSize: size,
-          fontWeight: weight,
-          fontStyle: style,
-          height: 1.12,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-      maxLines: 3,
-      ellipsis: '…',
-    )..layout(maxWidth: width);
+    final p = layout(
+      value,
+      size * u,
+      maxWidth,
+      color: color,
+      weight: weight,
+      style: style,
+      lines: lines,
+      align: align,
+    );
     p.paint(canvas, Offset(x, y));
-    return p.height;
+    final height = p.height;
+    p.dispose();
+    return height;
   }
 
-  // QR on the right, on a white tile so every phone camera reads it.
-  const qr = 640.0, qx = 1160.0, qy = 220.0;
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      const Rect.fromLTWH(qx - 40, qy - 40, qr + 80, qr + 80),
-      const Radius.circular(36),
-    ),
-    Paint()..color = Colors.white,
-  );
-  canvas.save();
-  canvas.translate(qx, qy);
-  QrPainter(
-    data: url,
-    version: QrVersions.auto,
-    errorCorrectionLevel: QrErrorCorrectLevel.M,
-    eyeStyle: const QrEyeStyle(
-      eyeShape: QrEyeShape.square,
-      color: Colors.black,
-    ),
-    dataModuleStyle: const QrDataModuleStyle(
-      dataModuleShape: QrDataModuleShape.square,
-      color: Colors.black,
-    ),
-  ).paint(canvas, const Size(qr, qr));
-  canvas.restore();
+  void qrAt(double x, double y, double size) {
+    // On a white tile so every phone camera reads it.
+    final pad = size / 16;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(x - pad, y - pad, size + 2 * pad, size + 2 * pad),
+        Radius.circular(pad * .9),
+      ),
+      Paint()..color = Colors.white,
+    );
+    canvas.save();
+    canvas.translate(x, y);
+    QrPainter(
+      data: url,
+      version: QrVersions.auto,
+      errorCorrectionLevel: QrErrorCorrectLevel.M,
+      eyeStyle: const QrEyeStyle(
+        eyeShape: QrEyeShape.square,
+        color: Colors.black,
+      ),
+      dataModuleStyle: const QrDataModuleStyle(
+        dataModuleShape: QrDataModuleShape.square,
+        color: Colors.black,
+      ),
+    ).paint(canvas, Size(size, size));
+    canvas.restore();
+  }
 
-  const left = 120.0;
-  var y = 140.0;
-  if (church.isNotEmpty) {
-    y +=
+  double heading(double x, double y, double width) {
+    var top = y;
+    if (church.isNotEmpty)
+      top +=
+          text(
+            church.toUpperCase(),
+            x,
+            top,
+            38,
+            width,
+            color: accent,
+            weight: FontWeight.w700,
+            lines: 1,
+          ) +
+          18 * u;
+    return top +
         text(
-          church.toUpperCase(),
-          left,
-          y,
-          38,
-          color: accent,
+          'Follow the\norder of service',
+          x,
+          top,
+          92,
+          width,
           weight: FontWeight.w700,
+          lines: 2,
         ) +
-        18;
+        24 * u;
   }
-  y +=
-      text(
-        'Follow the\norder of service',
-        left,
-        y,
-        92,
-        weight: FontWeight.w700,
-      ) +
-      24;
-  y +=
-      text('Scan the code with your phone camera', left, y, 40, color: muted) +
-      44;
-  if (localUrl != null) {
-    y += text('or open', left, y, 32, color: muted) + 4;
-    y +=
+
+  double details(double x, double y, double width) {
+    var top = y;
+    top +=
         text(
-          localUrl.replaceFirst('http://', ''),
-          left,
-          y,
-          50,
-          weight: FontWeight.w700,
+          'Scan the code with your phone camera',
+          x,
+          top,
+          40,
+          width,
+          color: muted,
+          lines: 2,
         ) +
-        34;
+        44 * u;
+    if (localUrl != null) {
+      top += text('or open', x, top, 32, width, color: muted) + 4 * u;
+      top +=
+          text(
+            localUrl.replaceFirst('http://', ''),
+            x,
+            top,
+            50,
+            width,
+            weight: FontWeight.w700,
+            lines: 1,
+          ) +
+          34 * u;
+    }
+    if (code != null) {
+      top += text('Guest code', x, top, 32, width, color: muted) + 4 * u;
+      top += text(
+        code,
+        x,
+        top,
+        76,
+        width,
+        weight: FontWeight.w800,
+        color: accent,
+        lines: 1,
+      );
+    }
+    return top;
   }
-  if (code != null) {
-    y += text('Guest code', left, y, 32, color: muted) + 4;
-    text(code, left, y, 76, weight: FontWeight.w800, color: accent);
-  }
+
+  // The footer: the address and the credit, on one line when there is
+  // room, else the address above the credit.
+  final footer = 28 * u;
   final address = url.replaceFirst('http://', '');
-  text(
-    localUrl == null
-        ? 'Address: $address'
-        : 'If that name does not open: $address',
-    left,
-    h - 110,
-    28,
-    color: muted,
-    width: 1000,
-  );
-  text(
+  final addressText = localUrl == null
+      ? 'Address: $address'
+      : 'If that name does not open: $address';
+  final credit = layout(
     'Created by I-Proton',
-    w - 400,
-    h - 70,
-    24,
+    24 * u,
+    400 * u,
     color: muted,
     style: FontStyle.italic,
-    width: 360,
   );
+  final footerTop = h - m * .7 - footer * 1.3;
+  credit.paint(canvas, Offset(w - m - credit.width, footerTop + 4 * u));
+  final sideBySide = w - 2 * m - credit.width > 900 * u;
+  text(
+    addressText,
+    m,
+    sideBySide ? footerTop : footerTop - footer * 1.6,
+    28,
+    sideBySide ? w - 2 * m - credit.width - 40 * u : w - 2 * m,
+    color: muted,
+    lines: 1,
+  );
+  credit.dispose();
+  final bottom = (sideBySide ? footerTop : footerTop - footer * 1.6) - 40 * u;
 
-  final image = await recorder.endRecording().toImage(w.toInt(), h.toInt());
+  switch (shape) {
+    case 'wide':
+      final q = (h * .6).clamp(0.0, w * .37);
+      final qx = w - m - q - q / 16;
+      final qy = (bottom - q) / 2 + 20 * u;
+      qrAt(qx, qy, q);
+      final width = qx - q / 16 - 80 * u - m;
+      final top = heading(m, m + 20 * u, width);
+      details(m, top, width);
+    case 'square':
+      final full = w - 2 * m;
+      final top = heading(m, m, full) + 10 * u;
+      final q = math.min(bottom - top - 40 * u, w * .46);
+      final qx = w - m - q - q / 16;
+      qrAt(qx, top + q / 16, q);
+      details(m, top, qx - q / 16 - 40 * u - m);
+    default:
+      final full = w - 2 * m;
+      final top = details(m, heading(m, m * 1.4, full), full);
+      final q = math.min(full - 80 * u, bottom - top - 120 * u);
+      qrAt((w - q) / 2, top + (bottom - top - q) / 2, q);
+  }
+
+  final image = await recorder.endRecording().toImage(width, height);
   final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
   return bytes!.buffer.asUint8List();
 }
+
+/// The size last used on this phone, offered first next time.
+String? lastJoinSlideSize;
 
 bool _plainOk(String v) =>
     v.trim().isNotEmpty && localNameFrom(v) != 'church-timer' ||
@@ -402,32 +546,74 @@ extension WebStageViews on HomeState {
   Future<void> exportJoinSlide() async {
     final url = c.webStageUrl;
     if (url == null) return;
-    final light = await showDialog<bool>(
+    var size =
+        joinSlideSizes.where((s) => s.id == lastJoinSlideSize).firstOrNull ??
+        joinSlideSizes.first;
+    var light = false;
+    final go = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Export join slide'),
-        content: const Text(
-          'A 1920 × 1080 image to project or add to your slides. Choose light if your projector washes out dark slides.',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, update) => AlertDialog(
+          title: const Text('Export join slide'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pick the screen it will be shown on. The slide is laid out for that shape, not stretched.',
+                ),
+                const SizedBox(height: 12),
+                RadioGroup<String>(
+                  groupValue: size.id,
+                  onChanged: (v) => update(
+                    () => size = joinSlideSizes.firstWhere((s) => s.id == v),
+                  ),
+                  child: Column(
+                    children: [
+                      for (final s in joinSlideSizes)
+                        RadioListTile<String>(
+                          key: ValueKey('slide-size-${s.id}'),
+                          contentPadding: EdgeInsets.zero,
+                          value: s.id,
+                          title: Text('${s.label} · ${s.w} × ${s.h}'),
+                          subtitle: Text(s.note),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Dark')),
+                    ButtonSegment(
+                      value: true,
+                      label: Text('Light'),
+                      tooltip: 'For projectors that wash out dark slides',
+                    ),
+                  ],
+                  selected: {light},
+                  onSelectionChanged: (v) => update(() => light = v.first),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const ValueKey('slide-export'),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Export'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          OutlinedButton(
-            key: const ValueKey('slide-light'),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Light'),
-          ),
-          FilledButton(
-            key: const ValueKey('slide-dark'),
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Dark'),
-          ),
-        ],
       ),
     );
-    if (light == null || !mounted) return;
+    if (go != true || !mounted) return;
+    lastJoinSlideSize = size.id;
     try {
       final s = c.webStageSettings;
       final png = await joinSlidePng(
@@ -436,10 +622,16 @@ extension WebStageViews on HomeState {
         localUrl: c.webStageLocalUrl,
         code: s.orderAccess == OrderAccess.code ? s.orderCode : null,
         light: light,
+        width: size.w,
+        height: size.h,
       );
       c.joinSlideAddress = url;
       await c.port.shareFiles([
-        SharedFile('Join-the-order-of-service.png', png, 'image/png'),
+        SharedFile(
+          'Join-the-order-of-service-${size.w}x${size.h}.png',
+          png,
+          'image/png',
+        ),
       ], subject: 'Order of service join slide');
     } catch (e) {
       if (mounted) await showError('The slide could not be made: $e');
