@@ -1191,6 +1191,9 @@ class AppState {
   /// Presentation clickers and foot pedals drive Next and Pause on Live.
   bool clickerControls;
 
+  /// Approved stage screens may send fixed requests (Need 2 minutes, Ready
+  /// to finish, Microphone issue). Off by default; local to this phone.
+  bool stageRequests;
   /// One-time hints this phone has dismissed, such as "press and hold to
   /// select". Local to this phone; not part of portable backups.
   Set<String> dismissedHints;
@@ -1211,6 +1214,7 @@ class AppState {
     this.lockScreenControls = true,
     this.settingsLock,
     this.clickerControls = true,
+    this.stageRequests = false,
     Set<String>? dismissedHints,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
@@ -1376,6 +1380,7 @@ class AppState {
           ? null
           : SettingsLock.fromJson(Map<String, dynamic>.from(j['settingsLock'])),
       clickerControls: boolSetting(j['clickerControls'] ?? true),
+      stageRequests: boolSetting(j['stageRequests'] ?? false),
       dismissedHints: {
         for (final h in (j['dismissedHints'] as List? ?? const []))
           if (h is String && h.length <= 40) h,
@@ -1517,6 +1522,7 @@ class AppState {
     'themeId': themeId,
     'keepScreenAwake': keepScreenAwake,
     'lockScreenControls': lockScreenControls,
+    'stageRequests': stageRequests,
     'dismissedHints': [...dismissedHints],
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,

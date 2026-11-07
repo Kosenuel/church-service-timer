@@ -4,6 +4,13 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Requests from the stage.** When switched on in Settings → Screens & devices (off by default), a presenter can quietly ask the operator for something during a service, from a paired stage screen or a team web Stage display.
+  - **Three fixed choices** sit behind a small **Request** button: **Need 2 minutes**, **Ready to finish** and **Microphone issue**. There is no free text.
+  - **The operator** gets a short vibration, a note and a card on Live with **Acknowledge** and **Dismiss**. "Need 2 minutes" also offers **Add 2 min**, the normal adjustment with Undo; nothing changes the timing by itself.
+  - **The presenter's screen** shows "Sent", then "Seen by operator" or "2 minutes added".
+  - **Limits:** one request per screen at a time, at most one every 5 seconds, and requests expire after 2 minutes. Guest-code viewers and the LED sign can't send them.
+  - **The service report** lists each request and what the operator did, for the after-service review.
+
 - **Programs and Reports, tidied.** Both lists are grouped cards whose rows clearly open: each row has a **›**, highlights when pressed, and a short hint says "Tap to open · press and hold to select" until you dismiss it.
   - **Report rows** show a date badge, the length and start time, and an outcome chip: "+3m over", "On time" or "2m under".
   - **Selecting** replaces the title with **✕ · N selected · Select all**. The rows show checkboxes, with selected rows tinted, and a fixed bar at the bottom holds **Pin** (programs), **Share**, **Export** and, in red, **Delete**. Back or ✕ finishes. Search still works while selecting, and anything selected but hidden by a filter is noted.

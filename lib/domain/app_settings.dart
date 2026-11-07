@@ -211,6 +211,7 @@ String exportBackup(
     ..remove('dismissedHints')
     ..remove('settingsLock')
     ..remove('clickerControls')
+    ..remove('stageRequests')
     ..remove('programHistory')
     ..remove('programInbox')
     ..remove('segmentLibrary')
