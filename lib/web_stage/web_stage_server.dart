@@ -598,7 +598,10 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         'displayText': s['displayText'] ?? '',
         'bold': s['bold'] == true,
         'italic': s['italic'] == true,
-        'effect': s['effect'] ?? 'static',
+        'effect': const {'scroll', 'flash'}.contains(s['effect'])
+            ? s['effect']
+            : 'static',
+        'speed': ((s['speed'] as num?)?.toDouble() ?? 12.0).clamp(1.0, 60.0),
         'overtime': s['overtime'] == true,
         'paused': s['paused'] == true,
         if (s['quickMessage'] case final Map q)

@@ -39,6 +39,8 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 .over { color: var(--bad); }
 #stage { position:fixed; inset:0; background:#000; display:none; align-items:center; justify-content:center; text-align:center; padding:4vw; }
 #stage .text { color:#fff; font-weight:500; white-space:pre-wrap; word-break:break-word; line-height:1; margin:0 auto; font-variant-numeric: tabular-nums; }
+#stage .lane { position:absolute; inset:0; overflow:hidden; }
+#stage .run { position:absolute; left:0; top:50%; white-space:pre; line-height:1.1; will-change:transform; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
@@ -87,7 +89,7 @@ function clear(node) { while (node.firstChild) node.removeChild(node.firstChild)
 async function loadInfo() { try { info = (await api('/api/info')).body; } catch (_) {} }
 
 function showJoin(message) {
-  stop(); token = null; save(); setLost(false);
+  stop(); stopMotion(); token = null; save(); setLost(false);
   $('stage').style.display = 'none'; clear($('tools'));
   const app = $('app'); clear(app); app.style.display = 'block';
   app.append(el('div', 'tag', 'Church Service Timer'), el('h1', '', info.church || 'Welcome'));
@@ -224,6 +226,7 @@ function fit(node, text) {
 function render(s) {
   lastState = s;
   if (s.role === 'stage') return renderStage(s);
+  stopMotion();
   $('stage').style.display = 'none';
   const app = $('app'); app.style.display = 'block'; clear(app);
   const head = el('div', 'bar');
@@ -272,23 +275,60 @@ function render(s) {
   render.lastIndex = s.index;
 }
 
+// Scrolling and flashing text, as on the display preview: one line at
+// screen height moving right to left at the cue's speed, or blinking twice
+// a second. It keeps running across polls and pauses while the host is lost.
+let motion = null;
+function stopMotion() { if (motion) cancelAnimationFrame(motion.raf); motion = null; }
+function startMotion(text, value, s, key) {
+  const stage = $('stage');
+  const h = window.innerHeight, w = window.innerWidth;
+  const m = { key, elapsed: 0, last: performance.now(), raf: 0 };
+  if (s.effect === 'scroll') {
+    const lane = el('div', 'lane'); const run = el('span', 'run', value.replace(/\n/g, ' '));
+    const size = h * 0.9;
+    run.style.fontSize = size + 'px';
+    lane.append(run); text.append(lane);
+    // The preview's speed: the cue's speed scaled by text size.
+    const speed = (Number(s.speed) || 12) * 6 * (size / Math.min(260, Math.max(42, w / 7)));
+    m.step = () => {
+      const travel = w + run.offsetWidth;
+      run.style.transform = 'translate(' + (w - (m.elapsed * speed) % travel) + 'px, -50%)';
+    };
+  } else {
+    text.textContent = value; fit(text, value || ' ');
+    m.step = () => { text.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
+  }
+  const frame = (now) => {
+    if (!stage.classList.contains('stale')) m.elapsed += (now - m.last) / 1000;
+    m.last = now; m.step(); m.raf = requestAnimationFrame(frame);
+  };
+  motion = m; m.step(); m.raf = requestAnimationFrame(frame);
+}
+
 function renderStage(s) {
   $('app').style.display = 'none';
   const stage = $('stage'); stage.style.display = 'flex';
   const text = $('stageText'); const note = $('stageNote');
+  const value = s.displayText || '';
+  const moving = s.sharing && !s.message && !s.blank && value && (s.effect === 'scroll' || s.effect === 'flash');
+  const key = moving ? [s.effect, value, s.speed, s.bold, s.italic, s.overtime, window.innerWidth, window.innerHeight].join('|') : '';
+  // The same moving text as the last poll: leave it running.
+  if (moving && motion && motion.key === key) { note.textContent = s.paused ? 'PAUSED' : ''; return; }
+  stopMotion(); text.style.visibility = 'visible';
   clear(text); note.textContent = ''; stage.style.background = '#000'; stage.style.textAlign = 'center'; text.style.width = '';
   if (!s.sharing) { text.textContent = 'Waiting for the host to share the stage'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {
     renderMessage(stage, text, s.message); return;
   }
   if (s.blank) return;
-  const value = s.displayText || '';
-  text.textContent = value;
   text.style.color = s.overtime ? '#ff4d4d' : '#fff';
   text.style.fontWeight = s.bold ? '800' : '500';
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
-  fit(text, value || ' ');
   if (s.paused) note.textContent = 'PAUSED';
+  if (moving) { startMotion(text, value, s, key); return; }
+  text.textContent = value;
+  fit(text, value || ' ');
 }
 // The quick message's palette and style, as the paired screens show it.
 const PALETTES = { white: ['#ffffff', '#10151c'], amber: ['#ffdc8b', '#261b09'], sky: ['#c4e6ff', '#071b2c'], mint: ['#bcf4da', '#08271c'] };
