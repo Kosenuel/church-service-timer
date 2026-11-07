@@ -4,6 +4,8 @@ import 'dart:ui' show ImageFilter;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/pairing/stage_request_views.dart';
+import 'package:church_service_timer/shared/list_views.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -199,6 +201,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
 
   String reportFilter = 'all', reportView = 'list';
   bool selectingPrograms = false, selectingReports = false;
+
+  /// The report tapped in the Reports graph, shown in a card below it.
+  String? graphReport;
   final selectedProgramExports = <String>{}, selectedReportExports = <String>{};
   String reportQuery = '',
       programQuery = '',
@@ -283,6 +288,22 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     c.liveNavigation.addListener(returnToLive);
     HardwareKeyboard.instance.addHandler(onClickerKey);
     c.port.setIncomingFileHandler(receiveIncomingFile);
+    // A stage request: a short vibration and a note that opens Live,
+    // where the request waits with its buttons.
+    c.stageRequests.onRequest = (request) {
+      if (!mounted) return;
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          key: const ValueKey('stage-request-note'),
+          content: Text('${request.label} · ${request.screenName}'),
+          action: page == 0
+              ? null
+              : SnackBarAction(label: 'View', onPressed: () => goToPage(0)),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    };
     c.onWebJoined = (message) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2311,6 +2332,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
               ),
             if (focused) ...[
+              stageRequestCards(),
               timerPanelOf(wide: true),
               const SizedBox(height: 16),
               panel(
@@ -2417,6 +2439,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 timingStatusLine(bar: true),
                 const SizedBox(height: 16),
               ],
+              stageRequestCards(),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -2444,6 +2467,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 ],
               ),
             ] else ...[
+              stageRequestCards(),
               timerPanelOf(wide: false),
               const SizedBox(height: 16),
               cuePanel,
@@ -2875,7 +2899,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       label: const Text('New program'),
                     )
                   : null,
-              bottomNavigationBar: focused
+              bottomNavigationBar:
+                  !focused &&
+                      ((page == 1 && selectingPrograms) ||
+                          (page == 2 && selectingReports))
+                  ? selectionActionBar(programs: page == 1)
+                  : focused
                   ? SafeArea(
                       top: false,
                       child: TextButton.icon(
