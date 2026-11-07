@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 /// A 1920 × 1080 slide for projecting: church name, a large QR, the easy
-/// name, the order-of-service code and the address, and a small credit.
+/// name, the guest code and the address, and a small credit.
 Future<Uint8List> joinSlidePng({
   required String church,
   required String url,
@@ -124,7 +124,7 @@ Future<Uint8List> joinSlidePng({
         34;
   }
   if (code != null) {
-    y += text('Code', left, y, 32, color: muted) + 4;
+    y += text('Guest code', left, y, 32, color: muted) + 4;
     text(code, left, y, 76, weight: FontWeight.w800, color: accent);
   }
   final address = url.replaceFirst('http://', '');
@@ -231,6 +231,15 @@ extension WebStageViews on HomeState {
                 ),
               ),
               const SizedBox(height: 12),
+              if (local != null && c.mdns.answered > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'Easy name answered ${c.mdns.answered} lookup${c.mdns.answered == 1 ? '' : 's'}',
+                    key: const ValueKey('web-name-lookups'),
+                    style: TextStyle(color: colors.muted, fontSize: 12),
+                  ),
+                ),
               if (local != null)
                 line(
                   'Easy name',
@@ -264,7 +273,7 @@ extension WebStageViews on HomeState {
                 ),
               if (settings.orderAccess == OrderAccess.code)
                 line(
-                  'Order of service code',
+                  'Guest code',
                   settings.orderCode,
                   key: const ValueKey('web-order-code'),
                   big: true,
@@ -276,7 +285,7 @@ extension WebStageViews on HomeState {
                 big: true,
               ),
               Text(
-                'The order-of-service code stays the same each week, for slides and bulletins. The team code opens Stage display and Service overview too, and changes each time you share.',
+                'The guest code opens Order of service and stays the same each week, for slides and bulletins. The team code opens Stage display and Service overview too, and changes each time you share.',
                 style: TextStyle(
                   color: colors.muted,
                   fontSize: 13,
@@ -312,7 +321,7 @@ extension WebStageViews on HomeState {
                     key: const ValueKey('web-change-order-code'),
                     onPressed: () => changeOrderCode(settings),
                     icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Change order code'),
+                    label: const Text('Change guest code'),
                   ),
                 ],
               ),
@@ -481,7 +490,7 @@ extension WebStageViews on HomeState {
 
   Future<void> changeOrderCode(WebStageSettings s) async {
     final next = await askText(
-      'Order of service code',
+      'Guest code',
       s.orderCode,
       (v) => validOrderCode(v) ? null : 'Use 4–8 letters or digits.',
       help: 'People following now are asked for the new code.',

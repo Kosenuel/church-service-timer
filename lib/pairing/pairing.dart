@@ -819,7 +819,9 @@ class PairHub extends ChangeNotifier {
     _joinRole = role;
     _sourceAddress = sourceAddress;
     if (resumeId == null) mode = role;
-    status = resumeId == null ? 'Connecting…' : 'Reconnecting to host…';
+    status = resumeId == null
+        ? 'Connecting…'
+        : 'Reconnecting to the host device…';
     changed();
     Socket? connecting;
     try {

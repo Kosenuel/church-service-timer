@@ -508,7 +508,7 @@ extension PairingViews on HomeState {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Some sign hotspots and church networks keep devices apart. If joining fails, use the host phone’s hotspot. Other apps such as LedArt are outside this control system.',
+                        'Some sign hotspots and church networks keep devices apart. If joining fails, use the host device’s hotspot. Other apps such as LedArt are outside this control system.',
                         style: muted,
                       ),
                     ),
@@ -1049,7 +1049,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
         if (hosts.isEmpty)
           Text(
             discoveryError ??
-                'Looking for a host… Tap Share to stage screens on the host phone. If it does not appear, try QR pairing.',
+                'Looking for a host… Tap Share to stage screens on the host device. If it does not appear, try QR pairing.',
           ),
         for (final host in hosts)
           ListTile(
@@ -1296,7 +1296,7 @@ class _PairScannerPageState extends State<PairScannerPage> {
         Padding(
           padding: const EdgeInsets.all(20),
           child: Text(
-            error ?? 'Point the camera at the QR code on the host phone.',
+            error ?? 'Point the camera at the QR code on the host device.',
           ),
         ),
         TextButton(
@@ -1555,7 +1555,7 @@ class _PairedScreenState extends State<PairedScreen> {
                       padding: EdgeInsets.all(12),
                       child: ReconnectingChip(
                         key: ValueKey('stage-reconnecting'),
-                        label: 'Reconnecting to host…',
+                        label: 'Reconnecting to the host device…',
                       ),
                     ),
                   ),
@@ -1670,7 +1670,7 @@ class _PairedScreenState extends State<PairedScreen> {
             ),
           if (hub.canControl) ...[
             const Text(
-              'You control this service. The host phone must stay connected.',
+              'You control this service. The host device must stay connected.',
             ),
             const SizedBox(height: 12),
             LayoutBuilder(

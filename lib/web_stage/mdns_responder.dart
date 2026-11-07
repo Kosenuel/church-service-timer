@@ -2,13 +2,21 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-/// Answers multicast DNS questions for `<name>.local` with the host phone's
+/// Answers multicast DNS questions for `<name>.local` with the host device's
 /// Wi-Fi address, so browsers can open an easy name that keeps working when
 /// the address changes. Works offline, on the church router or a hotspot.
 /// Devices that do not support `.local` names use the QR or the address.
 class MdnsResponder {
   static final group = InternetAddress('224.0.0.251');
   static const port = 5353;
+
+  /// The port questions are read on; tests use a free one.
+  final int listenPort;
+  MdnsResponder({this.listenPort = port});
+
+  /// How many questions for our name were answered, shown in the panel so
+  /// a failing setup can be told apart from one that never asks.
+  int answered = 0;
   static const ttlSeconds = 120;
 
   RawDatagramSocket? _socket;
@@ -17,6 +25,7 @@ class MdnsResponder {
   Timer? _announce;
 
   bool get running => _socket != null;
+  int? get boundPort => _socket?.port;
   String get hostname => '$_name.local';
 
   /// Starts answering for [name] (without `.local`) with [address]. Returns
@@ -31,14 +40,14 @@ class MdnsResponder {
       try {
         socket = await RawDatagramSocket.bind(
           InternetAddress.anyIPv4,
-          port,
+          listenPort,
           reuseAddress: true,
           reusePort: true,
         );
       } on Object {
         socket = await RawDatagramSocket.bind(
           InternetAddress.anyIPv4,
-          port,
+          listenPort,
           reuseAddress: true,
         );
       }
@@ -50,10 +59,30 @@ class MdnsResponder {
       }
       socket
         ..multicastLoopback = false
-        ..joinMulticast(group, wifi)
-        ..listen((event) {
-          if (event == RawSocketEvent.read) _read();
-        });
+        // mDNS replies are sent with the link-local TTL of 255.
+        ..multicastHops = 255;
+      // Send on the Wi-Fi or hotspot network, not the phone's default
+      // network: during a hotspot that is mobile data, and answers sent
+      // there never reach the laptop or phone that asked.
+      try {
+        socket.setRawOption(
+          RawSocketOption(
+            RawSocketOption.levelIPv4,
+            RawSocketOption.IPv4MulticastInterface,
+            Uint8List.fromList(_address!.rawAddress),
+          ),
+        );
+      } on Object {
+        /* Direct replies below still reach the asker. */
+      }
+      try {
+        socket.joinMulticast(group, wifi);
+      } on Object {
+        // Some hotspot interfaces refuse; direct questions still get answers.
+      }
+      socket.listen((event) {
+        if (event == RawSocketEvent.read) _read();
+      });
       _socket = socket;
     } on Object {
       await stop();
@@ -89,19 +118,22 @@ class MdnsResponder {
     while ((d = s.receive()) != null) {
       final q = parseQuery(d!.data);
       if (q == null || !q.asks(hostname)) continue;
+      answered++;
       // A one-shot query from another port wants a direct reply that
-      // echoes its id and question; others get the multicast answer.
+      // echoes its id and question.
       if (d.port != port) {
         _send(
           answer(_name, _address!, id: q.id, echoQuestion: true),
           d.address,
           d.port,
         );
-      } else if (q.unicast) {
-        _send(answer(_name, _address!), d.address, d.port);
-      } else {
-        _send(answer(_name, _address!), group, port);
+        continue;
       }
+      // Otherwise answer on the group as the protocol asks, and also
+      // directly to the asker, which reaches it even where the group
+      // reply is lost (hotspots, busy routers).
+      if (!q.unicast) _send(answer(_name, _address!), group, port);
+      _send(answer(_name, _address!), d.address, d.port);
     }
   }
 

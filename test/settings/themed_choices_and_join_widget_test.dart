@@ -399,8 +399,13 @@ void main() {
           matching: find.text('Send message'),
         ),
       );
-      await t.pumpAndSettle();
+      for (var i = 0; i < 10; i++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
       expect(c.sent?.body, 'Please remain seated');
+      // A sent message closes the composer and confirms on Live.
+      expect(find.text('Quick message'), findsNothing);
+      expect(find.byKey(const ValueKey('quick-message-sent')), findsOneWidget);
       expect(c.confirmedSession, c.state.session.id);
       expect(jsonEncode(c.state.toJson()..remove('editDrafts')), before);
       expect(t.takeException(), isNull);

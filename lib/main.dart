@@ -283,6 +283,16 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     c.liveNavigation.addListener(returnToLive);
     HardwareKeyboard.instance.addHandler(onClickerKey);
     c.port.setIncomingFileHandler(receiveIncomingFile);
+    c.onWebJoined = (message) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          key: const ValueKey('web-joined'),
+          content: Text(message),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    };
     if (!c.ready) {
       c.initialize().then((_) => receiveIncomingFile()).catchError((Object e) {
         if (mounted) showError('Could not initialize Android services: $e');
@@ -1019,6 +1029,49 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
             label: Text(text),
           ),
   );
+
+  /// A compact button with the icon above a short label, for a row of
+  /// three even actions.
+  Widget stackedButton(
+    String text,
+    IconData icon,
+    VoidCallback? action, {
+    bool primary = false,
+  }) {
+    final child = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 22),
+        const SizedBox(height: 4),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          style: const TextStyle(fontSize: 13),
+        ),
+      ],
+    );
+    final style = ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(Size(0, 76)),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      ),
+    );
+    return UnavailableAction(
+      reason: controlsLocked || action == null ? unavailableReason(text) : null,
+      child: primary
+          ? FilledButton(
+              style: style,
+              onPressed: controlsLocked ? null : action,
+              child: child,
+            )
+          : OutlinedButton(
+              style: style,
+              onPressed: controlsLocked ? null : action,
+              child: child,
+            ),
+    );
+  }
 
   Widget live() => AnimatedBuilder(
     animation: c.liveClock,
@@ -1864,7 +1917,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
           ),
           cueDeliveryFeedback(),
           const SizedBox(height: 12),
+          // Cues: every button the same height; a lone last cue fills its
+          // row rather than leaving a gap.
           ControlGrid(
+            maxColumns: 2,
+            fillLastRow: true,
             children: c.state.stageCues.asMap().entries.map((e) {
               final active = e.key == activeCueIndex;
               if (active) {
@@ -1886,14 +1943,16 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       : unavailableReason('Send cue'),
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 60),
+                      minimumSize: const Size(0, 68),
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                     ),
                     icon: const Icon(Icons.chat_bubble_outline, size: 20),
                     label: Text(
                       e.value.text,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
+                      textAlign: TextAlign.left,
                     ),
                     onPressed: outputControlsEnabled && !c.hardware.sending
                         ? () => sendPreparedCue(e.value)
@@ -1903,8 +1962,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               );
             }).toList(),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          // Display actions sit apart from the cues, in one even row.
           ControlGrid(
+            maxColumns: 3,
+            minWidth: 92,
             children: [
               if (clockSwap)
                 ShowTimerButton(
@@ -1915,7 +1977,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                   onPressed: outputControlsEnabled ? returnToTimer : null,
                 )
               else
-                button(
+                stackedButton(
                   'Show clock',
                   Icons.schedule,
                   outputControlsEnabled ? () => c.act('clock') : null,
@@ -1929,12 +1991,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                   onPressed: outputControlsEnabled ? returnFromCue : null,
                 )
               else
-                button(
+                stackedButton(
                   'Send message',
                   Icons.edit_note,
                   outputControlsEnabled ? sendStageMessage : null,
                 ),
-              button(
+              stackedButton(
                 s.outputBlank ? 'Unblank screen' : 'Blank screen',
                 s.outputBlank ? Icons.tv_outlined : Icons.tv_off_outlined,
                 (s.active || s.phase == 'ended') &&
@@ -2683,7 +2745,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                               children: [
                                                 Text(
                                                   c.pairing.localControl
-                                                      ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices'
+                                                      ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices${c.webStage.activeDevices.isEmpty ? '' : ' · ${c.webStage.activeDevices.length} web screens'}'
                                                       : 'Control is with a paired operator. This phone remains the service host.',
                                                 ),
                                                 TextButton(
@@ -3780,13 +3842,25 @@ class TemplateEditorState extends State<TemplateEditor> {
 class ControlGrid extends StatelessWidget {
   final List<Widget> children;
   final int maxColumns;
-  const ControlGrid({super.key, required this.children, this.maxColumns = 3});
+
+  /// The narrowest a column may be before the grid drops a column.
+  final double minWidth;
+
+  /// A lone item on the last row spans it, instead of leaving a gap.
+  final bool fillLastRow;
+  const ControlGrid({
+    super.key,
+    required this.children,
+    this.maxColumns = 3,
+    this.minWidth = 118,
+    this.fillLastRow = false,
+  });
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, space) {
       final minimum = MediaQuery.textScalerOf(
         context,
-      ).scale(118).clamp(118.0, 220.0);
+      ).scale(minWidth).clamp(minWidth, 220.0);
       final columns = ((space.maxWidth + 10) / (minimum + 10)).floor().clamp(
         1,
         maxColumns,
@@ -3801,7 +3875,14 @@ class ControlGrid extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (var column = 0; column < columns; column++) ...[
+                  for (
+                    var column = 0;
+                    column <
+                        (fillLastRow && start + 1 == children.length
+                            ? 1
+                            : columns);
+                    column++
+                  ) ...[
                     if (column > 0) SizedBox(width: gap),
                     Expanded(
                       child: start + column < children.length

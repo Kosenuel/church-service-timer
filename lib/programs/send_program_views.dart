@@ -82,7 +82,7 @@ extension SendProgramViews on HomeState {
         ),
         chosen,
         c.state.churchName.trim().isEmpty
-            ? 'the host phone'
+            ? 'the host device'
             : c.state.churchName.trim(),
       );
       if (!mounted) return;

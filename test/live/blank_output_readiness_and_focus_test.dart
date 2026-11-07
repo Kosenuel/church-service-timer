@@ -170,7 +170,7 @@ void main() {
       await t.tap(status);
       await t.pumpAndSettle();
       expect(find.text('Choose display'), findsOneWidget);
-      expect(find.text('Phone or tablet'), findsOneWidget);
+      expect(find.text('Phone, tablet or web screens'), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('../goldens/connection-phone.png'),

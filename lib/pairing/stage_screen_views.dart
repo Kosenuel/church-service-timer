@@ -77,84 +77,175 @@ extension MobileDisplayViews on HomeState {
     }
   }
 
-  Widget displayChoices() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(
-        'Where should your stage output appear?',
-        style: Theme.of(context).textTheme.headlineSmall,
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Choose one destination. Your service timing continues when you switch.',
-      ),
-      const SizedBox(height: 24),
-      for (final choice in [
-        (
-          'led',
-          Icons.signpost_outlined,
-          'LED sign',
-          'Connect to your Wi-Fi LED controller',
+  /// A short live status for each destination, so the choice says what is
+  /// already connected before it is made.
+  String destinationStatus(String id) {
+    switch (id) {
+      case 'led':
+        return c.destination == 'led' ? c.displayConnection.label : '';
+      case 'mobile':
+        final paired = c.pairing.syncedStagePeers.length;
+        final web = c.webStage.syncedStageDevices.length;
+        if (paired + web == 0)
+          return c.destination == 'mobile' ? 'Waiting for a screen' : '';
+        final parts = [
+          if (paired > 0) '$paired paired',
+          if (web > 0) '$web web',
+        ];
+        return '${parts.join(' · ')} connected';
+      default:
+        return c.destination == 'simulator' ? 'Showing on this device' : '';
+    }
+  }
+
+  Widget displayChoices() {
+    final colors = appColors(context);
+    final locked = c.busy || c.reportSavePending;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Where should your stage output appear?',
+          style: Theme.of(context).textTheme.headlineSmall,
         ),
-        (
-          'mobile',
-          Icons.tablet_mac_outlined,
-          'Phone or tablet',
-          'Use another device as your stage screen',
+        const SizedBox(height: 8),
+        Text(
+          'Choose one destination. Your service timing continues when you switch.',
+          style: TextStyle(color: colors.muted),
         ),
-        (
-          'simulator',
-          Icons.monitor_outlined,
-          'Simulator',
-          'Preview without an external display',
-        ),
-      ]) ...[
-        Material(
-          color: c.destination == choice.$1
-              ? appColors(context).accent.withValues(alpha: .12)
-              : appColors(context).surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: BorderSide(
-              color: c.destination == choice.$1
-                  ? appColors(context).accent
-                  : appColors(context).border,
-            ),
+        const SizedBox(height: 20),
+        for (final choice in [
+          (
+            'led',
+            Icons.signpost_outlined,
+            'LED sign',
+            'Your Wi-Fi LED controller at the front of the church',
           ),
-          clipBehavior: Clip.antiAlias,
-          child: ListTile(
-            key: ValueKey('destination-${choice.$1}'),
-            contentPadding: const EdgeInsets.all(18),
-            leading: Icon(choice.$2, size: 34),
-            title: Text(
-              choice.$3,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(choice.$4),
-            ),
-            trailing: Icon(
-              c.destination == choice.$1
-                  ? Icons.check_circle
-                  : Icons.chevron_right,
-            ),
-            onTap: c.busy || c.reportSavePending
-                ? null
-                : () => chooseDestination(choice.$1),
+          (
+            'mobile',
+            Icons.devices_outlined,
+            'Phone, tablet or web screens',
+            'Paired phones and tablets, or any browser on this Wi-Fi',
           ),
-        ),
-        const SizedBox(height: 14),
+          (
+            'simulator',
+            Icons.monitor_outlined,
+            'Simulator',
+            'Preview on this device without an external display',
+          ),
+        ]) ...[
+          Builder(
+            builder: (context) {
+              final chosen = c.destination == choice.$1;
+              final status = destinationStatus(choice.$1);
+              return Material(
+                color: chosen
+                    ? colors.accent.withValues(alpha: .12)
+                    : colors.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  side: BorderSide(
+                    color: chosen ? colors.accent : colors.border,
+                    width: chosen ? 2 : 1,
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  key: ValueKey('destination-${choice.$1}'),
+                  onTap: locked ? null : () => chooseDestination(choice.$1),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: chosen
+                                ? colors.accent.withValues(alpha: .2)
+                                : colors.border.withValues(alpha: .35),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(choice.$2, size: 28),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                choice.$3,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                choice.$4,
+                                style: TextStyle(color: colors.muted),
+                              ),
+                              if (status.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.circle,
+                                      size: 8,
+                                      color: chosen
+                                          ? colors.accent
+                                          : colors.muted,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        status,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          chosen ? Icons.check_circle : Icons.chevron_right,
+                          color: chosen ? colors.accent : colors.muted,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (c.destination == 'led')
+          TextButton.icon(
+            onPressed: () =>
+                openSettingsDetail('LED connection', connectionSettings),
+            icon: const Icon(Icons.info_outline),
+            label: const Text('LED connection details'),
+          ),
+        if (c.destination == 'mobile')
+          TextButton.icon(
+            onPressed: () => openSettingsDetail(
+              'Screens & devices',
+              stageScreenSettings,
+              showLiveShortcut: true,
+            ),
+            icon: const Icon(Icons.devices),
+            label: const Text('Manage screens'),
+          ),
       ],
-      if (c.destination == 'led')
-        TextButton.icon(
-          onPressed: () =>
-              openSettingsDetail('LED connection', connectionSettings),
-          icon: const Icon(Icons.info_outline),
-          label: const Text('LED connection details'),
-        ),
-    ],
-  );
+    );
+  }
 
   Future<void> startStageSharing() async {
     try {
@@ -230,7 +321,8 @@ extension MobileDisplayViews on HomeState {
         label: Text(
           !c.pairing.hosting
               ? 'Share to stage screens'
-              : c.pairing.stagePeers.isEmpty
+              : c.pairing.stagePeers.isEmpty &&
+                    c.webStage.syncedStageDevices.isEmpty
               ? 'Pair screen'
               : 'Manage screens',
         ),
@@ -256,22 +348,39 @@ extension MobileDisplayViews on HomeState {
 
   Widget mobileStagePreview() {
     final peers = c.pairing.stagePeers;
-    final selected =
-        peers.where((p) => p.id == previewScreenId).firstOrNull ??
-        peers.firstOrNull;
-    final data = selected?.acknowledgedSnapshot;
+    final web = c.webStage.syncedStageDevices;
+    // Paired screens show what they last confirmed; web Stage displays show
+    // the host's current output, with the message only if they receive it.
+    final screens = [
+      for (final p in peers) (id: p.id, name: p.name),
+      for (final d in web) (id: 'web:${d.token}', name: '${d.label} (web)'),
+    ];
+    final chosen =
+        screens.where((s) => s.id == previewScreenId).firstOrNull ??
+        screens.firstOrNull;
+    final selected = peers.where((p) => p.id == chosen?.id).firstOrNull;
+    final isWeb = chosen != null && chosen.id.startsWith('web:');
+    Json? data = selected?.acknowledgedSnapshot;
+    if (isWeb) {
+      data = c.pairedSnapshot(false)..['stageLayout'] = 'timer';
+      if (!c.quickRecipients.contains(chosen.id)) {
+        data
+          ..remove('quickMessage')
+          ..['blank'] = c.state.session.outputBlank;
+      }
+    }
     final fresh =
-        selected != null && c.pairing.syncedStagePeers.contains(selected);
+        isWeb ||
+        (selected != null && c.pairing.syncedStagePeers.contains(selected));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (peers.length > 1) ...[
+        if (screens.length > 1) ...[
           ChoiceField<String>(
-            value: selected?.id,
+            value: chosen?.id,
             decoration: const InputDecoration(labelText: 'Preview screen'),
             options: [
-              for (final peer in peers)
-                ChoiceOption(value: peer.id, label: peer.name),
+              for (final s in screens) ChoiceOption(value: s.id, label: s.name),
             ],
             onChanged: (id) => refreshHome(() => previewScreenId = id),
           ),
@@ -297,7 +406,7 @@ extension MobileDisplayViews on HomeState {
         const SizedBox(height: 8),
         Text(
           fresh
-              ? '${selected.name} · Synced'
+              ? '${chosen!.name} · Synced'
               : !c.pairing.stageSharingEnabled
               ? 'Sharing stopped'
               : data != null
@@ -314,11 +423,13 @@ extension MobileDisplayViews on HomeState {
     );
   }
 
-  Set<String> get selectedMessageRecipients => c.pairing.syncedStagePeers
+  Set<String> get selectedMessageRecipients => c.stageScreens
       .where((p) {
         if (quickAudience == 'all') return true;
         if (quickAudience.startsWith('device:'))
           return p.id == quickAudience.substring(7);
+        // Web displays have no group; they get "all" or their own entry.
+        if (p.id.startsWith('web:')) return false;
         final profile = c.pairing.savedDevices
             .where((d) => d.id == p.id)
             .firstOrNull;
@@ -329,7 +440,7 @@ extension MobileDisplayViews on HomeState {
 
   String get stageRecipientSummary {
     final ids = selectedMessageRecipients;
-    final names = c.pairing.syncedStagePeers
+    final names = c.stageScreens
         .where((p) => ids.contains(p.id))
         .map((p) => p.name)
         .join(', ');
@@ -368,6 +479,21 @@ extension MobileDisplayViews on HomeState {
     );
     if (ok) c.queueEditDraft('quick-message', null);
     return ok;
+  }
+
+  /// The first thing stopping a send, in words the operator can act on.
+  String? get quickSendBlocker {
+    if (!c.pairing.localControl)
+      return 'Operator control is on another device.';
+    if (!c.stageConnected)
+      return 'Connect a stage screen to send. Your draft stays here.';
+    if (selectedMessageRecipients.isEmpty)
+      return 'None of the screens in "Send to" are connected. Choose All connected stage screens or another screen.';
+    if (!c.state.session.active && c.state.session.phase != 'ended')
+      return 'Start or end a service to send. Use Test to try it now.';
+    if (c.reportSavePending) return 'Saving the service report…';
+    if (c.busy || controlsLocked) return 'Wait a moment and try again.';
+    return null;
   }
 
   bool get canSendQuickMessage =>
@@ -426,10 +552,13 @@ extension MobileDisplayViews on HomeState {
           (d) => d.role != 'operator',
         ))
           ChoiceOption(value: 'device:${d.id}', label: d.name),
+        for (final w in c.stageScreens.where((s) => s.id.startsWith('web:')))
+          ChoiceOption(value: 'device:${w.id}', label: w.name),
         if (quickAudience.startsWith('device:') &&
             !c.pairing.savedDevices.any(
               (d) => quickAudience == 'device:${d.id}',
-            ))
+            ) &&
+            !c.stageScreens.any((s) => quickAudience == 'device:${s.id}'))
           ChoiceOption(value: quickAudience, label: 'Unavailable screen'),
       ],
       onChanged: controlsLocked
@@ -508,9 +637,33 @@ extension MobileDisplayViews on HomeState {
                           seconds: 5,
                         ),
                         test: true,
+                        // The same screens a real send would reach.
+                        recipientIds: selectedMessageRecipients,
                       )
                     : null,
-                onSend: canSendQuickMessage ? sendLiveQuickMessage : null,
+                sendUnavailableReason: quickSendBlocker,
+                failureReason: () => c.error,
+                onSend: canSendQuickMessage
+                    ? (message) async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final ok = await sendLiveQuickMessage(message);
+                        // Sent: back to Live, where the message shows as On
+                        // stage with Return to timer and the Seen status.
+                        if (ok == true && ctx.mounted) {
+                          final count = c.quickRecipients.length;
+                          Navigator.pop(ctx);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              key: const ValueKey('quick-message-sent'),
+                              content: Text(
+                                'Message sent to ${plural(count, 'stage screen')}',
+                              ),
+                            ),
+                          );
+                        }
+                        return ok;
+                      }
+                    : null,
               ),
             ),
           ),
@@ -546,20 +699,29 @@ extension MobileDisplayViews on HomeState {
           label: const Text('Write a message'),
         ),
         if (c.currentQuickMessage?.requestSeen == true) ...[
-          const SizedBox(height: 12),
-          Text(
-            'Seen ${c.quickSeen.length} of ${c.quickRecipientNames.length}',
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
+          // Web screens have no Seen button, so they are listed as showing
+          // the message and are not counted as awaiting.
+          if (c.quickRecipientNames.keys.any(
+            (id) => !id.startsWith('web:'),
+          )) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Seen ${c.quickSeen.length} of ${c.quickRecipientNames.keys.where((id) => !id.startsWith('web:')).length}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ] else
+            const SizedBox(height: 12),
           Text(
             c.quickRecipientNames.entries
                 .map(
                   (e) =>
-                      '${e.value}: ${c.quickSeen.contains(e.key)
+                      '${e.value}: ${!c.quickRecipients.contains(e.key)
+                          ? 'Disconnected'
+                          : e.key.startsWith('web:')
+                          ? 'On screen (web, no Seen)'
+                          : c.quickSeen.contains(e.key)
                           ? 'Seen'
-                          : c.quickRecipients.contains(e.key)
-                          ? 'Awaiting Seen'
-                          : 'Disconnected'}',
+                          : 'Awaiting Seen'}',
                 )
                 .join(' · '),
           ),
@@ -835,6 +997,12 @@ class QuickMessageComposer extends StatefulWidget {
   /// Fills its parent with a scrolling body and a pinned action bar.
   final bool sticky;
   final Future<bool?> Function(QuickMessage)? onTest;
+
+  /// Why Send is unavailable, shown on the disabled button.
+  final String? sendUnavailableReason;
+
+  /// The specific reason the last action failed, when the app knows it.
+  final String? Function()? failureReason;
   const QuickMessageComposer({
     super.key,
     required this.initial,
@@ -847,6 +1015,8 @@ class QuickMessageComposer extends StatefulWidget {
     this.previewLabel,
     this.sticky = false,
     this.onTest,
+    this.sendUnavailableReason,
+    this.failureReason,
   });
   @override
   State<QuickMessageComposer> createState() => _QuickMessageComposerState();
@@ -932,7 +1102,8 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
               ? null
               : ok
               ? success
-              : 'Could not complete the action. Check the connection or storage and try again.',
+              : widget.failureReason?.call() ??
+                    'Could not complete the action. Check the connection or storage and try again.',
         );
     } catch (_) {
       if (mounted)
@@ -1161,7 +1332,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
               secondary: Icon(Icons.done_all, color: colors.muted),
               title: const Text('Request Seen acknowledgement'),
               subtitle: Text(
-                'The recipient taps Seen on their stage screen.',
+                'The recipient taps Seen on a paired stage screen. Web screens show the message without asking.',
                 style: muted,
               ),
             ),
@@ -1184,7 +1355,8 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
       reason: busy
           ? 'Wait for the current message to finish.'
           : widget.onSend == null
-          ? 'Connect a stage screen and enable operator controls first.'
+          ? widget.sendUnavailableReason ??
+                'Connect a stage screen and enable operator controls first.'
           : null,
       child: FilledButton.icon(
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),

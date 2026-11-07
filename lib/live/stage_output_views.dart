@@ -163,8 +163,11 @@ extension StageOutputViews on HomeState {
             ack['effect'] == cue?.effect &&
             ack['speed'] == cue?.speed;
       }).length;
+      final web = c.webStage.syncedStageDevices.length;
       status = peers.isEmpty
-          ? 'Not sent · no stage screen'
+          ? (web > 0
+                ? 'Sent to ${web == 1 ? '1 web stage display' : '$web web stage displays'}'
+                : 'Not sent · no stage screen')
           : received == peers.length
           ? 'Stage screens received'
           : 'Sending to stage screens…';

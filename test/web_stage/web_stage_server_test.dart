@@ -164,7 +164,10 @@ void main() {
     await call('/api/role', {'token': token, 'role': 'stage'});
     final (_, stage) = await call('/api/state?token=$token');
     expect(stage['displayText'], '12:30');
-    expect(stage['message'], {'headline': 'Wrap up', 'body': '2 minutes'});
+    expect(stage['effect'], 'static');
+    expect(stage['speed'], inInclusiveRange(1, 60));
+    expect(stage['message']['headline'], 'Wrap up');
+    expect(stage['message']['palette'], 'white');
     expect(jsonEncode(overview) + jsonEncode(stage), isNot(contains('Secret')));
   });
 
