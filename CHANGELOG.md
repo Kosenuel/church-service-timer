@@ -2,6 +2,11 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Web Stage displays now count as stage screens.** When a browser opens Stage display, the host enables the cue buttons and quick messages as it does for a paired stage screen. Web displays appear in the message's **Send to** list, receive only messages sent to them, and Live reports "Sent to 1 web stage display". The host shows a short "Laptop · Chrome joined · Stage display" note, and the device summary counts web screens.
+- **Easy name on a hotspot.** The phone now answers `.local` lookups on the hotspot or Wi-Fi network itself, not on mobile data, and also replies directly to the device that asked. If joining the multicast group is refused, it still answers direct questions. Web screens shows how many lookups it has answered, to help tell a blocked network from one that never asks.
+
 ## 0.26.0, 7/November/2026
 
 - **Web screens.** While sharing, any browser on the same Wi-Fi can follow the service without the app ([docs/WEB-SCREENS.md](docs/WEB-SCREENS.md)). **Order of service** shows the rundown and what is happening now, with no times, using a 4-digit code that stays the same each week (or no code, if you choose). **Stage display** (full-screen countdown and messages) and **Service overview** (time left, ahead or behind, finish time) need the 6-digit team code, which changes each time you share and also unlocks switching between all three. Browsers can't control the service or see private notes. Open them with a short easy name made from the church name (for example `grace-community.local`), the QR code or the address. **Export join slide** makes a 1920 × 1080 image to project.

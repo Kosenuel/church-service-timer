@@ -129,7 +129,7 @@ class QuickMessageController {
       app.notifyChanged();
       return false;
     }
-    final eligible = pairing.syncedStagePeers.map((p) => p.id).toSet();
+    final eligible = {for (final s in app.stageScreens) s.id};
     final chosen = Set<String>.from(recipientIds ?? eligible);
     final sessionId = state.session.id,
         segmentIndex = state.session.index,
@@ -168,10 +168,7 @@ class QuickMessageController {
         latest.index != segmentIndex ||
         pairing.epoch != epoch ||
         !pairing.localControl ||
-        !pairing.syncedStagePeers
-            .map((p) => p.id)
-            .toSet()
-            .containsAll(chosen)) {
+        !{for (final s in app.stageScreens) s.id}.containsAll(chosen)) {
       app.error =
           'Service, control or selected screens changed. Review the message again.';
       app.notifyChanged();
@@ -180,10 +177,8 @@ class QuickMessageController {
     clear();
     _recipients.addAll(chosen);
     recipientNames.addAll({
-      for (final peer in pairing.syncedStagePeers.where(
-        (p) => chosen.contains(p.id),
-      ))
-        peer.id: peer.name,
+      for (final s in app.stageScreens.where((s) => chosen.contains(s.id)))
+        s.id: s.name,
     });
     messageId = pairRandom(16);
     if (test) {

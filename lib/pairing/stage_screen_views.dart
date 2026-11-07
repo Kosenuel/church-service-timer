@@ -314,11 +314,13 @@ extension MobileDisplayViews on HomeState {
     );
   }
 
-  Set<String> get selectedMessageRecipients => c.pairing.syncedStagePeers
+  Set<String> get selectedMessageRecipients => c.stageScreens
       .where((p) {
         if (quickAudience == 'all') return true;
         if (quickAudience.startsWith('device:'))
           return p.id == quickAudience.substring(7);
+        // Web displays have no group; they get "all" or their own entry.
+        if (p.id.startsWith('web:')) return false;
         final profile = c.pairing.savedDevices
             .where((d) => d.id == p.id)
             .firstOrNull;
@@ -329,7 +331,7 @@ extension MobileDisplayViews on HomeState {
 
   String get stageRecipientSummary {
     final ids = selectedMessageRecipients;
-    final names = c.pairing.syncedStagePeers
+    final names = c.stageScreens
         .where((p) => ids.contains(p.id))
         .map((p) => p.name)
         .join(', ');
@@ -426,10 +428,13 @@ extension MobileDisplayViews on HomeState {
           (d) => d.role != 'operator',
         ))
           ChoiceOption(value: 'device:${d.id}', label: d.name),
+        for (final w in c.stageScreens.where((s) => s.id.startsWith('web:')))
+          ChoiceOption(value: 'device:${w.id}', label: w.name),
         if (quickAudience.startsWith('device:') &&
             !c.pairing.savedDevices.any(
               (d) => quickAudience == 'device:${d.id}',
-            ))
+            ) &&
+            !c.stageScreens.any((s) => quickAudience == 'device:${s.id}'))
           ChoiceOption(value: quickAudience, label: 'Unavailable screen'),
       ],
       onChanged: controlsLocked

@@ -280,6 +280,9 @@ class WebStageServer {
   /// The paired-screen snapshot without private notes, plus timing fields.
   final Json Function() snapshot;
   void Function(WebDevice device)? onJoined;
+
+  /// Whether a Stage display was chosen to receive the current message.
+  bool Function(WebDevice device)? showsMessage;
   void Function()? onChanged;
 
   WebStageServer({required this.settings, required this.snapshot});
@@ -332,6 +335,15 @@ class WebStageServer {
   void remove(String token) {
     if (devices.remove(token) != null) onChanged?.call();
   }
+
+  /// Stage displays that fetched the output within the last few seconds,
+  /// as for paired stage screens: these count as a connected stage.
+  List<WebDevice> get syncedStageDevices => [
+    for (final d in devices.values)
+      if (d.role == WebRole.stage &&
+          DateTime.now().millisecondsSinceEpoch - d.lastSeen < 3500)
+        d,
+  ];
 
   List<WebDevice> get activeDevices => [
     for (final d in devices.values)
@@ -485,7 +497,12 @@ class WebStageServer {
         _json(res, {
           'role': device.role.name,
           'team': device.team,
-          ...viewFor(device.role, snapshot(), settings()),
+          ...viewFor(device.role, snapshot(), settings())..removeWhere(
+            (k, _) =>
+                k == 'message' &&
+                showsMessage != null &&
+                !showsMessage!(device),
+          ),
         });
       } else {
         res.statusCode = HttpStatus.notFound;

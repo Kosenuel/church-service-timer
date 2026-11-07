@@ -57,10 +57,21 @@ class AppController extends ChangeNotifier {
   Session get liveSession => _pendingEnd ?? state.session;
   String get destination =>
       state.outputDestination ?? (hardware.enabled ? 'led' : 'simulator');
+
+  /// Every stage screen showing the output now: paired phones and web
+  /// Stage displays (ids `web:<token>`), for quick-message recipients.
+  List<({String id, String name})> get stageScreens => [
+    for (final p in pairing.syncedStagePeers) (id: p.id, name: p.name),
+    for (final d in webStage.syncedStageDevices)
+      (id: 'web:${d.token}', name: '${d.label} (web)'),
+  ];
+
+  /// A paired stage screen or a web Stage display is showing the output.
   bool get stageConnected =>
       destination == 'mobile' &&
       pairing.hosting &&
-      pairing.syncedStagePeers.isNotEmpty;
+      (pairing.syncedStagePeers.isNotEmpty ||
+          webStage.syncedStageDevices.isNotEmpty);
   bool get destinationConnected => destination == 'mobile'
       ? stageConnected
       : destination == 'led'
@@ -489,9 +500,7 @@ class AppController extends ChangeNotifier {
     pairing.addListener(() {
       unawaited(_syncWebStage());
       if (ready) {
-        quickMessages.keepRecipients(
-          pairing.syncedStagePeers.map((p) => p.id).toSet(),
-        );
+        quickMessages.keepRecipients({for (final s in stageScreens) s.id});
       }
       if (ready && !stageConnected) quickMessages.reset();
       if (!_disposed) notifyListeners();
@@ -556,7 +565,8 @@ class AppController extends ChangeNotifier {
   DisplayConnection get displayConnection => destination == 'mobile'
       ? stageConnected
             ? DisplayConnection.stageConnected
-            : pairing.stagePeers.isNotEmpty
+            : pairing.stagePeers.isNotEmpty ||
+                  webStage.activeDevices.any((d) => d.role == WebRole.stage)
             ? DisplayConnection.stageDisconnected
             : DisplayConnection.stageWaiting
       : DisplayConnection.fromAdapter(
@@ -710,6 +720,12 @@ class AppController extends ChangeNotifier {
           unawaited(metrics.warning(now, late));
         }
         await _trackMetrics();
+        // A web display that stops fetching drops out like a paired screen.
+        final synced = webStage.syncedStageDevices.length;
+        if (synced != _webStageSynced) {
+          _webStageSynced = synced;
+          notifyChanged();
+        }
         _publish();
         await syncActiveService();
         if (destination == 'led') unawaited(hardware.check(now));
@@ -1364,10 +1380,21 @@ class AppController extends ChangeNotifier {
   }
 
   /// Browsers following the service: started and stopped with sharing.
-  late final webStage = WebStageServer(
-    settings: () => webStageSettings,
-    snapshot: webStageSnapshot,
-  )..onChanged = notifyChanged;
+  late final webStage =
+      WebStageServer(
+          settings: () => webStageSettings,
+          snapshot: webStageSnapshot,
+        )
+        ..onChanged = notifyChanged
+        // A web display shows a quick message only if it was a recipient.
+        ..showsMessage = ((d) =>
+            quickMessages.recipients.contains('web:${d.token}'))
+        ..onJoined = (d) =>
+            onWebJoined?.call('${d.label} joined · ${d.role.label}');
+
+  /// Shown by the home screen as a short note when a team browser joins.
+  void Function(String message)? onWebJoined;
+  int _webStageSynced = 0;
   final mdns = MdnsResponder();
 
   /// Why web screens are not available, shown in their panel only.

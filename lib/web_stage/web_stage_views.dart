@@ -231,6 +231,15 @@ extension WebStageViews on HomeState {
                 ),
               ),
               const SizedBox(height: 12),
+              if (local != null && c.mdns.answered > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'Easy name answered ${c.mdns.answered} lookup${c.mdns.answered == 1 ? '' : 's'}',
+                    key: const ValueKey('web-name-lookups'),
+                    style: TextStyle(color: colors.muted, fontSize: 12),
+                  ),
+                ),
               if (local != null)
                 line(
                   'Easy name',

@@ -283,6 +283,16 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     c.liveNavigation.addListener(returnToLive);
     HardwareKeyboard.instance.addHandler(onClickerKey);
     c.port.setIncomingFileHandler(receiveIncomingFile);
+    c.onWebJoined = (message) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          key: const ValueKey('web-joined'),
+          content: Text(message),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    };
     if (!c.ready) {
       c.initialize().then((_) => receiveIncomingFile()).catchError((Object e) {
         if (mounted) showError('Could not initialize Android services: $e');
@@ -2683,7 +2693,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                               children: [
                                                 Text(
                                                   c.pairing.localControl
-                                                      ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices'
+                                                      ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices${c.webStage.activeDevices.isEmpty ? '' : ' · ${c.webStage.activeDevices.length} web screens'}'
                                                       : 'Control is with a paired operator. This phone remains the service host.',
                                                 ),
                                                 TextButton(
