@@ -55,13 +55,31 @@ void main() {
       await c.act('start');
       expect(
         await c.sendQuickMessage(
-          const QuickMessage(headline: 'Wrap up', body: '2 minutes'),
+          const QuickMessage(
+            headline: 'Wrap up',
+            body: '2 minutes',
+            palette: 'amber',
+            align: 'left',
+            bold: true,
+            requestSeen: true,
+          ),
         ),
         isTrue,
         reason: c.error,
       );
       final shown = await call('/api/state?token=$token');
-      expect(shown['message'], {'headline': 'Wrap up', 'body': '2 minutes'});
+      // The colours and style reach the browser as the paired screens show.
+      expect(shown['message'], {
+        'headline': 'Wrap up',
+        'body': '2 minutes',
+        'palette': 'amber',
+        'align': 'left',
+        'bold': true,
+        'italic': false,
+        'scale': 1.0,
+      });
+      // A web screen cannot tap Seen; covering it counts as every stage.
+      expect(c.quickMessages.coversEveryStage, isTrue);
       // A second display not chosen as a recipient does not see it.
       final other = await call('/api/join', {
         'code': c.webStage.teamCode,

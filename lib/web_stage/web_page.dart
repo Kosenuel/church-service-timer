@@ -40,8 +40,9 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage { position:fixed; inset:0; background:#000; display:none; align-items:center; justify-content:center; text-align:center; padding:4vw; }
 #stage .text { color:#fff; font-weight:500; white-space:pre-wrap; word-break:break-word; line-height:1; margin:0 auto; font-variant-numeric: tabular-nums; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
-#stage .msg h2 { color:#fff; font-size:8vh; margin:0 0 2vh; }
-#stage .msg p { color:#ddd; font-size:5vh; margin:0; white-space:pre-wrap; }
+#stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
+#stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
+#stage .msg p { font-size:6vh; line-height:1.2; margin:0; white-space:pre-wrap; word-break:break-word; }
 #lost { position:fixed; left:0; right:0; top:0; z-index:8; display:none; align-items:center; justify-content:center; gap:10px; padding:12px 16px; background:#7a1f1f; color:#fff; font-weight:700; font-size:16px; text-align:center; }
 #lost .dot { width:10px; height:10px; border-radius:50%; background:#ffb3b3; animation: pulse 1.2s infinite; }
 @keyframes pulse { 50% { opacity:.25; } }
@@ -264,10 +265,10 @@ function renderStage(s) {
   $('app').style.display = 'none';
   const stage = $('stage'); stage.style.display = 'flex';
   const text = $('stageText'); const note = $('stageNote');
-  clear(text); note.textContent = '';
+  clear(text); note.textContent = ''; stage.style.background = '#000'; stage.style.textAlign = 'center'; text.style.width = '';
   if (!s.sharing) { text.textContent = 'Waiting for the host to share the stage'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {
-    const m = el('div', 'msg'); m.append(el('h2', '', s.message.headline || ''), el('p', '', s.message.body || '')); text.append(m); text.style.fontSize = ''; return;
+    renderMessage(stage, text, s.message); return;
   }
   if (s.blank) return;
   const value = s.displayText || '';
@@ -277,6 +278,28 @@ function renderStage(s) {
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
   fit(text, value || ' ');
   if (s.paused) note.textContent = 'PAUSED';
+}
+// The quick message's palette and style, as the paired screens show it.
+const PALETTES = { white: ['#ffffff', '#10151c'], amber: ['#ffdc8b', '#261b09'], sky: ['#c4e6ff', '#071b2c'], mint: ['#bcf4da', '#08271c'] };
+function renderMessage(stage, text, msg) {
+  const [fg, bg] = PALETTES[msg.palette] || PALETTES.white;
+  const scale = Math.min(2, Math.max(0.5, Number(msg.scale) || 1));
+  const body = msg.body || '';
+  stage.style.background = bg; text.style.width = '100%';
+  text.style.fontSize = ''; text.style.color = fg; text.style.fontWeight = ''; text.style.fontStyle = '';
+  const m = el('div', 'msg');
+  m.style.textAlign = ['left', 'right'].includes(msg.align) ? msg.align : 'center';
+  m.style.color = fg;
+  if (msg.headline) { const h = el('h2', '', msg.headline); h.style.fontSize = (8 * scale) + 'vh'; m.append(h); }
+  const p = el('p', '', body);
+  p.style.fontSize = ((body.length > 100 ? 5 : 6.5) * scale) + 'vh';
+  p.style.fontWeight = msg.bold ? '700' : '400';
+  p.style.fontStyle = msg.italic ? 'italic' : 'normal';
+  m.append(p); text.append(m);
+  // Shrink evenly until it fits; never scroll or distort the text.
+  for (let f = 0.95; f > 0.4 && m.scrollHeight > window.innerHeight * 0.9; f -= 0.05) {
+    m.querySelectorAll('h2, p').forEach((n) => { n.style.fontSize = (parseFloat(n.style.fontSize) * 0.95) + 'vh'; });
+  }
 }
 window.addEventListener('resize', () => { if (lastState && lastState.role === 'stage') renderStage(lastState); });
 

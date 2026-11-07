@@ -602,7 +602,21 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         'overtime': s['overtime'] == true,
         'paused': s['paused'] == true,
         if (s['quickMessage'] case final Map q)
-          'message': {'headline': q['headline'] ?? '', 'body': q['body'] ?? ''},
+          'message': {
+            'headline': q['headline'] ?? '',
+            'body': q['body'] ?? '',
+            // The same colours and style the paired screens show; only
+            // known values pass, so the page never applies raw input.
+            'palette': const {'amber', 'sky', 'mint'}.contains(q['palette'])
+                ? q['palette']
+                : 'white',
+            'align': const {'left', 'right'}.contains(q['align'])
+                ? q['align']
+                : 'center',
+            'bold': q['bold'] == true,
+            'italic': q['italic'] == true,
+            'scale': ((q['scale'] as num?)?.toDouble() ?? 1.0).clamp(.5, 2.0),
+          },
       };
     case WebRole.overview:
       return {

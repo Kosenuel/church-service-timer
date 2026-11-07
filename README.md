@@ -23,7 +23,7 @@ Current version: **0.22.0**. See [CHANGELOG.md](CHANGELOG.md) for every release.
 ## LED sign and stage screens
 
 - **LED sign:** tap the display chip, then **LED sign**. Join the sign's Wi-Fi, scan, select it and enter its device password. The password can be stored on the phone, encrypted with Android Keystore. A new connection holds output for review. Reconnecting the same sign during a trusted service restores current output automatically.
-- **Stage screens:** choose **Phone or tablet**, then **Share to stage screens**. On the other device, tap **Join as stage screen** and enter the six-digit code (or scan the QR code). The host approves every device and explicitly grants control to an additional operator.
+- **Stage screens:** choose **Phone, tablet or web screens**, then **Share to stage screens**. On the other device, tap **Join as stage screen** and enter the six-digit code (or scan the QR code). The host approves every device and explicitly grants control to an additional operator.
 
 ### What is and isn't proven on hardware
 

@@ -47,7 +47,7 @@ class QuickMessageController {
   /// Whether every synced stage screen receives the current message.
   bool get coversEveryStage =>
       current != null &&
-      app.pairing.syncedStagePeers.every((p) => _recipients.contains(p.id));
+      app.stageScreens.every((p) => _recipients.contains(p.id));
 
   Json decorateSnapshot(PairPeer peer, Json data) {
     final profile = app.pairing.savedDevices
