@@ -51,6 +51,9 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage.stale .text, #stage.stale .msg { opacity:.35; }
 body.stale #app { opacity:.6; }
 #tools { position:fixed; top:10px; right:10px; display:flex; gap:8px; z-index:5; transition:opacity .4s; }
+#req { position:fixed; left:10px; bottom:10px; z-index:5; display:none; align-items:center; gap:8px; }
+#reqNote { color:#bbb; font-size:13px; }
+#req .chip { opacity:.75; }
 #sheet { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end; justify-content:center; z-index:9; }
 #sheet .card { width:100%; max-width:520px; margin:0; border-radius:18px 18px 0 0; }
 .role { display:block; width:100%; text-align:left; padding:14px; margin:8px 0; border-radius:12px; border:1px solid var(--line); background:#0f1714; color:var(--text); cursor:pointer; }
@@ -64,6 +67,7 @@ body.stale #app { opacity:.6; }
 <div id="stage"><div class="text" id="stageText"></div><div class="note" id="stageNote"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
+<div id="req"><span id="reqNote"></span><button class="chip" id="reqBtn">Request</button></div>
 <div id="sheet"><div class="card" id="sheetCard"></div></div>
 <script>
 'use strict';
@@ -89,7 +93,7 @@ function clear(node) { while (node.firstChild) node.removeChild(node.firstChild)
 async function loadInfo() { try { info = (await api('/api/info')).body; } catch (_) {} }
 
 function showJoin(message) {
-  stop(); stopMotion(); token = null; save(); setLost(false);
+  stop(); stopMotion(); token = null; save(); setLost(false); $('req').style.display = 'none';
   $('stage').style.display = 'none'; clear($('tools'));
   const app = $('app'); clear(app); app.style.display = 'block';
   app.append(el('div', 'tag', 'Church Service Timer'), el('h1', '', info.church || 'Welcome'));
@@ -137,6 +141,37 @@ function openSheet() {
   $('sheet').style.display = 'flex';
 }
 function closeSheet() { $('sheet').style.display = 'none'; }
+
+// Requests to the operator, for team Stage displays while the host allows
+// them. Three fixed choices; the note shows Sent, then Seen by operator.
+const REQUESTS = { time: 'Need 2 minutes', finish: 'Ready to finish', mic: 'Microphone issue' };
+function openRequests() {
+  const card = $('sheetCard'); clear(card);
+  card.append(el('h1', '', 'Ask the operator'));
+  for (const [kind, text] of Object.entries(REQUESTS)) {
+    const b = el('button', 'role'); b.append(el('b', '', text));
+    b.onclick = () => sendRequest(kind);
+    card.append(b);
+  }
+  const err = el('div', 'err'); err.id = 'sheetErr'; card.append(err);
+  const close = el('button', 'btn ghost', 'Close'); close.onclick = closeSheet; card.append(close);
+  $('sheet').style.display = 'flex';
+}
+async function sendRequest(kind) {
+  try {
+    const r = await api('/api/request', { token, kind });
+    if (r.status === 200) { closeSheet(); $('reqNote').textContent = 'Sent · ' + REQUESTS[kind]; return; }
+    $('sheetErr').textContent = 'Not sent. Wait a few seconds and try again.';
+  } catch (_) { $('sheetErr').textContent = 'Not sent. Check the connection and try again.'; }
+}
+$('reqBtn').onclick = openRequests;
+function showRequests(s) {
+  const on = s.role === 'stage' && s.requests === true;
+  $('req').style.display = on ? 'flex' : 'none';
+  if (!on) return;
+  const r = s.request;
+  $('reqNote').textContent = !r ? '' : r.state === 'sent' ? 'Sent · ' + (REQUESTS[r.kind] || '') : r.state === 'seen' ? 'Seen by operator' : r.state === 'added' ? '2 minutes added' : '';
+}
 $('sheet').onclick = (e) => { if (e.target === $('sheet')) closeSheet(); };
 
 async function switchRole(next, code) {
@@ -225,6 +260,7 @@ function fit(node, text) {
 
 function render(s) {
   lastState = s;
+  showRequests(s);
   if (s.role === 'stage') return renderStage(s);
   stopMotion();
   $('stage').style.display = 'none';

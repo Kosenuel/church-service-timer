@@ -5,6 +5,7 @@ import 'package:church_service_timer/web_stage/web_stage_views.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:church_service_timer/pairing/pairing_pin.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/programs/send_program_views.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -666,6 +667,8 @@ extension PairingViews on HomeState {
         const SizedBox(height: 20),
         pairedDeviceList(),
         if (hub.hosting) ...[const SizedBox(height: 16), webScreensPanel()],
+        const SizedBox(height: 16),
+        stageRequestsPanel(),
         if (hub.hosting) ...[
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -1524,6 +1527,39 @@ class _PairedScreenState extends State<PairedScreen> {
                         label: Text(
                           data['messageSeen'] == true ? 'Seen' : 'Mark Seen',
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+              // Requests to the operator: the button with the tools, and
+              // the request's state for as long as there is one.
+              if (data?['stageRequests'] == true &&
+                  !stale &&
+                  (_showTools || data!['stageRequest'] is Map))
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: StageRequestButton(
+                        status: data!['stageRequest'] is Map
+                            ? Map<String, dynamic>.from(data['stageRequest'])
+                            : null,
+                        enabled: !stale,
+                        onSend: (kind) async {
+                          try {
+                            await hub.sendStageRequest(kind);
+                          } catch (_) {
+                            if (context.mounted)
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Request not sent. Try again in a moment.',
+                                  ),
+                                ),
+                              );
+                          }
+                        },
                       ),
                     ),
                   ),

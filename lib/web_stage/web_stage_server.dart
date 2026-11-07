@@ -285,6 +285,14 @@ class WebStageServer {
   bool Function(WebDevice device)? showsMessage;
   void Function()? onChanged;
 
+  /// Stage requests: whether they are open now, what happens when a team
+  /// Stage display sends one, and that display's own request state.
+  bool Function()? requestsOpen;
+  bool Function(WebDevice device, String kind)? onRequest;
+  Json? Function(WebDevice device)? requestFor;
+  bool _requestsFor(WebDevice d) =>
+      d.team && d.role == WebRole.stage && (requestsOpen?.call() ?? false);
+
   WebStageServer({required this.settings, required this.snapshot});
 
   HttpServer? _server;
@@ -490,6 +498,23 @@ class WebStageServer {
         device.role = role;
         onChanged?.call();
         _json(res, {'role': role.name, 'team': device.team});
+      } else if (r.method == 'POST' && path == '/api/request') {
+        final body = await _body(r);
+        final device = devices[body['token']];
+        if (device == null) {
+          _json(res, {'error': 'Join again.'}, 401);
+          return;
+        }
+        final kind = body['kind'];
+        final ok =
+            _requestsFor(device) &&
+            kind is String &&
+            (onRequest?.call(device, kind) ?? false);
+        _json(
+          res,
+          ok ? {'sent': true} : {'error': 'Not sent.'},
+          ok ? 200 : 409,
+        );
       } else if (r.method == 'GET' && path == '/api/state') {
         final device = devices[r.uri.queryParameters['token']];
         if (device == null ||
@@ -509,6 +534,11 @@ class WebStageServer {
                 showsMessage != null &&
                 !showsMessage!(device),
           ),
+          if (_requestsFor(device)) ...{
+            'requests': true,
+            if (requestFor?.call(device) case final Json request)
+              'request': request,
+          },
         });
       } else {
         res.statusCode = HttpStatus.notFound;

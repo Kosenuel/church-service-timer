@@ -1190,6 +1190,10 @@ class AppState {
 
   /// Presentation clickers and foot pedals drive Next and Pause on Live.
   bool clickerControls;
+
+  /// Approved stage screens may send fixed requests (Need 2 minutes, Ready
+  /// to finish, Microphone issue). Off by default; local to this phone.
+  bool stageRequests;
   AppState(
     this.templates,
     this.defaults,
@@ -1207,6 +1211,7 @@ class AppState {
     this.lockScreenControls = true,
     this.settingsLock,
     this.clickerControls = true,
+    this.stageRequests = false,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -1370,6 +1375,7 @@ class AppState {
           ? null
           : SettingsLock.fromJson(Map<String, dynamic>.from(j['settingsLock'])),
       clickerControls: boolSetting(j['clickerControls'] ?? true),
+      stageRequests: boolSetting(j['stageRequests'] ?? false),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -1507,6 +1513,7 @@ class AppState {
     'themeId': themeId,
     'keepScreenAwake': keepScreenAwake,
     'lockScreenControls': lockScreenControls,
+    'stageRequests': stageRequests,
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
   };

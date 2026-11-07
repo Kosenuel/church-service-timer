@@ -36,6 +36,10 @@ Screens & devices → **Web screens** shows three ways in:
 
 **Export join slide** makes a 1920 × 1080 image (light or dark) with the church name, a large QR, the easy name, the guest code and the address, ready to project. If the phone's address changes afterwards, the panel says the slide is out of date.
 
+## Requests from the stage
+
+When **Requests from the stage** is on (Settings → Screens & devices), a Stage display opened with the team code shows a small **Request** button at the bottom left during a service. It offers three fixed choices: **Need 2 minutes**, **Ready to finish** and **Microphone issue**. The operator sees the request on Live and can acknowledge or dismiss it, or add 2 minutes for a time request. The button then shows "Sent", "Seen by operator" or "2 minutes added". Guest-code viewers never see it, a display can send at most one request every 5 seconds, and requests expire after 2 minutes.
+
 ## Limits
 
 - The host device must stay open and on the same network, as for paired phones.

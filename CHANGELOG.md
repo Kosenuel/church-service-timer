@@ -4,6 +4,13 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Requests from the stage.** When switched on in Settings → Screens & devices (off by default), a presenter can quietly ask the operator for something during a service, from a paired stage screen or a team web Stage display.
+  - **Three fixed choices** sit behind a small **Request** button: **Need 2 minutes**, **Ready to finish** and **Microphone issue**. There is no free text.
+  - **The operator** gets a short vibration, a note and a card on Live with **Acknowledge** and **Dismiss**. "Need 2 minutes" also offers **Add 2 min**, the normal adjustment with Undo; nothing changes the timing by itself.
+  - **The presenter's screen** shows "Sent", then "Seen by operator" or "2 minutes added".
+  - **Limits:** one request per screen at a time, at most one every 5 seconds, and requests expire after 2 minutes. Guest-code viewers and the LED sign can't send them.
+  - **The service report** lists each request and what the operator did, for the after-service review.
+
 - **Send to lists only screens that can receive the message.** The list shows "All connected stage screens" with a count, groups only while one of their screens is connected (for example "Choir screens · 2"), and single screens only while connected. If a chosen screen drops off while you write, it stays in the list as "Pulpit tablet · offline" and can't be picked, so the choice never changes without you noticing. With nothing connected, the list says "No stage screens connected".
 
 ## 0.26.0, 7/November/2026
