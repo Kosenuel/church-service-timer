@@ -4,6 +4,7 @@ import 'dart:ui' show ImageFilter;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/list_views.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -199,6 +200,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
 
   String reportFilter = 'all', reportView = 'list';
   bool selectingPrograms = false, selectingReports = false;
+
+  /// The report tapped in the Reports graph, shown in a card below it.
+  String? graphReport;
   final selectedProgramExports = <String>{}, selectedReportExports = <String>{};
   String reportQuery = '',
       programQuery = '',
@@ -2875,7 +2879,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       label: const Text('New program'),
                     )
                   : null,
-              bottomNavigationBar: focused
+              bottomNavigationBar:
+                  !focused &&
+                      ((page == 1 && selectingPrograms) ||
+                          (page == 2 && selectingReports))
+                  ? selectionActionBar(programs: page == 1)
+                  : focused
                   ? SafeArea(
                       top: false,
                       child: TextButton.icon(

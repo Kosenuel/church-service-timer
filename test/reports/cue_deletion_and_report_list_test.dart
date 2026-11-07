@@ -210,7 +210,7 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Reports'));
       await t.pumpAndSettle();
-      expect(find.text('56m 0s'), findsOneWidget);
+      expect(find.textContaining('56m 0s'), findsOneWidget);
       expect(find.text('Export report CSV'), findsNothing);
       await expectLater(
         find.byType(MaterialApp),
@@ -286,14 +286,16 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Export all records'));
       await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(OutlinedButton, 'JSON'));
+      await t.tap(find.byKey(const ValueKey('export-reports-json')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('export-reports-go')));
       await t.pumpAndSettle();
       expect(jsonDecode(port.exports.single['content']!)['recordCount'], 3);
       await t.tap(find.byTooltip('Report list options'));
       await t.pumpAndSettle();
       await t.tap(find.text('Export all records'));
       await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(FilledButton, 'CSV'));
+      await t.tap(find.byKey(const ValueKey('export-reports-go')));
       await t.pumpAndSettle();
       expect(parseCsv(port.exports.last['content']!).length, 8);
       await t.tap(find.text('Rehearsals'));

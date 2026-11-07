@@ -8,6 +8,7 @@ import 'package:church_service_timer/app/platform.dart';
 import 'package:church_service_timer/reports/service_pdf.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/display/pixels.dart';
+import 'package:church_service_timer/shared/list_views.dart';
 import 'package:flutter/material.dart';
 
 extension ProgramImportExportViews on HomeState {
@@ -20,47 +21,23 @@ extension ProgramImportExportViews on HomeState {
   }) async {
     final programs = List<Timeline>.of(selected ?? c.state.templates);
     if (programs.isEmpty) return;
-    var notes = false;
-    final format = await showDialog<String>(
-      context: context,
-      animationStyle: reduceAppMotion(context)
-          ? AnimationStyle.noAnimation
-          : null,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, update) => AlertDialog(
-          title: Text(
-            '${share ? 'Share' : 'Export'} ${selected == null ? 'all' : 'selected'} programs',
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${programs.length} ${selected == null ? 'saved' : 'selected'} programs. JSON preserves formatting and can be imported on another phone; CSV contains the rundown for spreadsheets.${share ? ' PDF makes one printable sheet per program.' : ''}',
-              ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Include private operator notes'),
-                value: notes,
-                onChanged: (v) => update(() => notes = v!),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            for (final f in ['json', 'csv', if (share) 'pdf'])
-              FilledButton(
-                key: ValueKey('${share ? 'share' : 'export'}-programs-$f'),
-                onPressed: () => Navigator.pop(ctx, f),
-                child: Text(f.toUpperCase()),
-              ),
-          ],
-        ),
-      ),
+    final names = programs.map((p) => p.name).join(', ');
+    final picked = await showFormatSheet(
+      title:
+          '${share ? 'Share' : 'Export'} ${selected == null ? 'all ' : ''}${plural(programs.length, 'program')}',
+      subtitle: names,
+      formats: [
+        for (final f in programFormats)
+          if (share || f.id != 'pdf') f,
+      ],
+      keyPrefix: '${share ? 'share' : 'export'}-programs',
+      share: share,
+      extraTitle: 'Include private operator notes',
+      extraHint: 'Off: notes stay on this phone',
+      extraKey: 'include-private-notes',
     );
-    if (format == null) return;
+    if (picked == null) return;
+    final (format, notes) = picked;
     final name =
         'Church-Service-Timer-${selected == null ? 'all' : 'selected'}-programs.$format';
     String content() => format == 'json'

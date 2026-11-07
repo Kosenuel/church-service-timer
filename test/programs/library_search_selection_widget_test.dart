@@ -131,7 +131,7 @@ void main() {
           c.state.templates.firstWhere((p) => p.name == 'Sunday Service').id,
         ),
       );
-      await tap(t, find.text('Done'));
+      await tap(t, find.byKey(const ValueKey('done-selecting-programs')));
       expect(
         find.byKey(const ValueKey('pinned:Sunday Service')),
         findsOneWidget,
@@ -386,24 +386,35 @@ void main() {
           'Sunday',
         );
         await t.pumpAndSettle();
-        await tap(t, find.text('Select all shown'));
+        await tap(t, find.textContaining('Select all').first);
         await t.enterText(
           find.byKey(const ValueKey('program-search')),
           'Quick',
         );
         await t.pumpAndSettle();
-        expect(find.text('1 selected · 1 hidden by filters'), findsOneWidget);
+        expect(find.text('1 selected'), findsOneWidget);
+        expect(
+          find.textContaining('1 selected hidden by filters'),
+          findsOneWidget,
+        );
         await tap(t, find.byKey(const ValueKey('export-selected-programs')));
-        expect(find.text('Export selected programs'), findsOneWidget);
-        await tap(t, find.widgetWithText(FilledButton, format));
+        expect(find.text('Export 1 program'), findsOneWidget);
+        await tap(
+          t,
+          find.byKey(ValueKey('export-programs-${format.toLowerCase()}')),
+        );
+        await tap(t, find.byKey(const ValueKey('export-programs-go')));
         expect(p.exports.single, contains('Sunday Service'));
         expect(p.exports.single, isNot(contains('Quick rehearsal')));
         if (format == 'JSON')
           expect((jsonDecode(p.exports.single)['programs'] as List).length, 1);
         expect(p.filenames.single, contains('selected-programs'));
         await shot(t, 'selected-programs-${format.toLowerCase()}-021');
-        await tap(t, find.text('Clear selection'));
-        expect(find.text('0 selected'), findsOneWidget);
+        await tap(t, find.byKey(const ValueKey('done-selecting-programs')));
+        expect(
+          find.byKey(const ValueKey('selection-bar-programs')),
+          findsNothing,
+        );
         await t.pumpWidget(const SizedBox());
       },
     );
@@ -425,15 +436,13 @@ void main() {
       await tap(t, find.byKey(const ValueKey('select-reports')));
       await t.enterText(find.byKey(const ValueKey('report-search')), 'Morning');
       await t.pumpAndSettle();
-      await tap(t, find.text('Select all shown'));
+      await tap(t, find.textContaining('Select all').first);
       await tap(t, find.byKey(const ValueKey('export-selected-reports')));
       await tap(
         t,
-        find.widgetWithText(
-          format == 'JSON' ? OutlinedButton : FilledButton,
-          format,
-        ),
+        find.byKey(ValueKey('export-reports-${format.toLowerCase()}')),
       );
+      await tap(t, find.byKey(const ValueKey('export-reports-go')));
       expect(p.exports.single, contains('Morning Service'));
       expect(p.exports.single, isNot(contains('Evening Service')));
       if (format == 'JSON')

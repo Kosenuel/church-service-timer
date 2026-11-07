@@ -129,10 +129,10 @@ void main() {
       await tap(t, find.byKey(const ValueKey('select-reports')));
       final delete = find.byKey(const ValueKey('delete-selected-reports'));
       expect(t.widget<TextButton>(delete).onPressed, isNull);
-      await tap(t, find.text('Select all shown'));
+      await tap(t, find.textContaining('Select all').first);
       await t.enterText(find.byKey(const ValueKey('report-search')), 'Morning');
       await t.pumpAndSettle();
-      expect(find.text('Delete selected (2)'), findsOneWidget);
+      expect(find.text('2 selected'), findsOneWidget);
       await tap(t, delete);
       expect(find.text('Delete 2 reports?'), findsOneWidget);
       expect(
@@ -165,7 +165,7 @@ void main() {
     await t.pumpAndSettle();
     await tap(t, find.text('Programs').last);
     await tap(t, find.byKey(const ValueKey('select-programs')));
-    await tap(t, find.text('Select all shown'));
+    await tap(t, find.textContaining('Select all').first);
     final count = c.state.templates.length;
     await tap(t, find.byKey(const ValueKey('delete-selected-programs')));
     expect(find.text('Delete $count programs?'), findsOneWidget);
