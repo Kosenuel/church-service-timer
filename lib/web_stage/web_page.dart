@@ -71,8 +71,14 @@ const ROLES = { order: ['Order of service', 'What is happening now and next. No 
 let token = null, role = null, team = false, info = { church: '', orderAccess: 'code' }, timer = null, lastState = null, hideTools = null;
 try { token = localStorage.getItem('cst-token'); role = localStorage.getItem('cst-role'); team = localStorage.getItem('cst-team') === '1'; } catch (_) {}
 function save() { try { if (token) { localStorage.setItem('cst-token', token); localStorage.setItem('cst-role', role); localStorage.setItem('cst-team', team ? '1' : '0'); } else { localStorage.removeItem('cst-token'); } } catch (_) {} }
-async function api(path, body) {
-  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+// Every request gives up after a few seconds: when the host device leaves
+// the network nothing answers and nothing fails, so without this a request
+// would wait for minutes and the page would freeze on the last countdown.
+async function api(path, body, timeoutMs = 4000) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), timeoutMs);
+  let r;
+  try { r = await fetch(path, Object.assign({ signal: ctl.signal, cache: 'no-store' }, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {})); }
+  finally { clearTimeout(t); }
   let j = {}; try { j = await r.json(); } catch (_) {}
   return { status: r.status, body: j };
 }
@@ -81,7 +87,7 @@ function clear(node) { while (node.firstChild) node.removeChild(node.firstChild)
 async function loadInfo() { try { info = (await api('/api/info')).body; } catch (_) {} }
 
 function showJoin(message) {
-  stop(); token = null; save();
+  stop(); token = null; save(); setLost(false);
   $('stage').style.display = 'none'; clear($('tools'));
   const app = $('app'); clear(app); app.style.display = 'block';
   app.append(el('div', 'tag', 'Church Service Timer'), el('h1', '', info.church || 'Welcome'));
@@ -178,18 +184,23 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 function stop() { clearTimeout(timer); timer = null; }
 function start() {
-  stop(); lastState = null;
+  stop(); lastState = null; lastOk = Date.now(); misses = 0;
   if (role !== 'order') keepAwake();
   tools(role === 'stage');
   poll();
 }
-let misses = 0;
+let misses = 0, lastOk = Date.now();
+function missed() { misses++; if (misses >= 3) setLost(true); }
+// A watchdog besides the misses: if no answer has arrived for a while,
+// whatever the requests are doing, say so.
+setInterval(() => { if (timer && Date.now() - lastOk > (role === 'order' ? 12000 : 5000)) setLost(true); }, 1000);
 async function poll() {
   try {
     const r = await api('/api/state?token=' + encodeURIComponent(token));
     if (r.status === 401) { showJoin('The codes changed or this device was removed. Please join again.'); return; }
-    if (r.status === 200) { misses = 0; setLost(false); role = r.body.role; team = r.body.team; render(r.body); }
-  } catch (_) { misses++; if (misses >= 3) { setLost(true); if (misses === 3) render(Object.assign({}, lastState || {}, { offline: true })); } }
+    if (r.status === 200) { misses = 0; lastOk = Date.now(); setLost(false); role = r.body.role; team = r.body.team; render(r.body); }
+    else missed();
+  } catch (_) { missed(); }
   timer = setTimeout(poll, role === 'order' ? 3000 : 1000);
 }
 
