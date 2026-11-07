@@ -1191,9 +1191,15 @@ class AppState {
   /// Presentation clickers and foot pedals drive Next and Pause on Live.
   bool clickerControls;
 
+  /// When guided practice was last finished on this phone, and whether
+  /// Live still offers it. Local to this phone; not part of backups.
+  int? practisedWall;
+  bool practicePrompt;
+
   /// Approved stage screens may send fixed requests (Need 2 minutes, Ready
   /// to finish, Microphone issue). Off by default; local to this phone.
   bool stageRequests;
+
   /// One-time hints this phone has dismissed, such as "press and hold to
   /// select". Local to this phone; not part of portable backups.
   Set<String> dismissedHints;
@@ -1214,6 +1220,8 @@ class AppState {
     this.lockScreenControls = true,
     this.settingsLock,
     this.clickerControls = true,
+    this.practisedWall,
+    this.practicePrompt = true,
     this.stageRequests = false,
     Set<String>? dismissedHints,
     this.outputDestination,
@@ -1380,6 +1388,10 @@ class AppState {
           ? null
           : SettingsLock.fromJson(Map<String, dynamic>.from(j['settingsLock'])),
       clickerControls: boolSetting(j['clickerControls'] ?? true),
+      practisedWall: j['practisedWall'] is int
+          ? j['practisedWall'] as int
+          : null,
+      practicePrompt: boolSetting(j['practicePrompt'] ?? true),
       stageRequests: boolSetting(j['stageRequests'] ?? false),
       dismissedHints: {
         for (final h in (j['dismissedHints'] as List? ?? const []))
@@ -1522,6 +1534,8 @@ class AppState {
     'themeId': themeId,
     'keepScreenAwake': keepScreenAwake,
     'lockScreenControls': lockScreenControls,
+    if (practisedWall != null) 'practisedWall': practisedWall,
+    'practicePrompt': practicePrompt,
     'stageRequests': stageRequests,
     'dismissedHints': [...dismissedHints],
     'settingsLock': settingsLock?.toJson(),
