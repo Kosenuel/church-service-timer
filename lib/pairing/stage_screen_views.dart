@@ -438,6 +438,16 @@ extension MobileDisplayViews on HomeState {
       .map((p) => p.id)
       .toSet();
 
+  List<ChoiceOption<String>> quickAudienceOptions() => quickAudienceChoices(
+    screens: c.stageScreens,
+    current: quickAudience,
+    groupOf: (id) =>
+        c.pairing.savedDevices.where((d) => d.id == id).firstOrNull?.group ??
+        'general',
+    savedName: (id) =>
+        c.pairing.savedDevices.where((d) => d.id == id).firstOrNull?.name,
+  );
+
   String get stageRecipientSummary {
     final ids = selectedMessageRecipients;
     final names = c.stageScreens
@@ -541,26 +551,7 @@ extension MobileDisplayViews on HomeState {
     ChoiceField<String>(
       value: quickAudience,
       decoration: const InputDecoration(labelText: 'Send to'),
-      options: [
-        const ChoiceOption(value: 'all', label: 'All connected stage screens'),
-        for (final group in screenGroups.entries)
-          ChoiceOption(
-            value: 'group:${group.key}',
-            label: '${group.value} screens',
-          ),
-        for (final d in c.pairing.savedDevices.where(
-          (d) => d.role != 'operator',
-        ))
-          ChoiceOption(value: 'device:${d.id}', label: d.name),
-        for (final w in c.stageScreens.where((s) => s.id.startsWith('web:')))
-          ChoiceOption(value: 'device:${w.id}', label: w.name),
-        if (quickAudience.startsWith('device:') &&
-            !c.pairing.savedDevices.any(
-              (d) => quickAudience == 'device:${d.id}',
-            ) &&
-            !c.stageScreens.any((s) => quickAudience == 'device:${s.id}'))
-          ChoiceOption(value: quickAudience, label: 'Unavailable screen'),
-      ],
+      options: quickAudienceOptions(),
       onChanged: controlsLocked
           ? null
           : (v) => refreshHome(() => quickAudience = v ?? 'all'),
@@ -1432,4 +1423,54 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
       ],
     );
   }
+}
+
+/// The "Send to" choices: only screens that can receive a message now, with
+/// counts. A choice that has gone away stays visible, disabled, so it never
+/// changes silently under the operator.
+List<ChoiceOption<String>> quickAudienceChoices({
+  required List<({String id, String name})> screens,
+  required String current,
+  required String Function(String id) groupOf,
+  required String? Function(String id) savedName,
+}) {
+  final groups = <String, int>{};
+  for (final s in screens.where((s) => !s.id.startsWith('web:'))) {
+    groups.update(groupOf(s.id), (n) => n + 1, ifAbsent: () => 1);
+  }
+  final options = <ChoiceOption<String>>[
+    ChoiceOption(
+      value: 'all',
+      label: screens.isEmpty
+          ? 'No stage screens connected'
+          : 'All connected stage screens · ${screens.length}',
+      enabled: screens.isNotEmpty,
+    ),
+    for (final g in screenGroups.entries)
+      if (groups[g.key] != null)
+        ChoiceOption(
+          value: 'group:${g.key}',
+          label: '${g.value} screens · ${groups[g.key]}',
+        ),
+    for (final s in screens)
+      ChoiceOption(value: 'device:${s.id}', label: s.name),
+  ];
+  if (!options.any((o) => o.value == current)) {
+    final group = current.startsWith('group:')
+        ? screenGroups[current.substring(6)]
+        : null;
+    final id = current.startsWith('device:') ? current.substring(7) : '';
+    final name =
+        savedName(id) ?? (id.startsWith('web:') ? 'Web screen' : 'Screen');
+    options.add(
+      ChoiceOption(
+        value: current,
+        label: group != null
+            ? '$group screens · none connected'
+            : '$name · offline',
+        enabled: false,
+      ),
+    );
+  }
+  return options;
 }

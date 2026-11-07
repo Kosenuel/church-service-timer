@@ -4,6 +4,8 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Send to lists only screens that can receive the message.** The list shows "All connected stage screens" with a count, groups only while one of their screens is connected (for example "Choir screens · 2"), and single screens only while connected. If a chosen screen drops off while you write, it stays in the list as "Pulpit tablet · offline" and can't be picked, so the choice never changes without you noticing. With nothing connected, the list says "No stage screens connected".
+
 ## 0.26.0, 7/November/2026
 - **Web Stage displays now count as stage screens.** When a browser opens Stage display, the host enables the cue buttons and quick messages as it does for a paired stage screen. Web displays appear in the message's **Send to** list, receive only messages sent to them, and Live reports "Sent to 1 web stage display". The host shows a short "Laptop · Chrome joined · Stage display" note, and the device summary counts web screens.
 - **Easy name on a hotspot.** The phone now answers `.local` lookups on the hotspot or Wi-Fi network itself, not on mobile data, and also replies directly to the device that asked. If joining the multicast group is refused, it still answers direct questions. Web screens shows how many lookups it has answered, to help tell a blocked network from one that never asks.
