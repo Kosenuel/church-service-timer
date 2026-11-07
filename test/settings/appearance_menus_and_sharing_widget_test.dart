@@ -169,14 +169,18 @@ void main() {
   );
 
   testWidgets(
-    'Clock blinks once per second without changing its bounds or semantics; stale and steady stay visible',
+    'Clock colon dims once per second without changing its bounds or semantics; stale and steady stay visible',
     (t) async {
       size(t);
-      Widget clock({bool blink = true, bool stale = false}) => MaterialApp(
+      Widget clock({
+        bool blink = true,
+        bool stale = false,
+        String text = '12:59 PM',
+      }) => MaterialApp(
         home: Scaffold(
           body: Center(
             child: ClockText(
-              text: '12:59 PM',
+              text: text,
               style: const TextStyle(fontSize: 60, color: Colors.white),
               blink: blink,
               stale: stale,
@@ -194,11 +198,20 @@ void main() {
               .style
               ?.color;
       expect(colonColor(), isNull);
+      // Lit for the first half second, then a short fade to 20%.
       await t.pump(const Duration(milliseconds: 500));
-      expect(colonColor(), Colors.transparent);
+      await t.pump(const Duration(milliseconds: 150));
+      expect(colonColor(), Colors.white.withValues(alpha: .2));
       expect(t.getRect(find.byKey(const ValueKey('clock-text'))), bounds);
       expect(find.bySemanticsLabel('12:59 PM'), findsOneWidget);
+      await t.pump(const Duration(milliseconds: 350));
+      await t.pump(const Duration(milliseconds: 150));
+      expect(colonColor(), isNull);
+      // A new second (the time changes) lights the colon at once.
       await t.pump(const Duration(milliseconds: 500));
+      await t.pump(const Duration(milliseconds: 150));
+      expect(colonColor(), isNotNull);
+      await t.pumpWidget(clock(text: '12:58 PM'));
       expect(colonColor(), isNull);
       await t.pumpWidget(clock(stale: true));
       await t.pump(const Duration(milliseconds: 500));
