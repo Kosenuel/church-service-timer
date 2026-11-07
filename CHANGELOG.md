@@ -4,13 +4,17 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Guided practice.** A new operator can learn the controls in a few minutes, without touching the real service. Start it from the invitation on Live (until you choose "Don't show again") or from Settings → About → Guided practice.
+  - **The practice service:** a built-in 17-minute program that runs at 5× speed on the Simulator, so nothing appears on stage. It is never added to Programs, saves no report, and leaves your programs, reports and settings alone. If another display was in use, practice asks before switching to the Simulator and offers to switch back afterwards.
+  - **Eight steps** on a coach card, ticked off as you do them in any order: start, pause and resume, add and remove 2 minutes, next and Undo, show a cue and the timer, blank and unblank, see overtime, and end. You can skip a step or leave practice at any time.
+  - **The end:** a summary ("8 of 8 steps done · about 4 min") with Practise again, and About shows when this phone last practised.
+  - **Safety:** practice can't start while a service is loaded or running, or on a paired operator phone. If Change swaps in a real program during practice, practice ends and that service saves its report as usual.
 - **Requests from the stage.** When switched on in Settings → Screens & devices (off by default), a presenter can quietly ask the operator for something during a service, from a paired stage screen or a team web Stage display.
   - **Three fixed choices** sit behind a small **Request** button: **Need 2 minutes**, **Ready to finish** and **Microphone issue**. There is no free text.
   - **The operator** gets a short vibration, a note and a card on Live with **Acknowledge** and **Dismiss**. "Need 2 minutes" also offers **Add 2 min**, the normal adjustment with Undo; nothing changes the timing by itself.
   - **The presenter's screen** shows "Sent", then "Seen by operator" or "2 minutes added".
   - **Limits:** one request per screen at a time, at most one every 5 seconds, and requests expire after 2 minutes. Guest-code viewers and the LED sign can't send them.
   - **The service report** lists each request and what the operator did, for the after-service review.
-
 - **Programs and Reports, tidied.** Both lists are grouped cards whose rows clearly open: each row has a **›**, highlights when pressed, and a short hint says "Tap to open · press and hold to select" until you dismiss it.
   - **Report rows** show a date badge, the length and start time, and an outcome chip: "+3m over", "On time" or "2m under".
   - **Selecting** replaces the title with **✕ · N selected · Select all**. The rows show checkboxes, with selected rows tinted, and a fixed bar at the bottom holds **Pin** (programs), **Share**, **Export** and, in red, **Delete**. Back or ✕ finishes. Search still works while selecting, and anything selected but hidden by a filter is noted.
