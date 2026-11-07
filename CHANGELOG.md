@@ -4,6 +4,9 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Blinking colon.** On paired phones, tablets and web screens, the colon in the countdown and the clock now blinks once a second like a normal clock. It is fully lit as each second starts and dims to 20% for the second half, with a short fade, so it reads as a calm pulse rather than a flash. It follows the host's seconds, so screens blink together. The colon stays steady while the countdown is paused or the screen is disconnected, so a steady colon means time has stopped. Only the colon changes, so the digits never move, and cue or message text never blinks. The setting is now called **Blinking colon** (Settings → Clock), on by default. The LED sign keeps a steady colon, because its countdown and clock run on the sign's own controller.
+- **Exit full screen.** On a web Stage display, the Full screen chip becomes **Exit full screen** once full screen is on, and changes back when you leave full screen another way, for example with Esc.
+
 ## 0.26.0, 7/November/2026
 - **Web Stage displays now count as stage screens.** When a browser opens Stage display, the host enables the cue buttons and quick messages as it does for a paired stage screen. Web displays appear in the message's **Send to** list, receive only messages sent to them, and Live reports "Sent to 1 web stage display". The host shows a short "Laptop · Chrome joined · Stage display" note, and the device summary counts web screens.
 - **Easy name on a hotspot.** The phone now answers `.local` lookups on the hotspot or Wi-Fi network itself, not on mobile data, and also replies directly to the device that asked. If joining the multicast group is refused, it still answers direct questions. Web screens shows how many lookups it has answered, to help tell a blocked network from one that never asks.
