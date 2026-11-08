@@ -83,8 +83,8 @@ extension TemplateViews on HomeState {
   Widget templates() {
     final items = c.state.programLibrary.find(
       c.state.templates,
-      programQuery,
-      programFilter,
+      programsPage.query,
+      programsPage.filter,
     );
     final disabled = c.busy || c.corrupt;
     Widget rows(List<Timeline> values) => panel(
@@ -96,17 +96,17 @@ extension TemplateViews on HomeState {
             InkWell(
               key: ValueKey('template-row:${values[i].name}'),
               onTap: () {
-                if (selectingPrograms) {
+                if (programsPage.selecting) {
                   refreshHome(
                     () => toggleExportSelection(
-                      selectedProgramExports,
+                      programsPage.selected,
                       values[i].id,
                     ),
                   );
                   return;
                 }
                 if (useMasterDetail)
-                  refreshHome(() => selectedProgram = values[i].name);
+                  refreshHome(() => programsPage.open = values[i].name);
                 else
                   openTemplate(values[i].name);
               },
@@ -115,30 +115,31 @@ extension TemplateViews on HomeState {
               onLongPress: disabled
                   ? null
                   : () => refreshHome(() {
-                      if (!selectingPrograms) {
-                        selectingPrograms = true;
-                        selectedProgramExports.clear();
+                      if (!programsPage.selecting) {
+                        programsPage.selecting = true;
+                        programsPage.selected.clear();
                       }
-                      selectedProgramExports.add(values[i].id);
+                      programsPage.selected.add(values[i].id);
                     }),
               highlightColor: appColors(context).accent.withValues(alpha: .1),
               child: Container(
                 color:
-                    (selectingPrograms
-                        ? selectedProgramExports.contains(values[i].id)
-                        : useMasterDetail && selectedProgram == values[i].name)
+                    (programsPage.selecting
+                        ? programsPage.selected.contains(values[i].id)
+                        : useMasterDetail &&
+                              programsPage.open == values[i].name)
                     ? appColors(context).accent.withValues(alpha: .12)
                     : null,
                 constraints: const BoxConstraints(minHeight: 72),
                 padding: appLayout(context).rowInsets,
                 child: Row(
                   children: [
-                    if (selectingPrograms)
+                    if (programsPage.selecting)
                       Checkbox(
-                        value: selectedProgramExports.contains(values[i].id),
+                        value: programsPage.selected.contains(values[i].id),
                         onChanged: (_) => refreshHome(
                           () => toggleExportSelection(
-                            selectedProgramExports,
+                            programsPage.selected,
                             values[i].id,
                           ),
                         ),
@@ -195,7 +196,7 @@ extension TemplateViews on HomeState {
                         ),
                       ),
                     // A chevron says "opens"; selection shows checkboxes.
-                    if (!selectingPrograms && !useMasterDetail)
+                    if (!programsPage.selecting && !useMasterDetail)
                       Padding(
                         padding: const EdgeInsets.only(left: 4),
                         child: Icon(
@@ -214,7 +215,7 @@ extension TemplateViews on HomeState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (selectingPrograms)
+        if (programsPage.selecting)
           selectionHeader(programs: true, shown: items.map((p) => p.id).toSet())
         else
           Row(
@@ -231,7 +232,8 @@ extension TemplateViews on HomeState {
                       ),
                     ),
                     Text(
-                      programQuery.trim().isNotEmpty || programFilter != 'all'
+                      programsPage.query.trim().isNotEmpty ||
+                              programsPage.filter != 'all'
                           ? '${items.length} of ${c.state.templates.length} programs'
                           : '${items.length} saved',
                       style: TextStyle(
@@ -242,7 +244,7 @@ extension TemplateViews on HomeState {
                   ],
                 ),
               ),
-              if (!selectingPrograms) ...[
+              if (!programsPage.selecting) ...[
                 selectToggle(programs: true),
                 PopupMenuButton<bool>(
                   key: const ValueKey('program-list-options'),
@@ -291,7 +293,7 @@ extension TemplateViews on HomeState {
               ],
             ],
           ),
-        if (selectingPrograms)
+        if (programsPage.selecting)
           programSearch()
         else ...[
           const SizedBox(height: 14),
@@ -343,7 +345,7 @@ extension TemplateViews on HomeState {
           final disabled = c.busy || c.corrupt;
           void select(String next) {
             if (embedded)
-              refreshHome(() => selectedProgram = next);
+              refreshHome(() => programsPage.open = next);
             else if (pageContext.mounted)
               update(() => selectedName = next);
           }
@@ -376,7 +378,7 @@ extension TemplateViews on HomeState {
             final ok = await c.commit((draft, _) => draft.deleteTemplate(t));
             if (ok && mounted) {
               if (embedded)
-                refreshHome(() => selectedProgram = null);
+                refreshHome(() => programsPage.open = null);
               else if (pageContext.mounted)
                 Navigator.pop(pageContext);
             } else if (mounted)
