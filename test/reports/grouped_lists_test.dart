@@ -3,17 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
-import '../domain/service_timing_test.dart' show FakePort;
 import '../domain/feature_cases.dart' show epoch;
 import 'report_export_and_end_screen_cases.dart';
+import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
 
 void main() {
-  void size(WidgetTester t) {
-    t.view.physicalSize = const Size(500, 1100);
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.resetPhysicalSize);
-    addTearDown(t.view.resetDevicePixelRatio);
-  }
+  void size(WidgetTester t, [Size value = const Size(500, 1100)]) =>
+      setScreen(t, value);
 
   Future<AppController> open(WidgetTester t) async {
     size(t);

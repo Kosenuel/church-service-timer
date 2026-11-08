@@ -6,8 +6,8 @@ import 'package:church_service_timer/diagnostics/service_metrics.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../domain/service_timing_test.dart' show after, start;
 import 'service_metrics_test.dart' show BatteryPort, frame;
+import '../support/fake_port.dart';
 
 /// A two-hour recording: memory steady, one warning on time, one display
 /// drop that takes 22 s to come back, battery 100% → 80%.

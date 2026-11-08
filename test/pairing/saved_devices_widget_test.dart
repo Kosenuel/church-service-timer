@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
-import '../domain/service_timing_test.dart' show FakePort;
-import 'saved_devices_test.dart' show eventually, pair;
+import '../support/fake_port.dart';
+import '../support/pairing.dart';
+import '../support/waiting.dart';
+import '../support/widget_setup.dart';
 
 class SavedDevicesPort extends FakePort {
   String? pairingData;
@@ -19,22 +20,9 @@ class SavedDevicesPort extends FakePort {
 }
 
 void main() {
-  setUpAll(() async {
-    await (FontLoader('Roboto')
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Light.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf')))
-        .load();
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-  });
-  void size(WidgetTester t) {
-    t.view.physicalSize = const Size(430, 1000);
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.resetPhysicalSize);
-    addTearDown(t.view.resetDevicePixelRatio);
-  }
+  setUpAll(loadAppFonts);
+  void size(WidgetTester t, [Size value = const Size(430, 1000)]) =>
+      setScreen(t, value);
 
   Future<void> settings(WidgetTester t) async {
     await t.tap(find.text('Settings'));

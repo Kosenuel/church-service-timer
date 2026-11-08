@@ -1,36 +1,23 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
-import '../domain/service_timing_test.dart' show FakePort;
 import '../domain/feature_cases.dart' show epoch, at;
-import '../reports/cue_deletion_and_report_list_test.dart' show ExportPort;
 import 'program_grouping_cases.dart';
+import '../support/fake_port.dart';
+import '../support/ports.dart';
+import '../support/widget_setup.dart';
 
 void main() {
   for (final e in revision06Cases.entries) {
     test(e.key, e.value);
   }
-  setUpAll(() async {
-    await (FontLoader('Roboto')
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Light.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf')))
-        .load();
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-  });
-  void size(WidgetTester t, [Size value = const Size(430, 1100)]) {
-    t.view.physicalSize = value;
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.resetPhysicalSize);
-    addTearDown(t.view.resetDevicePixelRatio);
-  }
+  setUpAll(loadAppFonts);
+  void size(WidgetTester t, [Size value = const Size(430, 1100)]) =>
+      setScreen(t, value);
 
   Future<AppController> setup(FakePort port) async {
     final c = AppController(port);

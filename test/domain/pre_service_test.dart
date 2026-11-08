@@ -1,8 +1,7 @@
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/hardware_output.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'service_timing_test.dart' show after, loaded, start;
+import '../support/fake_port.dart';
 
 void main() {
   // Starts 90 minutes after the test epoch.

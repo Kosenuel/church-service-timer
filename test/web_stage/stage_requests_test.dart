@@ -5,9 +5,10 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../domain/service_timing_test.dart' show FakePort, after;
 import 'package:church_service_timer/pairing/pairing.dart';
-import '../pairing/saved_devices_test.dart' show eventually, pair;
+import '../support/fake_port.dart';
+import '../support/pairing.dart';
+import '../support/waiting.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

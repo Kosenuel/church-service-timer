@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'service_timing_test.dart' show FakePort, start, timeline;
+import '../support/fake_port.dart';
 
 void main() {
   /// Saved state as version 13 wrote it: no IDs, library keyed by name.

@@ -6,9 +6,8 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/web_stage/web_stage_server.dart';
 import 'package:church_service_timer/web_stage/web_stage_views.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../domain/service_timing_test.dart' show FakePort;
-import '../pairing/saved_devices_test.dart' show eventually;
+import '../support/fake_port.dart';
+import '../support/waiting.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

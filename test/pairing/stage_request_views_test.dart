@@ -3,8 +3,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../domain/service_timing_test.dart' show FakePort;
+import '../support/fake_port.dart';
 
 void main() {
   testWidgets('A request waits on Live; Add 2 min adjusts the time', (t) async {

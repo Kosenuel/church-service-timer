@@ -1,7 +1,7 @@
 import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'saved_devices_test.dart' show eventually, pair;
+import '../support/pairing.dart';
+import '../support/waiting.dart';
 
 void main() {
   Future<(PairHub, PairHub)> joined(

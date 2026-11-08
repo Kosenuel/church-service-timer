@@ -3,8 +3,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../domain/service_timing_test.dart' show FakePort, start;
+import '../support/fake_port.dart';
 
 void main() {
   test('PIN and recovery are stored only as salted hashes', () async {

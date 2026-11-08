@@ -7,8 +7,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../domain/service_timing_test.dart' show FakePort, after, start;
+import '../support/fake_port.dart';
 
 class BatteryPort extends FakePort {
   int level = 80;

@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/hardware/hardware_output.dart';
-import 'service_timing_test.dart' show start, after, running, FakePort;
-import '../hardware/hardware_integration_test.dart' show W2Port, setup, flush;
+import '../support/fake_port.dart';
+import '../support/w2_port.dart';
 
 class BackgroundClockPort extends W2Port {
   bool background = false;
