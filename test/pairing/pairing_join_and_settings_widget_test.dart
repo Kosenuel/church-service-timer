@@ -6,6 +6,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/web_stage/web_stage_server.dart';
 import '../support/fake_port.dart';
 import '../support/widget_setup.dart';
 
@@ -66,12 +67,31 @@ void main() {
     (t) async {
       size(t);
       final c = await open(t);
+      // The screenshot shows the web address, so it needs the preferred
+      // port. Other test files run at the same time and may hold it for a
+      // moment, in which case the server takes a random port: start the
+      // web server again (it tries the preferred port first) until it gets
+      // it.
       await t.runAsync(() async {
         await c.pairing.host('127.0.0.1');
         for (var i = 0; i < 100 && !c.webStage.running; i++) {
           await Future<void>.delayed(const Duration(milliseconds: 20));
         }
+        for (
+          var attempt = 0;
+          attempt < 60 && c.webStage.port != WebStageServer.preferredPort;
+          attempt++
+        ) {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          await c.webStage.start('127.0.0.1');
+        }
       });
+      expect(
+        c.webStage.port,
+        WebStageServer.preferredPort,
+        reason: 'Port 8080 stayed busy for 30 seconds.',
+      );
+      expect(c.webStage.port, WebStageServer.preferredPort);
       // Web-screen codes are random; fix them for a stable screenshot.
       c.state.webStage['orderCode'] = '4821';
       c.webStage.teamCode = '246810';
