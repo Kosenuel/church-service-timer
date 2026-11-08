@@ -992,7 +992,17 @@ extension LivePage on HomeState {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          label('Service rundown'),
+          Row(
+            children: [
+              Expanded(child: label('Service rundown')),
+              IconButton(
+                key: const ValueKey('print-rundown'),
+                tooltip: 'Print order of service',
+                onPressed: controlsLocked ? null : () => printServiceSheet(t!),
+                icon: const Icon(Icons.print_outlined),
+              ),
+            ],
+          ),
           Wrap(
             spacing: 8,
             children: [
@@ -1008,11 +1018,6 @@ extension LivePage on HomeState {
                   icon: const Icon(Icons.auto_fix_high_outlined),
                   label: const Text('Recover time'),
                 ),
-              TextButton.icon(
-                onPressed: controlsLocked ? null : () => printServiceSheet(t!),
-                icon: const Icon(Icons.print_outlined),
-                label: const Text('Print Service'),
-              ),
             ],
           ),
           if (s.targetFinishWall != null)

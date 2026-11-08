@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Print report and Print order of service.** "Print Service" is now **Print report** on a report and **Print order of service** for a program or the loaded service. The print options open as a sheet from the bottom of the screen with a title, the options, and **Share PDF** and **Print** side by side as two equal buttons, instead of a crowded dialog. On Live, printing is a print icon in the Service rundown header, so it no longer wraps onto a line of its own. With Ink-saving on, the watermark and banner boxes show unticked as well as greyed out, since they are left out.
+
 ## 0.28.1, 8/November/2026
 
 - **Tidier code inside, nothing changed on screen.** The app's largest source files are split into smaller ones by topic and screen, so later fixes and features are quicker and safer to make. Everything looks and works as in 0.28.0, and programs, reports, backups and pairings carry over unchanged. Phones on 0.28.0 and 0.28.1 work together.

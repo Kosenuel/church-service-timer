@@ -19,7 +19,7 @@ extension ItemMenuViews on HomeState {
           ListTile(
             onTap: () => Navigator.pop(ctx, 'pdf'),
             leading: const Icon(Icons.print_outlined),
-            title: const Text('PDF · Print Service'),
+            title: const Text('PDF · Print report'),
           ),
           const AppDivider(),
         ],

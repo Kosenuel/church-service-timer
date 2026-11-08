@@ -125,7 +125,7 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Print Service offers Share PDF', (t) async {
+  testWidgets('Print report offers Share PDF', (t) async {
     final (c, port) = await app(t);
     await c.act('load', value: c.state.templates.last);
     await c.act('start');
@@ -137,7 +137,7 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.byKey(ValueKey('open-report-$id')));
     await t.pumpAndSettle();
-    final print = find.text('Print Service');
+    final print = find.text('Print report');
     await t.ensureVisible(print.last);
     await t.tap(print.last);
     await t.pumpAndSettle();
