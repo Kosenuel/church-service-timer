@@ -5,48 +5,9 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/hardware/hardware_output.dart';
-import '../domain/service_timing_test.dart'
-    show FakePort, start, after, timeline;
-import 'hardware_integration_test.dart' show W2Port, setup, flush;
-import '../pairing/paired_operators_and_upcoming_edits_test.dart' show until;
-
-class RecoveryPort extends W2Port {
-  int connects = 0;
-  bool auto = true, found = true;
-  String? saved;
-  Completer<List<Json>>? discoveryGate;
-  Completer<void>? preferenceGate;
-  @override
-  Future<void> setDisplayAutoReconnect(bool value) async {
-    auto = value;
-    if (value) await preferenceGate?.future;
-  }
-
-  @override
-  Future<Json> displayPreferences() async => {
-    ...await super.displayPreferences(),
-    'autoReconnect': auto,
-  };
-  @override
-  Future<String?> savedDisplayPassword(String id) async => saved;
-  @override
-  Future<List<Json>> discoverDisplays() async =>
-      discoveryGate?.future ?? (found ? [profile] : []);
-  @override
-  Future<Json> connectDisplay(String id, String password) async {
-    connects++;
-    nativeGeneration++;
-    return super.connectDisplay(id, password);
-  }
-}
-
-Future<void> outage(AppController c, RecoveryPort p) async {
-  p.reachable = false;
-  for (final second in [10, 12, 14]) {
-    p.at = after(second);
-    await c.hardware.check(p.at);
-  }
-}
+import '../support/fake_port.dart';
+import '../support/w2_port.dart';
+import '../support/waiting.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

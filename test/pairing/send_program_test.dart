@@ -6,9 +6,9 @@ import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/programs/send_program_views.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../domain/service_timing_test.dart' show FakePort, start, timeline;
-import 'saved_devices_test.dart' show eventually, pair;
+import '../support/fake_port.dart';
+import '../support/pairing.dart';
+import '../support/waiting.dart';
 
 void main() {
   test('The host sends a program to a viewer, not to a stage screen', () async {

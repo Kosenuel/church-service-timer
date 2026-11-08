@@ -2,13 +2,13 @@
 
 JSON contains these top-level fields: `schemaVersion` (4 for whole-minute programs, 5 when seconds are present), `name`, `type`, `segments`, `display`. Versions 1–5 are accepted. Unknown fields are rejected, including controller data and approval records.
 
-`type` is `service` or `rehearsal`, required for versions 3–5. It controls optional list grouping only; timing speed is chosen when loading a service. Versions 1–2 without a type default to Service, except the legacy starter named exactly `Quick rehearsal`, which becomes Rehearsal. Set the group explicitly in the editor for other old templates. Version 3 JSON requires Cuekeeper 0.6 or newer; older apps report an unsupported version. CSV still carries segments only and imports as Service.
+`type` is `service` or `rehearsal`, required for versions 3–5. It controls optional list grouping only; timing speed is chosen when loading a service. Versions 1–2 without a type default to Service, except the legacy starter named exactly `Quick rehearsal`, which becomes Rehearsal. Set the group explicitly in the editor for other old templates. Version 3 JSON requires Church Service Timer 0.6 or newer; older apps report an unsupported version. CSV still carries segments only and imports as Service.
 
 `segments` contains 1–200 objects with `name` and integer `minutes` and optional `seconds` (0–59; omitted when zero). New edits/imports/starts require a total duration of 1–3,599 seconds. Saved legacy programs up to 99:59 remain readable but must be shortened before saving or starting. Names are trimmed, 1–80 Unicode code points. Template names are unique without regard to case. Optional `speaker` (up to 80 single-line characters) and `notes` (up to 1,000 characters, multiline) are operator-only metadata; neither is sent to the display. JSON and full backups preserve them; CSV does not. Version 4 exports without duration protection require Church Service Timer 0.10 or newer. In 0.18, optional `protected: true` keeps a segment out of automatic time-recovery reductions; it is omitted when false. Files containing this optional field require 0.18 or newer. CSV does not preserve protection.
 
 `display` contains `zero` (null means 00:00, otherwise a text layout), `end` (a text layout), `cues` (0–6 legacy template layouts), and `warnings` (0–6 rules). Missing warnings migrate to an empty list. In 0.3, accepted imported cues merge into the shared Live list, preserving unique text/style combinations. Template exports retain their legacy `cues` field, not the current shared list. The shared Live cues, LED shape preference, and reports are local data outside this interchange format.
 
-In 0.4, `end` belongs to the template and is editable in its timeline editor. New templates copy the current default (initially bold, italic, tall `Hallelujah`, centered scrolling at 12 pixels/second in Cuekeeper Matrix). `zero` remains in exported JSON for compatibility, but import ignores its value and uses the receiving device’s shared At Zero setting. At Zero applies to saved templates and loaded services.
+In 0.4, `end` belongs to the template and is editable in its timeline editor. New templates copy the current default (initially bold, italic, tall `Hallelujah`, centered scrolling at 12 pixels/second in I-Proton Matrix). `zero` remains in exported JSON for compatibility, but import ignores its value and uses the receiving device’s shared At Zero setting. At Zero applies to saved templates and loaded services.
 
 Every text layout contains all fields:
 
@@ -20,7 +20,7 @@ Every text layout contains all fields:
 | `align` | `left`, `center`, `right` |
 | `speed` | integer 4–24 pixels/second |
 | `height` | 1 (7 pixels) or 2 (14 pixels) |
-| `font` | `cuekeeper_matrix`, `cuekeeper_sq_matrix`, `tinos`; legacy `times_new_roman` selections migrate to `tinos`; absent/retired `service_serif`/`clear_sans` selections migrate to `cuekeeper_matrix` |
+| `font` | `i-proton_matrix`, `i-proton_sq_matrix`, `tinos`; ids before 0.28 (`cuekeeper_matrix`, `cuekeeper_sq_matrix`) are still read and become the `i-proton_*` ids; legacy `times_new_roman` selections migrate to `tinos`; absent/retired `service_serif`/`clear_sans` selections migrate to `i-proton_matrix` |
 
 Each warning rule contains `seconds` (integer 0–5,999, unique within the shared rule set), `enabled` (boolean), `destination` (`operator` or `stage`), and `cue` (a complete text layout). Rules use time remaining per segment. Both destinations allow phone notifications. See `history/FEATURES-0.3.md`. `examples/quick-rehearsal.json` remains a version 1 compatibility example; `examples/styled-rehearsal.json` demonstrates version 2. Tinos faces are bundled with the Android app; font bytes are not exported. Import adopts the receiving device’s shared warning rules.
 

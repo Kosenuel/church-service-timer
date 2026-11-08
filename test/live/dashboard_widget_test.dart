@@ -1,31 +1,16 @@
-import 'dart:io';
-
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 
-import '../domain/service_timing_test.dart' show FakePort, start, after;
 import '../support/live_helpers.dart';
+import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() async {
-    final loader = FontLoader('Roboto');
-    for (final name in ['Regular', 'Light', 'Bold']) {
-      loader.addFont(
-        File(
-          'assets/fonts/Roboto-$name.ttf',
-        ).readAsBytes().then((b) => ByteData.sublistView(b)),
-      );
-    }
-    await loader.load();
-    final icons = FontLoader('MaterialIcons')
-      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-    await icons.load();
-  });
+  setUpAll(loadAppFonts);
   testWidgets('Phone dashboard loads Ready and starts only on confirmation', (
     tester,
   ) async {

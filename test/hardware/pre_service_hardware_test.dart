@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-
-import 'hardware_integration_test.dart' show W2Port, setup, flush;
+import '../support/w2_port.dart';
 
 void main() {
   test(

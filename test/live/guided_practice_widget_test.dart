@@ -1,21 +1,12 @@
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../domain/service_timing_test.dart' show FakePort;
+import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
 
 void main() {
-  setUpAll(() async {
-    await (FontLoader('Roboto')
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf')))
-        .load();
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-  });
+  setUpAll(loadAppFonts);
 
   testWidgets('Live offers practice, coaches each step and sums it up', (
     t,

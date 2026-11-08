@@ -563,7 +563,7 @@ extension WarningSettingsViews on HomeState {
         const SizedBox(height: 12),
         LedMatrix(
           pixels: renderPixels(
-            const TextLayout('Aa 12', font: 'cuekeeper_sq_matrix'),
+            const TextLayout('Aa 12', font: 'i-proton_sq_matrix'),
             0,
           ),
         ),

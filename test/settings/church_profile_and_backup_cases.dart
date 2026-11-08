@@ -84,7 +84,7 @@ final revision07Cases = <String, void Function()>{
         italic: true,
         bold: true,
         speed: 12,
-        font: 'cuekeeper_sq_matrix',
+        font: 'i-proton_sq_matrix',
       ),
     ];
     a.session = service()..churchName = a.churchName;

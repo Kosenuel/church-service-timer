@@ -1,31 +1,18 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
-import '../domain/service_timing_test.dart' show FakePort, start;
+import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
 
 void main() {
-  setUpAll(() async {
-    await (FontLoader('Roboto')
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Light.ttf')))
-        .load();
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-  });
-  void size(WidgetTester t, [Size s = const Size(430, 1000)]) {
-    t.view.physicalSize = s;
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.resetPhysicalSize);
-    addTearDown(t.view.resetDevicePixelRatio);
-  }
+  setUpAll(loadAppFonts);
+  void size(WidgetTester t, [Size value = const Size(430, 1000)]) =>
+      setScreen(t, value);
 
   Future<void> tap(WidgetTester t, String text) async {
     await t.ensureVisible(find.text(text).last);

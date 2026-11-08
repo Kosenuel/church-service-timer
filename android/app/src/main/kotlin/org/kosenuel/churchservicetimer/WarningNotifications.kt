@@ -1,4 +1,4 @@
-package org.kosenuel.cuekeeper
+package org.kosenuel.churchservicetimer
 
 import android.Manifest
 import android.app.AlarmManager
@@ -54,7 +54,7 @@ object WarningNotifications {
 
     private fun pending(c: Context, id: String, title: String = "", body: String = ""): PendingIntent {
         val intent = Intent(c, WarningReceiver::class.java)
-            .setData(Uri.parse("cuekeeper://warning/${Uri.encode(id)}"))
+            .setData(Uri.parse("churchservicetimer://warning/${Uri.encode(id)}"))
             .putExtra("id", id).putExtra("title", title).putExtra("body", body)
         return PendingIntent.getBroadcast(c, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }

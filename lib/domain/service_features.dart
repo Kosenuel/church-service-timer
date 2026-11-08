@@ -1,9 +1,20 @@
 import 'dart:convert';
 import 'package:church_service_timer/domain/domain.dart';
 
+/// Font ids used before 0.28 or retired earlier, still read from saved
+/// state, program files and backups and mapped to today's ids.
+const legacyFontIds = {
+  'cuekeeper_matrix': 'i-proton_matrix',
+  'cuekeeper_sq_matrix': 'i-proton_sq_matrix',
+  // Retired 0.2 faces migrate to the preserved original face.
+  'service_serif': 'i-proton_matrix',
+  'clear_sans': 'i-proton_matrix',
+  'times_new_roman': 'tinos',
+};
+
 const displayFontNames = {
-  'cuekeeper_matrix': 'I-Proton Matrix',
-  'cuekeeper_sq_matrix': 'I-Proton Sq-Matrix',
+  'i-proton_matrix': 'I-Proton Matrix',
+  'i-proton_sq_matrix': 'I-Proton Sq-Matrix',
   'tinos': 'Tinos',
 };
 

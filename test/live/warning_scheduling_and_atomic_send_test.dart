@@ -7,8 +7,9 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/app/warning_notifications.dart';
-import '../domain/service_timing_test.dart' show FakePort;
 import '../domain/feature_cases.dart' show epoch, at, service;
+import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
 
 class NotificationPort extends FakePort {
   final plans = <Json>[];
@@ -56,12 +57,12 @@ void main() {
       expect(state.stageCues.last.text, 'SAVED');
       expect(state.stageCues.last.bold, true);
       expect(state.stageCues.last.speed, 21);
-      expect(state.stageCues.last.font, 'cuekeeper_matrix');
+      expect(state.stageCues.last.font, 'i-proton_matrix');
       expect(state.stageCues.length, 4);
       expect(AppState.fromJson(state.toJson()).stageCues.length, 4);
       expect(displayFontNames.keys, [
-        'cuekeeper_matrix',
-        'cuekeeper_sq_matrix',
+        'i-proton_matrix',
+        'i-proton_sq_matrix',
         'tinos',
       ]);
     },
@@ -264,12 +265,8 @@ void main() {
     },
   );
 
-  void size(WidgetTester t) {
-    t.view.physicalSize = const Size(700, 1500);
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.resetPhysicalSize);
-    addTearDown(t.view.resetDevicePixelRatio);
-  }
+  void size(WidgetTester t, [Size value = const Size(700, 1500)]) =>
+      setScreen(t, value);
 
   testWidgets(
     'Pause, resume, fixed adjustments and Custom require confirmation',

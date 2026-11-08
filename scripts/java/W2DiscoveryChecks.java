@@ -1,4 +1,4 @@
-package org.kosenuel.cuekeeper.w2;
+package org.kosenuel.churchservicetimer.w2;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;

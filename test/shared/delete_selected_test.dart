@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/app/controller.dart';
-import '../domain/service_timing_test.dart' show FakePort, timeline;
+import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
 
 void main() {
-  void size(WidgetTester t) {
-    t.view.physicalSize = const Size(430, 1000);
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.resetPhysicalSize);
-    addTearDown(t.view.resetDevicePixelRatio);
-  }
+  void size(WidgetTester t, [Size value = const Size(430, 1000)]) =>
+      setScreen(t, value);
 
   Future<void> tap(WidgetTester t, Finder target) async {
     await t.ensureVisible(target);

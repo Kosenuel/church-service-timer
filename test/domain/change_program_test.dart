@@ -1,7 +1,6 @@
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'service_timing_test.dart' show after, loaded, running, start;
+import '../support/fake_port.dart';
 
 final other = Timeline('Evening', const [
   Segment('Welcome', 3),

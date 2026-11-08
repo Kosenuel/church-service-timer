@@ -4,7 +4,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'feature_cases.dart';
-import 'service_timing_test.dart' show FakePort;
+import '../support/fake_port.dart';
 
 void main() {
   for (final entry in featureCases.entries) {

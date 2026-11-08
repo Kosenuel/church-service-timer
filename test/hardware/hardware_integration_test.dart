@@ -1,97 +1,17 @@
 import 'dart:async';
-import 'dart:io';
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/hardware_output.dart';
 import 'package:church_service_timer/main.dart';
-import '../domain/service_timing_test.dart'
-    show FakePort, start, after, timeline;
-
-class W2Port extends FakePort {
-  final sent = <({Uint8List bytes, int? deadline})>[];
-  Completer<Json>? sendGate;
-  bool acknowledged = true, reachable = true, hardwarePreference = false;
-  int nativeGeneration = 4;
-  final profile = <String, dynamic>{
-    'id': 'synthetic-w2',
-    'name': 'Test sign',
-    'firmware': 'HD_W2 V6.02.232',
-    'width': 32,
-    'height': 16,
-    'address': '192.0.2.1',
-    'supported': true,
-  };
-  @override
-  Future<Json> displayPreferences() async => {
-    'hardware': hardwarePreference,
-    'id': 'synthetic-w2',
-    'name': 'Test sign',
-  };
-  @override
-  Future<List<Json>> discoverDisplays() async => [profile];
-  @override
-  Future<Json> connectDisplay(String id, String password) async => {
-    ...profile,
-    'generation': nativeGeneration,
-  };
-  @override
-  Future<Json> checkDisplay() async => {
-    'connected': reachable,
-    'generation': nativeGeneration,
-  };
-  @override
-  Future<Json> sendDisplay(
-    Uint8List bytes,
-    int generation,
-    int? deadline,
-  ) async {
-    sent.add((bytes: bytes, deadline: deadline));
-    return sendGate?.future ??
-        Future.value({
-          'accepted': acknowledged,
-          'generation': nativeGeneration,
-        });
-  }
-}
-
-Future<void> flush() async {
-  for (var i = 0; i < 5; i++) {
-    await Future<void>.delayed(Duration.zero);
-  }
-}
-
-Future<AppController> setup(W2Port port, {bool started = true}) async {
-  final c = AppController(port);
-  await c.initialize(startTicker: false);
-  await c.hardware.discover();
-  expect(await c.hardware.connect('synthetic-w2', 'synthetic'), true);
-  await c.act('load', value: timeline());
-  if (started) {
-    await c.act('start');
-    await flush();
-  }
-  return c;
-}
+import '../support/fake_port.dart';
+import '../support/w2_port.dart';
+import '../support/widget_setup.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() async {
-    final font = FontLoader('Roboto');
-    for (final name in ['Regular', 'Light', 'Bold']) {
-      font.addFont(
-        File(
-          'assets/fonts/Roboto-$name.ttf',
-        ).readAsBytes().then((b) => ByteData.sublistView(b)),
-      );
-    }
-    await font.load();
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-  });
+  setUpAll(loadAppFonts);
   testWidgets(
     'Hardware Live shows controller acceptance and recovery separately',
     (tester) async {

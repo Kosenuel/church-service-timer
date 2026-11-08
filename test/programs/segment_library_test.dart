@@ -5,8 +5,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../domain/service_timing_test.dart' show FakePort, start;
+import '../support/fake_port.dart';
 
 void main() {
   test('Library keeps newest first, replaces by name, and has a limit', () {

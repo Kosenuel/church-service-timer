@@ -6,7 +6,8 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
-import '../domain/service_timing_test.dart' show FakePort;
+import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
 
 class PrintPort extends FakePort {
   Uint8List? pdf;
@@ -20,22 +21,9 @@ class PrintPort extends FakePort {
 }
 
 void main() {
-  setUpAll(() async {
-    await (FontLoader('Roboto')
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Light.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf')))
-        .load();
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-  });
-  void size(WidgetTester t, {Size value = const Size(450, 1000)}) {
-    t.view.physicalSize = value;
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.resetPhysicalSize);
-    addTearDown(t.view.resetDevicePixelRatio);
-  }
+  setUpAll(loadAppFonts);
+  void size(WidgetTester t, {Size value = const Size(450, 1000)}) =>
+      setScreen(t, value);
 
   Future<AppController> open(WidgetTester t, {FakePort? port}) async {
     final c = AppController(port ?? FakePort());

@@ -10,6 +10,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 - **Paired operator view.** Rundown rows no longer show an empty "Private:" line or a trailing "·" when a segment has no notes or speaker, and the status line says "Display: Simulator" rather than "LED sign: Simulator".
 - **Program editor.** A program whose end screen matches the default now says "Uses the current default" rather than claiming its own end screen.
 - **Smaller fixes:** "Import 1 program" (not "programs"); **Send to paired phone** appears only while a phone that can receive it is connected; "→" and "✕", which the app's font can't draw, are replaced with "›", "×" or words, including in What's new, where release dates now read "7 November 2026".
+- **One name throughout.** The app's old working name is gone from the code and the Android sources. The Android source package is now `org.kosenuel.churchservicetimer` (the app ID that Android and the Play Store use is unchanged, so updates install over the current app and keep its data). The two pixel fonts are now `i-proton_matrix` and `i-proton_sq_matrix`, matching their names I-Proton Matrix and I-Proton Sq-Matrix. Programs, cues, backups and files saved with the old font names still open and are saved with the new ones. A test keeps the old name from creeping back. Phones on 0.27 or earlier can't open program files, backups or sent programs saved by this version, so update every phone together.
 
 ## 0.27.0, 7/November/2026
 

@@ -5,7 +5,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/hardware/w2_program.dart';
-import '../domain/service_timing_test.dart' show start, running, FakePort;
+import '../support/fake_port.dart';
 
 void main() {
   test(

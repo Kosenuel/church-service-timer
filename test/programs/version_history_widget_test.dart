@@ -3,8 +3,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../domain/service_timing_test.dart' show FakePort;
+import '../support/fake_port.dart';
 
 void main() {
   testWidgets('Version history restores an earlier version, with Undo', (
