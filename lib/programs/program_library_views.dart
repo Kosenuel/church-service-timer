@@ -144,14 +144,14 @@ extension ProgramLibraryViews on HomeState {
     children: [
       TextFormField(
         key: const ValueKey('program-search'),
-        initialValue: programQuery,
+        initialValue: programsPage.query,
         decoration: const InputDecoration(
           labelText: 'Search programs',
           hintText: 'Search programs, segments or speakers',
           floatingLabelBehavior: FloatingLabelBehavior.never,
           prefixIcon: Icon(Icons.search),
         ),
-        onChanged: (v) => refreshHome(() => programQuery = v),
+        onChanged: (v) => refreshHome(() => programsPage.query = v),
       ),
       const SizedBox(height: 8),
       Row(
@@ -161,8 +161,8 @@ extension ProgramLibraryViews on HomeState {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: ProgramFilters(
-                value: programFilter,
-                onChanged: (v) => refreshHome(() => programFilter = v),
+                value: programsPage.filter,
+                onChanged: (v) => refreshHome(() => programsPage.filter = v),
               ),
             ),
           ),
@@ -178,13 +178,17 @@ extension ProgramLibraryViews on HomeState {
       : masterDetail(
           templates(),
           !c.state.programLibrary
-                  .find(c.state.templates, programQuery, programFilter)
-                  .any((p) => p.name == selectedProgram)
+                  .find(
+                    c.state.templates,
+                    programsPage.query,
+                    programsPage.filter,
+                  )
+                  .any((p) => p.name == programsPage.open)
               ? panel(
                   child: const Center(
                     child: Text('Select a program to view its details.'),
                   ),
                 )
-              : programDetails(selectedProgram!, embedded: true),
+              : programDetails(programsPage.open!, embedded: true),
         );
 }

@@ -206,13 +206,13 @@ extension ReportViews on HomeState {
       context: context,
       firstDate: first,
       lastDate: DateTime(last.year + 1, 12, 31),
-      initialDateRange: reportDates,
+      initialDateRange: reportsPage.dates,
       helpText: 'Filter service dates',
     );
     if (result != null && mounted)
       refreshHome(() {
-        reportDates = result;
-        selectedReport = null;
+        reportsPage.dates = result;
+        reportsPage.open = null;
       });
   }
 
@@ -308,7 +308,7 @@ extension ReportViews on HomeState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (selectingReports)
+        if (reportsPage.selecting)
           selectionHeader(
             programs: false,
             shown: history.map((r) => r.id).toSet(),
@@ -363,16 +363,16 @@ extension ReportViews on HomeState {
                   ],
                 ),
               ),
-              if (!selectingReports)
+              if (!reportsPage.selecting)
                 IconButton(
                   key: const ValueKey('select-reports'),
                   tooltip: 'Select',
                   onPressed: total == 0
                       ? null
                       : () => refreshHome(() {
-                          selectingReports = true;
-                          reportView = 'list';
-                          selectedReportExports.clear();
+                          reportsPage.selecting = true;
+                          reportsPage.view = 'list';
+                          reportsPage.selected.clear();
                         }),
                   icon: const Icon(Icons.checklist),
                 ),
@@ -416,13 +416,13 @@ extension ReportViews on HomeState {
             ],
           ),
         const SizedBox(height: 14),
-        if (!selectingReports) reportSummary(),
+        if (!reportsPage.selecting) reportSummary(),
         Row(
           children: [
             Expanded(
               child: TextFormField(
                 key: const ValueKey('report-search'),
-                initialValue: reportQuery,
+                initialValue: reportsPage.query,
                 decoration: const InputDecoration(
                   hintText: 'Search reports',
                   labelText: 'Search reports',
@@ -430,8 +430,8 @@ extension ReportViews on HomeState {
                   prefixIcon: Icon(Icons.search),
                 ),
                 onChanged: (v) => refreshHome(() {
-                  reportQuery = v;
-                  selectedReport = null;
+                  reportsPage.query = v;
+                  reportsPage.open = null;
                 }),
               ),
             ),
@@ -442,15 +442,15 @@ extension ReportViews on HomeState {
               onPressed: pickReportDates,
               icon: const Icon(Icons.date_range, size: 20),
               label: Text(
-                reportDates == null
+                reportsPage.dates == null
                     ? 'Dates'
-                    : '${reportDates!.start.day}/${reportDates!.start.month} – ${reportDates!.end.day}/${reportDates!.end.month}',
+                    : '${reportsPage.dates!.start.day}/${reportsPage.dates!.start.month} – ${reportsPage.dates!.end.day}/${reportsPage.dates!.end.month}',
               ),
             ),
-            if (reportDates != null)
+            if (reportsPage.dates != null)
               IconButton(
                 tooltip: 'Clear date filter',
-                onPressed: () => refreshHome(() => reportDates = null),
+                onPressed: () => refreshHome(() => reportsPage.dates = null),
                 icon: const Icon(Icons.close),
               ),
           ],
@@ -472,7 +472,7 @@ extension ReportViews on HomeState {
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
                           label: Text(option.value),
-                          selected: reportFilter == option.key,
+                          selected: reportsPage.filter == option.key,
                           onSelected: (_) => selectReportFilter(option.key),
                         ),
                       ),
@@ -487,7 +487,7 @@ extension ReportViews on HomeState {
           ],
         ),
         const SizedBox(height: 8),
-        if (!selectingReports)
+        if (!reportsPage.selecting)
           Container(
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: colors.border)),
@@ -505,22 +505,22 @@ extension ReportViews on HomeState {
                           border: Border(
                             bottom: BorderSide(
                               width: 3,
-                              color: reportView == view
+                              color: reportsPage.view == view
                                   ? colors.accent
                                   : Colors.transparent,
                             ),
                           ),
                         ),
                         child: Semantics(
-                          selected: reportView == view,
+                          selected: reportsPage.view == view,
                           button: true,
                           child: Text(
                             view == 'list' ? 'List' : 'Graph',
                             style: TextStyle(
-                              fontWeight: reportView == view
+                              fontWeight: reportsPage.view == view
                                   ? FontWeight.w700
                                   : FontWeight.w500,
-                              color: reportView == view
+                              color: reportsPage.view == view
                                   ? colors.text
                                   : colors.muted,
                             ),
@@ -533,7 +533,9 @@ extension ReportViews on HomeState {
             ),
           ),
         const SizedBox(height: 16),
-        if (!selectingReports && reportView == 'list' && history.isNotEmpty)
+        if (!reportsPage.selecting &&
+            reportsPage.view == 'list' &&
+            history.isNotEmpty)
           listHint(
             'reports-select',
             'Tap a report to open it · press and hold to select',
@@ -546,7 +548,7 @@ extension ReportViews on HomeState {
                   : 'No records match this filter.',
             ),
           )
-        else if (reportView == 'graph')
+        else if (reportsPage.view == 'graph')
           reportGraphs(history)
         else
           reportSurface(
@@ -557,43 +559,43 @@ extension ReportViews on HomeState {
                   if (i > 0) const AppDivider(),
                   ReportListRow(
                     report: history[i],
-                    checked: selectingReports
-                        ? selectedReportExports.contains(history[i].id)
+                    checked: reportsPage.selecting
+                        ? reportsPage.selected.contains(history[i].id)
                         : null,
-                    onChecked: selectingReports
+                    onChecked: reportsPage.selecting
                         ? (_) => refreshHome(
                             () => toggleExportSelection(
-                              selectedReportExports,
+                              reportsPage.selected,
                               history[i].id,
                             ),
                           )
                         : null,
                     selected:
-                        useMasterDetail && selectedReport == history[i].id,
+                        useMasterDetail && reportsPage.open == history[i].id,
                     onTap: () {
-                      if (selectingReports) {
+                      if (reportsPage.selecting) {
                         refreshHome(
                           () => toggleExportSelection(
-                            selectedReportExports,
+                            reportsPage.selected,
                             history[i].id,
                           ),
                         );
                         return;
                       }
                       if (useMasterDetail)
-                        refreshHome(() => selectedReport = history[i].id);
+                        refreshHome(() => reportsPage.open = history[i].id);
                       else
                         openReport(history[i]);
                     },
                     // Long-press starts selection with this report ticked;
                     // the selection bar then exports or deletes.
                     onMenu: () => refreshHome(() {
-                      if (!selectingReports) {
-                        selectingReports = true;
-                        reportView = 'list';
-                        selectedReportExports.clear();
+                      if (!reportsPage.selecting) {
+                        reportsPage.selecting = true;
+                        reportsPage.view = 'list';
+                        reportsPage.selected.clear();
                       }
-                      selectedReportExports.add(history[i].id);
+                      reportsPage.selected.add(history[i].id);
                     }),
                   ),
                 ],
@@ -612,7 +614,7 @@ extension ReportViews on HomeState {
     final last = recent.sublist(math.max(0, recent.length - 8));
     if (last.isEmpty) return const SizedBox.shrink();
     final picked =
-        last.where((r) => r.id == graphReport).firstOrNull ?? last.last;
+        last.where((r) => r.id == reportsPage.graph).firstOrNull ?? last.last;
     final pickedVariance = picked.totalMs! - picked.plannedMs;
     final when = DateTime.fromMillisecondsSinceEpoch(
       picked.startedWall ?? picked.endedWall,
@@ -662,7 +664,7 @@ extension ReportViews on HomeState {
                 OverUnderChart(
                   reports: last,
                   selectedId: picked.id,
-                  onSelect: (id) => refreshHome(() => graphReport = id),
+                  onSelect: (id) => refreshHome(() => reportsPage.graph = id),
                 ),
                 const SizedBox(height: 8),
                 Row(

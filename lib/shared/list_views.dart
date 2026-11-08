@@ -72,7 +72,7 @@ extension ListViews on HomeState {
   }
 
   Set<String> selectedFor(bool programs) =>
-      programs ? selectedProgramExports : selectedReportExports;
+      programs ? programsPage.selected : reportsPage.selected;
 
   Set<String> chosenFor(bool programs) => selectedFor(programs).intersection(
     programs
@@ -83,16 +83,16 @@ extension ListViews on HomeState {
   /// The ids the current search and filters show.
   Set<String> shownIds(bool programs) => programs
       ? c.state.programLibrary
-            .find(c.state.templates, programQuery, programFilter)
+            .find(c.state.templates, programsPage.query, programsPage.filter)
             .map((p) => p.id)
             .toSet()
       : c.state.reports.where(reportMatches).map((r) => r.id).toSet();
 
   void finishSelecting() => refreshHome(() {
-    selectingPrograms = false;
-    selectingReports = false;
-    selectedProgramExports.clear();
-    selectedReportExports.clear();
+    programsPage.selecting = false;
+    reportsPage.selecting = false;
+    programsPage.selected.clear();
+    reportsPage.selected.clear();
   });
 
   /// Replaces the page title while selecting: ✕ · N selected · Select all.

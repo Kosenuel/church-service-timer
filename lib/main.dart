@@ -22,6 +22,8 @@ import 'package:church_service_timer/live/live_layout_views.dart';
 import 'package:church_service_timer/programs/program_library_views.dart';
 import 'package:church_service_timer/settings/settings_pin_views.dart';
 import 'package:church_service_timer/live/clicker_controls.dart';
+import 'package:church_service_timer/programs/programs_page_state.dart';
+import 'package:church_service_timer/reports/reports_page_state.dart';
 import 'package:church_service_timer/programs/program_edit_actions.dart';
 import 'package:church_service_timer/shared/home_widgets.dart';
 import 'package:church_service_timer/live/live_page.dart';
@@ -185,27 +187,20 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   });
   final settingsRefresh = ValueNotifier<int>(0);
 
-  String reportFilter = 'all', reportView = 'list';
-  bool selectingPrograms = false, selectingReports = false;
+  final programsPage = ProgramsPageState();
+  final reportsPage = ReportsPageState();
   bool practiceSummaryQueued = false;
-
-  /// The report tapped in the Reports graph, shown in a card below it.
-  String? graphReport;
-  final selectedProgramExports = <String>{}, selectedReportExports = <String>{};
-  String reportQuery = '',
-      programQuery = '',
-      programFilter = 'all',
-      settingsQuery = '';
-  DateTimeRange? reportDates;
-  String? selectedProgram, selectedReport;
+  String settingsQuery = '';
   Offset? menuAnchor;
   void returnToLive() {
     navigatePage(0);
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  void selectReportFilter(String value) => setState(() => reportFilter = value);
-  void selectReportView(String value) => setState(() => reportView = value);
+  void selectReportFilter(String value) =>
+      setState(() => reportsPage.filter = value);
+  void selectReportView(String value) =>
+      setState(() => reportsPage.view = value);
   void navigatePage(int value) => setState(() => page = value);
   DateTime? _clickerNextArmed;
 
@@ -404,12 +399,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       false;
 
   void handleBack() {
-    if (selectingPrograms || selectingReports) {
+    if (programsPage.selecting || reportsPage.selecting) {
       refreshHome(() {
-        selectingPrograms = false;
-        selectingReports = false;
-        selectedProgramExports.clear();
-        selectedReportExports.clear();
+        programsPage.selecting = false;
+        reportsPage.selecting = false;
+        programsPage.selected.clear();
+        reportsPage.selected.clear();
       });
       return;
     }
@@ -802,7 +797,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                   c.ready &&
                       page == 1 &&
                       !focused &&
-                      !selectingPrograms &&
+                      !programsPage.selecting &&
                       !controlsLocked
                   ? FloatingActionButton.extended(
                       key: const ValueKey('new-template'),
@@ -819,8 +814,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                   : null,
               bottomNavigationBar:
                   !focused &&
-                      ((page == 1 && selectingPrograms) ||
-                          (page == 2 && selectingReports))
+                      ((page == 1 && programsPage.selecting) ||
+                          (page == 2 && reportsPage.selecting))
                   ? selectionActionBar(programs: page == 1)
                   : focused
                   ? SafeArea(

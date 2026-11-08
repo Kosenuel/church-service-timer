@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 
 extension ReportLibraryViews on HomeState {
   bool reportMatches(ServiceReport r) {
-    if (reportFilter != 'all' &&
-        (reportFilter == 'rehearsal' ? !r.rehearsal : r.rehearsal))
+    if (reportsPage.filter != 'all' &&
+        (reportsPage.filter == 'rehearsal' ? !r.rehearsal : r.rehearsal))
       return false;
     final text =
         '${r.name} ${r.churchName} ${r.rows.map((s) => s.name).join(' ')}'
             .toLowerCase();
-    if (!reportQuery
+    if (!reportsPage.query
         .toLowerCase()
         .trim()
         .split(RegExp(r'\s+'))
@@ -19,21 +19,21 @@ extension ReportLibraryViews on HomeState {
     final date = DateTime.fromMillisecondsSinceEpoch(
       r.startedWall ?? r.endedWall,
     );
-    return reportDates == null ||
-        (!date.isBefore(reportDates!.start) &&
+    return reportsPage.dates == null ||
+        (!date.isBefore(reportsPage.dates!.start) &&
             date.isBefore(
               DateTime(
-                reportDates!.end.year,
-                reportDates!.end.month,
-                reportDates!.end.day + 1,
+                reportsPage.dates!.end.year,
+                reportsPage.dates!.end.month,
+                reportsPage.dates!.end.day + 1,
               ),
             ));
   }
 
   Widget reportsResponsive() {
-    if (!useMasterDetail || reportView == 'graph') return reports();
+    if (!useMasterDetail || reportsPage.view == 'graph') return reports();
     final r = c.state.reports
-        .where((r) => r.id == selectedReport && reportMatches(r))
+        .where((r) => r.id == reportsPage.open && reportMatches(r))
         .firstOrNull;
     return masterDetail(
       reports(),

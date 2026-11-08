@@ -14,12 +14,12 @@ extension SelectionViews on HomeState {
     final narrow = MediaQuery.sizeOf(context).width < 480;
     void start() => refreshHome(() {
       if (programs) {
-        selectingPrograms = true;
-        selectedProgramExports.clear();
+        programsPage.selecting = true;
+        programsPage.selected.clear();
       } else {
-        selectingReports = true;
-        reportView = 'list';
-        selectedReportExports.clear();
+        reportsPage.selecting = true;
+        reportsPage.view = 'list';
+        reportsPage.selected.clear();
       }
     });
     if (narrow) {
@@ -35,12 +35,12 @@ extension SelectionViews on HomeState {
       onPressed: available
           ? () => refreshHome(() {
               if (programs) {
-                selectingPrograms = true;
-                selectedProgramExports.clear();
+                programsPage.selecting = true;
+                programsPage.selected.clear();
               } else {
-                selectingReports = true;
-                reportView = 'list';
-                selectedReportExports.clear();
+                reportsPage.selecting = true;
+                reportsPage.view = 'list';
+                reportsPage.selected.clear();
               }
             })
           : null,
@@ -82,7 +82,7 @@ extension SelectionViews on HomeState {
       destructive: true,
     ))
       return;
-    final selected = programs ? selectedProgramExports : selectedReportExports;
+    final selected = programs ? programsPage.selected : reportsPage.selected;
     if (programs) {
       final removed = await c.deletePrograms(chosen);
       if (removed == null) {
