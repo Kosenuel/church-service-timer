@@ -546,21 +546,25 @@ class _ReviewNoteDialogState extends State<ReviewNoteDialog> {
       ),
     ),
     actions: [
-      if (widget.initial != null)
-        TextButton(
-          key: const ValueKey('remove-review-note'),
-          style: TextButton.styleFrom(foregroundColor: destructiveColor),
-          onPressed: () => Navigator.pop(context, ''),
-          child: const Text('Remove note'),
-        ),
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        key: const ValueKey('save-review-note'),
-        onPressed: () => Navigator.pop(context, text.text),
-        child: const Text('Save note'),
+      StackedDialogActions(
+        children: [
+          FilledButton(
+            key: const ValueKey('save-review-note'),
+            onPressed: () => Navigator.pop(context, text.text),
+            child: const Text('Save note'),
+          ),
+          if (widget.initial != null)
+            TextButton(
+              key: const ValueKey('remove-review-note'),
+              style: TextButton.styleFrom(foregroundColor: destructiveColor),
+              onPressed: () => Navigator.pop(context, ''),
+              child: const Text('Remove note'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
       ),
     ],
   );

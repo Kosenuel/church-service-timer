@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -29,20 +30,24 @@ extension MobileDisplayViews on HomeState {
             'The sign can keep its current output after disconnecting. Blank it before switching?',
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Leave output'),
-            ),
-            FilledButton(
-              onPressed:
-                  c.state.session.active || c.state.session.phase == 'ended'
-                  ? () => Navigator.pop(ctx, true)
-                  : null,
-              child: const Text('Blank previous sign'),
+            StackedDialogActions(
+              children: [
+                FilledButton(
+                  onPressed:
+                      c.state.session.active || c.state.session.phase == 'ended'
+                      ? () => Navigator.pop(ctx, true)
+                      : null,
+                  child: const Text('Blank previous sign'),
+                ),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Leave output'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+              ],
             ),
           ],
         ),

@@ -147,3 +147,24 @@ ButtonStyle destructiveFilled() => FilledButton.styleFrom(
   backgroundColor: destructiveColor,
   foregroundColor: Colors.white,
 );
+
+/// Actions for a dialog with three or more choices, as one full-width
+/// column: the main action first, then the other choices, and Cancel last.
+/// A row of three rarely fits a phone, and a wrapped row stacks buttons of
+/// different widths against the right edge.
+class StackedDialogActions extends StatelessWidget {
+  final List<Widget> children;
+  const StackedDialogActions({super.key, required this.children});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (final (i, child) in children.indexed) ...[
+        if (i > 0) const SizedBox(height: 8),
+        child,
+      ],
+    ],
+  );
+}

@@ -192,25 +192,29 @@ extension LiveActions on HomeState {
               ],
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              if (!c.destinationConnected)
-                TextButton(
-                  onPressed: () async {
-                    Navigator.pop(ctx, false);
-                    await chooseDisplay();
-                  },
-                  child: const Text('Connect display'),
-                ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(
-                  c.destinationConnected
-                      ? 'Start first segment'
-                      : 'Start without a display',
-                ),
+              StackedDialogActions(
+                children: [
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(
+                      c.destinationConnected
+                          ? 'Start first segment'
+                          : 'Start without a display',
+                    ),
+                  ),
+                  if (!c.destinationConnected)
+                    OutlinedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx, false);
+                        await chooseDisplay();
+                      },
+                      child: const Text('Connect display'),
+                    ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel'),
+                  ),
+                ],
               ),
             ],
           );

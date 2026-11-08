@@ -4,6 +4,7 @@ import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 
 Future<bool?> reviewSavedDraft(BuildContext context) => showDialog<bool>(
   context: context,
@@ -14,17 +15,21 @@ Future<bool?> reviewSavedDraft(BuildContext context) => showDialog<bool>(
       'An unfinished edit is saved on this phone. Restore it for review; the saved program changes only when you save.',
     ),
     actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(ctx),
-        child: const Text('Cancel'),
-      ),
-      TextButton(
-        onPressed: () => Navigator.pop(ctx, false),
-        child: const Text('Discard draft'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(ctx, true),
-        child: const Text('Restore draft'),
+      StackedDialogActions(
+        children: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Restore draft'),
+          ),
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Discard draft'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+        ],
       ),
     ],
   ),

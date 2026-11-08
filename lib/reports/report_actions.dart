@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'dart:async';
 import 'package:church_service_timer/domain/domain.dart';
@@ -48,19 +49,23 @@ extension ReportActions on HomeState {
               : '$withNotes of these reports have review notes. Recorded timings are exported either way.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            key: const ValueKey('exclude-review'),
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Leave out'),
-          ),
-          FilledButton(
-            key: const ValueKey('include-review'),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Include'),
+          StackedDialogActions(
+            children: [
+              FilledButton(
+                key: const ValueKey('include-review'),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Include'),
+              ),
+              OutlinedButton(
+                key: const ValueKey('exclude-review'),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Leave out'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+            ],
           ),
         ],
       ),

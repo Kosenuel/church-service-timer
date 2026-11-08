@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Dialogs with three choices are tidy.** Where a dialog offers more than OK and Cancel (Restore or Discard draft, Include or Leave out review notes, Start without a display or Connect display, Blank previous sign or Leave output, Save segment or Save to library, Save note or Remove note, Use theme or Reset, a received program, the PIN with Forgot PIN?, and editing a cue with Delete cue), the buttons now sit in one full-width column: the main action first, the other choice outlined, anything that deletes in red, and Cancel last. They used to wrap into a ragged stack against the right edge. The received-program review also gains a Cancel button, so it can be closed without choosing.
 - **Destructive actions look destructive.** Every confirmation that deletes, replaces or ends something now has a red button instead of the main green one: Delete program, Delete cue, Delete preset, Delete warning, Forget device, Forget this sign, Turn off PIN, Restore and replace, Reset local data, Stop sharing, Leave practice, End service and Clear draft. Remove note and Discard (for a received program) are red text. The sign's forget dialog now says "Forget this sign", matching the button that opens it.
 
 ## 0.28.1, 8/November/2026
