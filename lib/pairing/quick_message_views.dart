@@ -340,6 +340,7 @@ extension QuickMessageViews on HomeState {
                 'Delete this preset?',
                 e.value.name,
                 'Delete preset',
+                destructive: true,
               ))
                 await c.commit(
                   (draft, _) => draft.quickMessages.removeAt(e.key),

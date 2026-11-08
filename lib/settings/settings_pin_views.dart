@@ -312,6 +312,7 @@ extension SettingsPinViews on HomeState {
                       'Turn off the PIN?',
                       'Anyone using this phone will be able to open Settings and delete programs and reports.',
                       'Turn off PIN',
+                      destructive: true,
                     ))
                       await c.removeSettingsPin();
                   },

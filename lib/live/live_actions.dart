@@ -321,6 +321,7 @@ extension LiveActions on HomeState {
                 'Delete this saved cue?',
                 'Remove “${layout.text}” from the cues shared across all services? A cue already showing on stage stays visible until replaced or dismissed.',
                 'Delete cue',
+                destructive: true,
               ))
                 return false;
               final ok = await c.deleteStageCue(cueIndex, layout);

@@ -691,6 +691,7 @@ extension LivePage on HomeState {
                         revision: rev,
                         title: 'End ${t!.name}?',
                         action: 'End service',
+                        destructive: true,
                         content: () => Text(
                           c.hardware.enabled
                               ? c.hardware.held || !c.hardware.connected
@@ -705,7 +706,7 @@ extension LivePage on HomeState {
               icon: const Icon(Icons.stop_circle_outlined),
               label: const Text('End service'),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xffa73238),
+                backgroundColor: destructiveColor,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 54),
                 textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(

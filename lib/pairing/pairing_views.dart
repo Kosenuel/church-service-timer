@@ -75,6 +75,7 @@ extension PairingViews on HomeState {
             'Forget device?',
             'Remove its saved approval? It will need to pair again with a new code and your approval.',
             'Forget device',
+            destructive: true,
           )) {
             await hub.forgetDevice(id);
           }

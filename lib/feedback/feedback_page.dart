@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/app/controller.dart';
@@ -110,6 +111,7 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
+            style: destructiveFilled(),
             child: const Text('Clear draft'),
           ),
         ],

@@ -534,6 +534,7 @@ extension LiveViewActions on HomeState {
     required String title,
     required String action,
     required Widget Function() content,
+    bool destructive = false,
   }) async =>
       await showDialog<bool>(
         context: context,
@@ -562,6 +563,7 @@ extension LiveViewActions on HomeState {
                   onPressed: stale || c.busy
                       ? null
                       : () => Navigator.pop(ctx, true),
+                  style: destructive ? destructiveFilled() : null,
                   child: Text(action),
                 ),
               ],
