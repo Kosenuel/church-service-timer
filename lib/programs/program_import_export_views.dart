@@ -151,7 +151,7 @@ extension ProgramImportExportViews on HomeState {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Import ${incoming.length} programs'),
+            child: Text('Import ${plural(incoming.length, 'program')}'),
           ),
         ],
       ),

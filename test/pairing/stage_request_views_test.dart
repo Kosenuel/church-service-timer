@@ -73,4 +73,41 @@ void main() {
     );
     expect(find.text('Seen by operator'), findsOneWidget);
   });
+
+  testWidgets('The choices fit a landscape stage screen and can be cancelled', (
+    t,
+  ) async {
+    // A phone held sideways as a stage screen.
+    t.view.physicalSize = const Size(640, 360);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    final sent = <String>[];
+    await t.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: Align(
+            alignment: Alignment.bottomLeft,
+            child: StageRequestButton(
+              status: null,
+              enabled: true,
+              onSend: (k) async => sent.add(k),
+            ),
+          ),
+        ),
+      ),
+    );
+    await t.tap(find.byKey(const ValueKey('stage-request-button')));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull, reason: 'No overflow');
+    for (final k in ['time', 'finish', 'mic']) {
+      await t.ensureVisible(find.byKey(ValueKey('send-request-$k')));
+    }
+    await t.ensureVisible(find.byKey(const ValueKey('cancel-stage-request')));
+    await t.tap(find.byKey(const ValueKey('cancel-stage-request')));
+    await t.pumpAndSettle();
+    expect(sent, isEmpty);
+    expect(find.text('Ask the operator'), findsNothing);
+  });
 }

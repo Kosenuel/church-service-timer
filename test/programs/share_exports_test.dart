@@ -169,7 +169,7 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Preview program import'), findsOneWidget);
     expect(find.text('Shared Sunday'), findsOneWidget);
-    await t.tap(find.text('Import 1 programs'));
+    await t.tap(find.text('Import 1 program'));
     await t.pumpAndSettle();
     expect(c.state.templates.any((p) => p.name == 'Shared Sunday'), isTrue);
     await t.pumpWidget(const SizedBox());

@@ -10,17 +10,23 @@ void main() {
 - **Bold** item with `code`
   - folded detail
 - A [link](https://example.com)
+- Settings → About ✕
+
+## 0.25.0, 7/November/2026
+- Dated entry
 
 ## 0.24.0 - 2026-10-01
 - Older entry
 ''');
     expect(releases.map((r) => r.heading), [
       'Unreleased',
+      '0.25.0, 7 November 2026',
       '0.24.0 - 2026-10-01',
     ]);
     expect(releases.first.entries, [
       'Bold item with code folded detail',
       'A link',
+      'Settings › About ×',
     ]);
     expect(releases.last.entries, ['Older entry']);
   });

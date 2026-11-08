@@ -301,7 +301,7 @@ extension SettingsViews on HomeState {
             ),
             const SizedBox(height: 12),
             Text(
-              'Backups exclude the current running service and phone permissions. Saved sign passwords are included only if you choose, encrypted with a passphrase. Tinos and both Matrix fonts are built in on every installation. Private operator notes are included in programs.',
+              'Backups exclude the current running service and phone permissions. Saved sign passwords are included only if you choose, encrypted with a passphrase. Private operator notes are included in programs.',
               style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 20),
@@ -487,7 +487,7 @@ extension SettingsViews on HomeState {
           'Your data',
           () => detail(
             'Your data',
-            'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone and never included in backups.',
+            'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone. Pairings are never included in backups; saved sign passwords are included only if you choose, encrypted with a passphrase.',
           ),
         ),
       ),

@@ -221,7 +221,7 @@ extension PracticeViews on HomeState {
         icon: const Icon(Icons.verified_outlined),
         title: const Text('Practice complete'),
         content: Text(
-          '${f.done} of ${f.total} steps done · about $minutes min.\n\nNo report was saved. You can practise again any time from Settings → About.',
+          '${f.done} of ${f.total} steps done · about $minutes min.\n\nNo report was saved. You can practise again any time from Settings › About.',
         ),
         actions: [
           TextButton(

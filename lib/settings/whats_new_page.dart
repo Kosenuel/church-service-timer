@@ -18,7 +18,15 @@ List<ReleaseNotes> parseChangelog(String text) {
   var entries = <String>[];
   String clean(String s) => s
       .replaceAll(RegExp(r'\*\*|`'), '')
-      .replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^)]+\)'), (m) => m.group(1)!);
+      .replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^)]+\)'), (m) => m.group(1)!)
+      // The bundled Roboto has no → or ✕; use characters it has.
+      .replaceAll('→', '›')
+      .replaceAll('✕', '×')
+      // "7/November/2026" reads as "7 November 2026".
+      .replaceAllMapped(
+        RegExp(r'\b(\d{1,2})/([A-Z][a-z]+)/(\d{4})\b'),
+        (m) => '${m[1]} ${m[2]} ${m[3]}',
+      );
   void close() {
     if (heading != null && entries.isNotEmpty)
       releases.add(ReleaseNotes(heading, List.unmodifiable(entries)));

@@ -161,7 +161,7 @@ extension SettingsPinViews on HomeState {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'PIN removed. Set a new one in Settings → Settings PIN.',
+              'PIN removed. Set a new one in Settings › Settings PIN.',
             ),
           ),
         );

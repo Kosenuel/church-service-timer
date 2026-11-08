@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert' show jsonDecode;
+import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:ui' show ImageFilter;
 import 'dart:math' as math;
 
@@ -2956,6 +2956,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   );
 }
 
+/// Whether two layouts look the same; layouts are compared by content, as
+/// a copy of the default end screen is still the default.
+bool sameLayout(TextLayout a, TextLayout b) =>
+    jsonEncode(a.toJson()) == jsonEncode(b.toJson());
+
 class TextComposer extends StatefulWidget {
   final TextLayout initial;
   final String title, button;
@@ -3767,7 +3772,7 @@ class TemplateEditorState extends State<TemplateEditor> {
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       subtitle: Text(
-                        endScreen == widget.defaultEnd
+                        sameLayout(endScreen, widget.defaultEnd)
                             ? 'Uses the current default · tap to edit'
                             : 'This program’s own end screen · tap to edit',
                         style: muted,
@@ -3785,7 +3790,7 @@ class TemplateEditorState extends State<TemplateEditor> {
                         ),
                       ),
                     ),
-                    if (endScreen != widget.defaultEnd)
+                    if (!sameLayout(endScreen, widget.defaultEnd))
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Padding(

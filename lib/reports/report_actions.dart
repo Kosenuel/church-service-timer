@@ -18,8 +18,9 @@ extension ReportActions on HomeState {
       record == null ? 'Clear all reports?' : 'Clear this report?',
       record == null
           ? 'Delete all ${ids.length} currently saved report records from this device? Exported files and the current service are unaffected. This cannot be undone.'
-          : 'Delete the report for “${record.name}” (${DateTime.fromMillisecondsSinceEpoch(record.endedWall).toLocal()})? Exported files and the current service are unaffected. This cannot be undone.',
+          : 'Delete the report for “${record.name}” (${reportDate(record.startedWall ?? record.endedWall)})? Exported files and the current service are unaffected. This cannot be undone.',
       record == null ? 'Clear all reports' : 'Clear report',
+      destructive: true,
     )) {
       final ok = await c.clearReports(ids);
       if (!ok && mounted)

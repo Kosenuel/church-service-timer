@@ -2,6 +2,15 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Requests from the stage in landscape.** "Ask the operator" is now a compact dialog with Cancel, so all three choices fit on a stage screen held sideways. Before, the sheet ran off the bottom of the screen and cut off Microphone issue.
+- **Clear this report?** shows the service date, for example "15 Jan 2027 · 08:00", instead of a raw timestamp, and its button is red like other deletions.
+- **About › Your data** no longer says sign passwords are never in backups. They are included only if you choose, encrypted with a passphrase; pairings are never included. A stray line about fonts was removed from Backup & restore.
+- **Paired operator view.** Rundown rows no longer show an empty "Private:" line or a trailing "·" when a segment has no notes or speaker, and the status line says "Display: Simulator" rather than "LED sign: Simulator".
+- **Program editor.** A program whose end screen matches the default now says "Uses the current default" rather than claiming its own end screen.
+- **Smaller fixes:** "Import 1 program" (not "programs"); **Send to paired phone** appears only while a phone that can receive it is connected; "→" and "✕", which the app's font can't draw, are replaced with "›", "×" or words, including in What's new, where release dates now read "7 November 2026".
+
 ## 0.27.0, 7/November/2026
 
 - **Join slide sizes.** Export join slide asks which screen it is for: 16:9 HD (1920 × 1080), 16:9 4K (3840 × 2160), 16:10 (1920 × 1200), 4:3 for older projectors (1600 × 1200), Portrait 9:16 (1080 × 1920) for a TV on its side or phone stories, or Square (1080 × 1080) for social posts and printing. Each is laid out for its shape rather than stretched: wide slides put the QR code beside the words, square ones put the title on top with the details beside the code, and portrait ones stack everything with a large code. Long names shrink to fit. Dark or light is chosen in the same dialog, the file name includes the size, and the last size is offered first next time.

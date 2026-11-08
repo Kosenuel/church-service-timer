@@ -451,7 +451,7 @@ class _TimeAdjustmentDialogState extends State<TimeAdjustmentDialog> {
                 ],
                 if (error == null) ...[
                   Text(
-                    'Allocated time: ${formatTime(s.allocatedMs)} → ${formatTime(s.allocatedMs + applied)}',
+                    'Allocated time: ${formatTime(s.allocatedMs)} to ${formatTime(s.allocatedMs + applied)}',
                     style: TextStyle(color: appColors(context).muted),
                   ),
                   const SizedBox(height: 16),
