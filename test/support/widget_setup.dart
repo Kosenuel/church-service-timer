@@ -1,0 +1,24 @@
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// Loads the app's fonts so screenshots show real text and icons, not
+/// test boxes. Use as `setUpAll(loadAppFonts);`.
+Future<void> loadAppFonts() async {
+  await (FontLoader('Roboto')
+        ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
+        ..addFont(rootBundle.load('assets/fonts/Roboto-Light.ttf'))
+        ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf')))
+      .load();
+  await (FontLoader(
+    'MaterialIcons',
+  )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+}
+
+/// Sets the test screen to [size] logical pixels at 1×, restored after
+/// the test.
+void setScreen(WidgetTester t, [Size size = const Size(430, 1000)]) {
+  t.view.physicalSize = size;
+  t.view.devicePixelRatio = 1;
+  addTearDown(t.view.resetPhysicalSize);
+  addTearDown(t.view.resetDevicePixelRatio);
+}

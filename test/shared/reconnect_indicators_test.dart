@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
-import '../domain/service_timing_test.dart' show after;
-import '../hardware/hardware_integration_test.dart' show setup;
-import '../hardware/sign_reconnect_recovery_test.dart'
-    show RecoveryPort, outage;
-import '../pairing/saved_devices_test.dart' show eventually, pair;
+import '../support/fake_port.dart';
+import '../support/pairing.dart';
+import '../support/w2_port.dart';
+import '../support/waiting.dart';
 
 void main() {
   group('LED sign reconnection state', () {

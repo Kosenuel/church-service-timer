@@ -1,29 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/app/controller.dart';
 import '../domain/feature_cases.dart';
-import '../domain/service_timing_test.dart' show FakePort;
+import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
 
 void main() {
-  setUpAll(() async {
-    final fonts = FontLoader('Roboto')
-      ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/Roboto-Light.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf'));
-    await fonts.load();
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-  });
+  setUpAll(loadAppFonts);
 
-  void size(WidgetTester tester, Size size) {
-    tester.view.physicalSize = size;
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-  }
+  void size(WidgetTester t, Size value) => setScreen(t, value);
 
   testWidgets(
     'Ready selects fast rehearsal and live overview labels simulated time',

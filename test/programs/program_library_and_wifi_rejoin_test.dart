@@ -3,9 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
-import '../domain/service_timing_test.dart'
-    show FakePort, timeline, start, after;
-import '../hardware/hardware_integration_test.dart' show W2Port, flush;
+import '../support/fake_port.dart';
+import '../support/w2_port.dart';
 
 class RejoinPort extends W2Port {
   bool wifi = false;

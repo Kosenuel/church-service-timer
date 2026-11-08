@@ -2,38 +2,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
-
-Future<void> eventually(bool Function() condition) async {
-  final end = DateTime.now().add(const Duration(seconds: 12));
-  while (!condition() && DateTime.now().isBefore(end)) {
-    await Future<void>.delayed(const Duration(milliseconds: 30));
-  }
-  expect(condition(), true);
-}
-
-class PairMemoryStore {
-  String? value;
-  bool fail = false;
-  PairHub hub() => PairHub()
-    ..readMemory = (() async => value)
-    ..writeMemory = ((next) async {
-      if (fail) throw StateError('Disk full');
-      value = next;
-    });
-}
-
-Future<String> pair(
-  PairHub host,
-  PairHub client, {
-  String role = 'stage',
-}) async {
-  await client.join(host.code!.encode(), 'Stage tablet', role);
-  await eventually(() => host.peers.isNotEmpty);
-  final peer = host.peers.last;
-  await host.approve(peer);
-  await eventually(() => !client.stale);
-  return peer.id;
-}
+import '../support/pairing.dart';
+import '../support/waiting.dart';
 
 void main() {
   test(

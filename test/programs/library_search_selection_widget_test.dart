@@ -11,8 +11,9 @@ import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/time_picker.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'program_library_and_wifi_rejoin_test.dart' show RejoinPort;
-import '../domain/service_timing_test.dart' show FakePort, timeline, after;
-import '../hardware/hardware_integration_test.dart' show W2Port, setup, flush;
+import '../support/fake_port.dart';
+import '../support/w2_port.dart';
+import '../support/widget_setup.dart';
 
 class SelectedExportPort extends FakePort {
   final exports = <String>[];
@@ -45,22 +46,9 @@ class WifiUiPort extends RejoinPort {
 }
 
 void main() {
-  setUpAll(() async {
-    await (FontLoader('Roboto')
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Light.ttf')))
-        .load();
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-  });
-  void size(WidgetTester t, [Size size = const Size(430, 1000)]) {
-    t.view.physicalSize = size;
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.resetPhysicalSize);
-    addTearDown(t.view.resetDevicePixelRatio);
-  }
+  setUpAll(loadAppFonts);
+  void size(WidgetTester t, [Size value = const Size(430, 1000)]) =>
+      setScreen(t, value);
 
   Future<void> tap(WidgetTester t, Finder f) async {
     await Scrollable.ensureVisible(t.element(f), alignment: .5);

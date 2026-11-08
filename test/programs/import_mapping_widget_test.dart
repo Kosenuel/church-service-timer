@@ -4,8 +4,8 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/programs/import_mapping_views.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../domain/service_timing_test.dart' show FakePort;
+import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
 
 const sheet =
     'Order,Item,Time (mins),Who\n'
@@ -24,12 +24,8 @@ class SheetPort extends FakePort {
 }
 
 void main() {
-  void size(WidgetTester t) {
-    t.view.physicalSize = const Size(430, 1400);
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.resetPhysicalSize);
-    addTearDown(t.view.resetDevicePixelRatio);
-  }
+  void size(WidgetTester t, [Size value = const Size(430, 1400)]) =>
+      setScreen(t, value);
 
   testWidgets('A church’s own spreadsheet is matched, reviewed and imported', (
     t,

@@ -6,18 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
-import '../domain/service_timing_test.dart'
-    show FakePort, start, after, running;
-import '../hardware/hardware_integration_test.dart' show W2Port, setup, flush;
-
-Future<void> until(bool Function() ready) async {
-  final watch = Stopwatch()..start();
-  while (!ready()) {
-    if (watch.elapsedMilliseconds > 8000)
-      fail('Timed out waiting for paired state');
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-  }
-}
+import '../support/fake_port.dart';
+import '../support/w2_port.dart';
+import '../support/waiting.dart';
 
 void main() {
   test('Paired operator commands use the host clock and save path', () async {

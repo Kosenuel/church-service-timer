@@ -1,7 +1,6 @@
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'service_timing_test.dart' show after, running, start, timeline;
+import '../support/fake_port.dart';
 
 void main() {
   test('An accidental start can be undone back to Ready within moments', () {

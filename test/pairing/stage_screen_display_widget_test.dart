@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
-import '../domain/service_timing_test.dart' show FakePort;
+import '../support/fake_port.dart';
 
 class NetworkPort extends FakePort {
   int wifiOpened = 0;

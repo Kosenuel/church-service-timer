@@ -8,9 +8,11 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
-import '../domain/service_timing_test.dart' show FakePort, timeline;
-import '../hardware/hardware_integration_test.dart' show W2Port;
-import '../pairing/saved_devices_test.dart' show eventually, pair;
+import '../support/fake_port.dart';
+import '../support/pairing.dart';
+import '../support/w2_port.dart';
+import '../support/waiting.dart';
+import '../support/widget_setup.dart';
 
 class PasswordPort extends W2Port {
   String? saved;
@@ -51,16 +53,7 @@ class ConfirmationController extends AppController {
 }
 
 void main() {
-  setUpAll(() async {
-    await (FontLoader('Roboto')
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Light.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf')))
-        .load();
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-  });
+  setUpAll(loadAppFonts);
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('com.haberey/nsd'), (
@@ -73,12 +66,8 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('com.haberey/nsd'), null);
   });
-  void size(WidgetTester t, [Size dimensions = const Size(430, 1100)]) {
-    t.view.physicalSize = dimensions;
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.resetPhysicalSize);
-    addTearDown(t.view.resetDevicePixelRatio);
-  }
+  void size(WidgetTester t, [Size value = const Size(430, 1100)]) =>
+      setScreen(t, value);
 
   Future<void> tap(WidgetTester t, String label) async {
     await t.ensureVisible(find.text(label).last);

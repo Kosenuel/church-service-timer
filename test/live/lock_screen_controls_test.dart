@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
-import '../domain/service_timing_test.dart' show FakePort, timeline, after;
+import '../support/fake_port.dart';
 
 class NotifyPort extends FakePort {
   final cards = <Json>[];

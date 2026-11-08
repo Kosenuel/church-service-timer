@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/app/controller.dart';
@@ -9,9 +8,10 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/hardware/hardware_output.dart';
-import '../domain/service_timing_test.dart' show after, start, FakePort;
-import '../hardware/hardware_integration_test.dart' show W2Port, setup, flush;
 import '../support/live_helpers.dart';
+import '../support/fake_port.dart';
+import '../support/w2_port.dart';
+import '../support/widget_setup.dart';
 
 class ActivePort extends W2Port {
   bool active = false;
@@ -27,16 +27,7 @@ class ActivePort extends W2Port {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() async {
-    await (FontLoader('Roboto')
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Light.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf')))
-        .load();
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-  });
+  setUpAll(loadAppFonts);
   test(
     'Warning display duration begins at acknowledgement after a slow upload',
     () async {

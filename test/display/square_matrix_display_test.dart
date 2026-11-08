@@ -8,7 +8,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/display/square_matrix_font.dart';
-import '../domain/service_timing_test.dart' show FakePort;
+import '../support/fake_port.dart';
 
 void main() {
   setUpAll(() async {
