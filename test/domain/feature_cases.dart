@@ -282,7 +282,7 @@ final featureCases = <String, void Function()>{
         }
         (j['display']['end'] as Json).remove('font');
         final old = Timeline.fromJson(j);
-        equal(old.display.cues.first.font, 'cuekeeper_matrix');
+        equal(old.display.cues.first.font, 'i-proton_matrix');
         equal(old.display.warnings.length, 0);
         equal(old.toJson()['schemaVersion'], 4);
       },

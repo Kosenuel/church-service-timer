@@ -52,7 +52,7 @@ final hardwareOutputCases = <String, void Function()>{
         equal(paused.kind.name, 'text');
         equal(paused.reason.name, 'paused');
         equal(paused.layout!.text, '02:30');
-        equal(paused.layout!.font, 'cuekeeper_matrix');
+        equal(paused.layout!.font, 'i-proton_matrix');
         equal(paused.layout!.height, 2);
         equal(paused.requiresAlignedControllerClock, false);
         equal(planHardwareOutput(s, at(59)).fingerprint, paused.fingerprint);
@@ -66,7 +66,7 @@ final hardwareOutputCases = <String, void Function()>{
         var s = service();
         const cue = TextLayout(
           'AMEN',
-          font: 'cuekeeper_sq_matrix',
+          font: 'i-proton_sq_matrix',
           bold: true,
           italic: true,
           speed: 18,
@@ -132,7 +132,7 @@ final hardwareOutputCases = <String, void Function()>{
   },
   'At Zero and service end preserve the configured text styles': () {
     var s = service(firstMinutes: 1);
-    const zero = TextLayout('FINISH', bold: true, font: 'cuekeeper_sq_matrix');
+    const zero = TextLayout('FINISH', bold: true, font: 'i-proton_sq_matrix');
     const end = TextLayout('AMEN', italic: true, font: 'tinos', height: 2);
     s.timeline = s.timeline!.withDisplay(
       DisplaySettings(zero: zero, end: end, warnings: const []),

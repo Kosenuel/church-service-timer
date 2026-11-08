@@ -16,7 +16,7 @@ final revision10Cases = <String, void Function()>{
         ).toJson()..['font'] = 'times_new_roman';
         final layout = TextLayout.fromJson(old);
         equal(layout.toJson(), {...old, 'font': 'tinos'});
-        for (final id in ['cuekeeper_matrix', 'cuekeeper_sq_matrix']) {
+        for (final id in ['i-proton_matrix', 'i-proton_sq_matrix']) {
           final matrix = {...old, 'font': id};
           equal(TextLayout.fromJson(matrix).toJson(), matrix);
         }
@@ -27,7 +27,7 @@ final revision10Cases = <String, void Function()>{
       bold: true,
       italic: true,
       speed: 23,
-      font: 'cuekeeper_sq_matrix',
+      font: 'i-proton_sq_matrix',
     );
     final old = AppState.fresh(epoch).toJson()..['version'] = 8;
     old['stageCues'] = [

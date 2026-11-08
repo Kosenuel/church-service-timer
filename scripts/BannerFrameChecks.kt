@@ -1,5 +1,5 @@
-import org.kosenuel.cuekeeper.bannerFrame
-import org.kosenuel.cuekeeper.BannerFrame
+import org.kosenuel.churchservicetimer.bannerFrame
+import org.kosenuel.churchservicetimer.BannerFrame
 
 fun main() {
     val cases = listOf(

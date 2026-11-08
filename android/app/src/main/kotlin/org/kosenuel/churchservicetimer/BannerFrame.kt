@@ -1,4 +1,4 @@
-package org.kosenuel.cuekeeper
+package org.kosenuel.churchservicetimer
 
 data class BannerFrame(val left: Float, val top: Float, val right: Float, val bottom: Float)
 

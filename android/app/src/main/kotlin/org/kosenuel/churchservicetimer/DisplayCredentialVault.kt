@@ -1,4 +1,4 @@
-package org.kosenuel.cuekeeper
+package org.kosenuel.churchservicetimer
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec

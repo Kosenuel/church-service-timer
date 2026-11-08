@@ -10,7 +10,7 @@ import 'package:church_service_timer/display/native_fonts.dart';
 export 'package:church_service_timer/display/matrix_font.dart' show glyphs;
 
 Map<String, String> layoutGlyphs(TextLayout l) =>
-    l.font == 'cuekeeper_sq_matrix' ? squareGlyphs : glyphs;
+    l.font == 'i-proton_sq_matrix' ? squareGlyphs : glyphs;
 
 int warningDurationMs(WarningRule rule) {
   if (rule.scrollOnce &&
@@ -34,7 +34,7 @@ int textWidth(TextLayout l) {
     return raster!.width;
   }
   final table = layoutGlyphs(l);
-  final scaleX = l.font == 'cuekeeper_sq_matrix' ? l.height : 1;
+  final scaleX = l.font == 'i-proton_sq_matrix' ? l.height : 1;
   return l.text
           .split('')
           .fold<int>(
@@ -104,7 +104,7 @@ List<bool> renderPixels(TextLayout? layout, int elapsedMs) {
     if (scrolling) draw(start + width + 6);
     return pixels;
   }
-  final scaleX = layout.font == 'cuekeeper_sq_matrix' ? layout.height : 1;
+  final scaleX = layout.font == 'i-proton_sq_matrix' ? layout.height : 1;
   final table = layoutGlyphs(layout);
   final rowScale = layout.height;
   int start;

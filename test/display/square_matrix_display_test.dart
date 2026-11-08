@@ -21,19 +21,19 @@ void main() {
     'Sq-Matrix is a separate complete font with compact and integer-doubled tall pixels',
     () {
       final asset = jsonDecode(
-        File('assets/pixel_fonts/cuekeeper_sq_matrix.json').readAsStringSync(),
+        File('assets/pixel_fonts/i-proton_sq_matrix.json').readAsStringSync(),
       );
       expect(asset['glyphs'], squareGlyphs);
       expect(squareGlyphs.keys.toSet(), glyphs.keys.toSet());
       expect(
-        textWidth(const TextLayout('WRAP', font: 'cuekeeper_sq_matrix')),
+        textWidth(const TextLayout('WRAP', font: 'i-proton_sq_matrix')),
         20,
       );
       expect(textWidth(const TextLayout('WRAP')), 23);
       final tall = renderPixels(
         const TextLayout(
           'A',
-          font: 'cuekeeper_sq_matrix',
+          font: 'i-proton_sq_matrix',
           height: 2,
           align: 'left',
         ),
@@ -51,7 +51,7 @@ void main() {
             for (final italic in [false, true]) {
               final l = TextLayout(
                 char,
-                font: 'cuekeeper_sq_matrix',
+                font: 'i-proton_sq_matrix',
                 height: height,
                 bold: bold,
                 italic: italic,
@@ -181,25 +181,25 @@ void main() {
               children: [
                 sample(
                   'Original I-Proton Matrix · square LEDs · 7 px',
-                  'cuekeeper_matrix',
+                  'i-proton_matrix',
                   'square',
                   'Amen',
                 ),
                 sample(
                   'I-Proton Sq-Matrix · square LEDs · 7 px',
-                  'cuekeeper_sq_matrix',
+                  'i-proton_sq_matrix',
                   'square',
                   'Amen',
                 ),
                 sample(
                   'I-Proton Sq-Matrix · circular LEDs · 7 px',
-                  'cuekeeper_sq_matrix',
+                  'i-proton_sq_matrix',
                   'circular',
                   'Amen',
                 ),
                 sample(
                   'I-Proton Sq-Matrix · square LEDs · 14 px',
-                  'cuekeeper_sq_matrix',
+                  'i-proton_sq_matrix',
                   'square',
                   'GO',
                   height: 2,

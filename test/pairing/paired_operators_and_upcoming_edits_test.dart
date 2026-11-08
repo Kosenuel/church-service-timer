@@ -179,11 +179,11 @@ void main() {
     },
   );
   test('Font labels change while persisted font IDs remain compatible', () {
-    expect(displayFontNames['cuekeeper_matrix'], 'I-Proton Matrix');
-    expect(displayFontNames['cuekeeper_sq_matrix'], 'I-Proton Sq-Matrix');
+    expect(displayFontNames['i-proton_matrix'], 'I-Proton Matrix');
+    expect(displayFontNames['i-proton_sq_matrix'], 'I-Proton Sq-Matrix');
     expect(
       TextLayout.fromJson(const TextLayout('A').toJson()).font,
-      'cuekeeper_matrix',
+      'i-proton_matrix',
     );
   });
   test('Pairing code rejects expired invitations and public addresses', () {

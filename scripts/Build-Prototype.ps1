@@ -38,8 +38,8 @@ try {
     $env:PUB_CACHE = Join-Path $Toolchain 'pub-cache'
     $env:CI = 'true'
     $env:FLUTTER_SUPPRESS_ANALYTICS = 'true'
-    $env:CUEKEEPER_FLUTTER_STATE_DIR = Join-Path $Toolchain 'flutter-state'
-    New-Item -ItemType Directory -Path $env:CUEKEEPER_FLUTTER_STATE_DIR -Force | Out-Null
+    $env:CST_FLUTTER_STATE_DIR = Join-Path $Toolchain 'flutter-state'
+    New-Item -ItemType Directory -Path $env:CST_FLUTTER_STATE_DIR -Force | Out-Null
     $expandedBuildPath = "$flutterSdk\bin;$env:Path"
     $env:Path = Get-CompactBuildPath $expandedBuildPath
     Write-Host "Build PATH: $($expandedBuildPath.Length) characters before deduplication; $($env:Path.Length) after."

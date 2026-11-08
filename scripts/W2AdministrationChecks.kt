@@ -1,4 +1,4 @@
-import org.kosenuel.cuekeeper.W2Administration as Admin
+import org.kosenuel.churchservicetimer.W2Administration as Admin
 
 private fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it.toInt() and 255) }
 private var checks = 0

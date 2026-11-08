@@ -96,7 +96,7 @@ class TextLayout {
     this.align = 'center',
     this.speed = 12,
     this.height = 1,
-    this.font = 'cuekeeper_matrix',
+    this.font = 'i-proton_matrix',
   });
   factory TextLayout.fromJson(Json j) {
     keys(j, {
@@ -125,12 +125,8 @@ class TextLayout {
       align: j['align'],
       speed: j['speed'],
       height: j['height'],
-      // Retired 0.2 fonts migrate to the preserved original face.
-      font: {'service_serif', 'clear_sans'}.contains(j['font'])
-          ? 'cuekeeper_matrix'
-          : j['font'] == 'times_new_roman'
-          ? 'tinos'
-          : j['font'] ?? 'cuekeeper_matrix',
+      // Font ids from earlier versions still open (see legacyFontIds).
+      font: legacyFontIds[j['font']] ?? j['font'] ?? 'i-proton_matrix',
     );
     s.validate();
     return s;

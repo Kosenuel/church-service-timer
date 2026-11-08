@@ -6,7 +6,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 android {
-    namespace = "org.kosenuel.cuekeeper"
+    namespace = "org.kosenuel.churchservicetimer"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
     compileOptions {
