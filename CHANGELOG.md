@@ -2,7 +2,7 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
-## Unreleased
+## 0.28.0, 8/November/2026
 
 - **Requests from the stage in landscape.** "Ask the operator" is now a compact dialog with Cancel, so all three choices fit on a stage screen held sideways. Before, the sheet ran off the bottom of the screen and cut off Microphone issue.
 - **Clear this report?** shows the service date, for example "15 Jan 2027 · 08:00", instead of a raw timestamp, and its button is red like other deletions.
