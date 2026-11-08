@@ -1,4 +1,4 @@
-package org.kosenuel.cuekeeper
+package org.kosenuel.churchservicetimer
 
 import java.nio.ByteBuffer
 import java.nio.CharBuffer

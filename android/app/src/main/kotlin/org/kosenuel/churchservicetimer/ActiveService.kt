@@ -1,4 +1,4 @@
-package org.kosenuel.cuekeeper
+package org.kosenuel.churchservicetimer
 
 import android.app.*
 import android.content.*
@@ -18,8 +18,8 @@ object ServiceCard {
      * service (which removes notice 701) cannot remove it. */
     private const val STANDALONE = 704
     const val CHANNEL = "active-service"
-    const val PAUSE = "org.kosenuel.cuekeeper.action.PAUSE"
-    const val NEXT = "org.kosenuel.cuekeeper.action.NEXT"
+    const val PAUSE = "org.kosenuel.churchservicetimer.action.PAUSE"
+    const val NEXT = "org.kosenuel.churchservicetimer.action.NEXT"
     private const val CONFIRM_MS = 5000L
     private val handler = Handler(Looper.getMainLooper())
     var card: Map<*, *>? = null

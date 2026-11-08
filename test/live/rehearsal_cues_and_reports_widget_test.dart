@@ -100,7 +100,7 @@ void main() {
       expect(saved.text, 'FINISH NOW');
       expect(saved.bold && saved.italic, true);
       expect(saved.height, 2);
-      expect(saved.font, 'cuekeeper_sq_matrix');
+      expect(saved.font, 'i-proton_sq_matrix');
       expect(c.state.session.alert, isNull);
       await tester.pageBack();
       await tester.pumpAndSettle();

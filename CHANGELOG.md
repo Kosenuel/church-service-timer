@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **One name throughout.** The app's old working name is gone from the code and the Android sources. The Android source package is now `org.kosenuel.churchservicetimer` (the app ID that Android and the Play Store use is unchanged, so updates install over the current app and keep its data). The two pixel fonts are now `i-proton_matrix` and `i-proton_sq_matrix`, matching their names I-Proton Matrix and I-Proton Sq-Matrix. Programs, cues, backups and files saved with the old font names still open and are saved with the new ones. A test keeps the old name from creeping back. Phones on 0.27 or earlier can't open program files, backups or sent programs saved by this version, so update every phone together.
+
 ## 0.27.0, 7/November/2026
 
 - **Join slide sizes.** Export join slide asks which screen it is for: 16:9 HD (1920 × 1080), 16:9 4K (3840 × 2160), 16:10 (1920 × 1200), 4:3 for older projectors (1600 × 1200), Portrait 9:16 (1080 × 1920) for a TV on its side or phone stories, or Square (1080 × 1080) for social posts and printing. Each is laid out for its shape rather than stretched: wide slides put the QR code beside the words, square ones put the title on top with the details beside the code, and portrait ones stack everything with a large code. Long names shrink to fit. Dark or light is chosen in the same dialog, the file name includes the size, and the last size is offered first next time.

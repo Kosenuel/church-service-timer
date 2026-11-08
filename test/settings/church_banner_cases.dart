@@ -64,7 +64,7 @@ final revision08Cases = <String, void Function()>{
         effect: 'scroll',
         speed: 12,
         height: 2,
-        font: 'cuekeeper_sq_matrix',
+        font: 'i-proton_sq_matrix',
       ),
       destination: 'stage',
     );

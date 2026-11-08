@@ -1,5 +1,5 @@
 /// Condensed, square-cell companion to Matrix. The original face is unchanged.
-/// Generated from assets/pixel_fonts/cuekeeper_sq_matrix.json.
+/// Generated from assets/pixel_fonts/i-proton_sq_matrix.json.
 const squareGlyphs = <String, String>{
   ' ': '000/000/000/000/000/000/000',
   '0': '1111/1001/1001/1001/1001/1001/1111',

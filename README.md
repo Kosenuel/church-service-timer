@@ -67,7 +67,7 @@ Release builds are signed with the key in `android/key.properties` (`storeFile`,
 - `settings/`: Settings hub, display, appearance, warnings, clock, stage cues and search.
 - `feedback/`: Feedback Center form and email composition.
 - `shared/`: theme, menus, selection and undo helpers, choice fields, pickers, banner and small utilities.
-- Android sources live under `android/app/src/main/kotlin/org/kosenuel/cuekeeper/` (W2 transport, credential vault, printing, fonts, notifications, foreground service).
+- Android sources live under `android/app/src/main/kotlin/org/kosenuel/churchservicetimer/` (W2 transport, credential vault, printing, fonts, notifications, foreground service).
 - `test/`: deterministic domain, fault-injection, rendering and UI checks, with golden screenshots in `test/goldens/`.
 - `scripts/`: standalone smoke and probe scripts; `docs/`: requirements, scope and release guides; `examples/`: portable program examples.
 

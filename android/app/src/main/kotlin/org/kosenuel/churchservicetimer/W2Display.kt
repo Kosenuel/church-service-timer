@@ -1,12 +1,12 @@
-package org.kosenuel.cuekeeper
+package org.kosenuel.churchservicetimer
 
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.SystemClock
-import org.kosenuel.cuekeeper.w2.Hd7Auth
-import org.kosenuel.cuekeeper.w2.W2Discovery
+import org.kosenuel.churchservicetimer.w2.Hd7Auth
+import org.kosenuel.churchservicetimer.w2.W2Discovery
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress

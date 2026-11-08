@@ -2,8 +2,8 @@
 
 | Name | Stable ID | Availability |
 |---|---|---|
-| I-Proton Matrix | `cuekeeper_matrix` | Original bitmap font, unchanged |
-| I-Proton Sq-Matrix | `cuekeeper_sq_matrix` | Original square-pixel bitmap font, unchanged |
+| I-Proton Matrix | `i-proton_matrix` | Original bitmap font, unchanged |
+| I-Proton Sq-Matrix | `i-proton_sq_matrix` | Original square-pixel bitmap font, unchanged |
 | Tinos | `tinos` | Four bundled Android faces; no import required |
 
 Both Matrix glyph tables, JSON font assets, scaling, weight and italic behavior are unchanged. Countdown digits continue to use I-Proton Matrix at 14 pixels. Square/circular LED appearance changes only cell painting, not the 512-bit display frame.

@@ -1,4 +1,4 @@
-import org.kosenuel.cuekeeper.FeedbackEmail
+import org.kosenuel.churchservicetimer.FeedbackEmail
 import java.net.URLDecoder
 
 fun main() {
