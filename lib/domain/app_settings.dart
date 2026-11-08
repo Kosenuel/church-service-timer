@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:church_service_timer/domain/domain.dart';
 
 const appName = 'Church Service Timer';
-const appVersion = '0.27.0 (28)';
+const appVersion = '0.28.0 (29)';
 
 /// Local interface preferences: never sent to stage peers or restored from a
 /// portable backup. Output animation is configured separately.
