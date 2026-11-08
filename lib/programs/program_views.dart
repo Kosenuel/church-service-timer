@@ -432,7 +432,9 @@ extension TemplateViews on HomeState {
                       const AppMenuAction('json', 'Export JSON'),
                       const AppMenuAction('csv', 'Export CSV'),
                       const AppMenuAction('print', 'Print Service'),
-                      if (c.pairing.hosting)
+                      // Only while a phone that can receive is connected.
+                      if (c.pairing.hosting &&
+                          c.pairing.programRecipients.isNotEmpty)
                         const AppMenuAction('send', 'Send to paired phone'),
                       AppMenuAction(
                         'history',

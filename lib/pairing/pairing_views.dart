@@ -1696,7 +1696,7 @@ class _PairedScreenState extends State<PairedScreen> {
         ),
         if (!stage && data != null) ...[
           Text(
-            'LED sign: ${data['connection'] ?? 'Unknown'}',
+            'Display: ${data['connection'] ?? 'Unknown'}',
             textAlign: TextAlign.center,
           ),
           if (hub.mode == 'operator' && !hub.canControl)
@@ -1835,7 +1835,19 @@ class _PairedScreenState extends State<PairedScreen> {
                 ),
               ),
               subtitle: Text(
-                '${durationLabel(((e.value['minutes'] as int) * 60 + (e.value['seconds'] as int? ?? 0)) * 1000)} · ${e.value['speaker']}${e.value['notes'] == null ? '' : '\nPrivate: ${e.value['notes']}'}',
+                [
+                      durationLabel(
+                        ((e.value['minutes'] as int) * 60 +
+                                (e.value['seconds'] as int? ?? 0)) *
+                            1000,
+                      ),
+                      if ((e.value['speaker'] as String? ?? '').isNotEmpty)
+                        e.value['speaker'],
+                    ].join(' · ') +
+                    // Private notes only when there are some.
+                    ((e.value['notes'] as String? ?? '').isEmpty
+                        ? ''
+                        : '\nPrivate: ${e.value['notes']}'),
               ),
             ),
         ],

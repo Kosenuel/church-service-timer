@@ -115,7 +115,7 @@ class MetricsSummary {
     'Warnings: $warnings · latest ${(maxWarningLateMs / 1000).toStringAsFixed(1)} s after due',
     'Sent to background $backgrounded× · reconnections $reconnects',
     if (batteryStart != null && batteryEnd != null)
-      'Battery $batteryStart% → $batteryEnd%',
+      'Battery $batteryStart% to $batteryEnd%',
   ];
 }
 

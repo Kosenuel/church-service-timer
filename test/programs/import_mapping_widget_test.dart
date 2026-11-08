@@ -46,7 +46,7 @@ void main() {
     await t.tap(next);
     await t.pumpAndSettle();
     expect(find.text('Preview program import'), findsOneWidget);
-    await t.tap(find.text('Import 1 programs'));
+    await t.tap(find.text('Import 1 program'));
     await t.pumpAndSettle();
     final p = c.state.templates.firstWhere((p) => p.name == 'Sunday 9 Nov');
     expect(p.segments.map((s) => s.speaker), [

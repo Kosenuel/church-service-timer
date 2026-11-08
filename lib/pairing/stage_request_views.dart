@@ -182,33 +182,48 @@ class StageRequestButton extends StatelessWidget {
           onPressed: !enabled
               ? null
               : () async {
-                  final kind = await showModalBottomSheet<String>(
+                  // A compact dialog, not a sheet: stage screens are often
+                  // held landscape, where a sheet ran off the screen. Its
+                  // choices scroll if space is still short.
+                  final kind = await showDialog<String>(
                     context: context,
-                    showDragHandle: true,
-                    builder: (ctx) => SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-                            child: Text(
-                              'Ask the operator',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
+                    builder: (ctx) => SimpleDialog(
+                      key: const ValueKey('stage-request-choices'),
+                      title: const Text('Ask the operator'),
+                      children: [
+                        for (final k in stageRequestKinds.entries)
+                          SimpleDialogOption(
+                            key: ValueKey('send-request-${k.key}'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 14,
+                            ),
+                            onPressed: () => Navigator.pop(ctx, k.key),
+                            child: Row(
+                              children: [
+                                Icon(stageRequestIcon(k.key)),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    k.value,
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          for (final k in stageRequestKinds.entries)
-                            ListTile(
-                              key: ValueKey('send-request-${k.key}'),
-                              leading: Icon(stageRequestIcon(k.key)),
-                              title: Text(k.value),
-                              onTap: () => Navigator.pop(ctx, k.key),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              key: const ValueKey('cancel-stage-request'),
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancel'),
                             ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
+                          ),
+                        ),
+                      ],
                     ),
                   );
                   if (kind != null) await onSend(kind);
