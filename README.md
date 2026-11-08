@@ -6,7 +6,7 @@ Current version: **0.22.0**. See [CHANGELOG.md](CHANGELOG.md) for every release.
 
 ## Install
 
-1. Install the APK on Android 7.0 (API 24) or newer. CI builds a signed APK on every push; see [Build and test](#build-and-test).
+1. Install the APK on Android 7.0 (API 24) or newer, from [GitHub Releases](../../releases) or a CI build; see [Build and test](#build-and-test).
 2. 0.22 uses a new application ID (`io.github.immanuelokose.churchservicetimer`), so it installs **alongside** builds before 0.22. To move your setup, export from **Settings → Backup & restore** in the old app, restore it in the new one, then re-enter sign passwords and pair stage screens again. Backups never contain credentials or pairings.
 
 ## Quick start
@@ -49,7 +49,7 @@ flutter test
 flutter build apk --release
 ```
 
-Release builds are signed with the key in `android/key.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; git-ignored) or the `CST_KEYSTORE_PATH`, `CST_KEYSTORE_PASSWORD`, `CST_KEY_ALIAS` and `CST_KEY_PASSWORD` environment variables, falling back to the debug key. [GitHub Actions](.github/workflows/build.yml) runs analysis, tests and a signed release build on every push, using the `CST_KEYSTORE_BASE64`, `CST_KEYSTORE_PASSWORD`, `CST_KEY_ALIAS` and `CST_KEY_PASSWORD` repository secrets. Golden screenshots are rendered on Linux, so Windows runs may report small text differences.
+Release builds are signed with the key in `android/key.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; git-ignored) or the `CST_KEYSTORE_PATH`, `CST_KEYSTORE_PASSWORD`, `CST_KEY_ALIAS` and `CST_KEY_PASSWORD` environment variables, falling back to the debug key. [GitHub Actions](.github/workflows/build.yml) runs analysis and tests, and in parallel builds an APK for 64-bit phones: a debug APK on pull requests, and a signed release APK on pushes to `main` or a manual run (Actions › Build and test › Run workflow). Tagged releases ([release.yml](.github/workflows/release.yml)) build the signed APK for every processor type. Signing uses the `CST_KEYSTORE_BASE64`, `CST_KEYSTORE_PASSWORD`, `CST_KEY_ALIAS` and `CST_KEY_PASSWORD` repository secrets. Golden screenshots are rendered on Linux, so Windows runs may report small text differences.
 
 ## Project layout
 
