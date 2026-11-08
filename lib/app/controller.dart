@@ -3,12 +3,10 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:church_service_timer/diagnostics/service_metrics.dart';
 import 'package:church_service_timer/diagnostics/performance_report.dart';
 import 'package:church_service_timer/web_stage/web_stage_server.dart';
 import 'package:church_service_timer/web_stage/mdns_responder.dart';
-import 'package:church_service_timer/shared/format_labels.dart';
 
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/domain/domain.dart'
@@ -29,6 +27,11 @@ import 'package:church_service_timer/app/stage_request_controller.dart';
 import 'package:church_service_timer/app/paired_command_bridge.dart';
 import 'package:church_service_timer/app/phone_warning_scheduler.dart';
 import 'package:church_service_timer/app/simulator.dart';
+import 'package:church_service_timer/app/web_stage_coordinator.dart';
+import 'package:church_service_timer/app/metrics_tracker.dart';
+import 'package:church_service_timer/app/backup_controller.dart';
+import 'package:church_service_timer/app/settings_pin_controller.dart';
+import 'package:church_service_timer/app/service_notification_controller.dart';
 
 export 'package:church_service_timer/app/simulator.dart';
 
@@ -241,83 +244,13 @@ class AppController extends ChangeNotifier {
   /// Mirrors the Live screen's Lock controls, so notification actions obey it.
   bool uiLocked = false;
 
-  String? _lastCard;
-
-  /// What the active-service notification shows. Android draws the running
-  /// countdown itself from [deadlineWall], so this changes only when the
-  /// segment, pause state or control availability changes.
-  Json serviceCard() {
-    final s = state.session, t = s.timeline;
-    final active = s.active && t != null;
-    final balance = active ? s.balance(now) : 0;
-    final live = active && !s.paused && s.rate == 1;
-    final canControl = active && pairing.localControl && !uiLocked && !corrupt;
-    return {
-      'active': active,
-      'title': t?.name ?? 'Church Service Timer',
-      'segment': active ? t.segments[s.index].name : '',
-      'next': active && s.index + 1 < t.segments.length
-          ? t.segments[s.index + 1].name
-          : '',
-      'paused': active && s.paused,
-      'overtime': active && balance < 0,
-      'rehearsal': s.rehearsal,
-      // Wall time when the segment reaches zero (in the past when overtime).
-      if (live) 'deadlineWall': now.wall + balance,
-      'remaining': active ? operatorLabel(balance) : '',
-      'canPause': canControl,
-      'canNext': canControl && s.index + 1 < t.segments.length,
-    };
-  }
-
-  static String operatorLabel(int balance) =>
-      balance < 0 ? '+${formatTime(-balance)} over' : formatTime(balance);
-
-  /// Sends the notification card when it changed. The running countdown is
-  /// excluded from the comparison because Android animates it. With
-  /// lock-screen controls off, only the plain active-service notice remains.
-  /// This never starts the foreground service, so suspend and recovery rules
-  /// are unchanged.
-  Future<void> syncServiceNotification() async {
-    if (!ready) return;
-    final card = state.lockScreenControls
-        ? serviceCard()
-        : const <String, dynamic>{'active': false};
-    final key = jsonEncode({
-      ...card,
-      if (card['deadlineWall'] != null)
-        'deadlineWall': (card['deadlineWall'] as int) ~/ 1000,
-      if (card['deadlineWall'] != null) 'remaining': '',
-    });
-    if (key == _lastCard) return;
-    _lastCard = key;
-    try {
-      await port.updateServiceNotification(card);
-    } catch (_) {
-      _lastCard = null;
-    }
-  }
-
-  /// Pause/Resume and Next from the notification follow the same rules as
-  /// the Live buttons: local control, unlocked, not busy, current revision.
-  Future<void> handleNotificationAction(String action) async {
-    if (!ready ||
-        !state.session.active ||
-        !pairing.localControl ||
-        uiLocked ||
-        busy ||
-        corrupt ||
-        reportSavePending)
-      return;
-    final s = state.session;
-    if (action == 'pause') {
-      await act('pause', revision: s.revision);
-    } else if (action == 'next' &&
-        s.timeline != null &&
-        s.index + 1 < s.timeline!.segments.length) {
-      await act('advance', revision: s.revision);
-    }
-  }
+  /// The active-service notification; these delegates keep callers
+  /// unchanged.
+  late final serviceNotification = ServiceNotificationController(this);
+  Json serviceCard() => serviceNotification.build();
+  Future<void> syncServiceNotification() => serviceNotification.sync();
+  Future<void> handleNotificationAction(String action) =>
+      serviceNotification.handleAction(action);
 
   /// Hooks for the feature controllers this class owns.
   bool get disposed => _disposed;
@@ -369,7 +302,7 @@ class AppController extends ChangeNotifier {
     }
     try {
       backgroundActive = await port.setActiveService(desired);
-      _lastCard = null;
+      serviceNotification.forget();
       await syncServiceNotification();
       backgroundError = desired && !backgroundActive
           ? 'Keep this app open: background operation is unavailable.'
@@ -496,7 +429,6 @@ class AppController extends ChangeNotifier {
 
   /// The marked report of the last finished recording.
   PerformanceReport? lastReport;
-  String _metricsDisplay = '';
 
   AppController(this.port, {MetricsStore? metricsStore})
     : metrics = ServiceMetricsRecorder(store: metricsStore) {
@@ -512,7 +444,7 @@ class AppController extends ChangeNotifier {
         port.advertisePairHost(portNumber, hostId: pairing.hostId);
     pairing.unadvertise = port.stopPairAdvertisement;
     pairing.addListener(() {
-      unawaited(_syncWebStage());
+      unawaited(web.sync());
       if (ready) {
         quickMessages.keepRecipients({for (final s in stageScreens) s.id});
       }
@@ -737,14 +669,9 @@ class AppController extends ChangeNotifier {
           await act('warnings');
           unawaited(metrics.warning(now, late));
         }
-        await _trackMetrics();
-        unawaited(_followNetworkChange());
-        // A web display that stops fetching drops out like a paired screen.
-        final synced = webStage.syncedStageDevices.length;
-        if (synced != _webStageSynced) {
-          _webStageSynced = synced;
-          notifyChanged();
-        }
+        await metricsTracker.track();
+        unawaited(web.followNetworkChange());
+        web.checkSynced();
         _publish();
         await syncActiveService();
         if (destination == 'led') unawaited(hardware.check(now));
@@ -1064,118 +991,14 @@ class AppController extends ChangeNotifier {
     return true;
   }
 
-  Future<bool> restoreBackup(AppState restored) async {
-    try {
-      await NativeDisplayFonts.prepareState(restored);
-    } catch (e) {
-      error = 'Backup not restored: $e';
-      notifyListeners();
-      return false;
-    }
-    final saved = await commit((draft, at) {
-      require(
-        !draft.session.active && draft.session.phase != 'ready',
-        'End or cancel the loaded service before restoring a backup.',
-      );
-      for (final t in restored.templates) {
-        validateTimelinePixels(t);
-      }
-      for (final cue in restored.stageCues) {
-        validateLayout(cue);
-      }
-      validateLayout(restored.defaults.end);
-      for (final cue in restored.defaults.cues) {
-        validateLayout(cue);
-      }
-      for (final warning in restored.defaults.warnings) {
-        validateLayout(warning.cue);
-      }
-      if (restored.defaults.zero != null)
-        validateLayout(restored.defaults.zero!);
-      draft.templates = restored.templates;
-      draft.defaults = restored.defaults;
-      draft.reports = restored.reports;
-      draft.stageCues = restored.stageCues;
-      draft.quickMessages = restored.quickMessages;
-      draft.clockFormat = restored.clockFormat;
-      draft.clockBlink = restored.clockBlink;
-      draft.pixelShape = restored.pixelShape;
-      draft.groupTemplates = restored.groupTemplates;
-      draft.churchName = restored.churchName;
-      draft.churchBanner = restored.churchBanner;
-      draft.themeId = restored.themeId;
-      draft.keepScreenAwake = restored.keepScreenAwake;
-      draft.notificationClearSeconds = restored.notificationClearSeconds;
-      draft.printPreferences = restored.printPreferences;
-      draft.editDrafts.clear();
-      draft.session = Session(
-        id: 'restored-${at.wall}',
-        anchor: at,
-        revision: draft.session.revision + 1,
-      );
-    });
-    if (saved) {
-      simulator.clear();
-      notifyListeners();
-    }
-    return saved;
-  }
-
-  /// Saved passwords on this phone that a backup may carry, sealed:
-  /// the LED sign's device password and its Wi-Fi reconnect details.
-  /// Paired-device approvals are never exported.
-  Future<Map<String, dynamic>> backupSecrets() async {
-    final id = hardware.rememberedId;
-    if (id.isEmpty) return {};
-    final device = await port.savedDisplayPassword(id);
-    final wifi = await port.signWifiProfile(id);
-    final wifiPassword = await port.savedDisplayPassword('wifi:$id');
-    return {
-      'display': {
-        'id': id,
-        'name': hardware.rememberedName,
-        'devicePassword': ?device,
-        if ((wifi['ssid'] as String? ?? '').isNotEmpty)
-          'wifi': {
-            'ssid': wifi['ssid'],
-            'security': wifi['security'] ?? 'wpa2',
-            'bssid': wifi['bssid'] ?? '',
-            'password': ?wifiPassword,
-          },
-      },
-    };
-  }
-
-  bool hasBackupSecrets(Map<String, dynamic> secrets) {
-    final d = secrets['display'];
-    return d is Map && (d['devicePassword'] != null || d['wifi'] != null);
-  }
-
-  /// Writes restored passwords back to this phone's encrypted storage.
-  /// Returns how many were restored.
-  Future<int> restoreBackupSecrets(Map<String, dynamic> secrets) async {
-    final d = secrets['display'];
-    if (d is! Map || d['id'] is! String || (d['id'] as String).isEmpty)
-      return 0;
-    final id = d['id'] as String;
-    var count = 0;
-    if (d['devicePassword'] is String) {
-      await port.saveDisplayPassword(id, d['devicePassword'] as String);
-      count++;
-    }
-    final wifi = d['wifi'];
-    if (wifi is Map && wifi['ssid'] is String) {
-      await port.saveSignWifiProfile({
-        'id': id,
-        'ssid': wifi['ssid'],
-        'security': wifi['security'] ?? 'wpa2',
-        'bssid': wifi['bssid'] ?? '',
-        'password': wifi['password'],
-      });
-      count++;
-    }
-    return count;
-  }
+  /// Backups; these delegates keep callers unchanged.
+  late final backups = BackupController(this);
+  Future<bool> restoreBackup(AppState restored) => backups.restore(restored);
+  Future<Map<String, dynamic>> backupSecrets() => backups.secrets();
+  bool hasBackupSecrets(Map<String, dynamic> secrets) =>
+      backups.hasSecrets(secrets);
+  Future<int> restoreBackupSecrets(Map<String, dynamic> secrets) =>
+      backups.restoreSecrets(secrets);
 
   /// Clears a shown error that has nothing to retry (the card's Dismiss).
   void dismissError() {
@@ -1204,71 +1027,15 @@ class AppController extends ChangeNotifier {
     await initialize(startTicker: false);
   }
 
-  // Settings PIN -----------------------------------------------------------
-
-  /// True when a PIN is set and has not been entered since the app last left
-  /// the foreground.
-  bool get settingsLocked => state.settingsLock != null && !_settingsUnlocked;
-  bool _settingsUnlocked = false;
-  int _pinFailures = 0;
-  DateTime? pinRetryAfter;
-
-  void lockSettings() {
-    if (!_settingsUnlocked) return;
-    _settingsUnlocked = false;
-    notifyListeners();
-  }
-
-  /// Five wrong PINs wait 30 seconds before the next try.
-  Future<bool> unlockSettings(String pin) async {
-    final lock = state.settingsLock;
-    if (lock == null) return true;
-    final wait = pinRetryAfter;
-    if (wait != null && DateTime.now().isBefore(wait)) return false;
-    if (await lock.checkPin(pin)) {
-      _pinFailures = 0;
-      pinRetryAfter = null;
-      _settingsUnlocked = true;
-      notifyListeners();
-      return true;
-    }
-    _pinFailures++;
-    if (_pinFailures >= 5) {
-      _pinFailures = 0;
-      pinRetryAfter = DateTime.now().add(const Duration(seconds: 30));
-    }
-    notifyListeners();
-    return false;
-  }
-
-  /// Sets or replaces the PIN and returns the new one-time recovery code.
-  Future<String?> setSettingsPin(String pin) async {
-    require(SettingsLock.validPin(pin), 'Use 4 to 8 digits.');
-    require(!settingsLocked, 'Enter the current PIN first.');
-    final recovery = SettingsLock.newRecoveryCode();
-    final lock = await SettingsLock.create(pin, recovery);
-    if (!await commit((draft, _) => draft.settingsLock = lock)) return null;
-    _settingsUnlocked = true;
-    return recovery;
-  }
-
-  Future<bool> removeSettingsPin() async {
-    require(!settingsLocked, 'Enter the current PIN first.');
-    return commit((draft, _) => draft.settingsLock = null);
-  }
-
-  /// The recovery code works once: it removes the PIN so a new one can be set.
-  Future<bool> recoverSettings(String code) async {
-    final lock = state.settingsLock;
-    if (lock == null || !await lock.checkRecovery(code)) return false;
-    final ok = await commit((draft, _) => draft.settingsLock = null);
-    if (ok) {
-      _settingsUnlocked = false;
-      _pinFailures = 0;
-      pinRetryAfter = null;
-    }
-    return ok;
-  }
+  // Settings PIN; these delegates keep callers unchanged.
+  late final settingsPin = SettingsPinController(this);
+  bool get settingsLocked => settingsPin.locked;
+  DateTime? get pinRetryAfter => settingsPin.retryAfter;
+  void lockSettings() => settingsPin.lock();
+  Future<bool> unlockSettings(String pin) => settingsPin.unlock(pin);
+  Future<String?> setSettingsPin(String pin) => settingsPin.setPin(pin);
+  Future<bool> removeSettingsPin() => settingsPin.removePin();
+  Future<bool> recoverSettings(String code) => settingsPin.recover(code);
 
   Future<void> syncPhoneWarnings({Session? previous}) =>
       phoneWarnings.sync(previous: previous);
@@ -1403,276 +1170,26 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  /// Browsers following the service: started and stopped with sharing.
-  late final webStage =
-      WebStageServer(
-          settings: () => webStageSettings,
-          snapshot: webStageSnapshot,
-        )
-        ..onChanged = notifyChanged
-        // A web display shows a quick message only if it was a recipient.
-        ..showsMessage = ((d) =>
-            quickMessages.recipients.contains('web:${d.token}'))
-        ..onJoined = ((d) =>
-            onWebJoined?.call('${d.label} joined · ${d.role.label}'))
-        // Team Stage displays may send requests while they are on.
-        ..requestsOpen = (() => stageRequests.enabled && state.session.active)
-        ..onRequest = ((d, kind) =>
-            stageRequests.receive('web:${d.token}', '${d.label} (web)', kind))
-        ..requestFor = ((d) => stageRequests.statusFor('web:${d.token}'));
+  /// Web screens; these delegates keep callers unchanged.
+  late final web = WebStageCoordinator(this);
+  WebStageServer get webStage => web.server;
+  MdnsResponder get mdns => web.mdns;
+  void Function(String message)? get onWebJoined => web.onJoined;
+  set onWebJoined(void Function(String message)? f) => web.onJoined = f;
+  String? get webStageError => web.error;
+  set webStageError(String? v) => web.error = v;
+  String? get joinSlideAddress => web.joinSlideAddress;
+  set joinSlideAddress(String? v) => web.joinSlideAddress = v;
+  bool get localNameActive => web.localNameActive;
+  WebStageSettings get webStageSettings => web.settings;
+  String? get webStageUrl => web.url;
+  String? get webStageLocalUrl => web.localUrl;
+  Future<bool> setWebStageSettings(WebStageSettings next) =>
+      web.setSettings(next);
+  Json webStageSnapshot() => web.snapshot();
 
-  /// Shown by the home screen as a short note when a team browser joins.
-  void Function(String message)? onWebJoined;
-
-  bool _rehosting = false;
-  int _lastAddressCheck = 0;
-
-  /// While sharing, a change of network (another Wi-Fi, the hotspot turned
-  /// on or off) gives this device a new address and leaves the old one
-  /// advertised but dead. Share again on the new address, keeping approved
-  /// devices, the team code and joined browsers.
-  Future<void> _followNetworkChange() async {
-    if (!pairing.hosting || _rehosting || now.mono - _lastAddressCheck < 10000)
-      return;
-    _lastAddressCheck = now.mono;
-    final old = pairing.code?.address;
-    String next;
-    try {
-      next = await port.localNetworkAddress();
-    } catch (_) {
-      return;
-    }
-    if (old == null || next == old || !localPairAddress(next)) return;
-    if (next == '127.0.0.1') return;
-    _rehosting = true;
-    try {
-      await pairing.host(next);
-      // The listener restarts web screens; wait for them to move over.
-      await _syncWebStage();
-      onWebJoined?.call('Network changed · sharing again at $next');
-    } catch (_) {
-      webStageError = 'The network changed and sharing could not restart.';
-    } finally {
-      _rehosting = false;
-      notifyChanged();
-    }
-  }
-
-  int _webStageSynced = 0;
-  final mdns = MdnsResponder();
-
-  /// Why web screens are not available, shown in their panel only.
-  String? webStageError;
-
-  /// The address on the last exported join slide, to spot a stale slide.
-  String? joinSlideAddress;
-
-  /// Whether the easy .local name is being answered on this Wi-Fi.
-  bool localNameActive = false;
-  bool _webSyncing = false;
-
-  WebStageSettings get webStageSettings =>
-      WebStageSettings.fromJson(state.webStage, churchName: state.churchName);
-
-  /// The address browsers open, e.g. `http://192.168.1.23:8080`.
-  String? get webStageUrl =>
-      webStage.running ? 'http://${webStage.address}:${webStage.port}' : null;
-  String? get webStageLocalUrl => localNameActive
-      ? 'http://${webStageSettings.localName}.local:${webStage.port}'
-      : null;
-
-  Future<void> _syncWebStage() async {
-    if (_webSyncing || _disposed) return;
-    _webSyncing = true;
-    try {
-      final address = pairing.hosting ? pairing.code?.address : null;
-      if (address == null) {
-        // Sharing pauses for a moment while it moves to a new network;
-        // keep the web page and its browsers through that.
-        if (_rehosting) return;
-        if (webStage.running) {
-          await webStage.stop();
-          await mdns.stop();
-          localNameActive = false;
-          unawaited(port.setMulticastLock(false).catchError((_) {}));
-          notifyChanged();
-        }
-        return;
-      }
-      if (webStage.running && webStage.address == address) return;
-      final saved = webStageSettings;
-      webStageError = null;
-      await webStage.start(address, keepSession: _rehosting);
-      try {
-        await port.setMulticastLock(true);
-      } catch (_) {
-        /* The name may still work; the QR and address always do. */
-      }
-      localNameActive = await mdns.start(saved.localName, address);
-      notifyChanged();
-    } catch (e) {
-      // Paired phones and the service carry on; only the panel says so.
-      webStageError = 'Web screens could not start on this network.';
-      notifyChanged();
-    } finally {
-      _webSyncing = false;
-    }
-  }
-
-  Future<bool> setWebStageSettings(WebStageSettings next) async {
-    final before = webStageSettings;
-    if (!await commit((draft, _) => draft.webStage = next.toJson()))
-      return false;
-    if (next.orderCode.toLowerCase() != before.orderCode.toLowerCase())
-      webStage.forgetOrderViewers();
-    if (next.localName != before.localName && webStage.running) {
-      localNameActive = await mdns.start(next.localName, webStage.address!);
-    }
-    notifyChanged();
-    return true;
-  }
-
-  /// The paired-screen snapshot without private notes, plus timing for
-  /// Service overview.
-  Json webStageSnapshot() {
-    final base = pairedSnapshot(false);
-    final s = state.session;
-    if (!ready || !s.active || s.timeline == null) return base;
-    final projected = s.projectedTotal(now);
-    final eta = now.wall + ((projected - s.totalElapsed(now)) / s.rate).round();
-    return {
-      ...base,
-      'variance': varianceLabel(projected - s.plannedMs),
-      'behind': projected > s.plannedMs + 999,
-      'finish': clockLabel(eta),
-    };
-  }
-
-  TimingsCallback? _timings;
-  bool _timingsOn = false;
-  void _frameTimings(bool on) {
-    if (on == _timingsOn) return;
-    _timings ??= metrics.addFrames;
-    try {
-      on
-          ? SchedulerBinding.instance.addTimingsCallback(_timings!)
-          : SchedulerBinding.instance.removeTimingsCallback(_timings!);
-      _timingsOn = on;
-    } catch (_) {
-      // Without a running Flutter engine there are no frames to time; the
-      // rest of the recording still works.
-    }
-  }
-
-  /// Starts, samples and stops a metrics recording around a service. Runs
-  /// on every tick; cheap when Diagnostics is off.
-  Future<void> _trackMetrics() async {
-    final s = state.session;
-    if (!metrics.recording) {
-      if (!state.recordMetrics || !s.active) return;
-      _frameTimings(true);
-      _metricsDisplay = displayConnection.label;
-      await metrics.start(
-        now,
-        label: s.noReport ? 'Test service' : 'Service',
-        app: '$appName ${appVersion.split(' ').first}',
-      );
-      await metrics.sample(
-        now,
-        battery: await port.batteryStatus(),
-        detail: 'start; display=$_metricsDisplay',
-      );
-      notifyListeners();
-      return;
-    }
-    metrics.touch(now);
-    final display = displayConnection.label;
-    if (display != _metricsDisplay) {
-      unawaited(
-        metrics.event(
-          now,
-          // Back to connected after a drop counts as a reconnection.
-          {
-                    DisplayConnection.connected.label,
-                    DisplayConnection.stageConnected.label,
-                  }.contains(display) &&
-                  _metricsDisplay != DisplayConnection.simulator.label
-              ? 'reconnected'
-              : 'display',
-          'display=$display',
-        ),
-      );
-      _metricsDisplay = display;
-    }
-    if (!s.active) {
-      await _stopMetrics();
-      // Recording is for one service, so it is never left on by accident.
-      if (state.recordMetrics)
-        await commit((draft, _) => draft.recordMetrics = false);
-      notifyListeners();
-      return;
-    }
-    if (metrics.sampleDue(now))
-      await metrics.sample(
-        now,
-        battery: await port.batteryStatus(),
-        detail: 'display=$display; peers=${pairing.peers.length}',
-      );
-  }
-
-  Future<void> _stopMetrics() async {
-    _frameTimings(false);
-    final started = metrics.summary?.startedWall;
-    lastMetrics = await metrics.stop(now, battery: await port.batteryStatus());
-    final csv = await metrics.store.read();
-    if (csv == null) return;
-    String device = '';
-    try {
-      device = await port.deviceDescription();
-    } catch (_) {
-      /* The report is still useful without the model. */
-    }
-    final report = buildPerformanceReport(
-      csv,
-      device: device,
-      when: started == null ? '' : _reportDate(started),
-      batteryBaseline: state.metricsBatteryBaseline,
-    );
-    lastReport = report;
-    await metrics.store.writeReport(report.markdown);
-    // A rising level means it was charged; that is no baseline.
-    if (report.batteryPerHour case final rate? when rate > 0)
-      await commit((draft, _) => draft.metricsBatteryBaseline = rate);
-  }
-
-  static String _reportDate(int wall) {
-    final d = DateTime.fromMillisecondsSinceEpoch(wall);
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${d.day} ${months[d.month - 1]} ${d.year}, '
-        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-  }
-
-  Future<bool> setRecordMetrics(bool on) async {
-    final ok = await commit((draft, _) => draft.recordMetrics = on);
-    if (ok && !on && metrics.recording) {
-      await _stopMetrics();
-      notifyListeners();
-    }
-    return ok;
-  }
+  late final metricsTracker = MetricsTracker(this);
+  Future<bool> setRecordMetrics(bool on) => metricsTracker.setRecord(on);
 
   /// Loads and starts a 2-hour generated service that saves no report,
   /// with metrics recording on.
@@ -1788,9 +1305,8 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _frameTimings(false);
-    unawaited(webStage.stop());
-    unawaited(mdns.stop());
+    metricsTracker.frameTimings(false);
+    web.stop();
     editDrafts.dispose();
     liveClock.dispose();
     previewClock.dispose();
