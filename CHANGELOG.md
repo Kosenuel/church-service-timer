@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## 0.28.1, 8/November/2026
+
+- **Tidier code inside, nothing changed on screen.** The app's largest source files are split into smaller ones by topic and screen, so later fixes and features are quicker and safer to make. Everything looks and works as in 0.28.0, and programs, reports, backups and pairings carry over unchanged. Phones on 0.28.0 and 0.28.1 work together.
+
 ## 0.28.0, 8/November/2026
 
 - **Requests from the stage in landscape.** "Ask the operator" is now a compact dialog with Cancel, so all three choices fit on a stage screen held sideways. Before, the sheet ran off the bottom of the screen and cut off Microphone issue.
