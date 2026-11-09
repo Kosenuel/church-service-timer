@@ -61,9 +61,13 @@ extension LivePage on HomeState {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  for (final p in items)
+                  for (final (i, p) in items.indexed)
                     SizedBox(
-                      width: width,
+                      // A lone card, or the odd one out at the end, fills
+                      // the row instead of leaving half of it empty.
+                      width: items.length.isOdd && i == items.length - 1
+                          ? space.maxWidth
+                          : width,
                       child: Material(
                         key: ValueKey('quick-load:${p.name}'),
                         color: colors.surface,
@@ -84,7 +88,7 @@ extension LivePage on HomeState {
                                   }
                                 },
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -145,7 +149,7 @@ extension LivePage on HomeState {
         ? colors.info
         : colors.accent;
     return Padding(
-      padding: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.only(top: 18),
       child: Material(
         key: const ValueKey('last-service-card'),
         color: colors.surface,
@@ -157,7 +161,8 @@ extension LivePage on HomeState {
         child: InkWell(
           onTap: () => openReport(r),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            // The same insets and gap as the Recent cards above.
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1356,20 +1361,26 @@ extension LivePage on HomeState {
                                 color: appColors(context).muted,
                               ),
                             ),
-                            childrenPadding: const EdgeInsets.fromLTRB(
-                              8,
-                              0,
-                              8,
-                              8,
-                            ),
+                            childrenPadding: const EdgeInsets.only(bottom: 8),
+                            // The sections draw flat, divided by lines,
+                            // instead of as cards inside this card.
                             children: [
-                              cuePanel,
-                              if (c.destination == 'mobile') ...[
-                                const SizedBox(height: 12),
-                                quickMessagePanel(),
-                              ],
-                              const SizedBox(height: 12),
-                              displayPanel,
+                              FlatPanels(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const AppDivider(),
+                                    cuePanel,
+                                    if (c.destination == 'mobile') ...[
+                                      const AppDivider(),
+                                      quickMessagePanel(),
+                                    ],
+                                    const AppDivider(),
+                                    displayPanel,
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),

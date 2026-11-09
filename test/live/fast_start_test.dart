@@ -51,6 +51,8 @@ void main() {
     await c.commit((draft, _) => draft.programLibrary.favourites.add(id));
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
+    await t.ensureVisible(find.byKey(ValueKey('quick-load:$name')));
+    await t.pumpAndSettle();
     await t.tap(find.byKey(ValueKey('quick-load:$name')));
     await t.pumpAndSettle();
     expect(c.state.session.phase, 'ready');

@@ -73,11 +73,15 @@ class _ProgramChooserState extends State<ProgramChooser> {
                   leading: c.state.programLibrary.favourites.contains(p.id)
                       ? const Icon(Icons.push_pin, semanticLabel: 'Pinned')
                       : null,
-                  trailing: Icon(
-                    p.name == widget.current
-                        ? Icons.check
-                        : Icons.chevron_right,
-                  ),
+                  // The same "this one" mark as Choose display and the
+                  // option lists: an accent check circle.
+                  trailing: p.name == widget.current
+                      ? Icon(
+                          Icons.check_circle,
+                          color: appColors(context).accent,
+                          semanticLabel: 'Loaded',
+                        )
+                      : const Icon(Icons.chevron_right),
                   onTap: c.busy || p.name == widget.current
                       ? null
                       : () => Navigator.pop(context, p),

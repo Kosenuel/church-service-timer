@@ -56,7 +56,9 @@ extension PracticeViews on HomeState {
 
   /// The invitation on Live while standing by, until hidden.
   Widget practicePrompt() {
-    if (!c.state.practicePrompt || c.practice.blocker != null)
+    if (!c.state.practicePrompt ||
+        practicePromptSnoozed ||
+        c.practice.blocker != null)
       return const SizedBox.shrink();
     final colors = appColors(context);
     return Padding(
@@ -79,6 +81,12 @@ extension PracticeViews on HomeState {
                     'A few minutes on the Simulator, step by step. Nothing is saved or shown on stage.',
                     style: TextStyle(color: colors.muted, fontSize: 12),
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'You can also start it any time from Settings › About › Guided practice.',
+                    key: const ValueKey('practice-prompt-where'),
+                    style: TextStyle(color: colors.muted, fontSize: 12),
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -88,6 +96,12 @@ extension PracticeViews on HomeState {
                         key: const ValueKey('start-practice'),
                         onPressed: controlsLocked ? null : startPractice,
                         child: const Text('Start practice'),
+                      ),
+                      TextButton(
+                        key: const ValueKey('snooze-practice-prompt'),
+                        onPressed: () =>
+                            refreshHome(() => practicePromptSnoozed = true),
+                        child: const Text('Not now'),
                       ),
                       TextButton(
                         key: const ValueKey('hide-practice-prompt'),

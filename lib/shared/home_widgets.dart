@@ -5,18 +5,8 @@ import 'package:church_service_timer/main.dart';
 
 /// Small building blocks shared by the home pages.
 extension HomeWidgets on HomeState {
-  Widget panel({required Widget child, EdgeInsets? padding}) => Material(
-    color: appColors(context).surface,
-    clipBehavior: Clip.antiAlias,
-    shape: RoundedRectangleBorder(
-      side: BorderSide(color: appColors(context).border),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Padding(
-      padding: padding ?? EdgeInsets.all(appLayout(context).panelPadding),
-      child: child,
-    ),
-  );
+  Widget panel({required Widget child, EdgeInsets? padding}) =>
+      AppPanel(padding: padding, child: child);
   Widget label(String text) => Text(
     text.toUpperCase(),
     style: TextStyle(
@@ -91,4 +81,42 @@ extension HomeWidgets on HomeState {
             ),
     );
   }
+}
+
+/// A card on the home pages. Inside [FlatPanels] it draws no border or
+/// background of its own, so sections inside another card don't become
+/// cards within a card.
+class AppPanel extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets? padding;
+  const AppPanel({super.key, required this.child, this.padding});
+
+  @override
+  Widget build(BuildContext context) {
+    final pad = padding ?? EdgeInsets.all(appLayout(context).panelPadding);
+    if (FlatPanels.of(context)) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(16, pad.top == 0 ? 0 : 12, 16, 12),
+        child: child,
+      );
+    }
+    return Material(
+      color: appColors(context).surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: appColors(context).border),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(padding: pad, child: child),
+    );
+  }
+}
+
+/// Marks a part of a card whose [AppPanel]s should draw flat.
+class FlatPanels extends InheritedWidget {
+  const FlatPanels({super.key, required super.child});
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<FlatPanels>() != null;
+  @override
+  bool updateShouldNotify(FlatPanels oldWidget) => false;
 }
