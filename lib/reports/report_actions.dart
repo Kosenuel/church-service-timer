@@ -16,16 +16,16 @@ extension ReportActions on HomeState {
         : {record.id};
     if (ids.isEmpty) return false;
     if (await confirm(
-      record == null ? 'Clear all reports?' : 'Clear this report?',
+      record == null ? 'Delete all reports?' : 'Delete this report?',
       record == null
-          ? 'Delete all ${ids.length} currently saved report records from this device? Exported files and the current service are unaffected. This cannot be undone.'
+          ? 'Delete all ${ids.length} saved reports from this device? Exported files and the current service are unaffected. This cannot be undone.'
           : 'Delete the report for “${record.name}” (${reportDate(record.startedWall ?? record.endedWall)})? Exported files and the current service are unaffected. This cannot be undone.',
-      record == null ? 'Clear all reports' : 'Clear report',
+      record == null ? 'Delete all reports' : 'Delete report',
       destructive: true,
     )) {
       final ok = await c.clearReports(ids);
       if (!ok && mounted)
-        await showError(c.error ?? 'The report could not be cleared.');
+        await showError(c.error ?? 'The report could not be deleted.');
       return ok;
     }
     return false;

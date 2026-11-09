@@ -345,6 +345,10 @@ void main() {
       final before = jsonEncode(c.state.toJson()..remove('editDrafts'));
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
+      // After End service, Stage & display starts closed; open it.
+      await t.ensureVisible(find.text('Stage & display'));
+      await t.tap(find.text('Stage & display'));
+      await t.pumpAndSettle();
       await t.ensureVisible(find.byKey(const ValueKey('open-quick-message')));
       await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('open-quick-message')));

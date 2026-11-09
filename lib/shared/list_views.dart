@@ -124,7 +124,7 @@ extension ListViews on HomeState {
                   ),
                 ),
               ),
-              OutlinedButton(
+              TextButton(
                 key: ValueKey('select-all-$noun'),
                 onPressed: shown.isEmpty
                     ? null
@@ -253,6 +253,15 @@ extension ListViews on HomeState {
                 none ? null : () => share(false),
                 reason: 'Select at least one item to export.',
               ),
+              // A divider sets Delete apart from the actions that keep things.
+              SizedBox(
+                height: 40,
+                child: VerticalDivider(
+                  width: 17,
+                  thickness: 1,
+                  color: colors.border,
+                ),
+              ),
               action(
                 'delete-selected-$noun',
                 'Delete',
@@ -314,9 +323,11 @@ extension ListViews on HomeState {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  // Room for the full explanation; long lists of names
+                  // still end in "…".
                   Text(
                     subtitle,
-                    maxLines: 2,
+                    maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: colors.muted),
                   ),

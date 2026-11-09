@@ -250,14 +250,57 @@ class ReceivedProgramCards extends StatelessWidget {
               key: ValueKey('received-program:${r.program.name}'),
               color: colors.info.withValues(alpha: .12),
               borderRadius: BorderRadius.circular(12),
+              // The program's name as the title, so it no longer wraps
+              // behind "Program received:"; Review or set it aside here.
               child: ListTile(
+                contentPadding: const EdgeInsets.only(left: 16, right: 4),
                 leading: Icon(Icons.download_outlined, color: colors.info),
-                title: Text('Program received: ${r.program.name}'),
-                subtitle: Text('From ${r.from} · review before saving'),
-                trailing: TextButton(
-                  onPressed: () =>
-                      reviewReceivedProgram(context, controller, r),
-                  child: const Text('Review'),
+                title: Text(
+                  r.program.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text('Received from ${r.from} · review to save'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(
+                      onPressed: () =>
+                          reviewReceivedProgram(context, controller, r),
+                      child: const Text('Review'),
+                    ),
+                    IconButton(
+                      key: ValueKey('dismiss-received:${r.program.name}'),
+                      tooltip: 'Discard',
+                      icon: const Icon(Icons.close),
+                      onPressed: () async {
+                        final yes = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: Text('Discard “${r.program.name}”?'),
+                            content: Text(
+                              'The program sent from ${r.from} is not saved. Your own programs are unchanged.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                style: destructiveFilled(),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Discard'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (yes == true)
+                          await controller.commit(
+                            (draft, _) => draft.dismissReceived(r),
+                          );
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),

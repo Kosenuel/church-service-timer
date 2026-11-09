@@ -117,42 +117,51 @@ class _ImportMappingPageState extends State<ImportMappingPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               clipBehavior: Clip.antiAlias,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  key: const ValueKey('mapping-preview'),
-                  headingRowHeight: 32,
-                  dataRowMinHeight: 30,
-                  dataRowMaxHeight: 36,
-                  columnSpacing: 18,
-                  columns: [
-                    for (var i = 0; i < width; i++)
-                      DataColumn(
-                        label: Text(
-                          columnLetter(i),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
+              // At least as wide as the card, with the column letters on a
+              // shaded row so they don't read as data.
+              child: LayoutBuilder(
+                builder: (context, box) => SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: box.maxWidth),
+                    child: DataTable(
+                      key: const ValueKey('mapping-preview'),
+                      headingRowColor: WidgetStatePropertyAll(
+                        colors.accent.withValues(alpha: .12),
                       ),
-                  ],
-                  rows: [
-                    for (final r in preview)
-                      DataRow(
-                        cells: [
-                          for (var i = 0; i < width; i++)
-                            DataCell(
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 160,
-                                ),
-                                child: Text(
-                                  i < r.length ? r[i] : '',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                        ],
+                      headingTextStyle: TextStyle(
+                        color: colors.accent,
+                        fontWeight: FontWeight.w700,
                       ),
-                  ],
+                      headingRowHeight: 32,
+                      dataRowMinHeight: 30,
+                      dataRowMaxHeight: 36,
+                      columnSpacing: 18,
+                      columns: [
+                        for (var i = 0; i < width; i++)
+                          DataColumn(label: Text(columnLetter(i))),
+                      ],
+                      rows: [
+                        for (final r in preview)
+                          DataRow(
+                            cells: [
+                              for (var i = 0; i < width; i++)
+                                DataCell(
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 160,
+                                    ),
+                                    child: Text(
+                                      i < r.length ? r[i] : '',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

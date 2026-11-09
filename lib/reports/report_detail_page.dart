@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/reports/report_outcome.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
@@ -96,7 +97,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       itemBuilder: (context) => appMenuEntries(context, const [
         AppMenuAction('csv', 'Export report CSV'),
         AppMenuAction('json', 'Export report JSON'),
-        AppMenuAction('delete', 'Clear report', destructive: true),
+        AppMenuAction('delete', 'Delete report', destructive: true),
       ]),
     );
     final content = SingleChildScrollView(
@@ -169,12 +170,10 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                       'VARIANCE',
                       r.totalMs == null
                           ? '—'
-                          : varianceLabel(r.totalMs! - r.plannedMs),
+                          : outcomeLabel(r.totalMs! - r.plannedMs),
                       color: r.totalMs == null
                           ? colors.muted
-                          : r.totalMs! - r.plannedMs > 999
-                          ? colors.warning
-                          : colors.success,
+                          : outcomeColor(colors, r.totalMs! - r.plannedMs),
                     ),
                     reportMetric(
                       context,
@@ -218,38 +217,50 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               ],
             ),
           ),
-          if (widget.onEditReview != null) ...[
-            const SizedBox(height: 20),
-            ReviewNoteSection(
-              review: r.review,
-              busy: busy,
-              onEdit: () => run(widget.onEditReview!),
+          // Every card has the same gap below it (from block()).
+          if (widget.onEditReview != null)
+            Padding(
+              padding: EdgeInsets.only(bottom: appLayout(context).gap * 2),
+              child: ReviewNoteSection(
+                review: r.review,
+                busy: busy,
+                onEdit: () => run(widget.onEditReview!),
+              ),
             ),
-          ],
-          const SizedBox(height: 20),
-          Text(
-            'Segment breakdown',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          AppMenuList(
-            key: const ValueKey('report-segment-breakdown'),
-            children: [
-              for (var i = 0; i < r.rows.length; i++)
-                ReportSegmentRow(
-                  row: r.rows[i],
-                  number: i + 1,
-                  segment: r.program != null && i < r.program!.segments.length
-                      ? r.program!.segments[i]
-                      : null,
+          // In a card like the sections around it.
+          block(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Segment breakdown',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-            ],
+                const SizedBox(height: 8),
+                AppMenuList(
+                  key: const ValueKey('report-segment-breakdown'),
+                  children: [
+                    for (var i = 0; i < r.rows.length; i++)
+                      ReportSegmentRow(
+                        row: r.rows[i],
+                        number: i + 1,
+                        segment:
+                            r.program != null && i < r.program!.segments.length
+                            ? r.program!.segments[i]
+                            : null,
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
           block(
             ExpansionTile(
               key: const ValueKey('report-duration-chart'),
               tilePadding: EdgeInsets.zero,
+              // No lines above and below when opened inside the card.
+              shape: const Border(),
+              collapsedShape: const Border(),
               title: const Text('The service, segment by segment'),
               subtitle: const Text('Expand chart'),
               children: [
@@ -262,7 +273,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                               ? 'Skipped'
                               : row.actualMs == null
                               ? 'Not recorded'
-                              : varianceLabel(row.actualMs! - row.plannedMs),
+                              : outcomeLabel(row.actualMs! - row.plannedMs),
                           planned: row.plannedMs,
                           actual: row.actualMs,
                           uncertain: r.uncertain || row.actualMs == null,
@@ -277,6 +288,9 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
             ExpansionTile(
               key: const ValueKey('report-activity'),
               tilePadding: EdgeInsets.zero,
+              // No lines above and below when opened inside the card.
+              shape: const Border(),
+              collapsedShape: const Border(),
               title: const Text('Activity timeline'),
               subtitle: Text('${r.events.length} recorded events'),
               children: [
@@ -355,7 +369,7 @@ class ReportSegmentRow extends StatelessWidget {
         : durationLabel(row.actualMs!);
     final variance = row.skipped || row.actualMs == null
         ? '—'
-        : varianceLabel(row.actualMs! - row.plannedMs);
+        : outcomeLabel(row.actualMs! - row.plannedMs);
     return ExpansionTile(
       tilePadding: appLayout(context).tileInsets,
       childrenPadding: appLayout(context).rowInsets,
@@ -376,11 +390,9 @@ class ReportSegmentRow extends StatelessWidget {
                     variance,
                     style: TextStyle(
                       fontSize: 13,
-                      color: row.actualMs == null
+                      color: row.actualMs == null || row.skipped
                           ? colors.muted
-                          : row.actualMs! > row.plannedMs
-                          ? colors.warning
-                          : colors.success,
+                          : outcomeColor(colors, row.actualMs! - row.plannedMs),
                     ),
                   ),
                 ],
@@ -485,7 +497,7 @@ class ReviewNoteSection extends StatelessWidget {
             const SizedBox(height: 8),
             if (review == null) ...[
               Text(
-                'Add what to remember for next time, such as "Reduce welcome next week". Notes never change the recorded timings.',
+                'Add what to remember for next time, such as “Reduce welcome next week”. Notes never change the recorded timings.',
                 style: TextStyle(color: colors.muted),
               ),
               const SizedBox(height: 12),

@@ -173,18 +173,21 @@ extension ProgramEditActions on HomeState {
             : null,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, update) => AlertDialog(
-            title: const Text('Preview import'),
+            title: const Text('Preview program import'),
             content: SizedBox(
               width: 480,
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // The name problem shows on the field it is about.
                     TextField(
                       controller: name,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Program name',
+                        errorText: error,
+                        errorMaxLines: 2,
                       ),
                       onChanged: (_) => update(() {
                         validName();
@@ -192,26 +195,98 @@ extension ProgramEditActions on HomeState {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '${candidate.segments.length} segments · ${durationLabel(candidate.segments.fold<int>(0, (a, s) => a + s.durationMs))}',
-                    ),
-                    Text(
-                      (file['name'] as String).toLowerCase().endsWith('.csv')
-                          ? 'CSV supplies the program only. These current defaults have been captured for this import:'
-                          : 'JSON includes these display settings:',
+                      '${plural(candidate.segments.length, 'segment')} · ${durationLabel(candidate.segments.fold<int>(0, (a, s) => a + s.durationMs))}',
+                      style: TextStyle(color: appColors(context).muted),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'Cues:\n${candidate.display.cues.map(styleSummary).join('\n')}\nZero: ${candidate.display.zero == null ? '00:00' : styleSummary(candidate.display.zero!)}\nEnd: ${styleSummary(candidate.display.end)}\nWarnings:\n${candidate.display.warnings.isEmpty ? 'None' : candidate.display.warnings.map((w) => '${w.enabled ? 'On' : 'Off'} · ${formatTime(w.seconds * 1000)} · ${w.destination} · ${styleSummary(w.cue)}').join('\n')}',
-                    ),
-                    const SizedBox(height: 12),
-                    ...candidate.segments.map(
-                      (s) => Text('${s.name} — ${s.durationText}'),
-                    ),
-                    if (error != null)
-                      Text(
-                        error!,
-                        style: TextStyle(color: appColors(context).warning),
+                    for (final s in candidate.segments)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(s.name)),
+                            const SizedBox(width: 12),
+                            Text(
+                              s.durationText,
+                              style: TextStyle(color: appColors(context).muted),
+                            ),
+                          ],
+                        ),
                       ),
+                    const SizedBox(height: 8),
+                    // The display settings fold away instead of filling the
+                    // dialog with one long block of text.
+                    Theme(
+                      data: Theme.of(
+                        context,
+                      ).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        key: const ValueKey('import-display-settings'),
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: const EdgeInsets.only(bottom: 8),
+                        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                        title: const Text('Display settings'),
+                        subtitle: Text(
+                          (file['name'] as String).toLowerCase().endsWith(
+                                '.csv',
+                              )
+                              ? 'A spreadsheet has none, so your current defaults are used'
+                              : 'Included in the file',
+                          style: TextStyle(
+                            color: appColors(context).muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                        children: [
+                          for (final (label, lines) in [
+                            (
+                              'Cues',
+                              candidate.display.cues.map(styleSummary).toList(),
+                            ),
+                            (
+                              'At zero',
+                              [
+                                candidate.display.zero == null
+                                    ? '00:00'
+                                    : styleSummary(candidate.display.zero!),
+                              ],
+                            ),
+                            (
+                              'End screen',
+                              [styleSummary(candidate.display.end)],
+                            ),
+                            (
+                              'Warnings',
+                              candidate.display.warnings.isEmpty
+                                  ? ['None']
+                                  : [
+                                      for (final w
+                                          in candidate.display.warnings)
+                                        '${w.enabled ? 'On' : 'Off'} · ${formatTime(w.seconds * 1000)} · ${w.destination} · ${styleSummary(w.cue)}',
+                                    ],
+                            ),
+                          ]) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                label,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            for (final line in lines)
+                              Text(
+                                line,
+                                style: TextStyle(
+                                  color: appColors(context).muted,
+                                  fontSize: 13,
+                                ),
+                              ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -239,7 +314,7 @@ extension ProgramEditActions on HomeState {
                           update(() => error = e.toString());
                         }
                       },
-                child: const Text('Accept import'),
+                child: const Text('Import program'),
               ),
             ],
           ),
