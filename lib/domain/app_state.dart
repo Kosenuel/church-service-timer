@@ -76,6 +76,9 @@ class AppState {
   /// One-time hints this phone has dismissed, such as "press and hold to
   /// select". Local to this phone; not part of portable backups.
   Set<String> dismissedHints;
+
+  /// The last few Quick timers, newest first. Local to this phone.
+  List<QuickTimerChoice> recentQuickTimers;
   AppState(
     this.templates,
     this.defaults,
@@ -98,6 +101,7 @@ class AppState {
     this.practicePrompt = true,
     this.stageRequests = false,
     Set<String>? dismissedHints,
+    List<QuickTimerChoice>? recentQuickTimers,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -114,6 +118,7 @@ class AppState {
     Json? webStage,
   }) : webStage = webStage ?? {},
        dismissedHints = dismissedHints ?? {},
+       recentQuickTimers = recentQuickTimers ?? [],
        importMappings = importMappings ?? {},
        segmentLibrary = segmentLibrary ?? [],
        programLibrary = programLibrary ?? ProgramLibrary(),
@@ -272,6 +277,10 @@ class AppState {
         for (final h in (j['dismissedHints'] as List? ?? const []))
           if (h is String && h.length <= 40) h,
       },
+      recentQuickTimers: [
+        for (final r in (j['recentQuickTimers'] as List? ?? const []))
+          ?QuickTimerChoice.tryRead(r),
+      ].take(quickTimerRecentLimit).toList(),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -414,6 +423,7 @@ class AppState {
     'practicePrompt': practicePrompt,
     'stageRequests': stageRequests,
     'dismissedHints': [...dismissedHints],
+    'recentQuickTimers': [for (final r in recentQuickTimers) r.toJson()],
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
   };

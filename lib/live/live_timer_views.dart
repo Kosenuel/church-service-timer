@@ -777,7 +777,11 @@ extension LiveViewActions on HomeState {
           ),
           radius: 12,
         );
-        final hint = s.index + 1 >= s.timeline!.segments.length
+        // A quick timer is one countdown: no Next, nothing to jump to.
+        final quick = s.quickTimer;
+        final hint = quick
+            ? ''
+            : s.index + 1 >= s.timeline!.segments.length
             ? 'No upcoming segments'
             : !enabled
             ? (controlsLocked
@@ -789,7 +793,9 @@ extension LiveViewActions on HomeState {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (large || constraints.maxWidth < 300) ...[
+            if (quick)
+              pause
+            else if (large || constraints.maxWidth < 300) ...[
               pause,
               const SizedBox(height: 10),
               next,

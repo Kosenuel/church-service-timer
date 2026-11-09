@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 
 extension ReportLibraryViews on HomeState {
   bool reportMatches(ServiceReport r) {
-    if (reportsPage.filter != 'all' &&
-        (reportsPage.filter == 'rehearsal' ? !r.rehearsal : r.rehearsal))
-      return false;
+    final keep = switch (reportsPage.filter) {
+      'live' => !r.rehearsal && !r.quickTimer,
+      'rehearsal' => r.rehearsal,
+      'quick' => r.quickTimer,
+      _ => true,
+    };
+    if (!keep) return false;
     final text =
         '${r.name} ${r.churchName} ${r.rows.map((s) => s.name).join(' ')}'
             .toLowerCase();

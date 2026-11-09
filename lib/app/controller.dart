@@ -1209,6 +1209,45 @@ class AppController extends ChangeNotifier {
     return act('start');
   }
 
+  /// Starts a one-segment Quick timer straight away, with no Ready step,
+  /// on the normal service engine (sign, stage and web screens, warnings
+  /// and lock-screen controls). It saves a report only when [saveReport].
+  Future<bool> startQuickTimer(
+    QuickTimerChoice choice, {
+    bool saveReport = false,
+  }) async {
+    if (state.session.active || state.session.phase == 'ready') {
+      error = 'End or cancel the current service before a quick timer.';
+      notifyListeners();
+      return false;
+    }
+    if (!await act('load', value: choice.timeline(state.defaults))) {
+      return false;
+    }
+    if (!await commit((draft, _) {
+      draft.session
+        ..quickTimer = true
+        ..noReport = !saveReport;
+      draft.recentQuickTimers = rememberQuickTimer(
+        draft.recentQuickTimers,
+        choice,
+      );
+    })) {
+      await act('cancelReady');
+      return false;
+    }
+    if (await act('start')) return true;
+    // Leave nothing half-loaded behind if the start was refused, but keep
+    // the reason it was refused.
+    final reason = error;
+    if (state.session.phase == 'ready') await act('cancelReady');
+    if (reason != null) {
+      error = reason;
+      notifyListeners();
+    }
+    return false;
+  }
+
   Future<void> suspend() async {
     unawaited(metrics.event(now, 'background'));
     await flushEditDrafts();

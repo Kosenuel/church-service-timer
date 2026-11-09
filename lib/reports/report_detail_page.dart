@@ -120,7 +120,9 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                   children: [
                     Chip(
                       avatar: Icon(
-                        r.rehearsal
+                        r.quickTimer
+                            ? Icons.timer_outlined
+                            : r.rehearsal
                             ? Icons.fast_forward
                             : Icons.check_circle_outline,
                         size: 18,

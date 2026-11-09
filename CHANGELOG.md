@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Quick timer.** For a prayer meeting, a break or a talk that isn't a whole service: tap **Quick timer** on Live (next to **Start service**, or the 4th tile beside Show clock, Send message and Blank screen), choose 5, 10, 15, 30 or 45 min or a custom length up to 59 min 59 s, and optionally give it a name. It starts straight away, with no Ready step, and counts down on the LED sign, stage screens and web screens together, with Pause, ±2 min, overtime, warnings and the lock-screen controls as usual. **End timer** stops it. Nothing is saved unless you turn on **Save as a report**; saved timers are marked "Quick timer" in Reports and have their own **Quick timers** filter, and they're left out of service averages and length suggestions. Your last three timers are offered as one-tap choices. Quick timer is available when no service is loaded or running.
+
 ## 0.29.0, 9/November/2026
 
 - **Reports, last touches.** On the graph each date ("15 Jan") sits under its own bar, instead of the first and last dates at the two ends. The search field and the **Dates** button are the same height. Under the graph, the chosen service reads “Ran 21 min · planned 25 min” with “4 min under” beneath it in the under colour, instead of “21 min · 4 min under plan”. The summary tile is labelled "Last live service" (it leaves rehearsals out, which the graph below may include) and says "1 min over" (and "avg" only when it averages more than one service) instead of "+1m avg". In a report, **Print report** is a full-width button at the foot of the summary card it prints, instead of floating on its own above it; beside the list on a tablet, the report’s ⋮ menu sits on the card’s top row.

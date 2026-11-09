@@ -95,6 +95,9 @@ class Session {
 
   /// A test or practice run: ending it saves no report.
   bool noReport;
+
+  /// A one-segment Quick timer started from Live, not a service.
+  bool quickTimer;
   Session({
     required this.id,
     required this.anchor,
@@ -131,6 +134,7 @@ class Session {
     this.targetFinishWall,
     this.startsAtWall,
     this.noReport = false,
+    this.quickTimer = false,
     List<ServiceEvent>? events,
   }) : checkpoint = checkpoint ?? anchor,
        warningSeen = warningSeen ?? [],
@@ -294,6 +298,7 @@ class Session {
       targetFinishWall: j['targetFinishWall'] as int?,
       startsAtWall: j['startsAtWall'] as int?,
       noReport: j['noReport'] == true,
+      quickTimer: j['quickTimer'] == true,
       automaticCueDurationMs: readCueDuration(j['automaticCueDurationMs']),
       churchName: churchNameValue(j['churchName'] ?? ''),
       phase: j['phase'],
@@ -412,6 +417,7 @@ class Session {
     'targetFinishWall': targetFinishWall,
     'startsAtWall': startsAtWall,
     if (noReport) 'noReport': true,
+    if (quickTimer) 'quickTimer': true,
   };
   Session copy() => Session.fromJson(toJson());
 }

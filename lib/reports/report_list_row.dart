@@ -49,7 +49,7 @@ class ReportListRow extends StatelessWidget {
           ? 'Not fully recorded'
           : '${durationLabel(r.totalMs!)}${r.rehearsal ? ' simulated' : ''}',
       if (started != null) 'started $started',
-      if (r.rehearsal) reportMode(r),
+      if (r.rehearsal || r.quickTimer) reportMode(r),
     ].join(' · ');
     return InkWell(
       key: ValueKey('open-report-${r.id}'),

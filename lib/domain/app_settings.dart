@@ -247,6 +247,7 @@ String exportBackup(
     ..remove('programLibrary')
     ..remove('lockScreenControls')
     ..remove('dismissedHints')
+    ..remove('recentQuickTimers')
     ..remove('settingsLock')
     ..remove('clickerControls')
     ..remove('practisedWall')
