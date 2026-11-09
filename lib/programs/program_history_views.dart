@@ -22,7 +22,7 @@ extension ProgramHistoryViews on HomeState {
             body: current == null
                 ? const Center(child: Text('This program was removed.'))
                 : ListView(
-                    padding: EdgeInsets.all(appLayout(pageContext).gap),
+                    padding: const EdgeInsets.all(20),
                     children: [
                       Text(
                         current.name,
@@ -45,25 +45,34 @@ extension ProgramHistoryViews on HomeState {
                           ),
                         )
                       else
-                        AppMenuList(
-                          key: const ValueKey('program-versions'),
-                          children: [
-                            for (var i = 0; i < versions.length; i++)
-                              ListTile(
-                                key: ValueKey('program-version-$i'),
-                                leading: const Icon(Icons.history),
-                                title: Text(
-                                  'Until ${serviceDateLabel(versions[i].replacedWall)} · ${wallTime(versions[i].replacedWall)}',
+                        // In a card like the other lists, not bare rows.
+                        Material(
+                          color: colors.surface,
+                          clipBehavior: Clip.antiAlias,
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(color: colors.border),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: AppMenuList(
+                            key: const ValueKey('program-versions'),
+                            children: [
+                              for (var i = 0; i < versions.length; i++)
+                                ListTile(
+                                  key: ValueKey('program-version-$i'),
+                                  leading: const Icon(Icons.history),
+                                  title: Text(
+                                    'Until ${serviceDateLabel(versions[i].replacedWall)} · ${wallTime(versions[i].replacedWall)}',
+                                  ),
+                                  subtitle: Text(
+                                    '${templateSummary(versions[i].program)}\nNext save: ${describeProgramChange(versions[i].program, i == 0 ? current : versions[i - 1].program)}',
+                                  ),
+                                  isThreeLine: true,
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () =>
+                                      previewVersion(pageContext, current, i),
                                 ),
-                                subtitle: Text(
-                                  '${templateSummary(versions[i].program)}\nNext save: ${describeProgramChange(versions[i].program, i == 0 ? current : versions[i - 1].program)}',
-                                ),
-                                isThreeLine: true,
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: () =>
-                                    previewVersion(pageContext, current, i),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                     ],
                   ),
@@ -85,9 +94,8 @@ extension ProgramHistoryViews on HomeState {
           ? AnimationStyle.noAnimation
           : null,
       builder: (ctx) => AlertDialog(
-        title: Text(
-          'Version until ${serviceDateLabel(version.replacedWall)} · ${wallTime(version.replacedWall)}',
-        ),
+        // A short title; the date goes on the first line below.
+        title: const Text('Earlier version'),
         content: SizedBox(
           width: 420,
           child: SingleChildScrollView(
@@ -95,7 +103,14 @@ extension ProgramHistoryViews on HomeState {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(templateSummary(version.program)),
+                Text(
+                  'Until ${serviceDateLabel(version.replacedWall)} · ${wallTime(version.replacedWall)}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  templateSummary(version.program),
+                  style: TextStyle(color: appColors(ctx).muted),
+                ),
                 const SizedBox(height: 8),
                 for (final s in version.program.segments)
                   Padding(
@@ -114,7 +129,7 @@ extension ProgramHistoryViews on HomeState {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Close'),
+            child: const Text('Cancel'),
           ),
           FilledButton(
             key: const ValueKey('restore-version'),

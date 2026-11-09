@@ -182,19 +182,26 @@ extension TemplateViews on HomeState {
                         ],
                       ),
                     ),
-                    if (c.state.programLibrary.favourites.contains(
-                      values[i].id,
-                    ))
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Icon(
-                          Icons.push_pin,
-                          key: ValueKey('pinned:${values[i].name}'),
-                          size: 18,
-                          color: appColors(context).accent,
-                          semanticLabel: 'Pinned',
-                        ),
+                    // Every row keeps the pin's slot, so the segment bars
+                    // end at the same place whether pinned or not.
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: SizedBox(
+                        width: 18,
+                        child:
+                            c.state.programLibrary.favourites.contains(
+                              values[i].id,
+                            )
+                            ? Icon(
+                                Icons.push_pin,
+                                key: ValueKey('pinned:${values[i].name}'),
+                                size: 18,
+                                color: appColors(context).accent,
+                                semanticLabel: 'Pinned',
+                              )
+                            : null,
                       ),
+                    ),
                     // A chevron says "opens"; selection shows checkboxes.
                     if (!programsPage.selecting && !useMasterDetail)
                       Padding(
