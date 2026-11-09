@@ -96,6 +96,24 @@ class PracticeController {
       .firstOrNull;
   int get completed => done.length;
 
+  /// The control the current step needs next, for the animated pointer on
+  /// Live: 'start', 'pause', 'plus', 'minus', 'next', 'undo', 'cue',
+  /// 'timer', 'blank' or 'end'. Null when there is nothing to tap (waiting
+  /// for overtime) or outside practice.
+  String? get pointer {
+    if (!active) return null;
+    return switch (current?.id) {
+      'start' => 'start',
+      'pause' => 'pause',
+      'adjust' => _added ? 'minus' : 'plus',
+      'next' => _advanced ? 'undo' : 'next',
+      'cue' => _cued ? 'timer' : 'cue',
+      'blank' => 'blank',
+      'end' => 'end',
+      _ => null,
+    };
+  }
+
   /// Why practice can't start now, or null.
   String? get blocker {
     final s = app.state.session;

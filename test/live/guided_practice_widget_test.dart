@@ -82,4 +82,59 @@ void main() {
 
     await t.pumpWidget(const SizedBox());
   });
+
+  testWidgets('The practice pointer follows each step', (t) async {
+    t.view.physicalSize = const Size(430, 1100);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    final c = AppController(FakePort());
+    await c.initialize(startTicker: false);
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.byKey(const ValueKey('start-practice')));
+    await t.tap(find.byKey(const ValueKey('start-practice')));
+    await t.pumpAndSettle();
+    final pointer = find.byKey(
+      const ValueKey('practice-pointer'),
+      skipOffstage: false,
+    );
+    // Exactly one control is pointed at, and it is the one the step needs.
+    Future<void> expectPointerOn(String id, Finder target) async {
+      await t.pumpAndSettle();
+      expect(c.practice.pointer, id);
+      expect(pointer, findsOneWidget);
+      final ring = t.getRect(pointer);
+      final control = t.getRect(target);
+      expect(ring.contains(control.center), isTrue, reason: id);
+    }
+
+    await expectPointerOn('start', find.text('Start first segment'));
+    await c.act('start');
+    await expectPointerOn(
+      'pause',
+      find.byKey(const ValueKey('pause-resume'), skipOffstage: false),
+    );
+    await c.act('pause');
+    await c.act('pause');
+    await expectPointerOn('plus', find.text('+2 min', skipOffstage: false));
+    await c.act('adjust', value: 120);
+    await expectPointerOn('minus', find.text('−2 min', skipOffstage: false));
+    expect(find.text('Tap −2 min', skipOffstage: false), findsOneWidget);
+    await c.act('adjust', value: -120);
+    await expectPointerOn(
+      'next',
+      find.byKey(const ValueKey('next-segment'), skipOffstage: false),
+    );
+    await c.act('advance');
+    await expectPointerOn(
+      'undo',
+      find.byKey(const ValueKey('undo'), skipOffstage: false),
+    );
+    await c.practice.leave();
+    await t.pumpAndSettle();
+    expect(c.practice.pointer, isNull);
+    expect(pointer, findsNothing);
+    await t.pumpWidget(const SizedBox());
+  });
 }

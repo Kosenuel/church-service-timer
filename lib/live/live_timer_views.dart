@@ -8,6 +8,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/practice_views.dart';
 
 class OperatorNotes extends StatefulWidget {
   final String notes;
@@ -613,25 +614,28 @@ extension LiveViewActions on HomeState {
           fontSize: 17,
           fontWeight: FontWeight.w700,
         );
-        final pause = Tooltip(
-          message: s.paused ? 'Resume' : 'Pause',
-          child: UnavailableAction(
-            reason: enabled ? null : unavailableReason('Pause'),
-            child: FilledButton.icon(
-              key: const ValueKey('pause-resume'),
-              onPressed: enabled ? confirmPause : null,
-              style: FilledButton.styleFrom(
-                minimumSize: Size(0, primaryHeight),
-                textStyle: primaryText,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+        final pause = practiceSpot(
+          'pause',
+          Tooltip(
+            message: s.paused ? 'Resume' : 'Pause',
+            child: UnavailableAction(
+              reason: enabled ? null : unavailableReason('Pause'),
+              child: FilledButton.icon(
+                key: const ValueKey('pause-resume'),
+                onPressed: enabled ? confirmPause : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: Size(0, primaryHeight),
+                  textStyle: primaryText,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
+                icon: Icon(
+                  s.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                  size: 26,
+                ),
+                label: Text(s.paused ? 'Resume' : 'Pause'),
               ),
-              icon: Icon(
-                s.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                size: 26,
-              ),
-              label: Text(s.paused ? 'Resume' : 'Pause'),
             ),
           ),
         );
@@ -640,27 +644,30 @@ extension LiveViewActions on HomeState {
         final nextLabel = constraints.maxWidth < 400 && !large
             ? 'Next'
             : 'Next segment';
-        final next = UnavailableAction(
-          reason: canAdvance ? null : unavailableReason('Next segment'),
-          child: Tooltip(
-            message: 'Next segment',
-            child: OutlinedButton.icon(
-              key: const ValueKey('next-segment'),
-              onPressed: canAdvance ? advance : null,
-              style: OutlinedButton.styleFrom(
-                minimumSize: Size(0, primaryHeight),
-                textStyle: primaryText,
-                foregroundColor: colors.accent,
-                side: BorderSide(
-                  color: canAdvance ? colors.accent : colors.border,
-                  width: 2,
+        final next = practiceSpot(
+          'next',
+          UnavailableAction(
+            reason: canAdvance ? null : unavailableReason('Next segment'),
+            child: Tooltip(
+              message: 'Next segment',
+              child: OutlinedButton.icon(
+                key: const ValueKey('next-segment'),
+                onPressed: canAdvance ? advance : null,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: Size(0, primaryHeight),
+                  textStyle: primaryText,
+                  foregroundColor: colors.accent,
+                  side: BorderSide(
+                    color: canAdvance ? colors.accent : colors.border,
+                    width: 2,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                icon: const Icon(Icons.skip_next_rounded, size: 26),
+                label: Text(nextLabel, textAlign: TextAlign.center),
               ),
-              icon: const Icon(Icons.skip_next_rounded, size: 26),
-              label: Text(nextLabel, textAlign: TextAlign.center),
             ),
           ),
         );
@@ -733,34 +740,40 @@ extension LiveViewActions on HomeState {
             ),
           ),
         );
-        final undoButton = UnavailableAction(
-          reason: enabled && s.undo != null ? null : unavailableReason('Undo'),
-          child: Tooltip(
-            message: 'Undo',
-            child: OutlinedButton(
-              key: const ValueKey('undo'),
-              onPressed: enabled && s.undo != null ? undo : null,
-              style: OutlinedButton.styleFrom(
-                minimumSize: Size.square(appLayout(context).controlHeight),
-                padding: EdgeInsets.zero,
-                // Dimmed like the controls beside it when unavailable,
-                // for example while the controls are locked.
-                foregroundColor: colors.text,
-                disabledForegroundColor: colors.muted.withValues(alpha: .5),
-                side: BorderSide(color: colors.border),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+        final undoButton = practiceSpot(
+          'undo',
+          UnavailableAction(
+            reason: enabled && s.undo != null
+                ? null
+                : unavailableReason('Undo'),
+            child: Tooltip(
+              message: 'Undo',
+              child: OutlinedButton(
+                key: const ValueKey('undo'),
+                onPressed: enabled && s.undo != null ? undo : null,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: Size.square(appLayout(context).controlHeight),
+                  padding: EdgeInsets.zero,
+                  // Dimmed like the controls beside it when unavailable,
+                  // for example while the controls are locked.
+                  foregroundColor: colors.text,
+                  disabledForegroundColor: colors.muted.withValues(alpha: .5),
+                  side: BorderSide(color: colors.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-              ),
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.undo, size: 20),
-                  Text('Undo', style: TextStyle(fontSize: 11)),
-                ],
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.undo, size: 20),
+                    Text('Undo', style: TextStyle(fontSize: 11)),
+                  ],
+                ),
               ),
             ),
           ),
+          radius: 12,
         );
         final hint = s.index + 1 >= s.timeline!.segments.length
             ? 'No upcoming segments'
@@ -793,7 +806,17 @@ extension LiveViewActions on HomeState {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: adjustGroup),
+                // One ring around −2/+2/Custom; the badge says which.
+                Expanded(
+                  child: practiceSpot(
+                    c.practice.pointer == 'minus' ? 'minus' : 'plus',
+                    adjustGroup,
+                    radius: 12,
+                    label: c.practice.pointer == 'minus'
+                        ? 'Tap −2 min'
+                        : 'Tap +2 min',
+                  ),
+                ),
                 const SizedBox(width: 10),
                 undoButton,
               ],

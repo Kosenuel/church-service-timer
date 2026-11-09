@@ -675,11 +675,14 @@ extension LivePage on HomeState {
               spacing: 10,
               runSpacing: 10,
               children: [
-                button(
-                  'Start first segment',
-                  Icons.play_arrow,
-                  c.busy ? null : startFirst,
-                  primary: true,
+                practiceSpot(
+                  'start',
+                  button(
+                    'Start first segment',
+                    Icons.play_arrow,
+                    c.busy ? null : startFirst,
+                    primary: true,
+                  ),
                 ),
                 button(
                   'Cancel setup',
@@ -694,38 +697,42 @@ extension LivePage on HomeState {
             // Set apart from the time adjustments above, so a slip doesn't
             // land on End service.
             const SizedBox(height: 28),
-            FilledButton.icon(
-              key: const ValueKey('end-service'),
-              onPressed: enabled
-                  ? () async {
-                      final rev = s.revision;
-                      if (await confirmTimer(
-                        revision: rev,
-                        title: 'End ${t!.name}?',
-                        action: 'End service',
-                        destructive: true,
-                        content: () => Text(
-                          c.hardware.enabled
-                              ? c.hardware.held || !c.hardware.connected
-                                    ? 'Finish this service and save its report. The sign will keep its last program until you reconnect and restore output.'
-                                    : 'Finish this service and save its report. The sign will show this service’s end screen, including its scrolling effect. A brief blink is expected.'
-                              : 'Finish this service, save its report, clear the active cue and show “${t.display.end.text}”.',
-                        ),
-                      ))
-                        await c.act('end', revision: rev);
-                    }
-                  : null,
-              icon: const Icon(Icons.stop_circle_outlined),
-              label: const Text('End service'),
-              style: FilledButton.styleFrom(
-                backgroundColor: destructiveColor,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 54),
-                textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
+            practiceSpot(
+              'end',
+              FilledButton.icon(
+                key: const ValueKey('end-service'),
+                onPressed: enabled
+                    ? () async {
+                        final rev = s.revision;
+                        if (await confirmTimer(
+                          revision: rev,
+                          title: 'End ${t!.name}?',
+                          action: 'End service',
+                          destructive: true,
+                          content: () => Text(
+                            c.hardware.enabled
+                                ? c.hardware.held || !c.hardware.connected
+                                      ? 'Finish this service and save its report. The sign will keep its last program until you reconnect and restore output.'
+                                      : 'Finish this service and save its report. The sign will show this service’s end screen, including its scrolling effect. A brief blink is expected.'
+                                : 'Finish this service, save its report, clear the active cue and show “${t.display.end.text}”.',
+                          ),
+                        ))
+                          await c.act('end', revision: rev);
+                      }
+                    : null,
+                icon: const Icon(Icons.stop_circle_outlined),
+                label: const Text('End service'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: destructiveColor,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 54),
+                  textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
+              radius: 12,
             ),
           ],
         ],
@@ -886,38 +893,46 @@ extension LivePage on HomeState {
             children: c.state.stageCues.asMap().entries.map((e) {
               final active = e.key == activeCueIndex;
               if (active) {
-                return ShowTimerButton(
-                  key: ValueKey('show-timer-cue-${e.key}'),
-                  label: cueReturnLabel,
-                  showing: '${e.value.text} ${destinationPhrase()}',
-                  sending: c.hardware.sending,
-                  onPressed: outputControlsEnabled ? returnFromCue : null,
+                return practiceSpot(
+                  'timer',
+                  ShowTimerButton(
+                    key: ValueKey('show-timer-cue-${e.key}'),
+                    label: cueReturnLabel,
+                    showing: '${e.value.text} ${destinationPhrase()}',
+                    sending: c.hardware.sending,
+                    onPressed: outputControlsEnabled ? returnFromCue : null,
+                  ),
+                  radius: 12,
                 );
               }
-              return Tooltip(
-                message: e.value.text,
-                child: UnavailableAction(
-                  reason: outputControlsEnabled && !c.hardware.sending
-                      ? null
-                      : c.hardware.sending
-                      ? 'Wait for the current cue to finish sending.'
-                      : unavailableReason('Send cue'),
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 68),
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+              return practiceSpot(
+                'cue',
+                enabled: e.key == 0,
+                Tooltip(
+                  message: e.value.text,
+                  child: UnavailableAction(
+                    reason: outputControlsEnabled && !c.hardware.sending
+                        ? null
+                        : c.hardware.sending
+                        ? 'Wait for the current cue to finish sending.'
+                        : unavailableReason('Send cue'),
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 68),
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                      ),
+                      icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                      label: Text(
+                        e.value.text,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.left,
+                      ),
+                      onPressed: outputControlsEnabled && !c.hardware.sending
+                          ? () => sendPreparedCue(e.value)
+                          : null,
                     ),
-                    icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                    label: Text(
-                      e.value.text,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.left,
-                    ),
-                    onPressed: outputControlsEnabled && !c.hardware.sending
-                        ? () => sendPreparedCue(e.value)
-                        : null,
                   ),
                 ),
               );
@@ -957,34 +972,38 @@ extension LivePage on HomeState {
                   Icons.edit_note,
                   outputControlsEnabled ? sendStageMessage : null,
                 ),
-              stackedButton(
-                s.outputBlank ? 'Unblank screen' : 'Blank screen',
-                s.outputBlank ? Icons.tv_outlined : Icons.tv_off_outlined,
-                (s.active || s.phase == 'ended') &&
-                        !c.busy &&
-                        !c.corrupt &&
-                        !controlsLocked &&
-                        c.pairing.localControl
-                    ? () async {
-                        final revision = s.revision;
-                        if (await confirmTimer(
-                          revision: revision,
-                          title: s.outputBlank
-                              ? 'Unblank the display?'
-                              : 'Blank the display?',
-                          action: s.outputBlank
-                              ? 'Confirm unblank'
-                              : 'Confirm blank',
-                          content: () => Text(
-                            s.outputBlank
-                                ? 'Show the current cue, countdown or service end screen again.'
-                                : 'Blank the screen. Timing and phone warnings continue; tap Unblank screen to restore the current output.',
-                          ),
-                        ))
-                          await c.act('blank', revision: revision);
-                      }
-                    : null,
-                primary: s.outputBlank,
+              practiceSpot(
+                'blank',
+                stackedButton(
+                  s.outputBlank ? 'Unblank screen' : 'Blank screen',
+                  s.outputBlank ? Icons.tv_outlined : Icons.tv_off_outlined,
+                  (s.active || s.phase == 'ended') &&
+                          !c.busy &&
+                          !c.corrupt &&
+                          !controlsLocked &&
+                          c.pairing.localControl
+                      ? () async {
+                          final revision = s.revision;
+                          if (await confirmTimer(
+                            revision: revision,
+                            title: s.outputBlank
+                                ? 'Unblank the display?'
+                                : 'Blank the display?',
+                            action: s.outputBlank
+                                ? 'Confirm unblank'
+                                : 'Confirm blank',
+                            content: () => Text(
+                              s.outputBlank
+                                  ? 'Show the current cue, countdown or service end screen again.'
+                                  : 'Blank the screen. Timing and phone warnings continue; tap Unblank screen to restore the current output.',
+                            ),
+                          ))
+                            await c.act('blank', revision: revision);
+                        }
+                      : null,
+                  primary: s.outputBlank,
+                ),
+                radius: 12,
               ),
             ],
           ),
