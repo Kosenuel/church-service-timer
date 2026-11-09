@@ -298,9 +298,11 @@ extension ReportViews on HomeState {
       child: Row(
         children: [
           tile(
+            // Rehearsals are left out, so say "live": the graph below can
+            // include a later rehearsal.
             last.length == 1
-                ? 'Last service'
-                : 'Last ${plural(last.length, 'service')}',
+                ? 'Last live service'
+                : 'Last ${last.length} live services',
             minutes(avg),
             avg.abs() < 60000
                 ? colors.accent
@@ -788,9 +790,21 @@ extension ReportViews on HomeState {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
+                        // What happened, then how it compares, in the same
+                        // words and colour as the report rows.
                         Text(
-                          '${durationLabel(picked.totalMs!)} · ${pickedVariance.abs() < 1000 ? 'on time' : '${durationLabel(pickedVariance.abs())} ${pickedVariance > 0 ? 'over' : 'under'} plan'}',
+                          'Ran ${durationLabel(picked.totalMs!)} · planned ${durationLabel(picked.plannedMs)}',
+                          key: const ValueKey('graph-picked-times'),
                           style: TextStyle(color: colors.muted, fontSize: 13),
+                        ),
+                        Text(
+                          outcomeLabel(pickedVariance),
+                          key: const ValueKey('graph-picked-outcome'),
+                          style: TextStyle(
+                            color: outcomeColor(colors, pickedVariance),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),

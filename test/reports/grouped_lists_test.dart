@@ -69,8 +69,16 @@ void main() {
       find.descendant(of: card, matching: find.text('Sunday Service')),
       findsOneWidget,
     );
+    // What happened on one line, how it compares on the next.
     expect(
-      find.descendant(of: card, matching: find.textContaining('over plan')),
+      find.descendant(
+        of: card,
+        matching: find.text('Ran 56 min · planned 55 min'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('1 min over')),
       findsOneWidget,
     );
     await t.tap(find.byKey(const ValueKey('graph-open-report')));
