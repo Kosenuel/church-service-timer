@@ -41,7 +41,15 @@ class TemplateEditorState extends State<TemplateEditor> {
   late TextLayout endScreen;
   late String templateType;
   String? error;
-  void saveDraft() => widget.onDraftChanged?.call({
+
+  /// Whether anything has been changed yet; "Draft saved" waits for it.
+  bool touched = false;
+  void saveDraft() {
+    if (!touched && mounted) setState(() => touched = true);
+    _saveDraft();
+  }
+
+  void _saveDraft() => widget.onDraftChanged?.call({
     'name': name.text,
     'type': templateType,
     'segments': [for (final s in segments) s.toJson()],
@@ -144,6 +152,7 @@ class TemplateEditorState extends State<TemplateEditor> {
                 maxLines: 5,
                 decoration: const InputDecoration(
                   labelText: 'Private operator notes',
+                  helperMaxLines: 3,
                   helperText:
                       'Never shown on the sign. Included in program backups.',
                 ),
@@ -325,7 +334,7 @@ class TemplateEditorState extends State<TemplateEditor> {
           widget.upcomingOnly ? 'Upcoming segments' : 'Program editor',
         ),
         actions: [
-          if (draft != null)
+          if (draft != null && touched)
             AnimatedBuilder(
               animation: draft,
               builder: (context, _) => draft.draftError == null
@@ -399,10 +408,24 @@ class TemplateEditorState extends State<TemplateEditor> {
                     ),
                   ),
                 ),
-                Text('Drag the handle to reorder', style: muted),
+                // Only when there is something to reorder.
+                if (segments.length > 1)
+                  Text('Drag the handle to reorder', style: muted),
               ],
             ),
-            if (!widget.upcomingOnly && widget.reports.isNotEmpty)
+            // Only when past services can actually suggest something;
+            // otherwise the dialog would be a dead end.
+            if (!widget.upcomingOnly &&
+                widget.reports.isNotEmpty &&
+                durationInsights(
+                  Timeline(
+                    name.text,
+                    segments,
+                    widget.initial.display,
+                    type: templateType,
+                  ),
+                  widget.reports,
+                ).isNotEmpty)
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
@@ -664,7 +687,7 @@ class TemplateEditorState extends State<TemplateEditor> {
                         widget.upcomingOnly
                             ? 'Review rundown changes'
                             : creating
-                            ? 'Create Program'
+                            ? 'Create program'
                             : 'Save changes',
                       ),
                     ),

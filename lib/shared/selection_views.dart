@@ -75,10 +75,18 @@ extension SelectionViews on HomeState {
     final keeps = programs
         ? ' A service already running and past reports stay unchanged.'
         : ' Exported files and the current service are unaffected.';
+    // One item is named, like the single Delete on its own page.
+    final one = count != 1
+        ? null
+        : programs
+        ? chosen.single
+        : c.state.reports.where((r) => r.id == chosen.single).firstOrNull?.name;
     if (!await confirm(
-      'Delete $count $noun?',
-      'Delete $count saved $noun from this device?$hiddenNote$keeps You can undo for 10 seconds.',
-      'Delete $count',
+      one == null ? 'Delete $count $noun?' : 'Delete “$one”?',
+      one == null
+          ? 'Delete $count saved $noun from this device?$hiddenNote$keeps You can undo for 10 seconds.'
+          : 'Delete this saved $noun from this device?$hiddenNote$keeps You can undo for 10 seconds.',
+      one == null ? 'Delete $count' : 'Delete',
       destructive: true,
     ))
       return;
