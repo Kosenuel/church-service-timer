@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Graphite and Paper & Ink are back to their original colours.** Graphite's buttons and dial are clean white again, and Paper & Ink's are near-black ink, as before 0.29. If you liked the blue buttons from 0.29, choose the new **Paper & Ink (blue)** theme in Settings › Appearance.
+
 ## 0.29.0, 9/November/2026
 
 - **Reports, last touches.** On the graph each date ("15 Jan") sits under its own bar, instead of the first and last dates at the two ends. The search field and the **Dates** button are the same height. Under the graph, the chosen service reads “Ran 21 min · planned 25 min” with “4 min under” beneath it in the under colour, instead of “21 min · 4 min under plan”. The summary tile is labelled "Last live service" (it leaves rehearsals out, which the graph below may include) and says "1 min over" (and "avg" only when it averages more than one service) instead of "+1m avg". In a report, **Print report** is a full-width button at the foot of the summary card it prints, instead of floating on its own above it; beside the list on a tablet, the report’s ⋮ menu sits on the card’s top row.
