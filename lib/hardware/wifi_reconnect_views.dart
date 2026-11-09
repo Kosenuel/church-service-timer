@@ -318,21 +318,31 @@ class _WifiReconnectDialogState extends State<WifiReconnectDialog> {
               failure ?? c.hardware.status,
               key: const ValueKey('wifi-reconnect-progress'),
             ),
+            // Retry and Cancel stay as the dialog's two actions; the other
+            // ways to connect are a short list, not three more buttons.
             if (!running) ...[
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: c.port.openWifiSettings,
-                icon: const Icon(Icons.wifi),
-                label: const Text('Open Wi-Fi settings'),
+              const SizedBox(height: 16),
+              Text(
+                'Other ways to connect',
+                style: Theme.of(context).textTheme.labelLarge,
               ),
-              TextButton(
-                onPressed: () => editSignWifiProfile(context, c),
-                child: const Text('Edit Wi-Fi reconnect details'),
-              ),
-              TextButton(
-                onPressed: () => cancel(false),
-                child: const Text('Connect manually / enter device password'),
-              ),
+              for (final (icon, label, action) in [
+                (Icons.wifi, 'Open Wi-Fi settings', c.port.openWifiSettings),
+                (
+                  Icons.edit_outlined,
+                  'Edit reconnect details',
+                  () => editSignWifiProfile(context, c),
+                ),
+                (Icons.password, 'Connect manually', () => cancel(false)),
+              ])
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  leading: Icon(icon),
+                  title: Text(label),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: action,
+                ),
             ],
           ],
         ),
