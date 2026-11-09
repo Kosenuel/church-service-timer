@@ -152,6 +152,44 @@ String churchBannerValue(dynamic value) {
   }
 }
 
+/// Size of the church logo, in pixels: square, as the crop makes it.
+const churchLogoSize = 256;
+
+/// A church logo: empty, or a square [churchLogoSize] PNG up to 200 kB.
+String churchLogoValue(dynamic value) {
+  require(value is String, 'Church logo must be image data.');
+  final text = value as String;
+  if (text.isEmpty) return text;
+  require(text.length <= 266668, 'Church logo exceeds 200 kB.');
+  try {
+    final bytes = base64Decode(text);
+    require(
+      bytes.length >= 33 && bytes.length <= 200000,
+      'Invalid church logo size.',
+    );
+    const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+    require(
+      List.generate(8, (i) => bytes[i] == signature[i]).every((v) => v) &&
+          ascii.decode(bytes.sublist(12, 16)) == 'IHDR',
+      'Church logo must be a PNG.',
+    );
+    int uint32(int i) =>
+        (bytes[i] << 24) |
+        (bytes[i + 1] << 16) |
+        (bytes[i + 2] << 8) |
+        bytes[i + 3];
+    require(
+      uint32(16) == churchLogoSize && uint32(20) == churchLogoSize,
+      'Church logo must be $churchLogoSize × $churchLogoSize pixels.',
+    );
+    return text;
+  } on RuleError {
+    rethrow;
+  } catch (_) {
+    throw RuleError('Invalid church logo image.');
+  }
+}
+
 String themeIdValue(dynamic value) {
   require(
     value is String &&
@@ -220,7 +258,11 @@ String exportBackup(
     ..remove('recordMetrics')
     ..remove('metricsBatteryBaseline')
     ..remove('importMappings')
-    ..remove('webStage');
+    ..remove('webStage')
+    ..remove('churchLogo');
+  // The logo only when one is set, so plain backups stay readable by
+  // earlier versions.
+  if (state.churchLogo.isNotEmpty) data['churchLogo'] = state.churchLogo;
   if (state.segmentLibrary.isNotEmpty)
     data['segmentLibrary'] = [for (final s in state.segmentLibrary) s.toJson()];
   // Earlier program versions, keyed by name because IDs stay on the phone.
@@ -243,10 +285,12 @@ String exportBackup(
   ];
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    // Version 9 only with program history or a segment library, 8 only
-    // with sealed passwords, so plain backups remain readable by earlier
-    // versions.
-    'schemaVersion': history.isNotEmpty || state.segmentLibrary.isNotEmpty
+    // Version 10 only with a church logo, 9 only with program history or a
+    // segment library, 8 only with sealed passwords, so plain backups
+    // remain readable by earlier versions.
+    'schemaVersion': state.churchLogo.isNotEmpty
+        ? 10
+        : history.isNotEmpty || state.segmentLibrary.isNotEmpty
         ? 9
         : savedPasswords == null
         ? 7
@@ -281,7 +325,7 @@ AppState importBackup(String raw, Stamp now) {
     }, 'Backup');
     require(
       envelope['type'] == 'church-service-timer-backup' &&
-          {1, 2, 3, 4, 5, 6, 7, 8, 9}.contains(envelope['schemaVersion']),
+          {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}.contains(envelope['schemaVersion']),
       'Choose a supported Church Service Timer backup.',
     );
     final data = Map<String, dynamic>.from(envelope['data']);
@@ -303,8 +347,10 @@ AppState importBackup(String raw, Stamp now) {
       if (envelope['schemaVersion'] >= 2) 'churchBanner',
       if (envelope['schemaVersion'] >= 9) 'programHistory',
       if (envelope['schemaVersion'] >= 9) 'segmentLibrary',
+      if (envelope['schemaVersion'] >= 10) 'churchLogo',
     }, 'Backup data');
     final history = data.remove('programHistory');
+    final logo = churchLogoValue(data.remove('churchLogo') ?? '');
     final segments = readSegmentLibrary(data.remove('segmentLibrary'));
     require(
       data.length ==
@@ -345,6 +391,7 @@ AppState importBackup(String raw, Stamp now) {
       'session': Session(id: 'restored', anchor: now, held: true).toJson(),
     });
     restored.segmentLibrary = segments;
+    restored.churchLogo = logo;
     for (final e in versions.entries) {
       final program = restored.templates.where((t) => t.name == e.key);
       require(program.isNotEmpty, 'Backup history names a missing program.');

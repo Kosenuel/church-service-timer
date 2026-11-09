@@ -732,6 +732,7 @@ class AppController extends ChangeNotifier {
       draft.churchName = churchNameValue(draft.churchName);
       if (draft.churchBanner != state.churchBanner)
         await validateBannerPixels(draft.churchBanner);
+      draft.churchLogo = churchLogoValue(draft.churchLogo);
       themeIdValue(draft.themeId);
       draft.applySharedZero();
       draft.applySharedWarnings(at);

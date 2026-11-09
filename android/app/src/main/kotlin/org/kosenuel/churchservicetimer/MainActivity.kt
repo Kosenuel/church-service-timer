@@ -250,7 +250,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                     bundledFonts.rasterize(call.argument<String>("text") ?: "", (call.argument<Int>("height") ?: 2) * 7,
                         call.argument<Boolean>("bold") ?: false, call.argument<Boolean>("italic") ?: false)
                 }
-                "pickChurchBanner" -> {
+                "pickChurchBanner", "pickChurchPhoto" -> {
                     if (pending != null) result.error("BUSY", "A document picker is already open", null)
                     else {
                         pending = result
@@ -259,7 +259,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                                 addCategory(Intent.CATEGORY_OPENABLE)
                                 type = "image/*"
                                 putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/jpeg", "image/png", "image/webp"))
-                            }, 45)
+                            }, if (call.method == "pickChurchPhoto") 47 else 45)
                         } catch (e: Exception) { pending = null; result.error("IMAGE", e.message, null) }
                     }
                 }
@@ -406,7 +406,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
 
     @Deprecated("Activity result bridge for Flutter's method channel")
     fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode != 41 && requestCode != 42 && requestCode != 45) return
+        if (requestCode != 41 && requestCode != 42 && requestCode != 45 && requestCode != 47) return
         val result = pending ?: return
         val maxBytes = importLimit
         pending = null
@@ -418,6 +418,11 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
         }
         if (requestCode == 45) {
             background(result) { ChurchBanner.read(context, uri) }
+            return
+        }
+        if (requestCode == 47) {
+            // The logo: upright and smaller; the square crop is done in the app.
+            background(result) { ChurchBanner.readPhoto(context, uri) }
             return
         }
         if (requestCode == 42) {

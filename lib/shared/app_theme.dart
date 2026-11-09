@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/domain/domain.dart'
@@ -460,13 +461,47 @@ ThemeData appTheme(
   );
 }
 
-/// One legible chapel symbol, with theme-colored raised surfaces.
+/// One legible chapel symbol, with theme-colored raised surfaces, or the
+/// church's own square [logo] (base64 PNG) when one is set.
 class ChurchTimerMark extends StatelessWidget {
   final double size;
-  const ChurchTimerMark({super.key, this.size = 42});
+  final String logo;
+  const ChurchTimerMark({super.key, this.size = 42, this.logo = ''});
+
+  // Decoded once per logo, so rebuilding the header doesn't decode again.
+  static final _decoded = <String, Uint8List>{};
+  static Uint8List _bytes(String logo) {
+    if (_decoded.length > 4) _decoded.clear();
+    return _decoded.putIfAbsent(logo, () => base64Decode(logo));
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = appColors(context);
+    if (logo.isNotEmpty) {
+      return ExcludeSemantics(
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(size * .24),
+            border: Border.all(color: p.accent.withValues(alpha: .25)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(size * .24),
+            child: Image.memory(
+              _bytes(logo),
+              key: const ValueKey('church-logo-image'),
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.medium,
+              gaplessPlayback: true,
+            ),
+          ),
+        ),
+      );
+    }
     return ExcludeSemantics(
       child: Container(
         width: size,
