@@ -269,7 +269,7 @@ extension LiveActions on HomeState {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Finish ${s.timeline!.segments[s.index].name} and start ${next.name} · ${next.durationText}. Previous cues are cleared and the new countdown is sent.${c.hardware.held ? ' This also restores the reviewed output on the connected display.' : ''}',
+              'Finish ${s.timeline!.segments[s.index].name} and start ${next.name} · ${next.durationText}. Previous cues are cleared and the new countdown is sent.${c.hardware.held ? ' The sign goes back to showing the service.' : ''}',
             ),
             if (s.outputBlank)
               CheckboxListTile(

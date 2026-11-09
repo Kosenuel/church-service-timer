@@ -403,7 +403,7 @@ extension MobileDisplayViews on HomeState {
               child: data == null
                   ? const Center(
                       child: Text(
-                        'Waiting for a stage screen',
+                        'Waiting for a screen',
                         style: TextStyle(color: Colors.white70),
                       ),
                     )

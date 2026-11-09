@@ -69,7 +69,7 @@ export 'package:church_service_timer/programs/template_editor.dart';
 export 'package:church_service_timer/live/control_grid.dart';
 
 String styleSummary(TextLayout l) =>
-    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}px/s' : ''}';
+    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}\u00a0px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}\u00a0px/s' : ''}';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -701,10 +701,29 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                           padding: const EdgeInsets.only(
                                             bottom: 12,
                                           ),
-                                          child: Text(
-                                            c.backgroundError!,
-                                            style: TextStyle(
-                                              color: appColors(context).error,
+                                          // In a card with an icon, like the
+                                          // other notices, not loose text.
+                                          child: panel(
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.warning_amber_rounded,
+                                                  color: appColors(
+                                                    context,
+                                                  ).error,
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Text(
+                                                    c.backgroundError!,
+                                                    style: TextStyle(
+                                                      color: appColors(
+                                                        context,
+                                                      ).error,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),

@@ -81,7 +81,7 @@ extension LiveLayout on HomeState {
       : switch (c.displayConnection) {
           DisplayConnection.disconnected => 'Disconnected',
           DisplayConnection.stageDisconnected => 'Stage offline',
-          DisplayConnection.stageWaiting => 'Waiting for screen',
+          DisplayConnection.stageWaiting => 'Waiting for a screen',
           DisplayConnection.stageConnected => 'Stage screens',
           DisplayConnection.connected =>
             c.destination == 'led' ? 'LED sign' : 'Display',

@@ -137,6 +137,10 @@ extension LiveTimingViews on HomeState {
       padding: EdgeInsets.zero,
       child: ExpansionTile(
         key: const ValueKey('focused-timing-overview'),
+        // The same 24 px insets as the cards around it.
+        tilePadding: const EdgeInsets.fromLTRB(24, 8, 16, 8),
+        shape: const Border(),
+        collapsedShape: const Border(),
         title: const Text(
           'Service timing overview',
           style: TextStyle(fontWeight: FontWeight.w600),
@@ -145,7 +149,10 @@ extension LiveTimingViews on HomeState {
           '${varianceLabel(projected - s.plannedMs)}\nElapsed ${durationLabel(s.totalElapsed(c.now))} · Finish ${clockLabel(eta)}${s.paused ? ' if resumed now' : ''}',
         ),
         children: [
-          Padding(padding: const EdgeInsets.all(16), child: timingOverview()),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+            child: timingOverview(),
+          ),
         ],
       ),
     );

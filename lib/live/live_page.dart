@@ -657,7 +657,12 @@ extension LivePage on HomeState {
             ),
             const SizedBox(height: 12),
             Text(
-              'Timing has not started. The display retains its previous output.',
+              // With a pre-service start time the display counts down to
+              // it, so "keeps its previous output" would contradict the row
+              // above.
+              s.startsAtWall == null
+                  ? 'Timing has not started. The display keeps its current output.'
+                  : 'Timing has not started. The display follows the pre-service start time above.',
               style: TextStyle(color: appColors(context).muted),
             ),
             const SizedBox(height: 12),
@@ -1039,14 +1044,16 @@ extension LivePage on HomeState {
                     color: current
                         ? appColors(context).accent.withValues(alpha: .14)
                         : null,
-                    border: current
-                        ? Border(
-                            left: BorderSide(
-                              color: appColors(context).accent,
-                              width: 4,
-                            ),
-                          )
-                        : null,
+                    // Every row keeps the 4 px edge, clear when not
+                    // current, so the numbers line up.
+                    border: Border(
+                      left: BorderSide(
+                        color: current
+                            ? appColors(context).accent
+                            : Colors.transparent,
+                        width: 4,
+                      ),
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Material(

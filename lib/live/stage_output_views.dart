@@ -22,7 +22,7 @@ extension StageOutputViews on HomeState {
     final revision = c.state.session.revision;
     final layout = await compose(
       c.state.session.alert ?? const TextLayout('Thank you'),
-      'Stage message',
+      'Send message',
       'Continue',
     );
     if (layout == null || !mounted) return;
