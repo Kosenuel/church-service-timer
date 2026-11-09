@@ -518,10 +518,18 @@ String exportReportCsv(ServiceReport r, {bool includeReview = false}) {
       : 'Recorded', textCell(r.churchName), if (includeReview) textCell(r.review?.text ?? '')].join(',')).join('\r\n')}\r\n';
 }
 
+/// A length of time in words: "45 min", "5 min 30 s", "1 h 5 min", "30 s".
+/// Running timers use [formatTime] instead, so a span never looks like a
+/// clock reading.
 String durationLabel(int ms) {
   final total = (ms.abs() / 1000).round();
   final h = total ~/ 3600, m = total % 3600 ~/ 60, sec = total % 60;
-  return h > 0 ? '${h}h ${m}m ${sec}s' : '${m}m ${sec}s';
+  if (total == 0) return '0 s';
+  return [
+    if (h > 0) '$h h',
+    if (m > 0) '$m min',
+    if (sec > 0) '$sec s',
+  ].join(' ');
 }
 
 String varianceLabel(int ms) => ms.abs() < 1000

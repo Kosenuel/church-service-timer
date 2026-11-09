@@ -49,7 +49,9 @@ extension StageOutputViews on HomeState {
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Show for'),
                 subtitle: Text(
-                  duration == 0 ? 'Until cleared' : formatTime(duration * 1000),
+                  duration == 0
+                      ? 'Until cleared'
+                      : durationLabel(duration * 1000),
                 ),
                 trailing: const Icon(Icons.expand_more),
                 onTap: () async {

@@ -6,7 +6,7 @@ import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:flutter/material.dart';
 
 String librarySegmentSummary(Segment s) => [
-  formatTime(s.durationMs),
+  s.durationText,
   if (s.speaker.isNotEmpty) s.speaker,
   if (s.notes.isNotEmpty) 'notes',
   if (s.protected) 'protected',

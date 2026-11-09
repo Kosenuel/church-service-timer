@@ -16,7 +16,7 @@ String templateSummary(Timeline t) {
     0,
     (sum, segment) => sum + segment.durationMs,
   );
-  return '${t.segments.length} ${t.segments.length == 1 ? 'segment' : 'segments'} · ${total % 60000 == 0 ? '${total ~/ 60000} min' : durationLabel(total)}';
+  return '${t.segments.length} ${t.segments.length == 1 ? 'segment' : 'segments'} · ${durationLabel(total)}';
 }
 
 String lastUsedLabel(int? wall) {

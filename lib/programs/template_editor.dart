@@ -661,9 +661,7 @@ class TemplateEditorState extends State<TemplateEditor> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            totalMs % 60000 == 0
-                                ? '${totalMs ~/ 60000} min'
-                                : durationLabel(totalMs),
+                            durationLabel(totalMs),
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,

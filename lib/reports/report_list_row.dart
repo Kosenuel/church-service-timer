@@ -30,7 +30,7 @@ class ReportListRow extends StatelessWidget {
         ? 'Partial'
         : variance.abs() < 1000
         ? 'On time'
-        : '${variance > 0 ? '+' : ''}${durationLabel(variance.abs())} ${variance > 0 ? 'over' : 'under'}';
+        : '${durationLabel(variance.abs())} ${variance > 0 ? 'over' : 'under'}';
     // Over is warm, under is cool, on time is the accent; they also differ
     // in lightness so they read apart without colour.
     final tone = variance == null

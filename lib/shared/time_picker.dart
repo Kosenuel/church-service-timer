@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/domain/domain.dart';
 
 /// Minutes/seconds for durations; hours/minutes only for a time of day.
 class TimeWheels extends StatefulWidget {
@@ -236,9 +237,7 @@ class _TimeWheelsState extends State<TimeWheels> {
                 label: Text(
                   widget.clock
                       ? '${(n ~/ 60).toString().padLeft(2, '0')}:00'
-                      : n < 60
-                      ? '$n sec'
-                      : '${n ~/ 60} min',
+                      : durationLabel(n * 1000),
                 ),
                 onPressed: () => widget.onChanged(n),
               ),
