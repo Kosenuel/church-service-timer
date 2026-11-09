@@ -371,9 +371,28 @@ extension PairingViews on HomeState {
           ),
         ],
         if (pending.isEmpty && saved.isEmpty && hub.hosting)
-          Text(
-            'Waiting for a device. On the other phone, join this host with the six-digit code or QR code.',
-            style: TextStyle(color: colors.muted),
+          // In a box like the cards around it, not loose text.
+          DecoratedBox(
+            key: const ValueKey('waiting-for-device'),
+            decoration: BoxDecoration(
+              border: Border.all(color: colors.border),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.hourglass_empty, color: colors.muted),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Waiting for a device. On the other phone, join this host with the six-digit code or QR code.',
+                      style: TextStyle(color: colors.muted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
       ],
     );
@@ -436,7 +455,7 @@ extension PairingViews on HomeState {
 
     final steps = [
       'Put both devices on the same Wi-Fi or this phone’s hotspot.',
-      'On the other device, tap Join as stage screen on Live.',
+      'On the other device, tap Join a service on Live.',
       'Enter the six-digit code shown here, then approve it.',
     ];
     return Column(
@@ -519,7 +538,7 @@ extension PairingViews on HomeState {
                 child: bigButton(
                   c.destination == 'mobile'
                       ? 'Share to stage screens'
-                      : 'Share this service',
+                      : 'Share to screens',
                   Icons.cast_connected,
                   shareFromScreens,
                   primary: true,
@@ -528,7 +547,7 @@ extension PairingViews on HomeState {
               const SizedBox(width: 10),
               Expanded(
                 child: bigButton(
-                  'Join another phone',
+                  'Join a service',
                   Icons.smartphone,
                   c.state.session.active
                       ? null
@@ -620,7 +639,7 @@ extension PairingViews on HomeState {
                       icon: const Icon(Icons.qr_code),
                       label: const Text('Show QR code'),
                     ),
-                    TextButton.icon(
+                    OutlinedButton.icon(
                       onPressed: hub.newCode,
                       icon: const Icon(Icons.refresh),
                       label: const Text('New code'),

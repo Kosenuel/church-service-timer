@@ -94,7 +94,7 @@ void main() {
       final before = jsonEncode(c.state.toJson()..remove('editDrafts'));
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await tap(t, 'Join as screen');
+      await tap(t, 'Join a service');
       expect(
         t.widget<ChoiceField<String>>(find.byType(ChoiceField<String>)).value,
         'stage',
@@ -110,7 +110,7 @@ void main() {
       await c.act('load', value: timeline());
       await c.act('start');
       await t.pumpAndSettle();
-      expect(find.text('Join as screen'), findsNothing);
+      expect(find.text('Join a service'), findsNothing);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
     },
@@ -133,7 +133,7 @@ void main() {
       await t.pumpAndSettle();
       await tap(t, 'Settings');
       await tap(t, 'Screens & devices');
-      await tap(t, 'Go to Live');
+      await tap(t, 'Return to Live');
       expect(find.text('STANDING BY'), findsOneWidget);
       expect(c.pairing.hosting, true);
       await t.runAsync(() async {
