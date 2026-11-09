@@ -28,8 +28,8 @@ void main() {
     t,
   ) async {
     final c = await open(t);
-    expect(find.text('+1m 0s over'), findsOneWidget);
-    expect(find.text('4m 0s under'), findsOneWidget);
+    expect(find.text('1 min over'), findsOneWidget);
+    expect(find.text('4 min under'), findsOneWidget);
     expect(find.text('Partial'), findsOneWidget);
     expect(find.byIcon(Icons.chevron_right), findsNWidgets(3));
     await t.tap(find.byKey(const ValueKey('dismiss-hint-reports-select')));

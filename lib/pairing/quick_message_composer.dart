@@ -333,11 +333,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
                   Text(
                     style.seconds == 0
                         ? 'Until cleared'
-                        : style.seconds % 60 == 0
-                        ? plural(style.seconds ~/ 60, 'minute')
-                        : style.seconds < 60
-                        ? plural(style.seconds, 'second')
-                        : '${style.seconds ~/ 60} min ${style.seconds % 60} s',
+                        : durationLabel(style.seconds * 1000),
                     style: TextStyle(color: colors.muted),
                   ),
                   const Icon(Icons.expand_more),

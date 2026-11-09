@@ -701,9 +701,9 @@ extension WarningSettingsViews on HomeState {
             labelText: 'Clear phone warnings after',
           ),
           options: const [
-            ChoiceOption(value: 15, label: '15 seconds'),
-            ChoiceOption(value: 30, label: '30 seconds'),
-            ChoiceOption(value: 60, label: '60 seconds'),
+            ChoiceOption(value: 15, label: '15 s'),
+            ChoiceOption(value: 30, label: '30 s'),
+            ChoiceOption(value: 60, label: '1 min'),
             ChoiceOption(value: 0, label: 'Until dismissed'),
           ],
           onChanged: c.busy

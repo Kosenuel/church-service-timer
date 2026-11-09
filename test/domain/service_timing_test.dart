@@ -8,6 +8,19 @@ import 'package:church_service_timer/display/pixels.dart';
 import '../support/fake_port.dart';
 
 void main() {
+  test('Lengths of time read in words; timers read as clocks', () {
+    expect(durationLabel(0), '0 s');
+    expect(durationLabel(30000), '30 s');
+    expect(durationLabel(2700000), '45 min');
+    expect(durationLabel(330000), '5 min 30 s');
+    expect(durationLabel(3900000), '1 h 5 min');
+    expect(durationLabel(3630000), '1 h 30 s');
+    expect(durationLabel(-60000), '1 min');
+    expect(varianceLabel(2700000), '45 min behind');
+    expect(varianceLabel(-500), 'On time');
+    expect(formatTime(2700000), '45:00');
+  });
+
   group('Authoritative service clock', () {
     test('Ready never starts or emits output', () {
       final s = loaded();

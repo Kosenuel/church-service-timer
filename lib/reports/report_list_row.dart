@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/reports/report_outcome.dart';
 import 'package:church_service_timer/reports/report_views.dart';
 
 class ReportListRow extends StatelessWidget {
@@ -26,11 +27,7 @@ class ReportListRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = report, colors = appColors(context);
     final variance = r.comparable ? r.totalMs! - r.plannedMs : null;
-    final outcome = variance == null
-        ? 'Partial'
-        : variance.abs() < 1000
-        ? 'On time'
-        : '${durationLabel(variance.abs())} ${variance > 0 ? 'over' : 'under'}';
+    final outcome = variance == null ? 'Partial' : outcomeLabel(variance);
     // Over is warm, under is cool, on time is the accent; they also differ
     // in lightness so they read apart without colour.
     final tone = variance == null

@@ -147,7 +147,7 @@ void applyWarnings(Session s, Stamp now, {bool allowStage = true}) {
       s.automaticCueDurationMs = rule.durationSeconds * 1000;
       s.automaticCueAt = now;
       s.warningNotice =
-          '${s.warningNotice} · ${rule.scrollOnce ? 'scroll once' : 'stage cue for ${rule.durationSeconds} seconds'}';
+          '${s.warningNotice} · ${rule.scrollOnce ? 'scroll once' : 'stage cue for ${durationLabel(rule.durationSeconds * 1000)}'}';
     } else {
       s.warningNotice =
           '${s.warningNotice} · stage cue skipped (blank, disconnected, held output, or recovery)';

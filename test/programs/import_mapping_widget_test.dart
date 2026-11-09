@@ -38,7 +38,7 @@ void main() {
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
     expect(find.text('Match spreadsheet columns'), findsOneWidget);
-    expect(find.text('Sunday 9 Nov · 3 segments · 60 min'), findsOneWidget);
+    expect(find.text('Sunday 9 Nov · 3 segments · 1 h'), findsOneWidget);
     expect(find.text('5 min · Welcome · Pastor Ade'), findsOneWidget);
     final next = find.byKey(const ValueKey('mapping-continue'));
     await t.ensureVisible(next);
