@@ -120,7 +120,7 @@ void main() {
       expect(host.simulator.delivered!.text, 'Hallelujah');
       await golden(t, 'standing-by-last-report');
       await tap(t, 'View last service report');
-      await tap(t, 'Print Service');
+      await tap(t, 'Print report');
       expect(
         t
             .widget<CheckboxListTile>(
