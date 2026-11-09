@@ -9,4 +9,7 @@ class ProgramsPageState {
 
   /// The program open in the detail pane on wide screens.
   String? open;
+
+  /// Bumped to clear the search field from outside it.
+  int searchReset = 0;
 }

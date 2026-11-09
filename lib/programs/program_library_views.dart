@@ -97,7 +97,7 @@ class _ProgramChooserState extends State<ProgramChooser> {
           OutlinedButton.icon(
             onPressed: widget.onCreate,
             icon: const Icon(Icons.add),
-            label: const Text('Create Program'),
+            label: const Text('Create program'),
           ),
         ],
       );
@@ -146,16 +146,19 @@ extension ProgramLibraryViews on HomeState {
   Widget programSearch({List<Widget> trailing = const []}) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      TextFormField(
-        key: const ValueKey('program-search'),
-        initialValue: programsPage.query,
-        decoration: const InputDecoration(
-          labelText: 'Search programs',
-          hintText: 'Search programs, segments or speakers',
-          floatingLabelBehavior: FloatingLabelBehavior.never,
-          prefixIcon: Icon(Icons.search),
+      KeyedSubtree(
+        key: ValueKey('program-search-${programsPage.searchReset}'),
+        child: TextFormField(
+          key: const ValueKey('program-search'),
+          initialValue: programsPage.query,
+          decoration: const InputDecoration(
+            labelText: 'Search programs',
+            hintText: 'Search programs, segments or speakers',
+            floatingLabelBehavior: FloatingLabelBehavior.never,
+            prefixIcon: Icon(Icons.search),
+          ),
+          onChanged: (v) => refreshHome(() => programsPage.query = v),
         ),
-        onChanged: (v) => refreshHome(() => programsPage.query = v),
       ),
       const SizedBox(height: 8),
       Row(

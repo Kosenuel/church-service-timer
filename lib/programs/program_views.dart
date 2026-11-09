@@ -305,10 +305,67 @@ extension TemplateViews on HomeState {
               'Tap a program to open it · press and hold to select',
             ),
         ],
-        if (items.isEmpty)
+        if (items.isEmpty && c.state.templates.isEmpty)
+          // Nothing saved yet: say so and offer the two ways to start.
           panel(
-            child: const Text(
-              'No matching programs. Try All or another search, create a program, or import JSON / CSV.',
+            child: Column(
+              key: const ValueKey('programs-empty'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'No programs yet',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Create one, or import a program file (JSON) or spreadsheet (CSV).',
+                  style: TextStyle(color: appColors(context).muted),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () => editTemplate(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Create program'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => importFile(),
+                      icon: const Icon(Icons.file_open_outlined),
+                      label: const Text('Import'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          )
+        else if (items.isEmpty)
+          // Programs exist but the search or filter hides them all.
+          panel(
+            child: Column(
+              key: const ValueKey('programs-no-match'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  programsPage.query.trim().isEmpty
+                      ? 'No programs in this filter.'
+                      : 'No programs match “${programsPage.query.trim()}”.',
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  key: const ValueKey('clear-program-search'),
+                  onPressed: () => refreshHome(() {
+                    programsPage
+                      ..query = ''
+                      ..filter = 'all';
+                    programsPage.searchReset++;
+                  }),
+                  icon: const Icon(Icons.clear),
+                  label: const Text('Show all programs'),
+                ),
+              ],
             ),
           )
         else if (!c.state.groupTemplates)
