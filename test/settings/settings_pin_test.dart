@@ -96,7 +96,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 600));
       });
       await t.pumpAndSettle();
-      expect(find.text('Delete 1 program?'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^Delete “.+”\?$')), findsOneWidget);
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
       expect(c.state.templates.any((p) => p.name == name), isTrue);

@@ -64,7 +64,7 @@ extension EditorInsights on TemplateEditorState {
                   ),
                   if (insights.isEmpty)
                     const Padding(
-                      padding: EdgeInsets.all(16),
+                      padding: EdgeInsets.only(top: 12),
                       child: Text(
                         'At least three comparable services with matching, unique segment names are needed.',
                       ),
