@@ -52,7 +52,7 @@ void main() {
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       final share = find.byKey(const ValueKey('share-service-live'));
-      final join = find.widgetWithText(OutlinedButton, 'Join as screen');
+      final join = find.widgetWithText(OutlinedButton, 'Join a service');
       expect(t.getRect(share).top, t.getRect(join).top);
       expect(t.getSize(share).height, t.getSize(join).height);
       await shot(t, 'welcome-sharing-020');
@@ -85,7 +85,7 @@ void main() {
         expect(find.text('Control: this phone'), findsOneWidget);
         expect(c.pairing.pin, pin);
         if (entry != 'Paired devices') {
-          await tap(t, 'Go to Live');
+          await tap(t, 'Return to Live');
           if (entry == 'Stage screens') await tap(t, 'Pair screen');
         }
         await tap(t, 'Stop sharing');
