@@ -136,3 +136,14 @@ class DurationField extends StatelessWidget {
     ),
   );
 }
+
+/// The red used for actions that delete, replace or end something. One
+/// colour everywhere, so a destructive button never looks like the main
+/// action.
+const destructiveColor = Color(0xffa73238);
+
+/// Style for a filled button that deletes, replaces or ends something.
+ButtonStyle destructiveFilled() => FilledButton.styleFrom(
+  backgroundColor: destructiveColor,
+  foregroundColor: Colors.white,
+);

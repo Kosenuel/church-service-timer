@@ -101,6 +101,7 @@ extension OperatorSettings on HomeState {
                         'Delete stage cue?',
                         'Remove “${e.value.text}” from every service’s Live buttons? Output already on stage stays unchanged.',
                         'Delete cue',
+                        destructive: true,
                       ))
                         await deleteCueWithUndo(e.key, e.value);
                       return;

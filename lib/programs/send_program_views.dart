@@ -5,6 +5,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 
 extension SendProgramViews on HomeState {
   /// Sends [program] to paired phones chosen from those connected now.
@@ -147,6 +148,7 @@ Future<void> reviewReceivedProgram(
       actions: [
         TextButton(
           key: const ValueKey('discard-received'),
+          style: TextButton.styleFrom(foregroundColor: destructiveColor),
           onPressed: () => Navigator.pop(ctx, 'discard'),
           child: const Text('Discard'),
         ),

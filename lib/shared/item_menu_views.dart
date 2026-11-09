@@ -52,6 +52,7 @@ extension ItemMenuViews on HomeState {
           'Delete program?',
           'Delete “${program.name}”? A service already running from this program stays unchanged.',
           'Delete program',
+          destructive: true,
         )) {
       if (!await c.commit((draft, _) => draft.deleteTemplate(program)) &&
           mounted)

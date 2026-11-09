@@ -7,6 +7,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/shared/time_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 
 class WarningSettingsPanel extends StatelessWidget {
   final DisplaySettings settings;
@@ -88,6 +89,7 @@ class WarningSettingsPanel extends StatelessWidget {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
+              style: destructiveFilled(),
               child: const Text('Delete warning'),
             ),
           ],

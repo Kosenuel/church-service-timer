@@ -293,6 +293,7 @@ extension MobileDisplayViews on HomeState {
       'Stop sharing?',
       'All paired screens and operators will disconnect. Your local timer and LED sign keep running. Saved devices remain available to reconnect later.',
       'Stop sharing',
+      destructive: true,
     ))
       await c.stopSharing();
   }

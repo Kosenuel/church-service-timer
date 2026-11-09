@@ -5,6 +5,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 ## Unreleased
 
 - **Print report and Print order of service.** "Print Service" is now **Print report** on a report and **Print order of service** for a program or the loaded service. The print options open as a sheet from the bottom of the screen with a title, the options, and **Share PDF** and **Print** side by side as two equal buttons, instead of a crowded dialog. On Live, printing is a print icon in the Service rundown header, so it no longer wraps onto a line of its own. With Ink-saving on, the watermark and banner boxes show unticked as well as greyed out, since they are left out.
+- **Destructive actions look destructive.** Every confirmation that deletes, replaces or ends something now has a red button instead of the main green one: Delete program, Delete cue, Delete preset, Delete warning, Forget device, Forget this sign, Turn off PIN, Restore and replace, Reset local data, Stop sharing, Leave practice, End service and Clear draft. Remove note and Discard (for a received program) are red text. The sign's forget dialog now says "Forget this sign", matching the button that opens it.
 
 ## 0.28.1, 8/November/2026
 
