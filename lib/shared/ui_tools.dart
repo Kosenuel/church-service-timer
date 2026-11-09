@@ -168,3 +168,19 @@ class StackedDialogActions extends StatelessWidget {
     ],
   );
 }
+
+/// The small amber button that fixes a setting ("Turn on", "Allow",
+/// "Connect"), the same on Ready for service and Warnings & alerts.
+Widget fixButton(BuildContext context, String label, VoidCallback? onPressed) {
+  final colors = appColors(context);
+  return OutlinedButton(
+    style: OutlinedButton.styleFrom(
+      foregroundColor: colors.warning,
+      side: BorderSide(color: colors.warning.withValues(alpha: .5)),
+      minimumSize: const Size(64, 36),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+    ),
+    onPressed: onPressed,
+    child: Text(label),
+  );
+}

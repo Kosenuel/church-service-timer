@@ -135,7 +135,7 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
       bottom: widget.controller.liveSession.active
           ? RunningServiceBar.forContext(context, controller: widget.controller)
           : null,
-      title: const Text('Feedback Center'),
+      title: const Text('Feedback centre'),
     ),
     body: SafeArea(
       child: SingleChildScrollView(

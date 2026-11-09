@@ -27,9 +27,9 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.byType(NavigationDestination).at(3));
     await t.pumpAndSettle();
-    await t.ensureVisible(find.text('Feedback Center'));
+    await t.ensureVisible(find.text('Feedback centre'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Feedback Center'));
+    await t.tap(find.text('Feedback centre'));
     await t.pumpAndSettle();
     return c;
   }

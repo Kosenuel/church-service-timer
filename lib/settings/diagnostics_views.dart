@@ -56,7 +56,7 @@ extension DiagnosticsViews on HomeState {
           style: TextStyle(color: colors.muted),
         ),
         const SizedBox(height: 16),
-        section('Service metrics', [
+        section('Recording', [
           SwitchListTile(
             key: const ValueKey('record-metrics'),
             contentPadding: EdgeInsets.zero,
@@ -77,9 +77,9 @@ extension DiagnosticsViews on HomeState {
                   },
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Recorded once a minute and at key moments: memory use, battery level and temperature, how smoothly the screen draws, timer accuracy against the phone clock, how promptly warnings fire, going to the background, and display or paired-phone reconnections.',
-            style: TextStyle(height: 1.4),
+            style: TextStyle(color: colors.muted, height: 1.4),
           ),
           const SizedBox(height: 8),
           Text(

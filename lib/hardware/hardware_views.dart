@@ -307,7 +307,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
           ? AnimationStyle.noAnimation
           : null,
       builder: (ctx) => AlertDialog(
-        title: const Text('Switch to Simulator?'),
+        title: const Text('Use the simulator instead?'),
         content: const Text(
           'The physical sign keeps its existing program. This app will send no further updates until you reconnect the display.',
         ),
@@ -318,7 +318,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Use Simulator'),
+            child: const Text('Use simulator'),
           ),
         ],
       ),

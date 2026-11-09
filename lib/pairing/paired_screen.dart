@@ -224,7 +224,7 @@ class _PairedScreenState extends State<PairedScreen> {
                               : Icons.check,
                         ),
                         label: Text(
-                          data['messageSeen'] == true ? 'Seen' : 'Mark Seen',
+                          data['messageSeen'] == true ? 'Seen' : 'Mark seen',
                         ),
                       ),
                     ),
