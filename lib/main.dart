@@ -581,7 +581,26 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                         toolbarHeight: headerHeight(context),
                         title: Row(
                           children: [
-                            const ChurchTimerMark(),
+                            // Tap the mark to open Church profile, where the
+                            // logo, name and banner are set.
+                            Tooltip(
+                              message: 'Church profile',
+                              child: InkWell(
+                                key: const ValueKey('header-logo'),
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: !c.ready || controlsLocked
+                                    ? null
+                                    : () => Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              ChurchProfilePage(controller: c),
+                                        ),
+                                      ),
+                                child: ChurchTimerMark(
+                                  logo: c.ready ? c.state.churchLogo : '',
+                                ),
+                              ),
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(

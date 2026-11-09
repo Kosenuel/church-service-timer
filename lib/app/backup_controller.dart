@@ -47,6 +47,7 @@ class BackupController {
       draft.groupTemplates = restored.groupTemplates;
       draft.churchName = restored.churchName;
       draft.churchBanner = restored.churchBanner;
+      draft.churchLogo = restored.churchLogo;
       draft.themeId = restored.themeId;
       draft.keepScreenAwake = restored.keepScreenAwake;
       draft.notificationClearSeconds = restored.notificationClearSeconds;
