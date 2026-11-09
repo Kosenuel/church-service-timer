@@ -148,8 +148,8 @@ extension LiveActions on HomeState {
             title: Text(
               !c.destinationConnected
                   ? 'No display connected'
-                  : problems.length == 1
-                  ? problems.single.detail
+                  // The problems are listed below; the title only counts
+                  // them, so it never repeats a row word for word.
                   : '${plural(problems.length, 'thing')} to check',
             ),
             content: Column(
@@ -165,7 +165,10 @@ extension LiveActions on HomeState {
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(connectionIcon(c.displayConnection)),
                   title: Text('Display: ${c.destinationName}'),
-                  subtitle: Text(c.displayConnection.label),
+                  // "Display: Simulator" needs no "Simulator" under it.
+                  subtitle: c.displayConnection.label == c.destinationName
+                      ? null
+                      : Text(c.displayConnection.label),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () async {
                     Navigator.pop(ctx, false);

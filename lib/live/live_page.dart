@@ -681,7 +681,9 @@ extension LivePage on HomeState {
           ],
           if (s.active) ...[
             liveControls(enabled),
-            const SizedBox(height: 16),
+            // Set apart from the time adjustments above, so a slip doesn't
+            // land on End service.
+            const SizedBox(height: 28),
             FilledButton.icon(
               key: const ValueKey('end-service'),
               onPressed: enabled

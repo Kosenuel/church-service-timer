@@ -650,11 +650,13 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                           child: SafeArea(
                             top: false,
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
+                              // During a service, room below End service for
+                              // the short notes at the bottom of the screen.
+                              padding: EdgeInsets.fromLTRB(
                                 20,
                                 12,
                                 20,
-                                32,
+                                page == 0 && c.liveSession.active ? 96 : 32,
                               ),
                               child: Center(
                                 child: ConstrainedBox(
