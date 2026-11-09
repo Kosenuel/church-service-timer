@@ -626,25 +626,33 @@ extension LiveViewActions on HomeState {
             ),
           ),
         );
+        // On a phone "Next segment" wraps onto two lines beside Pause; the
+        // line above the timer already names the next segment.
+        final nextLabel = constraints.maxWidth < 480 && !large
+            ? 'Next'
+            : 'Next segment';
         final next = UnavailableAction(
           reason: canAdvance ? null : unavailableReason('Next segment'),
-          child: OutlinedButton.icon(
-            key: const ValueKey('next-segment'),
-            onPressed: canAdvance ? advance : null,
-            style: OutlinedButton.styleFrom(
-              minimumSize: Size(0, primaryHeight),
-              textStyle: primaryText,
-              foregroundColor: colors.accent,
-              side: BorderSide(
-                color: canAdvance ? colors.accent : colors.border,
-                width: 2,
+          child: Tooltip(
+            message: 'Next segment',
+            child: OutlinedButton.icon(
+              key: const ValueKey('next-segment'),
+              onPressed: canAdvance ? advance : null,
+              style: OutlinedButton.styleFrom(
+                minimumSize: Size(0, primaryHeight),
+                textStyle: primaryText,
+                foregroundColor: colors.accent,
+                side: BorderSide(
+                  color: canAdvance ? colors.accent : colors.border,
+                  width: 2,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+              icon: const Icon(Icons.skip_next_rounded, size: 26),
+              label: Text(nextLabel, textAlign: TextAlign.center),
             ),
-            icon: const Icon(Icons.skip_next_rounded, size: 26),
-            label: const Text('Next segment', textAlign: TextAlign.center),
           ),
         );
         Widget segment(
@@ -730,7 +738,13 @@ extension LiveViewActions on HomeState {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Icon(Icons.undo, semanticLabel: 'Undo'),
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.undo, size: 20),
+                  Text('Undo', style: TextStyle(fontSize: 11)),
+                ],
+              ),
             ),
           ),
         );

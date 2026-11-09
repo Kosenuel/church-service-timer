@@ -118,7 +118,7 @@ void main() {
     await c.act('pause');
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
-    await t.tap(find.text('Next segment'));
+    await t.tap(find.byKey(const ValueKey('next-segment')));
     await t.pumpAndSettle();
     expect(find.text('Start Announcements?'), findsOneWidget);
     expect(find.textContaining('Announcements · 5 min.'), findsOneWidget);

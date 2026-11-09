@@ -138,7 +138,12 @@ extension LiveLayout on HomeState {
       'End screen' => 'Showing the end screen',
       'Countdown' =>
         s.paused ? 'Showing countdown · paused' : 'Showing countdown',
-      _ => 'Tap a cue to send it to the stage',
+      // Before the start the cue buttons are greyed out; say why rather
+      // than inviting a tap that does nothing.
+      _ =>
+        s.active || s.phase == 'ended'
+            ? 'Tap a cue to send it to the stage'
+            : 'Cues work once the service starts',
     };
   }
 
@@ -402,22 +407,15 @@ class _ShowTimerButtonState extends State<ShowTimerButton> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  widget.sending ? Icons.sync : Icons.timer_outlined,
-                  size: 18,
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    widget.sending ? 'Sending…' : widget.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+            // Icon above the label, like the buttons beside it, so "Show
+            // timer" fits a narrow tile instead of shrinking to "Show ti…".
+            Icon(widget.sending ? Icons.sync : Icons.timer_outlined, size: 18),
+            const SizedBox(height: 2),
+            Text(
+              widget.sending ? 'Sending…' : widget.label,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
             Text(
