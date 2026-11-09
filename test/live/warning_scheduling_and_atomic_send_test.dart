@@ -348,16 +348,16 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('report-actions')).last);
       await t.pumpAndSettle();
-      await t.tap(find.text('Clear report').last);
+      await t.tap(find.text('Delete report').last);
       await t.pumpAndSettle();
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
       expect(c.state.reports.length, 2);
       await t.tap(find.byKey(const ValueKey('report-actions')).last);
       await t.pumpAndSettle();
-      await t.tap(find.text('Clear report').last);
+      await t.tap(find.text('Delete report').last);
       await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(FilledButton, 'Clear report'));
+      await t.tap(find.widgetWithText(FilledButton, 'Delete report'));
       await t.pumpAndSettle();
       expect(c.state.reports.length, 1);
       final all = find.byKey(const ValueKey('clear-all-reports'));
@@ -374,7 +374,7 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(all);
       await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(FilledButton, 'Clear all reports'));
+      await t.tap(find.widgetWithText(FilledButton, 'Delete all reports'));
       await t.pumpAndSettle();
       expect(c.state.reports, isEmpty);
       expect(find.textContaining('No completed services yet'), findsOneWidget);

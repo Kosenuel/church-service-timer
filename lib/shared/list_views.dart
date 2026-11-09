@@ -314,9 +314,11 @@ extension ListViews on HomeState {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  // Room for the full explanation; long lists of names
+                  // still end in "…".
                   Text(
                     subtitle,
-                    maxLines: 2,
+                    maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: colors.muted),
                   ),

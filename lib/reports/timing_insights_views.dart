@@ -42,11 +42,14 @@ extension TimingInsightsViews on HomeState {
       )) ...[
         Text(t.name, style: Theme.of(context).textTheme.titleLarge),
         DurationInsightList(insights: durationInsights(t, c.state.reports)),
-        TextButton.icon(
-          onPressed: () => editTemplate(index: c.state.templates.indexOf(t)),
-          icon: const Icon(Icons.edit_outlined),
-          label: const Text('Review in program editor'),
-        ),
+        // Only when there is a suggestion to act on; the editor offers it
+        // as "Learn from previous services".
+        if (durationInsights(t, c.state.reports).isNotEmpty)
+          TextButton.icon(
+            onPressed: () => editTemplate(index: c.state.templates.indexOf(t)),
+            icon: const Icon(Icons.insights_outlined),
+            label: const Text('Open in program editor'),
+          ),
         const Divider(),
       ],
     ],

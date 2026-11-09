@@ -361,7 +361,7 @@ void main() {
       expect(find.byType(ReportDetailPage), findsOneWidget);
       await t.tap(find.byKey(const ValueKey('report-actions')));
       await t.pumpAndSettle();
-      expect(find.text('Clear report'), findsOneWidget);
+      expect(find.text('Delete report'), findsOneWidget);
       await t.pumpWidget(const SizedBox());
     },
   );

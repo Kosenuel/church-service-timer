@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/reports/report_outcome.dart';
 import 'package:church_service_timer/shared/list_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/church_banner.dart';
@@ -209,6 +210,12 @@ extension ReportViews on HomeState {
       lastDate: DateTime(last.year + 1, 12, 31),
       initialDateRange: reportsPage.dates,
       helpText: 'Filter service dates',
+      // Sentence case, like the rest of the app.
+      fieldStartLabelText: 'Start date',
+      fieldEndLabelText: 'End date',
+      fieldStartHintText: 'Start date',
+      fieldEndHintText: 'End date',
+      saveText: 'Apply',
     );
     if (result != null && mounted)
       refreshHome(() {
@@ -280,7 +287,9 @@ extension ReportViews on HomeState {
       child: Row(
         children: [
           tile(
-            'Last ${plural(last.length, 'service')}',
+            last.length == 1
+                ? 'Last service'
+                : 'Last ${plural(last.length, 'service')}',
             minutes(avg),
             avg.abs() < 60000
                 ? colors.accent
@@ -292,7 +301,7 @@ extension ReportViews on HomeState {
           tile('On time', '$onTime of ${last.length}', colors.text),
           const SizedBox(width: 8),
           tile(
-            'Longest over',
+            'Most over',
             worst.isEmpty ? 'None' : worst.first.key,
             worst.isEmpty ? colors.accent : colors.warning,
           ),
@@ -400,7 +409,7 @@ extension ReportViews on HomeState {
                     key: const ValueKey('export-all-reports'),
                     enabled: total > 0 && !c.busy,
                     height: appLayout(ctx).controlHeight,
-                    child: const Text('Export all records'),
+                    child: const Text('Export all reports'),
                   ),
                   PopupMenuItem<String>(
                     value: 'clear',
@@ -408,7 +417,7 @@ extension ReportViews on HomeState {
                     key: const ValueKey('clear-all-reports'),
                     height: appLayout(ctx).controlHeight,
                     child: Text(
-                      'Clear all reports',
+                      'Delete all reports',
                       style: TextStyle(color: appColors(ctx).error),
                     ),
                   ),
@@ -546,7 +555,7 @@ extension ReportViews on HomeState {
             child: Text(
               c.state.reports.isEmpty
                   ? 'No completed services yet. End a live service or fast rehearsal to create a report.'
-                  : 'No records match this filter.',
+                  : 'No reports match this filter.',
             ),
           )
         else if (reportsPage.view == 'graph')
@@ -833,7 +842,7 @@ extension ReportViews on HomeState {
                     'AVERAGE VARIANCE',
                     summary.averageVarianceMs == null
                         ? '—'
-                        : varianceLabel(summary.averageVarianceMs!),
+                        : outcomeLabel(summary.averageVarianceMs!),
                   ),
                 ],
               ),
@@ -896,15 +905,15 @@ extension ReportViews on HomeState {
                 runSpacing: 8,
                 children: [
                   Text(
-                    'Ahead · ${summary.ahead}',
+                    'Under · ${summary.ahead}',
                     style: TextStyle(color: appColors(context).info),
                   ),
                   Text(
                     'On time · ${summary.onTime}',
-                    style: TextStyle(color: appColors(context).success),
+                    style: TextStyle(color: appColors(context).accent),
                   ),
                   Text(
-                    'Behind · ${summary.behind}',
+                    'Over · ${summary.behind}',
                     style: TextStyle(color: appColors(context).warning),
                   ),
                 ],

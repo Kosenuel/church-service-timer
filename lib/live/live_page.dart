@@ -1360,11 +1360,17 @@ extension LivePage on HomeState {
                             context,
                           ).copyWith(dividerColor: Colors.transparent),
                           child: ExpansionTile(
+                            // Closed after End service, so the finished
+                            // service's welcome card leads; it still opens
+                            // with a tap. Before any service it opens when
+                            // stage screens are in use.
                             key: ValueKey(
-                              'stage-and-display-${c.pairing.hosting || c.destination == 'mobile'}',
+                              'stage-and-display-${c.pairing.hosting || c.destination == 'mobile'}-${c.state.session.phase == 'ended'}',
                             ),
                             initiallyExpanded:
-                                c.pairing.hosting || c.destination == 'mobile',
+                                c.state.session.phase != 'ended' &&
+                                (c.pairing.hosting ||
+                                    c.destination == 'mobile'),
                             leading: Icon(
                               connectionIcon(c.displayConnection),
                               color: appColors(context).accent,
