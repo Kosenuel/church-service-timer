@@ -7,15 +7,8 @@ import 'package:church_service_timer/main.dart';
 extension HomeWidgets on HomeState {
   Widget panel({required Widget child, EdgeInsets? padding}) =>
       AppPanel(padding: padding, child: child);
-  Widget label(String text) => Text(
-    text.toUpperCase(),
-    style: TextStyle(
-      color: appColors(context).muted,
-      letterSpacing: 1.6,
-      fontSize: 11,
-      fontWeight: FontWeight.w700,
-    ),
-  );
+  Widget label(String text) =>
+      Text(text.toUpperCase(), style: sectionLabelStyle(context));
   Widget button(
     String text,
     IconData icon,

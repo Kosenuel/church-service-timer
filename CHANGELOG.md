@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Settings, last tidy-ups.** Reconnect display keeps just **Cancel** and **Retry** as its buttons; Open Wi-Fi settings, Edit reconnect details and Connect manually are a short list under "Other ways to connect" instead of three more buttons. Section labels ("SAVED ON THIS PHONE", "AUTOMATIC WARNINGS", "PHONE ALERTS") now share one size and left edge on every Settings page.
 - **Settings, tidied (part 2).**
   - **Themes:** Graphite’s accent is now a soft blue and Paper & Ink’s an ink blue, so links, cue buttons and the dial no longer look like plain text. Royal Navy’s dial uses the theme’s on-time green (its gold accent would read as the amber warning). The Simulator chip has a blue dot and outline instead of grey, so it never looks switched off in light themes, and on Programs, Reports and Settings it no longer touches the screen edge.
   - **Search:** each result has a one-line summary like the Settings rows, and an **×** clears the search.

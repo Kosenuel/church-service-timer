@@ -205,17 +205,9 @@ class WarningSettingsPanel extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Text(
-                  title.toUpperCase(),
-                  style: TextStyle(
-                    color: colors.muted,
-                    letterSpacing: 1.2,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              child: Text(
+                title.toUpperCase(),
+                style: sectionLabelStyle(context),
               ),
             ),
             if (d.warnings.length < 6)
@@ -228,7 +220,7 @@ class WarningSettingsPanel extends StatelessWidget {
         ),
         if (scope != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               scope!,
               style: TextStyle(color: colors.muted, fontSize: 12),
@@ -246,7 +238,7 @@ class WarningSettingsPanel extends StatelessWidget {
           ),
         const SizedBox(height: 8),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: EdgeInsets.zero,
           child: Text(
             'Each warning fires once per segment at the time remaining. Stage cues return to the timer afterwards; Blank sign suppresses them.',
             style: TextStyle(color: colors.muted, fontSize: 12),

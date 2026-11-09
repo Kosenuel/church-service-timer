@@ -377,16 +377,8 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
   }
 
   Widget sectionLabel(String text) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 22, 4, 8),
-    child: Text(
-      text.toUpperCase(),
-      style: TextStyle(
-        color: appColors(context).muted,
-        letterSpacing: 1.2,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
+    padding: const EdgeInsets.fromLTRB(0, 24, 0, 10),
+    child: Text(text.toUpperCase(), style: sectionLabelStyle(context)),
   );
 
   Widget card(List<Widget> rows) => Material(

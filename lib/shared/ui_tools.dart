@@ -184,3 +184,12 @@ Widget fixButton(BuildContext context, String label, VoidCallback? onPressed) {
     child: Text(label),
   );
 }
+
+/// The small capitals above a group of settings ("PHONE ALERTS"), the same
+/// size, spacing and left edge on every page.
+TextStyle sectionLabelStyle(BuildContext context) => TextStyle(
+  color: appColors(context).muted,
+  letterSpacing: 1.6,
+  fontSize: 11,
+  fontWeight: FontWeight.w700,
+);
