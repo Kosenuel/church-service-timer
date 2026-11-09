@@ -377,7 +377,7 @@ extension LivePage on HomeState {
         ? 'Standing by'
         : s.phase == 'active'
         ? (s.phase == 'ended'
-              ? 'Display blank'
+              ? 'Screen blank'
               : s.paused
               ? 'Paused'
               : 'Live')
@@ -987,8 +987,8 @@ extension LivePage on HomeState {
                           if (await confirmTimer(
                             revision: revision,
                             title: s.outputBlank
-                                ? 'Unblank the display?'
-                                : 'Blank the display?',
+                                ? 'Unblank the screen?'
+                                : 'Blank the screen?',
                             action: s.outputBlank
                                 ? 'Confirm unblank'
                                 : 'Confirm blank',

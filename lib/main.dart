@@ -71,7 +71,7 @@ export 'package:church_service_timer/live/control_grid.dart';
 /// One line describing a layout. Each " · " stays with the word before
 /// it, so a wrap never starts a line with "· scroll".
 String styleSummary(TextLayout l) =>
-    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}\u00a0px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}\u00a0px/s' : ''}'
+    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}\u00a0px · ${l.align == 'center' ? 'centre' : l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}\u00a0px/s' : ''}'
         .replaceAll(' · ', '\u00a0· ');
 
 void main() {
@@ -308,7 +308,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     };
     if (!c.ready) {
       c.initialize().then((_) => receiveIncomingFile()).catchError((Object e) {
-        if (mounted) showError('Could not initialize Android services: $e');
+        if (mounted) showError('Could not start Android services: $e');
       });
     } else {
       unawaited(receiveIncomingFile());

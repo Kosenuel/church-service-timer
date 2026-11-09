@@ -105,8 +105,8 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.byKey(const ValueKey('template-row:Sunday Service')));
     await t.pumpAndSettle();
-    await t.ensureVisible(find.text('Edit Program'));
-    await t.tap(find.text('Edit Program'));
+    await t.ensureVisible(find.text('Edit program'));
+    await t.tap(find.text('Edit program'));
     await t.pumpAndSettle();
   }
 

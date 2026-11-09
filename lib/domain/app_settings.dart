@@ -220,7 +220,7 @@ String themeIdValue(dynamic value) {
     final ratio = black ? (surface + .05) / .05 : 1.05 / (surface + .05);
     require(
       ratio >= 4.5,
-      'Custom background and panel colors need compatible contrast.',
+      'Custom background and panel colours need compatible contrast.',
     );
   }
   return value;

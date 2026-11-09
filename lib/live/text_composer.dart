@@ -202,7 +202,7 @@ class _TextComposerState extends State<TextComposer> {
                 ),
                 options: const [
                   ChoiceOption(value: 'left', label: 'Left'),
-                  ChoiceOption(value: 'center', label: 'Center'),
+                  ChoiceOption(value: 'center', label: 'Centre'),
                   ChoiceOption(value: 'right', label: 'Right'),
                 ],
                 onChanged: (v) => setState(() => align = v!),

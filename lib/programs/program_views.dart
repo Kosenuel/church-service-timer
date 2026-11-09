@@ -585,7 +585,7 @@ extension TemplateViews on HomeState {
                                     if (result != null) select(result.name);
                                   },
                             icon: const Icon(Icons.edit_outlined),
-                            label: const Text('Edit Program'),
+                            label: const Text('Edit program'),
                           ),
                         ],
                       ),

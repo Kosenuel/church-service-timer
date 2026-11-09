@@ -122,10 +122,10 @@ extension LiveLayout on HomeState {
     final s = c.liveSession;
     if (s.outputBlank) {
       return s.phase == 'ended'
-          ? 'Display blank'
+          ? 'Screen blank'
           : s.paused
-          ? 'Display blank · timer paused'
-          : 'Display blank · timing continues';
+          ? 'Screen blank · timer paused'
+          : 'Screen blank · timing continues';
     }
     if (c.currentQuickMessage != null) return 'Showing a quick message';
     if (s.hasAutomaticCue(c.now))
