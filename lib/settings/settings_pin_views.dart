@@ -176,10 +176,11 @@ extension SettingsPinViews on HomeState {
     return false;
   }
 
-  /// Bottom navigation and the tablet rail go through here.
-  Future<void> goToPage(int value) async {
+  /// Bottom navigation, the tablet rail and swipes go through here.
+  /// [slide] is the side a swiped-to tab slides in from.
+  Future<void> goToPage(int value, {int slide = 0}) async {
     if (value == 3 && !await ensureSettingsUnlocked()) return;
-    if (mounted) navigatePage(value);
+    if (mounted) navigatePage(value, slide: slide);
   }
 
   Future<void> setSettingsPin() async {
