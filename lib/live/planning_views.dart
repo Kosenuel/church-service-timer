@@ -60,136 +60,160 @@ extension PlanningViews on HomeState {
     var selectedDate = DateTime.fromMillisecondsSinceEpoch(
       actualDate ?? c.now.wall,
     );
-    final choice = await showDialog<String>(
+    final title = report != null ? 'Print report' : 'Print order of service';
+    final choice = await showModalBottomSheet<String>(
       context: context,
-      animationStyle: reduceAppMotion(context)
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      sheetAnimationStyle: reduceAppMotion(context)
           ? AnimationStyle.noAnimation
           : null,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, update) => AlertDialog(
-          title: const Text('Print Service'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Print, or share the sheet as a PDF by Bluetooth, messaging or email.',
-                ),
-                const SizedBox(height: 12),
-                AppMenuList(
-                  key: const ValueKey('print-service-options'),
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.event_outlined),
-                      title: const Text('Service date'),
-                      subtitle: Text(
-                        serviceDateLabel(selectedDate.millisecondsSinceEpoch),
+        builder: (ctx, update) => Padding(
+          key: const ValueKey('print-sheet'),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title, style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              Text(
+                'Print, or share the sheet as a PDF by Bluetooth, messaging or email.',
+                style: TextStyle(color: appColors(ctx).muted),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: AppMenuList(
+                    key: const ValueKey('print-service-options'),
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.event_outlined),
+                        title: const Text('Service date'),
+                        subtitle: Text(
+                          serviceDateLabel(selectedDate.millisecondsSinceEpoch),
+                        ),
+                        trailing: actualDate == null
+                            ? const Icon(Icons.edit_calendar_outlined)
+                            : null,
+                        onTap: actualDate != null
+                            ? null
+                            : () async {
+                                final date = await showDatePicker(
+                                  context: ctx,
+                                  initialDate: selectedDate,
+                                  firstDate: DateTime(2000),
+                                  lastDate: DateTime(2100),
+                                );
+                                if (date != null && ctx.mounted)
+                                  update(() => selectedDate = date);
+                              },
                       ),
-                      trailing: actualDate == null
-                          ? const Icon(Icons.edit_calendar_outlined)
-                          : null,
-                      onTap: actualDate != null
-                          ? null
-                          : () async {
-                              final date = await showDatePicker(
-                                context: ctx,
-                                initialDate: selectedDate,
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime(2100),
-                              );
-                              if (date != null && ctx.mounted)
-                                update(() => selectedDate = date);
-                            },
-                    ),
-                    if (report != null)
-                      ChoiceField<bool>(
-                        value: fullReport,
+                      if (report != null)
+                        ChoiceField<bool>(
+                          value: fullReport,
+                          decoration: const InputDecoration(
+                            labelText: 'Document',
+                          ),
+                          options: const [
+                            ChoiceOption(value: true, label: 'Service report'),
+                            ChoiceOption(
+                              value: false,
+                              label: 'Service rundown',
+                            ),
+                          ],
+                          onChanged: (value) =>
+                              update(() => fullReport = value!),
+                        ),
+                      ChoiceField<String>(
+                        value: audience,
                         decoration: const InputDecoration(
-                          labelText: 'Document',
+                          labelText: 'Print copy',
                         ),
                         options: const [
-                          ChoiceOption(value: true, label: 'Service report'),
-                          ChoiceOption(value: false, label: 'Service rundown'),
+                          ChoiceOption(value: 'stage', label: 'Stage copy'),
+                          ChoiceOption(
+                            value: 'operator',
+                            label: 'Operator copy',
+                          ),
                         ],
-                        onChanged: (value) => update(() => fullReport = value!),
+                        onChanged: (v) => update(() {
+                          audience = v!;
+                          includeNotes =
+                              v == 'operator' &&
+                              (report == null || report.program != null);
+                        }),
                       ),
-                    ChoiceField<String>(
-                      value: audience,
-                      decoration: const InputDecoration(
-                        labelText: 'Print copy',
-                      ),
-                      options: const [
-                        ChoiceOption(value: 'stage', label: 'Stage copy'),
-                        ChoiceOption(value: 'operator', label: 'Operator copy'),
-                      ],
-                      onChanged: (v) => update(() {
-                        audience = v!;
-                        includeNotes =
-                            v == 'operator' &&
-                            (report == null || report.program != null);
-                      }),
-                    ),
-                    CheckboxListTile(
-                      title: const Text('Ink-saving'),
-                      subtitle: const Text('Omit banner and watermark'),
-                      value: inkSaving,
-                      onChanged: (v) => update(() => inkSaving = v!),
-                    ),
-                    CheckboxListTile(
-                      title: const Text('Church-name watermark'),
-                      value: watermark,
-                      onChanged: inkSaving
-                          ? null
-                          : (v) => update(() => watermark = v!),
-                    ),
-                    CheckboxListTile(
-                      title: const Text('Include church banner'),
-                      value: includeBanner,
-                      onChanged: inkSaving
-                          ? null
-                          : (v) => update(() => includeBanner = v!),
-                    ),
-                    CheckboxListTile(
-                      title: const Text('Include private operator notes'),
-                      subtitle: report != null && report.program == null
-                          ? const Text('Not recorded in this older report')
-                          : null,
-                      value: includeNotes,
-                      onChanged:
-                          audience == 'stage' ||
-                              (report != null && report.program == null)
-                          ? null
-                          : (v) => update(() => includeNotes = v!),
-                    ),
-                    if (report?.review != null)
                       CheckboxListTile(
-                        key: const ValueKey('print-include-review'),
-                        title: const Text('Include review notes'),
-                        subtitle: const Text('Added after the service'),
-                        value: includeReview,
-                        onChanged: (v) => update(() => includeReview = v!),
+                        title: const Text('Ink-saving'),
+                        subtitle: const Text('Omit banner and watermark'),
+                        value: inkSaving,
+                        onChanged: (v) => update(() => inkSaving = v!),
                       ),
-                  ],
+                      CheckboxListTile(
+                        title: const Text('Church-name watermark'),
+                        value: watermark && !inkSaving,
+                        onChanged: inkSaving
+                            ? null
+                            : (v) => update(() => watermark = v!),
+                      ),
+                      CheckboxListTile(
+                        title: const Text('Include church banner'),
+                        value: includeBanner && !inkSaving,
+                        onChanged: inkSaving
+                            ? null
+                            : (v) => update(() => includeBanner = v!),
+                      ),
+                      CheckboxListTile(
+                        title: const Text('Include private operator notes'),
+                        subtitle: report != null && report.program == null
+                            ? const Text('Not recorded in this older report')
+                            : null,
+                        value: includeNotes,
+                        onChanged:
+                            audience == 'stage' ||
+                                (report != null && report.program == null)
+                            ? null
+                            : (v) => update(() => includeNotes = v!),
+                      ),
+                      if (report?.review != null)
+                        CheckboxListTile(
+                          key: const ValueKey('print-include-review'),
+                          title: const Text('Include review notes'),
+                          subtitle: const Text('Added after the service'),
+                          value: includeReview,
+                          onChanged: (v) => update(() => includeReview = v!),
+                        ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('share-service-pdf'),
+                      onPressed: () => Navigator.pop(ctx, 'share'),
+                      icon: const Icon(Icons.share_outlined),
+                      label: const Text('Share PDF'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      key: const ValueKey('print-service-pdf'),
+                      onPressed: () => Navigator.pop(ctx, 'print'),
+                      icon: const Icon(Icons.print_outlined),
+                      label: const Text('Print'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            OutlinedButton.icon(
-              key: const ValueKey('share-service-pdf'),
-              onPressed: () => Navigator.pop(ctx, 'share'),
-              icon: const Icon(Icons.share_outlined),
-              label: const Text('Share PDF'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, 'print'),
-              child: const Text('Print'),
-            ),
-          ],
         ),
       ),
     );

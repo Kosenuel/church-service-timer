@@ -245,15 +245,16 @@ void main() {
     );
     await c.act('start');
     await t.pumpAndSettle();
-    await t.ensureVisible(find.text('Print Service'));
+    await t.ensureVisible(find.byKey(const ValueKey('print-rundown')));
     await t.pumpAndSettle();
-    await t.tap(find.text('Print Service'));
+    await t.tap(find.byKey(const ValueKey('print-rundown')));
     await t.pumpAndSettle();
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('../goldens/print-service-sheet.png'),
     );
-    await t.tap(find.text('Print'));
+    expect(find.text('Print order of service'), findsOneWidget);
+    await t.tap(find.byKey(const ValueKey('print-service-pdf')));
     await t.pumpAndSettle();
     expect(p.pdf, isNotNull);
     expect(String.fromCharCodes(p.pdf!.take(5)), '%PDF-');

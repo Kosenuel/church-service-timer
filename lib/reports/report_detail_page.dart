@@ -112,7 +112,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                   FilledButton.icon(
                     onPressed: busy ? null : () => run(widget.onPrint!),
                     icon: const Icon(Icons.print_outlined),
-                    label: const Text('Print Service'),
+                    label: const Text('Print report'),
                   ),
                 if (widget.embedded) actions,
               ],

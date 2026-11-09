@@ -126,7 +126,11 @@ void main() {
       await c.act('start');
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await tap(t, 'Print Service');
+      await t.ensureVisible(find.byKey(const ValueKey('print-rundown')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('print-rundown')));
+      await t.pumpAndSettle();
+      expect(find.text('Print order of service'), findsOneWidget);
       CheckboxListTile box(String label) => t.widget<CheckboxListTile>(
         find.widgetWithText(CheckboxListTile, label),
       );
@@ -139,6 +143,9 @@ void main() {
       await tap(t, 'Ink-saving');
       expect(box('Church-name watermark').onChanged, isNull);
       expect(box('Include church banner').onChanged, isNull);
+      // Ink-saving leaves them out, so they show unticked.
+      expect(box('Church-name watermark').value, false);
+      expect(box('Include church banner').value, false);
       await shot(t, 'print-ink-saving');
       await t.pumpWidget(const SizedBox());
     },
