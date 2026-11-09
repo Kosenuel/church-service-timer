@@ -335,13 +335,6 @@ extension MobileDisplayViews on HomeState {
               : 'Manage screens',
         ),
       ),
-      if (c.pairing.hosting && c.pairing.stageSharingEnabled)
-        FilledButton.icon(
-          style: stopSharingButtonStyle(),
-          onPressed: controlsLocked ? null : stopServiceSharing,
-          icon: const Icon(Icons.stop_screen_share_outlined),
-          label: const Text('Stop sharing'),
-        ),
       if (c.pairing.hosting && !c.pairing.stageSharingEnabled)
         TextButton(
           onPressed: controlsLocked ? null : startStageSharing,
@@ -351,6 +344,15 @@ extension MobileDisplayViews on HomeState {
         onPressed: controlsLocked ? null : chooseDisplay,
         child: const Text('Change display'),
       ),
+      // Last and quieter than the screens it stops; it still confirms.
+      if (c.pairing.hosting && c.pairing.stageSharingEnabled)
+        TextButton.icon(
+          key: const ValueKey('stop-sharing'),
+          style: TextButton.styleFrom(foregroundColor: destructiveColor),
+          onPressed: controlsLocked ? null : stopServiceSharing,
+          icon: const Icon(Icons.stop_screen_share_outlined),
+          label: const Text('Stop sharing'),
+        ),
     ],
   );
 

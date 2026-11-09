@@ -734,6 +734,11 @@ extension LiveViewActions on HomeState {
               style: OutlinedButton.styleFrom(
                 minimumSize: Size.square(appLayout(context).controlHeight),
                 padding: EdgeInsets.zero,
+                // Dimmed like the controls beside it when unavailable,
+                // for example while the controls are locked.
+                foregroundColor: colors.text,
+                disabledForegroundColor: colors.muted.withValues(alpha: .5),
+                side: BorderSide(color: colors.border),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
