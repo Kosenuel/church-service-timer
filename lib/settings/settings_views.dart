@@ -35,7 +35,7 @@ extension SettingsViews on HomeState {
                       Navigator.of(context).popUntil((route) => route.isFirst);
                     },
                     icon: const Icon(Icons.sensors, size: 20),
-                    label: const Text('Go to Live'),
+                    label: const Text('Return to Live'),
                   ),
                   const SizedBox(width: 8),
                 ]

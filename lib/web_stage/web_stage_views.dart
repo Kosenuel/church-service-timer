@@ -437,9 +437,10 @@ extension WebStageViews on HomeState {
                 ),
               ),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              // The main action on its own row, the two code changes side by side,
+              // instead of three buttons wrapping two and one.
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   FilledButton.icon(
                     key: const ValueKey('export-join-slide'),
@@ -447,25 +448,35 @@ extension WebStageViews on HomeState {
                     icon: const Icon(Icons.slideshow_outlined),
                     label: const Text('Export join slide'),
                   ),
-                  OutlinedButton.icon(
-                    key: const ValueKey('web-new-codes'),
-                    onPressed: () async {
-                      if (!await confirm(
-                        'New team code?',
-                        'Stage displays and service overviews using the current team code are asked for the new one.',
-                        'New team code',
-                      ))
-                        return;
-                      c.webStage.newCodes();
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('New team code'),
-                  ),
-                  OutlinedButton.icon(
-                    key: const ValueKey('web-change-order-code'),
-                    onPressed: () => changeOrderCode(settings),
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Change guest code'),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          key: const ValueKey('web-new-codes'),
+                          onPressed: () async {
+                            if (!await confirm(
+                              'New team code?',
+                              'Stage displays and service overviews using the current team code are asked for the new one.',
+                              'New team code',
+                            ))
+                              return;
+                            c.webStage.newCodes();
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('New team code'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          key: const ValueKey('web-change-order-code'),
+                          onPressed: () => changeOrderCode(settings),
+                          icon: const Icon(Icons.edit_outlined),
+                          label: const Text('Change guest code'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -500,7 +511,9 @@ extension WebStageViews on HomeState {
             ListTile(
               key: const ValueKey('web-local-name-edit'),
               contentPadding: EdgeInsets.zero,
-              title: const Text('Easy name'),
+              // The address list above already shows the easy name; this
+              // row changes it.
+              title: const Text('Change easy name'),
               subtitle: Text('${settings.localName}.local'),
               trailing: const Icon(Icons.edit_outlined),
               onTap: () => changeLocalName(settings),
@@ -654,7 +667,12 @@ extension WebStageViews on HomeState {
           content: TextField(
             controller: field,
             autofocus: true,
-            decoration: InputDecoration(helperText: help, errorText: error),
+            decoration: InputDecoration(
+              helperText: help,
+              helperMaxLines: 4,
+              errorText: error,
+              errorMaxLines: 3,
+            ),
           ),
           actions: [
             TextButton(

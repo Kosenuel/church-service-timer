@@ -550,7 +550,7 @@ extension LivePage on HomeState {
                       : joinAsStageScreen,
                   icon: const Icon(Icons.tablet_mac_outlined),
                   label: const Text(
-                    'Join as screen',
+                    'Join a service',
                     textAlign: TextAlign.center,
                   ),
                 ),
