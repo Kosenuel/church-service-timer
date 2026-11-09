@@ -19,7 +19,7 @@ Json snapshot({String phase = 'active'}) => {
   'paused': false,
   'stageSharing': true,
   'displayText': '12:30',
-  'variance': '2m 0s behind',
+  'variance': '2 min behind',
   'behind': true,
   'finish': '12:05',
   'quickMessage': {'headline': 'Wrap up', 'body': '2 minutes'},
@@ -158,7 +158,7 @@ void main() {
     final token = join['token'];
     final (_, overview) = await call('/api/state?token=$token');
     expect(overview['remaining'], '12:30');
-    expect(overview['variance'], '2m 0s behind');
+    expect(overview['variance'], '2 min behind');
     expect(overview['finish'], '12:05');
     expect(overview['rundown'][1]['speaker'], 'Rev. Bello');
     await call('/api/role', {'token': token, 'role': 'stage'});

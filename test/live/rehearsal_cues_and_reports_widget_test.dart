@@ -177,8 +177,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('4m 0s'), findsOneWidget);
-      expect(find.text('4m 10s'), findsOneWidget);
+      expect(find.text('4 min'), findsOneWidget);
+      expect(find.text('4 min 10 s'), findsOneWidget);
       expect(find.byKey(const ValueKey('report-actions')), findsOneWidget);
       expect(tester.takeException(), isNull);
       await expectLater(

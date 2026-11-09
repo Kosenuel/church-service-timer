@@ -38,7 +38,7 @@ class _TimeRecoveryPageState extends State<TimeRecoveryPage> {
         ListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Time to recover'),
-          subtitle: Text(formatTime(recoverSeconds * 1000)),
+          subtitle: Text(durationLabel(recoverSeconds * 1000)),
           trailing: const Icon(Icons.expand_more),
           onTap: () async {
             final value = await showWheelTimePicker(

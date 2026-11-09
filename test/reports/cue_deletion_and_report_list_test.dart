@@ -190,7 +190,7 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Reports'));
       await t.pumpAndSettle();
-      expect(find.textContaining('56m 0s'), findsOneWidget);
+      expect(find.textContaining('56 min'), findsOneWidget);
       expect(find.text('Export report CSV'), findsNothing);
       await expectLater(
         find.byType(MaterialApp),
@@ -199,7 +199,7 @@ void main() {
       await t.tap(find.byKey(const ValueKey('open-report-sunday')));
       await t.pumpAndSettle();
       expect(find.byType(ReportDetailPage), findsOneWidget);
-      expect(find.text('56m 0s'), findsOneWidget);
+      expect(find.text('56 min'), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('../goldens/report-detail-phone.png'),

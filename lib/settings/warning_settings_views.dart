@@ -111,7 +111,9 @@ class WarningSettingsPanel extends StatelessWidget {
       final where = [
         w.destination == 'stage' ? 'Operator and stage' : 'Operator only',
         if (w.destination == 'stage')
-          w.scrollOnce ? 'scrolls once' : '${w.durationSeconds} seconds',
+          w.scrollOnce
+              ? 'scrolls once'
+              : durationLabel(w.durationSeconds * 1000),
         displayFontNames[w.cue.font] ?? w.cue.font,
       ].join(' · ');
       return Material(
@@ -366,7 +368,7 @@ class _WarningEditorState extends State<WarningEditor> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Show for'),
-              subtitle: Text(formatTime(duration * 1000)),
+              subtitle: Text(durationLabel(duration * 1000)),
               trailing: const Icon(Icons.expand_more),
               onTap: () async {
                 final value = await showWheelTimePicker(
@@ -699,9 +701,9 @@ extension WarningSettingsViews on HomeState {
             labelText: 'Clear phone warnings after',
           ),
           options: const [
-            ChoiceOption(value: 15, label: '15 seconds'),
-            ChoiceOption(value: 30, label: '30 seconds'),
-            ChoiceOption(value: 60, label: '60 seconds'),
+            ChoiceOption(value: 15, label: '15 s'),
+            ChoiceOption(value: 30, label: '30 s'),
+            ChoiceOption(value: 60, label: '1 min'),
             ChoiceOption(value: 0, label: 'Until dismissed'),
           ],
           onChanged: c.busy

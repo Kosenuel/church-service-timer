@@ -331,7 +331,7 @@ extension QuickMessageViews on HomeState {
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
-            '${e.value.length}/160 characters · ${e.value.seconds == 0 ? 'Until cleared' : '${e.value.seconds} seconds'}',
+            '${e.value.length}/160 characters · ${e.value.seconds == 0 ? 'Until cleared' : durationLabel(e.value.seconds * 1000)}',
           ),
           onTap: () => editQuickPreset(e.key),
           trailing: IconButton(

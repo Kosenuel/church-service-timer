@@ -75,6 +75,7 @@ body.stale #app { opacity:.6; }
 'use strict';
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const span = (total) => { const h = Math.floor(total / 3600), m = Math.floor(total % 3600 / 60), s = total % 60; return [h ? h + ' h' : '', m ? m + ' min' : '', s ? s + ' s' : ''].filter(Boolean).join(' ') || '0 s'; };
 const ROLES = { order: ['Order of service', 'What is happening now and next. No times.'], stage: ['Stage display', 'The countdown and messages, full screen, for the stage.'], overview: ['Service overview', 'Rundown, time left, ahead or behind, and finish time.'] };
 let token = null, role = null, team = false, info = { church: '', orderAccess: 'code' }, timer = null, lastState = null, hideTools = null;
 try { token = localStorage.getItem('cst-token'); role = localStorage.getItem('cst-role'); team = localStorage.getItem('cst-team') === '1'; } catch (_) {}
@@ -312,7 +313,7 @@ function render(s) {
     if (state === 'now') li.append(el('span', 't', 'NOW'));
     else if (state === 'next' && s.role === 'order') li.append(el('span', 't', 'Next'));
     else if (state === 'past' && s.role === 'order') li.append(el('span', 't', '✓'));
-    else if (s.role === 'overview') li.append(el('span', 't', (item.minutes || 0) + ':' + String(item.seconds || 0).padStart(2, '0')));
+    else if (s.role === 'overview') li.append(el('span', 't', span((item.minutes || 0) * 60 + (item.seconds || 0))));
     list.append(li);
   });
   app.append(card, el('div', 'foot', 'Created by I-Proton'));

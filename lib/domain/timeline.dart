@@ -11,8 +11,7 @@ class Segment {
   final int seconds;
   int get durationSeconds => minutes * 60 + seconds;
   int get durationMs => durationSeconds * 1000;
-  String get durationText =>
-      seconds == 0 ? '$minutes min' : formatTime(durationMs);
+  String get durationText => durationLabel(durationMs);
   final bool protected;
   const Segment(
     this.name,
