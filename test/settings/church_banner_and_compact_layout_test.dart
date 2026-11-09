@@ -351,7 +351,14 @@ void main() {
       expect(find.byType(ReportListRow), findsNWidgets(3));
       expect(find.byIcon(Icons.delete_outline), findsNothing);
       expect(find.textContaining('Rehearsal 10×'), findsOneWidget);
-      expect(find.text('1 min over'), findsOneWidget);
+      // The row's outcome chip; the summary tile above may say the same.
+      expect(
+        find.descendant(
+          of: find.byType(ReportListRow),
+          matching: find.text('1 min over'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('4 min under'), findsOneWidget);
       await t.tap(find.text('Rehearsals'));
       await t.pumpAndSettle();

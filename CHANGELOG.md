@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Reports, last touches.** On the graph each date ("15 Jan") sits under its own bar, instead of the first and last dates at the two ends. The search field and the **Dates** button are the same height. The summary tile says "1 min over" (and "avg" only when it averages more than one service) instead of "+1m avg". In a report, **Print report** is a full-width button at the foot of the summary card it prints, instead of floating on its own above it; beside the list on a tablet, the report’s ⋮ menu sits on the card’s top row.
 - **Settings, last tidy-ups.** Reconnect display keeps just **Cancel** and **Retry** as its buttons; Open Wi-Fi settings, Edit reconnect details and Connect manually are a short list under "Other ways to connect" instead of three more buttons. Section labels ("SAVED ON THIS PHONE", "AUTOMATIC WARNINGS", "PHONE ALERTS") now share one size and left edge on every Settings page.
 - **Settings, tidied (part 2).**
   - **Themes:** Graphite’s accent is now a soft blue and Paper & Ink’s an ink blue, so links, cue buttons and the dial no longer look like plain text. Royal Navy’s dial uses the theme’s on-time green (its gold accent would read as the amber warning). The Simulator chip has a blue dot and outline instead of grey, so it never looks switched off in light themes, and on Programs, Reports and Settings it no longer touches the screen edge.
