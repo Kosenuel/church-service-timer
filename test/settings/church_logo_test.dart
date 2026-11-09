@@ -88,6 +88,55 @@ void main() {
     },
   );
 
+  testWidgets(
+    'A photo much larger than the frame crops to what the frame shows',
+    (t) async {
+      // A phone photo is far larger than the frame, so the crop starts
+      // zoomed well below 1. The saved logo must be the centred square,
+      // not a small top-left corner.
+      setScreen(t, const Size(430, 1000));
+      final port = PhotoPort();
+      final c = AppController(port);
+      await c.initialize(startTicker: false);
+      port.photo = await t.runAsync(() => testPhoto(1600, 800));
+      await t.pumpWidget(TimerApp(controller: c));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('header-logo')));
+      await t.pumpAndSettle();
+      await tapAndWait(t, 'choose-church-logo');
+      await tapAndWait(t, 'use-cropped-image');
+      await tapAndWait(t, 'save-church-profile');
+      final colours = await t.runAsync(() async {
+        final codec = await ui.instantiateImageCodec(
+          base64Decode(c.state.churchLogo),
+        );
+        final image = (await codec.getNextFrame()).image;
+        final data = (await image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        ))!;
+        Color at(double x) {
+          final i =
+              ((image.height ~/ 2) * image.width + (image.width * x).toInt()) *
+              4;
+          return Color.fromARGB(
+            255,
+            data.getUint8(i),
+            data.getUint8(i + 1),
+            data.getUint8(i + 2),
+          );
+        }
+
+        return [at(.1), at(.4), at(.6), at(.9)];
+      });
+      // The centre square of a red | blue photo is half red, half blue.
+      expect(colours![0], const Color(0xffcc0000));
+      expect(colours[1], const Color(0xffcc0000));
+      expect(colours[2], const Color(0xff0000cc));
+      expect(colours[3], const Color(0xff0000cc));
+      await t.pumpWidget(const SizedBox());
+    },
+  );
+
   test('A church logo must be a square 256 px PNG', () async {
     expect(churchLogoValue(''), '');
     expect(() => churchLogoValue('not base64!'), throwsA(isA<RuleError>()));

@@ -121,7 +121,12 @@ class _ImageCropPageState extends State<ImageCropPage> {
   /// The part of the photo inside the frame, in photo pixels.
   Rect visible() {
     final m = transform.value;
-    final scale = m.getMaxScaleOnAxis();
+    // The on-screen zoom is the x axis's scale. Not getMaxScaleOnAxis: the
+    // first fit leaves the z axis at 1, so for a photo larger than the
+    // frame (zoom below 1) that read 1 and cropped a small corner.
+    final scale = math.sqrt(
+      m.entry(0, 0) * m.entry(0, 0) + m.entry(1, 0) * m.entry(1, 0),
+    );
     final t = m.getTranslation();
     final i = image;
     final w = math.min(
