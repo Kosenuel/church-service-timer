@@ -171,6 +171,16 @@ void main() {
       await t.enterText(search, 'clock');
       await t.pumpAndSettle();
       await shot(t, 'settings-search-021');
+      expect(
+        find.text('12 or 24 hour, and the blinking colon'),
+        findsOneWidget,
+      );
+      // The clear button empties the field and brings back the full list.
+      await tap(t, find.byKey(const ValueKey('settings-search-clear')));
+      expect(find.byKey(const ValueKey('settings-search-clear')), findsNothing);
+      expect(find.text('Church profile'), findsWidgets);
+      await t.enterText(search, 'clock');
+      await t.pumpAndSettle();
       await tap(t, find.text('Clock format'));
       expect(find.text('24-hour'), findsWidgets);
       await tap(t, find.byKey(const ValueKey('running-service-bar')).last);

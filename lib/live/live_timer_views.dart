@@ -53,8 +53,10 @@ class SegmentGauge extends StatelessWidget {
         ? appColors(context).error
         : warning
         ? appColors(context).warning
+        // Royal Navy's gold accent would read as the amber warning colour,
+        // so its dial uses the theme's on-time green instead.
         : appColors(context).id == 'royal_navy'
-        ? const Color(0xff7ee090)
+        ? appColors(context).success
         : appColors(context).accent;
     final progress = (session.remaining(now) / math.max(1, session.allocatedMs))
         .clamp(0.0, 1.0);
