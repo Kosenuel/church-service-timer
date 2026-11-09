@@ -385,12 +385,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
             FilledButton(
               key: const ValueKey('confirm-action'),
               onPressed: () => Navigator.pop(context, true),
-              style: destructive
-                  ? FilledButton.styleFrom(
-                      backgroundColor: const Color(0xffa73238),
-                      foregroundColor: Colors.white,
-                    )
-                  : null,
+              style: destructive ? destructiveFilled() : null,
               child: Text(button),
             ),
           ],
@@ -759,6 +754,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                                         'Reset local state?',
                                                         'This replaces unreadable local service and program data with starter programs. No physical display is connected.',
                                                         'Reset local data',
+                                                        destructive: true,
                                                       ))
                                                         await c.resetCorrupt();
                                                     },

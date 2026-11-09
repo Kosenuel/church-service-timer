@@ -193,6 +193,7 @@ extension PracticeViews on HomeState {
                               'Leave practice?',
                               'This practice run is discarded. Nothing was saved.',
                               'Leave practice',
+                              destructive: true,
                             ))
                               await c.practice.leave();
                             if (mounted) await offerReturnDisplay();

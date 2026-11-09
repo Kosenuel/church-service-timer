@@ -414,6 +414,7 @@ extension SettingsViews on HomeState {
         'Replace this phone’s saved setup?',
         '${file['name']}\n\n${restored.templates.length} programs · ${restored.stageCues.length} stage cues · ${restored.reports.length} reports\nChurch: ${restored.churchName.isEmpty ? 'Not set' : restored.churchName}\nTheme: ${paletteFor(restored.themeId).name}\n\nThis replaces your current saved programs, cues, reports and preferences. The timer returns to idle. This cannot be undone without another backup.',
         'Restore and replace',
+        destructive: true,
       );
       if (!okay || !mounted) return;
       final saved = await c.restoreBackup(restored);

@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Destructive actions look destructive.** Every confirmation that deletes, replaces or ends something now has a red button instead of the main green one: Delete program, Delete cue, Delete preset, Delete warning, Forget device, Forget this sign, Turn off PIN, Restore and replace, Reset local data, Stop sharing, Leave practice, End service and Clear draft. Remove note and Discard (for a received program) are red text. The sign's forget dialog now says "Forget this sign", matching the button that opens it.
+
 ## 0.28.1, 8/November/2026
 
 - **Tidier code inside, nothing changed on screen.** The app's largest source files are split into smaller ones by topic and screen, so later fixes and features are quicker and safer to make. Everything looks and works as in 0.28.0, and programs, reports, backups and pairings carry over unchanged. Phones on 0.28.0 and 0.28.1 work together.

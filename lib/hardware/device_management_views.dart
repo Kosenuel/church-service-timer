@@ -356,7 +356,8 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Forget display'),
+            style: destructiveFilled(),
+            child: const Text('Forget this sign'),
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
@@ -548,6 +549,7 @@ class _ReviewNoteDialogState extends State<ReviewNoteDialog> {
       if (widget.initial != null)
         TextButton(
           key: const ValueKey('remove-review-note'),
+          style: TextButton.styleFrom(foregroundColor: destructiveColor),
           onPressed: () => Navigator.pop(context, ''),
           child: const Text('Remove note'),
         ),

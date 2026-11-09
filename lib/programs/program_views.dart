@@ -373,6 +373,7 @@ extension TemplateViews on HomeState {
               'Delete ${t!.name}?',
               'Delete this saved program? Any loaded service and its report remain unchanged.',
               'Delete program',
+              destructive: true,
             ))
               return;
             final ok = await c.commit((draft, _) => draft.deleteTemplate(t));
