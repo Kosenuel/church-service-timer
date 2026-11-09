@@ -189,7 +189,7 @@ void main() {
       await shot(t, 'program-actions-019');
       await t.tap(find.byKey(const ValueKey('delete-selected-programs')));
       await t.pumpAndSettle();
-      expect(find.text('Delete 1 program?'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^Delete “.+”\?$')), findsOneWidget);
       expect(c.state.templates.length, count);
       await tap(t, 'Cancel');
       expect(c.state.templates.length, count);
