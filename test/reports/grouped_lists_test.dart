@@ -28,7 +28,14 @@ void main() {
     t,
   ) async {
     final c = await open(t);
-    expect(find.text('1 min over'), findsOneWidget);
+    // The row's outcome chip; the summary tile above may say the same.
+    expect(
+      find.descendant(
+        of: find.byType(ReportListRow),
+        matching: find.text('1 min over'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('4 min under'), findsOneWidget);
     expect(find.text('Partial'), findsOneWidget);
     expect(find.byIcon(Icons.chevron_right), findsNWidgets(3));
@@ -62,8 +69,16 @@ void main() {
       find.descendant(of: card, matching: find.text('Sunday Service')),
       findsOneWidget,
     );
+    // What happened on one line, how it compares on the next.
     expect(
-      find.descendant(of: card, matching: find.textContaining('over plan')),
+      find.descendant(
+        of: card,
+        matching: find.text('Ran 56 min · planned 55 min'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('1 min over')),
       findsOneWidget,
     );
     await t.tap(find.byKey(const ValueKey('graph-open-report')));

@@ -105,20 +105,6 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (widget.onPrint != null || widget.embedded)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (widget.onPrint != null)
-                  FilledButton.icon(
-                    onPressed: busy ? null : () => run(widget.onPrint!),
-                    icon: const Icon(Icons.print_outlined),
-                    label: const Text('Print report'),
-                  ),
-                if (widget.embedded) actions,
-              ],
-            ),
-          const SizedBox(height: 12),
           block(
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,14 +114,22 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                     r.churchName,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
-                Chip(
-                  avatar: Icon(
-                    r.rehearsal
-                        ? Icons.fast_forward
-                        : Icons.check_circle_outline,
-                    size: 18,
-                  ),
-                  label: Text(reportMode(r)),
+                // Beside a tablet's list there is no app bar, so the
+                // report's ⋮ menu sits on the card's top row.
+                Row(
+                  children: [
+                    Chip(
+                      avatar: Icon(
+                        r.rehearsal
+                            ? Icons.fast_forward
+                            : Icons.check_circle_outline,
+                        size: 18,
+                      ),
+                      label: Text(reportMode(r)),
+                    ),
+                    const Spacer(),
+                    if (widget.embedded) actions,
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -214,6 +208,20 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                       style: TextStyle(color: colors.muted),
                     ),
                   ),
+                // At the foot of the report it prints, instead of floating
+                // on its own above the card.
+                if (widget.onPrint != null) ...[
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    key: const ValueKey('print-report'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    onPressed: busy ? null : () => run(widget.onPrint!),
+                    icon: const Icon(Icons.print_outlined),
+                    label: const Text('Print report'),
+                  ),
+                ],
               ],
             ),
           ),

@@ -14,23 +14,30 @@ export 'package:church_service_timer/reports/report_list_row.dart';
 export 'package:church_service_timer/reports/report_charts.dart';
 export 'package:church_service_timer/reports/report_detail_page.dart';
 
+const _months = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
 String reportDate(int wall) {
   final d = DateTime.fromMillisecondsSinceEpoch(wall).toLocal();
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${d.day} ${months[d.month - 1]} ${d.year} · ${clockLabel(wall)}';
+  return '${d.day} ${_months[d.month - 1]} ${d.year} · ${clockLabel(wall)}';
+}
+
+/// "15 Jan", short enough to sit under one bar of the graph.
+String shortReportDate(int wall) {
+  final d = DateTime.fromMillisecondsSinceEpoch(wall).toLocal();
+  return '${d.day} ${_months[d.month - 1]}';
 }
 
 String reportMode(ServiceReport r) =>
@@ -246,7 +253,11 @@ extension ReportViews on HomeState {
       ..sort((a, b) => b.value.compareTo(a.value));
     String minutes(int ms) {
       final m = (ms.abs() / 60000).round();
-      return m == 0 ? 'on time' : '${ms > 0 ? '+' : '−'}${m}m avg';
+      // The same words as the rest of Reports, to the nearest minute; "avg"
+      // only when more than one service is averaged.
+      return m == 0
+          ? 'On time'
+          : '${durationLabel(m * 60000)} ${ms > 0 ? 'over' : 'under'}${last.length > 1 ? ' avg' : ''}';
     }
 
     Widget tile(String label, String value, Color tone) => Expanded(
@@ -287,9 +298,11 @@ extension ReportViews on HomeState {
       child: Row(
         children: [
           tile(
+            // Rehearsals are left out, so say "live": the graph below can
+            // include a later rehearsal.
             last.length == 1
-                ? 'Last service'
-                : 'Last ${plural(last.length, 'service')}',
+                ? 'Last live service'
+                : 'Last ${last.length} live services',
             minutes(avg),
             avg.abs() < 60000
                 ? colors.accent
@@ -427,43 +440,48 @@ extension ReportViews on HomeState {
           ),
         const SizedBox(height: 14),
         if (!reportsPage.selecting) reportSummary(),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                key: const ValueKey('report-search'),
-                initialValue: reportsPage.query,
-                decoration: const InputDecoration(
-                  hintText: 'Search reports',
-                  labelText: 'Search reports',
-                  floatingLabelBehavior: FloatingLabelBehavior.never,
-                  prefixIcon: Icon(Icons.search),
+        // The Dates button takes the search field's height, whatever the
+        // density and text size.
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: TextFormField(
+                  key: const ValueKey('report-search'),
+                  initialValue: reportsPage.query,
+                  decoration: const InputDecoration(
+                    hintText: 'Search reports',
+                    labelText: 'Search reports',
+                    floatingLabelBehavior: FloatingLabelBehavior.never,
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                  onChanged: (v) => refreshHome(() {
+                    reportsPage.query = v;
+                    reportsPage.open = null;
+                  }),
                 ),
-                onChanged: (v) => refreshHome(() {
-                  reportsPage.query = v;
-                  reportsPage.open = null;
-                }),
               ),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              key: const ValueKey('report-date-filter'),
-              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 54)),
-              onPressed: pickReportDates,
-              icon: const Icon(Icons.date_range, size: 20),
-              label: Text(
-                reportsPage.dates == null
-                    ? 'Dates'
-                    : '${reportsPage.dates!.start.day}/${reportsPage.dates!.start.month} – ${reportsPage.dates!.end.day}/${reportsPage.dates!.end.month}',
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                key: const ValueKey('report-date-filter'),
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+                onPressed: pickReportDates,
+                icon: const Icon(Icons.date_range, size: 20),
+                label: Text(
+                  reportsPage.dates == null
+                      ? 'Dates'
+                      : '${reportsPage.dates!.start.day}/${reportsPage.dates!.start.month} – ${reportsPage.dates!.end.day}/${reportsPage.dates!.end.month}',
+                ),
               ),
-            ),
-            if (reportsPage.dates != null)
-              IconButton(
-                tooltip: 'Clear date filter',
-                onPressed: () => refreshHome(() => reportsPage.dates = null),
-                icon: const Icon(Icons.close),
-              ),
-          ],
+              if (reportsPage.dates != null)
+                IconButton(
+                  tooltip: 'Clear date filter',
+                  onPressed: () => refreshHome(() => reportsPage.dates = null),
+                  icon: const Icon(Icons.close),
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         Row(
@@ -677,31 +695,21 @@ extension ReportViews on HomeState {
                   onSelect: (id) => refreshHome(() => reportsPage.graph = id),
                 ),
                 const SizedBox(height: 8),
+                // One date under each bar, laid out like the bars above.
                 Row(
+                  key: const ValueKey('graph-dates'),
                   children: [
-                    Flexible(
-                      child: Text(
-                        reportDate(
-                          last.first.startedWall ?? last.first.endedWall,
+                    for (final r in last)
+                      Expanded(
+                        child: Text(
+                          shortReportDate(r.startedWall ?? r.endedWall),
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          softWrap: false,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: colors.muted, fontSize: 11),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: colors.muted, fontSize: 11),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Spacer(),
-                    Flexible(
-                      child: Text(
-                        reportDate(
-                          last.last.startedWall ?? last.last.endedWall,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.end,
-                        style: TextStyle(color: colors.muted, fontSize: 11),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -782,9 +790,21 @@ extension ReportViews on HomeState {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
+                        // What happened, then how it compares, in the same
+                        // words and colour as the report rows.
                         Text(
-                          '${durationLabel(picked.totalMs!)} · ${pickedVariance.abs() < 1000 ? 'on time' : '${durationLabel(pickedVariance.abs())} ${pickedVariance > 0 ? 'over' : 'under'} plan'}',
+                          'Ran ${durationLabel(picked.totalMs!)} · planned ${durationLabel(picked.plannedMs)}',
+                          key: const ValueKey('graph-picked-times'),
                           style: TextStyle(color: colors.muted, fontSize: 13),
+                        ),
+                        Text(
+                          outcomeLabel(pickedVariance),
+                          key: const ValueKey('graph-picked-outcome'),
+                          style: TextStyle(
+                            color: outcomeColor(colors, pickedVariance),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
