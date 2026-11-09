@@ -267,18 +267,22 @@ class _PairedScreenState extends State<PairedScreen> {
                 SafeArea(
                   child: Align(
                     alignment: Alignment.topCenter,
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 12),
-                        FilledButton.tonalIcon(
-                          onPressed: () => hub.showStage(false),
-                          icon: const Icon(Icons.view_list),
-                          label: const Text('Back to service overview'),
-                        ),
-                        const Spacer(),
-                        leaveButton(),
-                        const SizedBox(width: 12),
-                      ],
+                    // Clear of the top edge.
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 12),
+                          FilledButton.tonalIcon(
+                            onPressed: () => hub.showStage(false),
+                            icon: const Icon(Icons.view_list),
+                            label: const Text('Back to service overview'),
+                          ),
+                          const Spacer(),
+                          leaveButton(),
+                          const SizedBox(width: 12),
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -313,11 +313,8 @@ class _JoinDevicePageState extends State<JoinDevicePage>
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text(
-        widget.initialRole == 'stage'
-            ? 'Join as stage screen'
-            : 'Join a service',
-      ),
+      // One name for joining, whichever role is chosen below.
+      title: const Text('Join a service'),
     ),
     body: ListView(
       padding: const EdgeInsets.all(20),
@@ -349,8 +346,14 @@ class _JoinDevicePageState extends State<JoinDevicePage>
           controller: name,
           maxLength: 60,
           enabled: !busy,
-          decoration: const InputDecoration(labelText: 'Device name'),
+          // No "13/60" counter jammed against the next field; the limit
+          // still applies.
+          decoration: const InputDecoration(
+            labelText: 'Device name',
+            counterText: '',
+          ),
         ),
+        const SizedBox(height: 12),
         ChoiceField<String>(
           value: role,
           decoration: const InputDecoration(labelText: 'Use this device as'),
@@ -411,8 +414,10 @@ class _JoinDevicePageState extends State<JoinDevicePage>
           decoration: const InputDecoration(
             labelText: 'Six-digit code',
             hintText: '000000',
+            counterText: '',
           ),
         ),
+        const SizedBox(height: 12),
         wifiRejoinSection(),
         const SizedBox(height: 12),
         if (error != null)

@@ -17,6 +17,8 @@ extension StageRequestViews on HomeState {
       padding: EdgeInsets.zero,
       child: SwitchListTile(
         key: const ValueKey('stage-requests-switch'),
+        // The same 24 px text inset as the Web screens card beside it.
+        contentPadding: const EdgeInsets.fromLTRB(24, 8, 16, 8),
         value: c.state.stageRequests,
         onChanged: c.busy || controlsLocked
             ? null
