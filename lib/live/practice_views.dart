@@ -1,4 +1,5 @@
 import 'package:church_service_timer/app/practice_controller.dart';
+import 'package:church_service_timer/live/practice_pointer.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,21 @@ String shortDate(int wall) {
 String? practiceReturnTo;
 
 extension PracticeViews on HomeState {
+  /// Wraps [child] with the animated practice pointer while the current
+  /// step needs it ([id] as in PracticeController.pointer).
+  Widget practiceSpot(
+    String id,
+    Widget child, {
+    double radius = 16,
+    String label = 'Tap',
+    bool enabled = true,
+  }) => PracticePointer(
+    active: enabled && c.practice.pointer == id,
+    radius: radius,
+    label: label,
+    child: child,
+  );
+
   /// Starts practice, switching to the Simulator first if needed.
   Future<void> startPractice() async {
     final reason = c.practice.blocker;
