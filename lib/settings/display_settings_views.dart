@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/display/pixels.dart';
@@ -96,9 +97,9 @@ extension RefinedSettings on HomeState {
         ),
         settingsRow(
           Icons.timer_off_outlined,
-          'At Zero',
+          'At zero',
           '${c.state.defaults.zero?.text ?? '00:00'} · shared across all services',
-          () => openSettingsDetail('At Zero', sharedZeroSettings),
+          () => openSettingsDetail('At zero', sharedZeroSettings),
         ),
         settingsRow(
           Icons.flag_outlined,
@@ -529,16 +530,7 @@ extension RefinedSettings on HomeState {
       ),
       trailing: fix == null
           ? null
-          : OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: colors.warning,
-                side: BorderSide(color: colors.warning.withValues(alpha: .5)),
-                minimumSize: const Size(64, 36),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              onPressed: c.busy ? null : () => run(check.onFix!),
-              child: Text(fix),
-            ),
+          : fixButton(context, fix, c.busy ? null : () => run(check.onFix!)),
       onTap: fix == null || c.busy ? null : () => run(check.onFix!),
     );
   }

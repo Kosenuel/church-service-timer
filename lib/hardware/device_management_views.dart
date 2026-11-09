@@ -72,7 +72,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
           scrollable: true,
-          title: Text('Change $label'),
+          title: Text('Change ${label.toLowerCase()}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,7 +89,9 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
                 autocorrect: false,
                 enableSuggestions: false,
                 maxLength: 16,
-                decoration: InputDecoration(labelText: 'New $label'),
+                decoration: InputDecoration(
+                  labelText: password ? 'New password' : 'New Wi-Fi name',
+                ),
               ),
               if (password)
                 TextField(
@@ -158,7 +160,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
           ? AnimationStyle.noAnimation
           : null,
       builder: (ctx) => AlertDialog(
-        title: Text('Apply $label change?'),
+        title: Text('Change the sign’s ${label.toLowerCase()}?'),
         content: Text(
           'Display: ${c.hardware.rememberedName}.\n\n${kind == 'ssid' ? 'New Wi-Fi name: $next.\n\n' : ''}${kind == 'devicePassword' ? 'The saved connection password on this phone will be removed.' : 'The phone and paired devices may lose Wi-Fi. Join the sign again using its new details.'}\n\nThe connection will close after this request. Other password settings are not cleared. If no acknowledgement arrives, check the sign before retrying.',
         ),
@@ -251,7 +253,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
           ? AnimationStyle.noAnimation
           : null,
       builder: (ctx) => AlertDialog(
-        title: const Text('Save known Wi-Fi password'),
+        title: const Text('Save Wi-Fi password'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -264,9 +266,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
               autocorrect: false,
               enableSuggestions: false,
               maxLength: 128,
-              decoration: const InputDecoration(
-                labelText: 'Known Wi-Fi password',
-              ),
+              decoration: const InputDecoration(labelText: 'Wi-Fi password'),
             ),
           ],
         ),
@@ -294,7 +294,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
         if (mounted)
           setState(() {
             revealedWifi = null;
-            status = 'Known Wi-Fi password saved on this phone.';
+            status = 'Wi-Fi password saved on this phone.';
           });
       });
   }
@@ -513,23 +513,36 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                      onPressed: busy || c.hardware.busy || c.hardware.sending
-                          ? null
-                          : connectFromSettings,
-                      icon: const Icon(Icons.connected_tv),
-                      label: Text(
-                        connected
-                            ? 'Connection details'
-                            : saved
-                            ? 'Reconnect LED display'
-                            : 'Connect LED display',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+                    // Once connected, Details is no more important than
+                    // Open Wi-Fi, so both are outlined.
+                    child: connected
+                        ? OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                            onPressed:
+                                busy || c.hardware.busy || c.hardware.sending
+                                ? null
+                                : connectFromSettings,
+                            icon: const Icon(Icons.connected_tv),
+                            label: const Text('Details'),
+                          )
+                        : FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                            onPressed:
+                                busy || c.hardware.busy || c.hardware.sending
+                                ? null
+                                : connectFromSettings,
+                            icon: const Icon(Icons.connected_tv),
+                            label: Text(
+                              saved
+                                  ? 'Reconnect LED display'
+                                  : 'Connect LED display',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -569,7 +582,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
           ListTile(
             key: const ValueKey('led-saved-wifi'),
             leading: Icon(Icons.wifi_password, color: colors.muted),
-            title: const Text('Sign Wi-Fi password'),
+            title: const Text('Wi-Fi password'),
             subtitle: revealedWifi != null
                 ? SelectableText(revealedWifi!)
                 : Text('Encrypted on this phone', style: muted),
@@ -582,10 +595,16 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
                       : () => toggleSecret(wifi: true),
                   child: Text(revealedWifi == null ? 'Show' : 'Hide'),
                 ),
-                IconButton(
-                  tooltip: 'Save known password',
-                  icon: const Icon(Icons.edit_outlined, size: 20),
-                  onPressed: busy || !saved ? null : saveKnownWifiPassword,
+                PopupMenuButton<void>(
+                  key: const ValueKey('led-saved-wifi-menu'),
+                  tooltip: 'More',
+                  enabled: !busy && saved,
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      onTap: saveKnownWifiPassword,
+                      child: const Text('Change saved password'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -593,7 +612,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
           ListTile(
             key: const ValueKey('led-saved-device'),
             leading: Icon(Icons.lock_outline, color: colors.muted),
-            title: const Text('Device password'),
+            title: const Text('Connection password'),
             subtitle: revealed != null
                 ? SelectableText(revealed!)
                 : Text(
@@ -609,22 +628,29 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
                       : () => toggleSecret(wifi: false),
                   child: Text(revealed == null ? 'Show' : 'Hide'),
                 ),
-                IconButton(
-                  tooltip: 'Forget saved password',
-                  icon: const Icon(Icons.delete_outline, size: 20),
-                  onPressed: busy || !saved
-                      ? null
-                      : () => operation(() async {
-                          await c.port.forgetDisplayPassword(
-                            c.hardware.rememberedId,
-                          );
-                          if (mounted)
-                            setState(() {
-                              revealed = null;
-                              status =
-                                  'Saved password removed. The sign’s password is unchanged.';
-                            });
-                        }),
+                PopupMenuButton<void>(
+                  key: const ValueKey('led-saved-device-menu'),
+                  tooltip: 'More',
+                  enabled: !busy && saved,
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      onTap: () => operation(() async {
+                        await c.port.forgetDisplayPassword(
+                          c.hardware.rememberedId,
+                        );
+                        if (mounted)
+                          setState(() {
+                            revealed = null;
+                            status =
+                                'Saved password removed. The sign’s password is unchanged.';
+                          });
+                      }),
+                      child: Text(
+                        'Forget saved password',
+                        style: TextStyle(color: colors.error),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -680,7 +706,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
           for (final item in [
             ('ssid', 'Wi-Fi name', Icons.wifi),
             ('wifiPassword', 'Wi-Fi password', Icons.wifi_password),
-            ('devicePassword', 'Device connection password', Icons.password),
+            ('devicePassword', 'Connection password', Icons.password),
           ])
             UnavailableAction(
               reason: adminUnavailable,

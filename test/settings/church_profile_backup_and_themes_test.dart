@@ -201,7 +201,7 @@ void main() {
       );
       await t.tap(find.text('Display settings'));
       await t.pumpAndSettle();
-      expect(find.text('At Zero'), findsOneWidget);
+      expect(find.text('At zero'), findsOneWidget);
       await t.pageBack();
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('About'));

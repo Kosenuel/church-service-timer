@@ -214,7 +214,7 @@ void main() {
       c.pairing.changed();
       await t.pump();
       await t.pump(const Duration(milliseconds: 100));
-      expect(find.text('Mark Seen'), findsOneWidget);
+      expect(find.text('Mark seen'), findsOneWidget);
       await shot(t, 'stage-seen-request');
       c.pairing.snapshot!['messageSeen'] = true;
       c.pairing.changed();

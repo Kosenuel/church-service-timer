@@ -298,12 +298,6 @@ class _WarningEditorState extends State<WarningEditor> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Enabled'),
-              value: enabled,
-              onChanged: (v) => setState(() => enabled = v),
-            ),
             const Text('Trigger when this much time remains:'),
             const SizedBox(height: 10),
             ListTile(
@@ -324,13 +318,15 @@ class _WarningEditorState extends State<WarningEditor> {
             const SizedBox(height: 12),
             ChoiceField<String>(
               value: destination,
+              row: true,
+              rowPadding: EdgeInsets.zero,
               decoration: const InputDecoration(labelText: 'Where to show'),
               options: const [
                 ChoiceOption(
                   value: 'operator',
                   label: 'Operator + phone notification',
                 ),
-                ChoiceOption(value: 'stage', label: 'Operator + stage display'),
+                ChoiceOption(value: 'stage', label: 'Operator and stage'),
               ],
               onChanged: (v) => setState(() => destination = v!),
             ),
@@ -382,7 +378,7 @@ class _WarningEditorState extends State<WarningEditor> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Preview duration: ${(warningDurationMs(WarningRule(0, cue, scrollOnce: scrollOnce, durationSeconds: duration)) / 1000).toStringAsFixed(1)} real seconds. Timing continues underneath.',
+              'Preview runs ${durationLabel(warningDurationMs(WarningRule(0, cue, scrollOnce: scrollOnce, durationSeconds: duration)))}. The timer keeps running underneath.',
             ),
             const SizedBox(height: 8),
             WarningAnimationPreview(layout: cue),
@@ -486,6 +482,15 @@ class _WarningAnimationPreviewState extends State<WarningAnimationPreview> {
 }
 
 extension WarningSettingsViews on HomeState {
+  Future<void> editZero() async {
+    final next = await compose(
+      c.state.defaults.zero ?? const TextLayout("TIME'S UP"),
+      'Zero-time screen · all services',
+      'Save zero screen',
+    );
+    if (next != null) await c.setSharedZero(next);
+  }
+
   Widget sharedZeroSettings() => panel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -502,31 +507,40 @@ extension WarningSettingsViews on HomeState {
           style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            button(
-              'Use 00:00',
-              Icons.timer_outlined,
-              c.busy ? null : () => c.setSharedZero(null),
+        SegmentedButton<bool>(
+          key: const ValueKey('zero-choice'),
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(
+              value: false,
+              label: Text('Show 00:00'),
+              icon: Icon(Icons.timer_outlined),
             ),
-            button(
-              'Custom text',
-              Icons.edit_outlined,
-              c.busy
-                  ? null
-                  : () async {
-                      final next = await compose(
-                        c.state.defaults.zero ?? const TextLayout("TIME'S UP"),
-                        'Zero-time screen · all services',
-                        'Save zero screen',
-                      );
-                      if (next != null) await c.setSharedZero(next);
-                    },
+            ButtonSegment(
+              value: true,
+              label: Text('Custom text'),
+              icon: Icon(Icons.edit_outlined),
             ),
           ],
+          selected: {c.state.defaults.zero != null},
+          onSelectionChanged: c.busy
+              ? null
+              : (values) async {
+                  if (!values.single) {
+                    await c.setSharedZero(null);
+                    return;
+                  }
+                  await editZero();
+                },
         ),
+        if (c.state.defaults.zero != null) ...[
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: c.busy ? null : editZero,
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Edit custom text'),
+          ),
+        ],
       ],
     ),
   );
@@ -597,6 +611,10 @@ extension WarningSettingsViews on HomeState {
         SwitchListTile(
           key: const ValueKey('lock-screen-controls'),
           contentPadding: appLayout(context).tileInsets,
+          secondary: Icon(
+            Icons.screen_lock_portrait_outlined,
+            color: appColors(context).accent,
+          ),
           title: const Text(
             'Lock-screen controls',
             style: TextStyle(fontWeight: FontWeight.w600),
@@ -616,6 +634,10 @@ extension WarningSettingsViews on HomeState {
         SwitchListTile(
           key: const ValueKey('clicker-controls'),
           contentPadding: appLayout(context).tileInsets,
+          secondary: Icon(
+            Icons.keyboard_alt_outlined,
+            color: appColors(context).accent,
+          ),
           title: const Text(
             'Clicker and foot pedal',
             style: TextStyle(fontWeight: FontWeight.w600),
@@ -683,20 +705,19 @@ extension WarningSettingsViews on HomeState {
         ),
         trailing: on
             ? null
-            : FilledButton(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 38),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  visualDensity: VisualDensity.compact,
-                ),
-                onPressed: c.busy ? null : c.enablePhoneWarnings,
-                child: const Text('Turn on'),
+            : fixButton(
+                context,
+                'Turn on',
+                c.busy ? null : c.enablePhoneWarnings,
               ),
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        padding: EdgeInsets.zero,
         child: ChoiceField<int>(
           value: c.state.notificationClearSeconds,
+          row: true,
+          icon: Icons.timer_outlined,
+          rowPadding: appLayout(context).tileInsets,
           decoration: const InputDecoration(
             labelText: 'Clear phone warnings after',
           ),
@@ -742,9 +763,10 @@ extension WarningSettingsViews on HomeState {
             'Without precise alarm access, Android may delay warnings while the phone sleeps.',
             style: TextStyle(fontSize: 13, color: colors.muted),
           ),
-          trailing: TextButton(
-            onPressed: () => run(c.port.requestExactWarnings),
-            child: const Text('Allow'),
+          trailing: fixButton(
+            context,
+            'Allow',
+            () => run(c.port.requestExactWarnings),
           ),
         ),
       settingsRow(

@@ -29,5 +29,8 @@ void main() {
       'Settings › About ×',
     ]);
     expect(releases.last.entries, ['Older entry']);
+    // The bold lead-in is kept so the page can show it in bold.
+    expect(releases.first.lead(0), 'Bold');
+    expect(releases.first.lead(1), '');
   });
 }

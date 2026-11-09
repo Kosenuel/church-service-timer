@@ -22,12 +22,21 @@ class ChoiceField<T> extends StatelessWidget {
   final InputDecoration decoration;
   final List<ChoiceOption<T>> options;
   final ValueChanged<T?>? onChanged;
+
+  /// Shows the choice as a settings row (title, value and a chevron) to
+  /// match the rows around it, instead of an outlined field.
+  final bool row;
+  final IconData? icon;
+  final EdgeInsetsGeometry? rowPadding;
   const ChoiceField({
     super.key,
     this.value,
     required this.decoration,
     required this.options,
     required this.onChanged,
+    this.row = false,
+    this.icon,
+    this.rowPadding,
   });
 
   @override
@@ -36,6 +45,30 @@ class ChoiceField<T> extends StatelessWidget {
     final title = decoration.labelText ?? 'Choose an option';
     final enabled = onChanged != null && options.isNotEmpty;
     final selected = options.where((o) => o.value == value).firstOrNull;
+    Future<void> choose() async {
+      final result = await showAppSelection<T>(
+        context,
+        title: title,
+        builder: (_) =>
+            _ChoiceSheet<T>(title: title, options: options, value: value),
+      );
+      if (context.mounted && result != null) onChanged?.call(result);
+    }
+
+    if (row) {
+      return ListTile(
+        contentPadding: rowPadding,
+        enabled: enabled,
+        leading: icon == null ? null : Icon(icon, color: colors.muted),
+        title: Text(title),
+        subtitle: Text(
+          selected?.label ?? 'Select an option',
+          style: TextStyle(color: colors.muted),
+        ),
+        trailing: const Icon(Icons.expand_more),
+        onTap: enabled ? choose : null,
+      );
+    }
     final compact =
         options.length <= 3 &&
         options.every((o) => o.label.length <= 16) &&
@@ -74,21 +107,7 @@ class ChoiceField<T> extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: enabled
-              ? () async {
-                  final result = await showAppSelection<T>(
-                    context,
-                    title: title,
-                    builder: (_) => _ChoiceSheet<T>(
-                      title: title,
-                      options: options,
-                      value: value,
-                    ),
-                  );
-                  if (context.mounted && result != null)
-                    onChanged?.call(result);
-                }
-              : null,
+          onTap: enabled ? choose : null,
           child: InputDecorator(
             decoration: decoration.copyWith(
               enabled: enabled,

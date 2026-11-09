@@ -316,7 +316,7 @@ void main() {
     await t.tap(find.text('Display settings'));
     await t.pumpAndSettle();
     expect(find.text('Editing'), findsNothing);
-    await t.tap(find.text('At Zero'));
+    await t.tap(find.text('At zero'));
     await t.pumpAndSettle();
     await t.tap(find.text('Custom text'));
     await t.pump(const Duration(milliseconds: 300));
@@ -329,7 +329,7 @@ void main() {
       true,
     );
     expect(c.simulator.delivered!.text, 'DONE');
-    await t.tap(find.text('Use 00:00'));
+    await t.tap(find.text('Show 00:00'));
     await t.pumpAndSettle();
     expect(c.state.defaults.zero, isNull);
     expect(c.simulator.delivered!.text, '00:00');

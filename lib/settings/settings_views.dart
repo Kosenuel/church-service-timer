@@ -177,6 +177,11 @@ extension SettingsViews on HomeState {
                 children: [
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
+                    secondary: Icon(
+                      Icons.light_mode_outlined,
+                      color: appColors(context).accent,
+                      size: 22,
+                    ),
                     title: const Text(
                       'Keep screen awake',
                       style: TextStyle(
@@ -255,7 +260,7 @@ extension SettingsViews on HomeState {
             ),
             entry(
               Icons.feedback_outlined,
-              'Feedback Center',
+              'Feedback centre',
               'Share a complaint or suggestion by email',
               () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -438,12 +443,14 @@ extension SettingsViews on HomeState {
 
   Widget aboutSettings() {
     final colors = appColors(context);
-    Widget detail(String title, String body, {Widget? action}) => Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(body, style: const TextStyle(fontSize: 15, height: 1.45)),
-        if (action != null) ...[const SizedBox(height: 16), action],
-      ],
+    Widget detail(String title, String body, {Widget? action}) => panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(body, style: const TextStyle(fontSize: 15, height: 1.45)),
+          if (action != null) ...[const SizedBox(height: 16), action],
+        ],
+      ),
     );
     Widget row(
       IconData icon,
@@ -501,7 +508,7 @@ extension SettingsViews on HomeState {
           'Display and hardware',
           () => detail(
             'Display and hardware',
-            '32 × 16 simulator and W2 Wi-Fi output: native countdown, pause/resume, time adjustments and automatic warnings with scrolling. Hardware updates may blink briefly. The active-service notification supports locked-screen operation; after connection loss or process termination, reconnect and review the output.',
+            'The simulator shows the 32 × 16 sign on this phone. A W2 Wi-Fi sign runs its own countdown, so pause, resume, time changes and scrolling warnings are sent to it as they happen, and the sign may blink briefly when it updates. During a service, the notification lets you control the timer from the lock screen. If the connection drops or Android closes the app, reconnect and check what the sign is showing.',
           ),
         ),
       ),

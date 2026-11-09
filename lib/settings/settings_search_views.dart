@@ -68,10 +68,10 @@ extension SettingsSearchViews on HomeState {
         () => openSettingsDetail('LED preview shape', ledShapeSettings),
       ),
       (
-        'At Zero',
+        'At zero',
         'zero overtime elapsed end countdown',
         Icons.timer_off_outlined,
-        () => openSettingsDetail('At Zero', sharedZeroSettings),
+        () => openSettingsDetail('At zero', sharedZeroSettings),
       ),
       (
         'Default end screen',
@@ -123,7 +123,7 @@ extension SettingsSearchViews on HomeState {
         ),
       ),
       (
-        'Feedback Center',
+        'Feedback centre',
         'feedback complaint contact email',
         Icons.feedback_outlined,
         () => Navigator.push(

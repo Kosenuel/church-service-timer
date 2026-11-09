@@ -130,7 +130,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('2 MIN LEFT'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Operator + stage display'));
+      await tester.tap(find.text('Operator and stage'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Operator + phone notification').last);
       await tester.pumpAndSettle();
