@@ -107,6 +107,11 @@ abstract class DevicePort {
   ) async => throw RuleError('Android Wi-Fi is required.');
   Future<bool> composeFeedback(String subject, String body) async => false;
   Future<String?> pickChurchBanner() async => null;
+
+  /// Picks a photo for the church logo: upright, metadata-free, at most
+  /// 1600 px on its longer side, as base64 JPEG or PNG. Cropping to a
+  /// square happens in the app.
+  Future<String?> pickChurchPhoto() async => null;
   Future<String> installedVersion() async => appVersion;
   Future<void> setKeepScreenAwake(bool enabled) async {}
   Future<Map<String, dynamic>?> pickBackup() => pickFile();
@@ -395,6 +400,9 @@ class AndroidPort extends DevicePort {
   @override
   Future<String?> pickChurchBanner() =>
       channel.invokeMethod<String>('pickChurchBanner');
+  @override
+  Future<String?> pickChurchPhoto() =>
+      channel.invokeMethod<String>('pickChurchPhoto');
   @override
   Future<String> installedVersion() async =>
       await channel.invokeMethod<String>('appVersion') ?? appVersion;

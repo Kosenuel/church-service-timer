@@ -15,7 +15,8 @@ import java.io.ByteArrayOutputStream
 
 /** Imports a private, metadata-free 3:1 copy. The selected original is untouched. */
 object ChurchBanner {
-    fun read(context: Context, uri: Uri): String {
+    /** Reads, checks and decodes the picked image, turned upright. */
+    private fun decodeUpright(context: Context, uri: Uri): Bitmap {
         val bytes = ByteArrayOutputStream()
         (context.contentResolver.openInputStream(uri) ?: error("Cannot open selected image")).use { input ->
             val buffer = ByteArray(8192)
@@ -51,11 +52,39 @@ object ChurchBanner {
                 ExifInterface.ORIENTATION_ROTATE_270 -> setRotate(-90f)
             }
         }
-        var upright: Bitmap? = null
-        var output: Bitmap? = null
         try {
             val image = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, transform, true)
-            upright = image
+            if (image !== decoded) decoded.recycle()
+            return image
+        } catch (e: Throwable) {
+            decoded.recycle()
+            throw e
+        }
+    }
+
+    /** A copy for the logo: upright, metadata-free and at most 1600 px on its longer side. */
+    fun readPhoto(context: Context, uri: Uri): String {
+        val image = decodeUpright(context, uri)
+        var scaled: Bitmap? = null
+        try {
+            val longest = maxOf(image.width, image.height)
+            val output = if (longest <= 1600) image else {
+                val factor = 1600f / longest
+                Bitmap.createScaledBitmap(image, (image.width * factor).toInt().coerceAtLeast(1), (image.height * factor).toInt().coerceAtLeast(1), true).also { scaled = it }
+            }
+            val encoded = ByteArrayOutputStream()
+            check(output.compress(Bitmap.CompressFormat.JPEG, 92, encoded)) { "Could not prepare the photo." }
+            return Base64.encodeToString(encoded.toByteArray(), Base64.NO_WRAP)
+        } finally {
+            scaled?.recycle()
+            image.recycle()
+        }
+    }
+
+    fun read(context: Context, uri: Uri): String {
+        val image = decodeUpright(context, uri)
+        var output: Bitmap? = null
+        try {
             val result = Bitmap.createBitmap(600, 200, Bitmap.Config.ARGB_8888)
             output = result
             val frame = bannerFrame(image.width, image.height)
@@ -66,8 +95,7 @@ object ChurchBanner {
             return Base64.encodeToString(encoded.toByteArray(), Base64.NO_WRAP)
         } finally {
             output?.recycle()
-            if (upright !== decoded) upright?.recycle()
-            decoded.recycle()
+            image.recycle()
         }
     }
 }

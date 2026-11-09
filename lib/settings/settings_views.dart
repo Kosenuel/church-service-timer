@@ -4,7 +4,6 @@ import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/live/practice_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
-import 'package:church_service_timer/shared/church_banner.dart';
 import 'package:church_service_timer/feedback/feedback_page.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -13,6 +12,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/settings/backup_secret_views.dart';
 import 'package:church_service_timer/settings/whats_new_page.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
+export 'package:church_service_timer/settings/church_profile_page.dart';
 
 extension SettingsViews on HomeState {
   Future<void> openSettingsDetail(
@@ -559,7 +559,7 @@ extension SettingsViews on HomeState {
         panel(
           child: Row(
             children: [
-              const ChurchTimerMark(size: 64),
+              ChurchTimerMark(size: 64, logo: c.state.churchLogo),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -636,186 +636,6 @@ extension SettingsViews on HomeState {
       ],
     );
   }
-}
-
-class ChurchProfilePage extends StatefulWidget {
-  final AppController controller;
-  const ChurchProfilePage({super.key, required this.controller});
-  @override
-  State<ChurchProfilePage> createState() => _ChurchProfilePageState();
-}
-
-class _ChurchProfilePageState extends State<ChurchProfilePage> {
-  late final TextEditingController name = TextEditingController(
-    text: widget.controller.state.churchName,
-  );
-  late String banner = widget.controller.state.churchBanner;
-  String? imageError;
-  bool picking = false;
-  Future<void> pickBanner() async {
-    setState(() {
-      picking = true;
-      imageError = null;
-    });
-    try {
-      final value = await widget.controller.port.pickChurchBanner();
-      if (value != null) {
-        await validateBannerPixels(value);
-        if (mounted) setState(() => banner = value);
-      }
-    } catch (_) {
-      if (mounted)
-        setState(
-          () => imageError =
-              'Could not use this image. Choose a JPEG, PNG or WebP up to 5 MB and 40 megapixels.',
-        );
-    } finally {
-      if (mounted) setState(() => picking = false);
-    }
-  }
-
-  String? error;
-  bool saving = false;
-  @override
-  void dispose() {
-    name.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Church profile'),
-      bottom: widget.controller.liveSession.active
-          ? RunningServiceBar.forContext(context, controller: widget.controller)
-          : null,
-    ),
-    body: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Semantics(
-                  button: true,
-                  label: 'Choose church banner',
-                  child: InkWell(
-                    key: const ValueKey('choose-church-banner'),
-                    borderRadius: BorderRadius.circular(18),
-                    onTap: saving || picking ? null : pickBanner,
-                    child: ChurchProfileBanner(image: banner),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Recommended: 1200 × 400 px (3:1). JPEG, PNG or WebP, maximum 5 MB and 40 megapixels. Images are cropped from the centre without stretching. Keep important details near the centre.',
-                  style: TextStyle(
-                    color: appColors(context).muted,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  banner.isEmpty
-                      ? 'Built-in banner'
-                      : 'Your banner preview · save below to keep it',
-                  style: TextStyle(
-                    color: appColors(context).muted,
-                    fontSize: 12,
-                  ),
-                ),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: saving || picking ? null : pickBanner,
-                      icon: const Icon(Icons.add_photo_alternate_outlined),
-                      label: Text(
-                        picking ? 'Preparing image…' : 'Choose banner',
-                      ),
-                    ),
-                    if (banner.isNotEmpty)
-                      TextButton(
-                        onPressed: saving || picking
-                            ? null
-                            : () => setState(() {
-                                banner = '';
-                                imageError = null;
-                              }),
-                        child: const Text('Use built-in banner'),
-                      ),
-                  ],
-                ),
-                if (imageError != null)
-                  Text(
-                    imageError!,
-                    style: TextStyle(color: appColors(context).warning),
-                  ),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: name,
-                  enabled: !saving && !picking,
-                  maxLength: 80,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    labelText: 'Church name (optional)',
-                    hintText: 'e.g. Grace Community Church',
-                    errorText: error,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Shown in the app header, opening screen and new service reports. Loaded services keep the church name they started with. Older reports keep their original name.',
-                  style: TextStyle(color: appColors(context).muted),
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: saving || picking
-                      ? null
-                      : () async {
-                          String value;
-                          try {
-                            value = churchNameValue(name.text);
-                          } catch (e) {
-                            setState(() => error = '$e');
-                            return;
-                          }
-                          setState(() {
-                            saving = true;
-                            error = null;
-                          });
-                          final saved = await widget.controller.commit((
-                            draft,
-                            _,
-                          ) {
-                            draft.churchName = value;
-                            draft.churchBanner = banner;
-                          });
-                          if (!mounted || !context.mounted) return;
-                          if (saved) {
-                            Navigator.pop(context);
-                          } else {
-                            setState(() {
-                              saving = false;
-                              error =
-                                  widget.controller.error ??
-                                  'Could not save. Try again.';
-                            });
-                          }
-                        },
-                  child: const Text('Save church profile'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
 }
 
 class AppearancePage extends StatefulWidget {

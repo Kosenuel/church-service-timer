@@ -48,6 +48,10 @@ class AppState {
   String pixelShape;
   bool groupTemplates;
   String churchName, themeId, churchBanner;
+
+  /// The church's square logo, shown at the top left of every page in
+  /// place of the built-in mark; empty for the built-in mark.
+  String churchLogo;
   bool keepScreenAwake;
 
   /// Show the service with Pause and Next on the lock-screen notification.
@@ -84,6 +88,7 @@ class AppState {
     this.groupTemplates = true,
     this.churchName = '',
     this.churchBanner = '',
+    this.churchLogo = '',
     this.themeId = 'midnight_lime',
     this.keepScreenAwake = true,
     this.lockScreenControls = true,
@@ -250,6 +255,7 @@ class AppState {
           : j['groupTemplates'] ?? true,
       churchName: churchNameValue(j['churchName'] ?? ''),
       churchBanner: churchBannerValue(j['churchBanner'] ?? ''),
+      churchLogo: churchLogoValue(j['churchLogo'] ?? ''),
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
       keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
       lockScreenControls: boolSetting(j['lockScreenControls'] ?? true),
@@ -400,6 +406,7 @@ class AppState {
     'groupTemplates': groupTemplates,
     'churchName': churchName,
     'churchBanner': churchBanner,
+    'churchLogo': churchLogo,
     'themeId': themeId,
     'keepScreenAwake': keepScreenAwake,
     'lockScreenControls': lockScreenControls,

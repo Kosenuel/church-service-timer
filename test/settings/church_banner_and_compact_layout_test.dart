@@ -23,6 +23,10 @@ class BannerPort extends FakePort {
       throw PlatformException(code: 'IMAGE', message: 'Image too large');
     return picked;
   }
+
+  // The profile page now picks a photo and crops it in the app.
+  @override
+  Future<String?> pickChurchPhoto() => pickChurchBanner();
 }
 
 void main() {
@@ -72,8 +76,18 @@ void main() {
     // Image codecs complete outside the fake widget-test clock.
     await t.runAsync(() async {
       await t.tap(find.byKey(const ValueKey('choose-church-banner')));
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
     });
+    await t.pumpAndSettle();
+    // The photo opens in the 3:1 crop; use it as framed.
+    final use = find.byKey(const ValueKey('use-cropped-image'));
+    if (use.evaluate().isNotEmpty) {
+      await t.runAsync(() async {
+        await t.tap(use);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await t.pumpAndSettle();
+    }
     await settleBanner(t);
   }
 
@@ -205,10 +219,13 @@ void main() {
         closeTo(3, 0.001),
       );
       await pick(t);
-      expect(
-        t.widget<ChurchProfileBanner>(find.byType(ChurchProfileBanner)).image,
-        port.picked,
-      );
+      // The picked photo is cropped to 3:1 in the app and saved as a fresh
+      // 600 × 200 PNG, so it is a valid banner but not the same bytes.
+      final cropped = t
+          .widget<ChurchProfileBanner>(find.byType(ChurchProfileBanner))
+          .image;
+      expect(cropped, isNotEmpty);
+      expect(churchBannerValue(cropped), cropped);
       expect(c.state.churchBanner, '');
       await t.pageBack();
       await t.pumpAndSettle();
@@ -224,12 +241,14 @@ void main() {
         matchesGoldenFile('../goldens/church-profile-custom-phone.png'),
       );
       await saveProfile(t);
-      expect(c.state.churchBanner, bannerFixture());
+      // Cropped in the app, so a fresh 600 × 200 PNG, not the same bytes.
+      expect(churchBannerValue(c.state.churchBanner), isNotEmpty);
       expect(c.state.churchName, 'Grace Chapel');
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
+      final saved = c.state.churchBanner;
       final restored = await setup(port);
-      expect(restored.state.churchBanner, bannerFixture());
+      expect(restored.state.churchBanner, saved);
       restored.dispose();
     },
   );
@@ -247,20 +266,24 @@ void main() {
       await profile(t);
       await pick(t);
       expect(
-        t.widget<ChurchProfileBanner>(find.byType(ChurchProfileBanner)).image,
-        bannerFixture(),
+        churchBannerValue(
+          t.widget<ChurchProfileBanner>(find.byType(ChurchProfileBanner)).image,
+        ),
+        isNotEmpty,
       );
       port.failPick = true;
       await pick(t);
-      expect(find.textContaining('Could not use this image'), findsOneWidget);
-      expect(c.state.churchBanner, bannerFixture());
+      expect(find.textContaining('Could not use this photo'), findsOneWidget);
+      // Cropped in the app, so a fresh 600 × 200 PNG, not the same bytes.
+      expect(churchBannerValue(c.state.churchBanner), isNotEmpty);
       await t.tap(find.text('Use built-in banner'));
       await t.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('built-in-church-banner')),
         findsOneWidget,
       );
-      expect(c.state.churchBanner, bannerFixture());
+      // Cropped in the app, so a fresh 600 × 200 PNG, not the same bytes.
+      expect(churchBannerValue(c.state.churchBanner), isNotEmpty);
       await saveProfile(t);
       expect(c.state.churchBanner, '');
       expect(t.takeException(), isNull);
@@ -283,7 +306,8 @@ void main() {
       expect(find.byType(ChurchProfilePage), findsOneWidget);
       port.fail = false;
       await saveProfile(t);
-      expect(c.state.churchBanner, bannerFixture());
+      // Cropped in the app, so a fresh 600 × 200 PNG, not the same bytes.
+      expect(churchBannerValue(c.state.churchBanner), isNotEmpty);
       expect(find.byType(ChurchProfilePage), findsNothing);
       await t.pumpWidget(const SizedBox());
     },
@@ -305,10 +329,12 @@ void main() {
       expect(c.state.churchBanner, '');
       port.fail = false;
       expect(await c.retry!(), true);
-      expect(c.state.churchBanner, bannerFixture());
+      // Cropped in the app, so a fresh 600 × 200 PNG, not the same bytes.
+      expect(churchBannerValue(c.state.churchBanner), isNotEmpty);
       final broken = base64Encode(base64Decode(bannerFixture()).sublist(0, 33));
       expect(await c.commit((a, _) => a.churchBanner = broken), false);
-      expect(c.state.churchBanner, bannerFixture());
+      // Cropped in the app, so a fresh 600 × 200 PNG, not the same bytes.
+      expect(churchBannerValue(c.state.churchBanner), isNotEmpty);
       c.dispose();
     },
   );
