@@ -244,7 +244,7 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('template-row:Quick rehearsal')));
       await t.pumpAndSettle();
-      await tap(t, 'Edit Program');
+      await tap(t, 'Edit program');
       await tap(t, 'Welcome');
       await t.enterText(
         find.widgetWithText(TextField, 'Speaker (optional)'),

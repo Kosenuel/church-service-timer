@@ -138,7 +138,7 @@ extension SettingsViews on HomeState {
         if (settingsQuery.trim().isNotEmpty)
           settingsSearchResults()
         else ...[
-          group('Personalization', [
+          group('Personalisation', [
             entry(
               Icons.church_outlined,
               'Church profile',
@@ -1002,7 +1002,7 @@ class _CustomThemeEditorState extends State<CustomThemeEditor> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Choose colors or enter hex values. Text and accent contrast are adjusted for readability.',
+                'Choose colours or enter hex values. Text and accent contrast are adjusted for readability.',
               ),
               const SizedBox(height: 16),
               for (var i = 0; i < fields.length; i++) ...[

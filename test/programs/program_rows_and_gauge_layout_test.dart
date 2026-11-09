@@ -163,7 +163,7 @@ void main() {
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
     await templates(t);
-    expect(find.text('Edit Program'), findsNothing);
+    expect(find.text('Edit program'), findsNothing);
     final row = find.byKey(const ValueKey('template-row:Sunday Service'));
     expect(t.getSize(row).height, lessThan(90));
     expect(find.text('4 segments · 55 min'), findsOneWidget);
@@ -297,8 +297,8 @@ void main() {
       await t.tap(find.text('Quick rehearsal'));
       await t.pumpAndSettle();
       expect(t.takeException(), isNull);
-      await t.ensureVisible(find.text('Edit Program'));
-      await t.tap(find.text('Edit Program'));
+      await t.ensureVisible(find.text('Edit program'));
+      await t.tap(find.text('Edit program'));
       await t.pumpAndSettle();
       await t.enterText(
         find.widgetWithText(TextField, 'Program name'),

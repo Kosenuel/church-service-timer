@@ -306,7 +306,7 @@ class ServiceReport {
     review: note,
   );
   factory ServiceReport.fromSession(Session s, Stamp now) {
-    require(s.phase == 'ended', 'Reports are finalized when a service ends.');
+    require(s.phase == 'ended', 'Reports are finalised when a service ends.');
     return ServiceReport(
       s.id,
       s.timeline!.name,
@@ -607,7 +607,7 @@ String? serviceActionDescription(
   'adjust' =>
     '${(value as int) >= 0 ? '+' : ''}$value seconds requested · ${formatTime(s.remaining(s.anchor))} remaining',
   'cue' => 'Stage cue requested: ${s.alert!.text}',
-  'blank' => 'Blank display requested',
+  'blank' => 'Blank screen requested',
   'timer' || 'releaseTimer' => 'Current timer requested',
   'end' => 'Service ended',
   'disconnect' => 'Simulator disconnected',

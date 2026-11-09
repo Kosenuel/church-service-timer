@@ -213,7 +213,7 @@ void main() {
       await t.pumpAndSettle();
       await tap(t, 'Quick rehearsal');
       expect(find.text('Program details'), findsOneWidget);
-      expect(t.getTopLeft(find.text('Edit Program')).dy, lessThan(350));
+      expect(t.getTopLeft(find.text('Edit program')).dy, lessThan(350));
       await golden(t, 'program-detail');
       await t.tap(find.byTooltip('Program options'));
       await t.pumpAndSettle();

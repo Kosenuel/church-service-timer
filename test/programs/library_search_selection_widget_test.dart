@@ -205,7 +205,7 @@ void main() {
       await tap(t, find.text('Programs').last);
       await tap(t, find.byKey(const ValueKey('template-row:Sunday Service')));
       expect(find.byKey(const ValueKey('master-detail')), findsOneWidget);
-      expect(find.text('Edit Program'), findsOneWidget);
+      expect(find.text('Edit program'), findsOneWidget);
       await shot(t, 'programs-tablet-021');
       await tap(t, find.text('Reports').last);
       await tap(
