@@ -58,4 +58,28 @@ void main() {
     expect(c.state.practicePrompt, isFalse);
     await t.pumpWidget(const SizedBox());
   });
+
+  testWidgets('Not now hides the invitation without turning it off', (t) async {
+    final c = AppController(FakePort());
+    await c.initialize(startTicker: false);
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    expect(
+      find.text(
+        'You can also start it any time from Settings › About › Guided practice.',
+      ),
+      findsOneWidget,
+    );
+    await t.ensureVisible(find.byKey(const ValueKey('snooze-practice-prompt')));
+    await t.tap(find.byKey(const ValueKey('snooze-practice-prompt')));
+    await t.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('start-practice'), skipOffstage: false),
+      findsNothing,
+    );
+    // Only hidden for now: the saved choice is unchanged.
+    expect(c.state.practicePrompt, isTrue);
+
+    await t.pumpWidget(const SizedBox());
+  });
 }

@@ -156,6 +156,10 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
 
   /// The battery hint's × hides it until the app is next opened.
   bool batteryHintDismissed = false;
+
+  /// Not now on the practice invitation hides it until the app is next
+  /// opened; Don't show again hides it for good.
+  bool practicePromptSnoozed = false;
   final homeScroll = ScrollController();
   bool? _completedService;
 
@@ -583,14 +587,20 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    headerTitle(),
-                                    key: const ValueKey('header-title'),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
+                                  // One line beside the display chip; a
+                                  // long name ends in "…" and shows in
+                                  // full on long-press.
+                                  Tooltip(
+                                    message: headerTitle(),
+                                    child: Text(
+                                      headerTitle(),
+                                      key: const ValueKey('header-title'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
                                   if (headerSubtitle().isNotEmpty)

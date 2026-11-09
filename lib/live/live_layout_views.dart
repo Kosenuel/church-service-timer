@@ -42,6 +42,8 @@ extension LiveLayout on HomeState {
             backgroundColor: colors.surface,
             selectedIndex: page,
             labelType: NavigationRailLabelType.all,
+            // Clear of the top edge, in line with the header beside it.
+            leading: const SizedBox(height: 12),
             onDestinationSelected: (v) {
               if (!controlsLocked) goToPage(v);
             },

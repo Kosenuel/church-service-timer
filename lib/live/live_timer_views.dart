@@ -264,9 +264,15 @@ class DisplayPreviewHeader extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     key: const ValueKey('display-preview-header'),
     children: [
+      // Both stay on one line ("Stage screen · Connected" used to wrap);
+      // the badge gets the larger share and shortens with "…" only on the
+      // narrowest screens.
       Expanded(
+        flex: 2,
         child: Text(
           'DISPLAY PREVIEW',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: appColors(context).muted,
             letterSpacing: 1.6,
@@ -276,7 +282,8 @@ class DisplayPreviewHeader extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 12),
-      Flexible(
+      Expanded(
+        flex: 3,
         child: Align(
           alignment: Alignment.centerRight,
           child: DisplayConnectionBadge(connection: connection),
@@ -313,6 +320,8 @@ class DisplayConnectionBadge extends StatelessWidget {
           Flexible(
             child: Text(
               connection.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(color: color, fontSize: 12),
             ),
           ),
@@ -628,7 +637,7 @@ extension LiveViewActions on HomeState {
         );
         // On a phone "Next segment" wraps onto two lines beside Pause; the
         // line above the timer already names the next segment.
-        final nextLabel = constraints.maxWidth < 480 && !large
+        final nextLabel = constraints.maxWidth < 400 && !large
             ? 'Next'
             : 'Next segment';
         final next = UnavailableAction(
