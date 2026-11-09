@@ -350,7 +350,7 @@ class _PairedScreenState extends State<PairedScreen> {
                     height: 150,
                     child: Center(
                       child: Text(
-                        'Display blank',
+                        'Screen blank',
                         style: TextStyle(color: Colors.grey),
                       ),
                     ),

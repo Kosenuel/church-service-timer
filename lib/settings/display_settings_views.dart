@@ -169,7 +169,7 @@ extension RefinedSettings on HomeState {
           ),
           settingsRow(
             Icons.palette_outlined,
-            'Color capability',
+            'Colour capability',
             c.hardware.profile == null
                 ? 'Monochrome · preview'
                 : 'Red monochrome · read from controller',

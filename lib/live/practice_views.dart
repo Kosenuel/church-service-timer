@@ -53,7 +53,7 @@ extension PracticeViews on HomeState {
     if (c.destination != 'simulator') {
       final name = c.destinationName;
       if (!await confirm(
-        'Practise on the Simulator?',
+        'Practise on the simulator?',
         'Practice runs on this phone’s Simulator, so nothing appears on stage. $name stops receiving output until you switch back; you can do that when practice ends.',
         'Switch and practise',
       ))

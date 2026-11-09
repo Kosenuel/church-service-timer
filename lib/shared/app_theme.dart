@@ -310,7 +310,7 @@ AppPalette paletteFor(String id) {
     return AppPalette(
       id,
       'Custom theme',
-      'Your colors · readable accents',
+      'Your colours · readable accents',
       bg,
       surface,
       accent,

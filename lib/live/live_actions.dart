@@ -273,7 +273,7 @@ extension LiveActions on HomeState {
             ),
             if (s.outputBlank)
               CheckboxListTile(
-                title: const Text('Keep the display blank'),
+                title: const Text('Keep the screen blank'),
                 value: keepBlank,
                 onChanged: (v) => update(() => keepBlank = v!),
               ),
