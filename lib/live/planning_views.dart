@@ -152,19 +152,26 @@ extension PlanningViews on HomeState {
                         value: inkSaving,
                         onChanged: (v) => update(() => inkSaving = v!),
                       ),
+                      // Always tappable: ticking either turns Ink-saving
+                      // off, rather than leaving them greyed out by a
+                      // choice remembered from the last print.
                       CheckboxListTile(
+                        key: const ValueKey('print-watermark'),
                         title: const Text('Church-name watermark'),
                         value: watermark && !inkSaving,
-                        onChanged: inkSaving
-                            ? null
-                            : (v) => update(() => watermark = v!),
+                        onChanged: (v) => update(() {
+                          watermark = v!;
+                          if (v) inkSaving = false;
+                        }),
                       ),
                       CheckboxListTile(
+                        key: const ValueKey('print-banner'),
                         title: const Text('Include church banner'),
                         value: includeBanner && !inkSaving,
-                        onChanged: inkSaving
-                            ? null
-                            : (v) => update(() => includeBanner = v!),
+                        onChanged: (v) => update(() {
+                          includeBanner = v!;
+                          if (v) inkSaving = false;
+                        }),
                       ),
                       CheckboxListTile(
                         title: const Text('Include private operator notes'),
