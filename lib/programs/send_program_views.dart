@@ -146,23 +146,32 @@ Future<void> reviewReceivedProgram(
         ),
       ),
       actions: [
-        TextButton(
-          key: const ValueKey('discard-received'),
-          style: TextButton.styleFrom(foregroundColor: destructiveColor),
-          onPressed: () => Navigator.pop(ctx, 'discard'),
-          child: const Text('Discard'),
-        ),
-        if (existing != null)
-          OutlinedButton(
-            key: const ValueKey('save-received-copy'),
-            onPressed: () => Navigator.pop(ctx, 'copy'),
-            child: const Text('Save as copy'),
-          ),
-        FilledButton(
-          key: const ValueKey('save-received'),
-          onPressed: () =>
-              Navigator.pop(ctx, existing == null ? 'copy' : 'update'),
-          child: Text(existing == null ? 'Save' : 'Update mine'),
+        StackedDialogActions(
+          children: [
+            FilledButton(
+              key: const ValueKey('save-received'),
+              onPressed: () =>
+                  Navigator.pop(ctx, existing == null ? 'copy' : 'update'),
+              child: Text(existing == null ? 'Save' : 'Update mine'),
+            ),
+            if (existing != null)
+              OutlinedButton(
+                key: const ValueKey('save-received-copy'),
+                onPressed: () => Navigator.pop(ctx, 'copy'),
+                child: const Text('Save as copy'),
+              ),
+            TextButton(
+              key: const ValueKey('discard-received'),
+              style: TextButton.styleFrom(foregroundColor: destructiveColor),
+              onPressed: () => Navigator.pop(ctx, 'discard'),
+              child: const Text('Discard'),
+            ),
+            TextButton(
+              key: const ValueKey('cancel-received'),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+          ],
         ),
       ],
     ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/live/practice_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
@@ -1257,22 +1258,28 @@ class _CustomThemeEditorState extends State<CustomThemeEditor> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => setState(() {
-            final colors = [base.accent, base.background, base.surface];
-            for (var i = 0; i < 3; i++) {
-              fields[i].text = hex(colors[i]);
-            }
-          }),
-          child: const Text('Reset'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: error == null ? () => Navigator.pop(context, id) : null,
-          child: const Text('Use theme'),
+        StackedDialogActions(
+          children: [
+            FilledButton(
+              onPressed: error == null
+                  ? () => Navigator.pop(context, id)
+                  : null,
+              child: const Text('Use theme'),
+            ),
+            OutlinedButton(
+              onPressed: () => setState(() {
+                final colors = [base.accent, base.background, base.surface];
+                for (var i = 0; i < 3; i++) {
+                  fields[i].text = hex(colors[i]);
+                }
+              }),
+              child: const Text('Reset'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
         ),
       ],
     );

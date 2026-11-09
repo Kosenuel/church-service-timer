@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert' show jsonEncode;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -238,34 +239,39 @@ class _TextComposerState extends State<TextComposer> {
         ),
       ),
       actions: [
-        if (widget.onDelete != null)
-          TextButton.icon(
-            onPressed: deleting
-                ? null
-                : () async {
-                    setState(() => deleting = true);
-                    try {
-                      final removed = await widget.onDelete!();
-                      if (removed && context.mounted) Navigator.pop(context);
-                    } finally {
-                      if (mounted) setState(() => deleting = false);
-                    }
-                  },
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Delete cue'),
-            style: TextButton.styleFrom(
-              foregroundColor: appColors(context).error,
+        StackedDialogActions(
+          children: [
+            FilledButton(
+              onPressed: error == null && !deleting
+                  ? () => Navigator.pop(context, layout)
+                  : null,
+              child: Text(widget.button),
             ),
-          ),
-        TextButton(
-          onPressed: deleting ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: error == null && !deleting
-              ? () => Navigator.pop(context, layout)
-              : null,
-          child: Text(widget.button),
+            if (widget.onDelete != null)
+              TextButton.icon(
+                onPressed: deleting
+                    ? null
+                    : () async {
+                        setState(() => deleting = true);
+                        try {
+                          final removed = await widget.onDelete!();
+                          if (removed && context.mounted)
+                            Navigator.pop(context);
+                        } finally {
+                          if (mounted) setState(() => deleting = false);
+                        }
+                      },
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Delete cue'),
+                style: TextButton.styleFrom(
+                  foregroundColor: appColors(context).error,
+                ),
+              ),
+            TextButton(
+              onPressed: deleting ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
         ),
       ],
     );

@@ -170,45 +170,49 @@ class TemplateEditorState extends State<TemplateEditor> {
             ],
           ),
           actions: [
-            if (widget.draftController case final library?)
-              TextButton.icon(
-                key: const ValueKey('save-segment-to-library'),
-                onPressed: () async {
-                  try {
-                    final s = build();
-                    if (!await library.commit(
-                      (draft, _) => draft.saveLibrarySegment(s),
-                    ))
-                      throw RuleError(
-                        library.error ?? 'Could not save to the library.',
-                      );
-                    update(() {
-                      issue = null;
-                      saved = 'Saved “${s.name}” to the segment library.';
-                    });
-                  } catch (e) {
-                    update(() {
-                      saved = null;
-                      issue = e.toString();
-                    });
-                  }
-                },
-                icon: const Icon(Icons.bookmark_add_outlined),
-                label: const Text('Save to library'),
-              ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                try {
-                  Navigator.pop(ctx, build());
-                } catch (e) {
-                  update(() => issue = e.toString());
-                }
-              },
-              child: const Text('Save segment'),
+            StackedDialogActions(
+              children: [
+                FilledButton(
+                  onPressed: () {
+                    try {
+                      Navigator.pop(ctx, build());
+                    } catch (e) {
+                      update(() => issue = e.toString());
+                    }
+                  },
+                  child: const Text('Save segment'),
+                ),
+                if (widget.draftController case final library?)
+                  OutlinedButton.icon(
+                    key: const ValueKey('save-segment-to-library'),
+                    onPressed: () async {
+                      try {
+                        final s = build();
+                        if (!await library.commit(
+                          (draft, _) => draft.saveLibrarySegment(s),
+                        ))
+                          throw RuleError(
+                            library.error ?? 'Could not save to the library.',
+                          );
+                        update(() {
+                          issue = null;
+                          saved = 'Saved “${s.name}” to the segment library.';
+                        });
+                      } catch (e) {
+                        update(() {
+                          saved = null;
+                          issue = e.toString();
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.bookmark_add_outlined),
+                    label: const Text('Save to library'),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+              ],
             ),
           ],
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -63,18 +64,22 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
       ],
     ),
     actions: [
-      if (widget.allowRecovery)
-        TextButton(
-          onPressed: () => Navigator.pop(context, 'recover'),
-          child: const Text('Forgot PIN?'),
-        ),
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: SettingsLock.validPin(pin.text) ? submit : null,
-        child: Text(widget.action),
+      StackedDialogActions(
+        children: [
+          FilledButton(
+            onPressed: SettingsLock.validPin(pin.text) ? submit : null,
+            child: Text(widget.action),
+          ),
+          if (widget.allowRecovery)
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context, 'recover'),
+              child: const Text('Forgot PIN?'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
       ),
     ],
   );
