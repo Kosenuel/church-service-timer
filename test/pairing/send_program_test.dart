@@ -97,7 +97,10 @@ void main() {
         home: Scaffold(body: ReceivedProgramCards(controller: c)),
       ),
     );
-    expect(find.text('Program received: ${mine.name}'), findsOneWidget);
+    expect(
+      find.byKey(ValueKey('received-program:${mine.name}')),
+      findsOneWidget,
+    );
     await t.tap(find.text('Review'));
     await t.pumpAndSettle();
     expect(find.text('Update mine'), findsOneWidget);
@@ -109,9 +112,49 @@ void main() {
     });
     await t.pumpAndSettle();
     expect(c.state.programInbox, isEmpty);
-    expect(find.text('Program received: ${mine.name}'), findsNothing);
+    expect(find.byKey(ValueKey('received-program:${mine.name}')), findsNothing);
     expect(c.state.templates.first.segments.last.name, 'Offering');
     expect(c.state.versionsOf(mine.id), hasLength(1));
     await t.pumpWidget(const SizedBox());
   });
+
+  testWidgets(
+    'A received program can be discarded from its card after a confirm',
+    (t) async {
+      final c = AppController(FakePort());
+      await c.initialize(startTicker: false);
+      final mine = c.state.templates.first;
+      await c.commit(
+        (d, at) => d.receiveProgram(
+          mine.renamed('Youth night'),
+          'Grace Chapel',
+          at.wall,
+        ),
+      );
+      await t.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReceivedProgramCards(controller: c)),
+        ),
+      );
+      expect(find.text('Youth night'), findsOneWidget);
+      await t.tap(find.byKey(const ValueKey('dismiss-received:Youth night')));
+      await t.pumpAndSettle();
+      expect(find.text('Discard “Youth night”?'), findsOneWidget);
+      await t.tap(find.text('Cancel'));
+      await t.pumpAndSettle();
+      expect(c.state.programInbox, hasLength(1));
+      await t.tap(find.byKey(const ValueKey('dismiss-received:Youth night')));
+      await t.pumpAndSettle();
+      await t.runAsync(() async {
+        await t.tap(find.widgetWithText(FilledButton, 'Discard'));
+        for (var i = 0; i < 50 && c.state.programInbox.isNotEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+      });
+      await t.pumpAndSettle();
+      expect(c.state.programInbox, isEmpty);
+      expect(c.state.templates.any((p) => p.name == 'Youth night'), isFalse);
+      await t.pumpWidget(const SizedBox());
+    },
+  );
 }

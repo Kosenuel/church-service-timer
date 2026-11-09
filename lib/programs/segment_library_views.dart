@@ -106,7 +106,7 @@ extension SegmentLibraryViews on HomeState {
           return Scaffold(
             appBar: AppBar(title: const Text('Segment library')),
             body: ListView(
-              padding: EdgeInsets.all(appLayout(pageContext).gap),
+              padding: const EdgeInsets.all(20),
               children: [
                 Text(
                   'Reusable segments, such as Offering or Announcements, with their duration, speaker and notes. In the program editor, open a segment and choose Save to library, then use From library to add it to any program. Up to $segmentLibraryLimit.',

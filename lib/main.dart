@@ -68,8 +68,11 @@ export 'package:church_service_timer/live/text_composer.dart';
 export 'package:church_service_timer/programs/template_editor.dart';
 export 'package:church_service_timer/live/control_grid.dart';
 
+/// One line describing a layout. Each " · " stays with the word before
+/// it, so a wrap never starts a line with "· scroll".
 String styleSummary(TextLayout l) =>
-    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}\u00a0px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}\u00a0px/s' : ''}';
+    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}\u00a0px · ${l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}\u00a0px/s' : ''}'
+        .replaceAll(' · ', '\u00a0· ');
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -847,6 +850,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       !controlsLocked
                   ? FloatingActionButton.extended(
                       key: const ValueKey('new-template'),
+                      // A soft shadow, not a dark halo around the button.
+                      elevation: 2,
+                      highlightElevation: 4,
                       backgroundColor: appColors(context).accent,
                       foregroundColor: appColors(context).background,
                       onPressed: c.busy || c.corrupt
