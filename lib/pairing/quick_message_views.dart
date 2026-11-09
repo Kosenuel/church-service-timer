@@ -318,40 +318,64 @@ extension QuickMessageViews on HomeState {
   Widget quickPresetSettings() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      const Text(
+      Text(
         'Saved wording and formatting for your phone or tablet stage screen.',
+        style: TextStyle(color: appColors(context).muted),
       ),
       const SizedBox(height: 12),
-      for (final e in c.state.quickMessages.asMap().entries) ...[
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(
-            e.value.name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            '${e.value.length}/160 characters · ${e.value.seconds == 0 ? 'Until cleared' : durationLabel(e.value.seconds * 1000)}',
-          ),
-          onTap: () => editQuickPreset(e.key),
-          trailing: IconButton(
-            tooltip: 'Delete preset',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () async {
-              if (await confirm(
-                'Delete this preset?',
-                e.value.name,
-                'Delete preset',
-                destructive: true,
-              ))
-                await c.commit(
-                  (draft, _) => draft.quickMessages.removeAt(e.key),
-                );
-            },
+      if (c.state.quickMessages.isNotEmpty)
+        panel(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (final e in c.state.quickMessages.asMap().entries) ...[
+                if (e.key > 0) const AppDivider(),
+                ListTile(
+                  key: ValueKey('quick-preset-${e.key}'),
+                  contentPadding: appLayout(context).tileInsets,
+                  title: Text(
+                    e.value.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    '${e.value.length}/160 characters · ${e.value.seconds == 0 ? 'Until cleared' : durationLabel(e.value.seconds * 1000)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: appColors(context).muted,
+                    ),
+                  ),
+                  onTap: () => editQuickPreset(e.key),
+                  trailing: PopupMenuButton<String>(
+                    tooltip: 'More',
+                    onSelected: (action) async {
+                      if (action == 'edit') return editQuickPreset(e.key);
+                      if (await confirm(
+                        'Delete this preset?',
+                        e.value.name,
+                        'Delete preset',
+                        destructive: true,
+                      ))
+                        await c.commit(
+                          (draft, _) => draft.quickMessages.removeAt(e.key),
+                        );
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text(
+                          'Delete preset',
+                          style: TextStyle(color: appColors(context).error),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
-        const Divider(height: 1),
-      ],
       const SizedBox(height: 16),
       OutlinedButton.icon(
         onPressed: c.state.quickMessages.length < 50

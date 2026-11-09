@@ -306,10 +306,14 @@ extension SettingsPinViews on HomeState {
             icon: const Icon(Icons.pin_outlined),
             label: const Text('Change PIN and recovery code'),
           ),
-          const SizedBox(height: 8),
-          TextButton.icon(
+          const SizedBox(height: 16),
+          // Full width and red-outlined, like Forget this sign.
+          OutlinedButton.icon(
             key: const ValueKey('remove-settings-pin'),
-            style: TextButton.styleFrom(foregroundColor: colors.error),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colors.error,
+              side: BorderSide(color: colors.error.withValues(alpha: .5)),
+            ),
             onPressed: c.busy
                 ? null
                 : () async {

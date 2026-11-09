@@ -198,6 +198,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   final reportsPage = ReportsPageState();
   bool practiceSummaryQueued = false;
   String settingsQuery = '';
+
+  /// Bumped by the search field's clear button to rebuild it empty.
+  int settingsSearchResets = 0;
   Offset? menuAnchor;
   void returnToLive() {
     navigatePage(0);
@@ -579,7 +582,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                               ),
                             ),
                           if (c.ready && page == 0) liveMenu(),
-                          const SizedBox(width: 4),
+                          // Without the Live menu, the chip needs its own
+                          // margin so it does not touch the screen edge.
+                          SizedBox(width: c.ready && page == 0 ? 4 : 16),
                         ],
                         toolbarHeight: headerHeight(context),
                         title: Row(

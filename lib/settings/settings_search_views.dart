@@ -2,6 +2,7 @@ import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/feedback/feedback_page.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/app_theme.dart';
 
 extension SettingsSearchViews on HomeState {
   Widget settingsSearchResults() {
@@ -138,6 +139,27 @@ extension SettingsSearchViews on HomeState {
         () => openSettingsDetail('About', aboutSettings),
       ),
     ];
+    // A one-line summary under each result, like the rows on Settings.
+    const summaries = {
+      'Clock format': '12 or 24 hour, and the blinking colon',
+      'LED device management':
+          'Saved passwords, the sign’s Wi-Fi and connection',
+      'Display fonts': 'Fonts for the stage display',
+      'Warnings & alerts': 'Shared thresholds, phone notifications and sound',
+      'Appearance': 'Theme, spacing and motion',
+      'Church profile': 'Logo, church name and banner',
+      'Display settings': 'Connection, profile, end screens, fonts and LEDs',
+      'LED preview shape': 'Square or round LEDs in the simulator',
+      'At zero': 'What the stage shows at 00:00',
+      'Default end screen': 'What the stage shows when the service ends',
+      'Stage cues': 'Saved cues and how they look',
+      'Quick message presets': 'Saved quick messages',
+      'Screens & devices': 'Pair phones and share to stage screens',
+      'Backup & restore': 'Export or restore all your data',
+      'Keep screen awake': 'Prevent sleep while the app is visible',
+      'Feedback centre': 'Report a problem or send an idea',
+      'About': 'Version, what’s new and licences',
+    };
     final words = settingsQuery.toLowerCase().trim().split(RegExp(r'\s+'));
     final found = entries
         .where((e) => words.every('${e.$1} ${e.$2}'.toLowerCase().contains))
@@ -157,6 +179,15 @@ extension SettingsSearchViews on HomeState {
             ListTile(
               leading: Icon(e.$3),
               title: Text(e.$1),
+              subtitle: summaries[e.$1] == null
+                  ? null
+                  : Text(
+                      summaries[e.$1]!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: appColors(context).muted,
+                      ),
+                    ),
               trailing: const Icon(Icons.chevron_right),
               onTap: e.$4,
             ),

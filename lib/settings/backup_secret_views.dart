@@ -60,6 +60,7 @@ class _BackupExportDialogState extends State<BackupExportDialog> {
             key: const ValueKey('include-passwords'),
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
+            titleAlignment: ListTileTitleAlignment.top,
             value: include,
             onChanged: widget.hasPasswords
                 ? (v) => setState(() {

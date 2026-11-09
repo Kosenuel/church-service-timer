@@ -222,26 +222,32 @@ class _TimeWheelsState extends State<TimeWheels> {
             wheel(1),
           ],
         ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          alignment: WrapAlignment.center,
-          children: [
-            for (final n
-                in widget.clock
-                    ? [540, 600, 660, 1080]
-                    : [10, 30, 60, 120, 300, 600, 1800].where(
-                        (n) => n <= maximum && (maximum <= 120 || n >= 60),
-                      ))
-              ActionChip(
-                label: Text(
-                  widget.clock
-                      ? '${(n ~/ 60).toString().padLeft(2, '0')}:00'
-                      : durationLabel(n * 1000),
+        // One scrollable row of presets; the selected one is highlighted,
+        // which shows that they set the time rather than add to it.
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 8,
+            children: [
+              for (final n
+                  in widget.clock
+                      ? [540, 600, 660, 1080]
+                      : [10, 30, 60, 120, 300, 600, 1800].where(
+                          (n) => n <= maximum && (maximum <= 120 || n >= 60),
+                        ))
+                ChoiceChip(
+                  showCheckmark: false,
+                  selected: widget.value == n,
+                  label: Text(
+                    widget.clock
+                        ? '${(n ~/ 60).toString().padLeft(2, '0')}:00'
+                        : durationLabel(n * 1000),
+                  ),
+                  onSelected: (_) => widget.onChanged(n),
                 ),
-                onPressed: () => widget.onChanged(n),
-              ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 8),
         Text(

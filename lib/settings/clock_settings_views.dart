@@ -23,6 +23,7 @@ extension ClockSettingsViews on HomeState {
             children: [
               for (final format in ['24h', '12h'])
                 RadioListTile<String>(
+                  contentPadding: EdgeInsets.zero,
                   value: format,
                   enabled: !c.busy,
                   title: Text(format == '24h' ? '24-hour' : '12-hour'),
@@ -34,6 +35,7 @@ extension ClockSettingsViews on HomeState {
         const AppDivider(),
         SwitchListTile(
           key: const ValueKey('clock-blink'),
+          contentPadding: EdgeInsets.zero,
           title: const Text('Blinking colon'),
           subtitle: Text(
             c.state.clockBlink ? 'Blinking · once per second' : 'Steady',
@@ -43,11 +45,13 @@ extension ClockSettingsViews on HomeState {
               ? null
               : (v) => c.commit((draft, _) => draft.clockBlink = v),
         ),
-        const Text(
+        Text(
+          style: TextStyle(color: appColors(context).muted),
           'The colon in the countdown and the clock blinks on paired phones, tablets and web screens, and in the simulator clock. It stays steady while paused or disconnected. The LED sign and its preview keep a steady colon.',
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
+          style: TextStyle(color: appColors(context).muted),
           'Shared across services and stage screens. Uses this phone’s current time and timezone. Countdown timers stay in minutes and seconds.',
         ),
       ],

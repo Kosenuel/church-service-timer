@@ -111,14 +111,28 @@ extension SettingsViews on HomeState {
           style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 20),
-        TextFormField(
-          key: const ValueKey('settings-search'),
-          initialValue: settingsQuery,
-          decoration: const InputDecoration(
-            labelText: 'Search settings',
-            prefixIcon: Icon(Icons.search),
+        KeyedSubtree(
+          key: ValueKey('settings-search-$settingsSearchResets'),
+          child: TextFormField(
+            key: const ValueKey('settings-search'),
+            initialValue: settingsQuery,
+            decoration: InputDecoration(
+              labelText: 'Search settings',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: settingsQuery.isEmpty
+                  ? null
+                  : IconButton(
+                      key: const ValueKey('settings-search-clear'),
+                      tooltip: 'Clear search',
+                      icon: const Icon(Icons.close),
+                      onPressed: () => refreshHome(() {
+                        settingsQuery = '';
+                        settingsSearchResets++;
+                      }),
+                    ),
+            ),
+            onChanged: (v) => refreshHome(() => settingsQuery = v),
           ),
-          onChanged: (v) => refreshHome(() => settingsQuery = v),
         ),
         const SizedBox(height: 16),
         if (settingsQuery.trim().isNotEmpty)

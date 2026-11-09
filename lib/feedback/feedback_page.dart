@@ -266,10 +266,17 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
                     icon: const Icon(Icons.copy_outlined),
                     label: const Text('Copy feedback'),
                   ),
-                  const SizedBox(height: 8),
-                  TextButton(
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: appColors(context).error,
+                      side: BorderSide(
+                        color: appColors(context).error.withValues(alpha: .5),
+                      ),
+                    ),
                     onPressed: busy ? null : clearDraft,
-                    child: const Text('Clear draft'),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Clear draft'),
                   ),
                 ],
               ),

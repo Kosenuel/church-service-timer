@@ -279,7 +279,8 @@ class HeaderDisplayChip extends StatelessWidget {
             DisplayConnection.connected ||
             DisplayConnection.stageConnected => colors.success,
             DisplayConnection.stageWaiting => colors.warning,
-            DisplayConnection.simulator => colors.muted,
+            // Blue, not grey, so the simulator never looks disabled.
+            DisplayConnection.simulator => colors.info,
           };
     return Tooltip(
       message: '${connection.label} · connection details',
