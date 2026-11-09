@@ -139,7 +139,9 @@ extension QuickMessageViews on HomeState {
                         'Quick message presets',
                         quickPresetSettings,
                       ),
-                child: const Text('Presets'),
+                // Opens preset management; choosing one is the "Choose a
+                // preset" field in the form.
+                child: const Text('Manage presets'),
               ),
               const SizedBox(width: 8),
             ],

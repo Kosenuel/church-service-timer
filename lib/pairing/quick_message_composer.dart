@@ -7,7 +7,6 @@ import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/main.dart';
-import 'package:church_service_timer/pairing/stage_screen_views.dart';
 
 class QuickMessageComposer extends StatefulWidget {
   final QuickMessage initial;
@@ -334,7 +333,11 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
                   Text(
                     style.seconds == 0
                         ? 'Until cleared'
-                        : formatTime(style.seconds * 1000),
+                        : style.seconds % 60 == 0
+                        ? plural(style.seconds ~/ 60, 'minute')
+                        : style.seconds < 60
+                        ? plural(style.seconds, 'second')
+                        : '${style.seconds ~/ 60} min ${style.seconds % 60} s',
                     style: TextStyle(color: colors.muted),
                   ),
                   const Icon(Icons.expand_more),
@@ -402,30 +405,49 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
       icon: const Icon(Icons.bookmark_add_outlined),
       label: Text(sendable ? 'Save preset' : widget.saveLabel),
     );
+    // Send on its own full-width row; Test and Save preset share the row
+    // above, both labelled, instead of an unlabelled bookmark icon.
     final actions = sendable
-        ? Row(
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (widget.onTest != null) ...[
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 52),
+              Row(
+                children: [
+                  if (widget.onTest != null) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 48),
+                        ),
+                        onPressed: busy
+                            ? null
+                            : () => run(
+                                widget.onTest!,
+                                'Test sent for 5 seconds.',
+                              ),
+                        icon: const Icon(Icons.play_arrow_outlined),
+                        label: const Text('Test 5 s'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('save-quick-preset'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                      ),
+                      onPressed: busy || widget.onSavePreset == null
+                          ? null
+                          : () => run(widget.onSavePreset!, 'Preset saved.'),
+                      icon: const Icon(Icons.bookmark_add_outlined),
+                      label: const Text('Save preset'),
+                    ),
                   ),
-                  onPressed: busy
-                      ? null
-                      : () => run(widget.onTest!, 'Test sent for 5 seconds.'),
-                  child: const Text('Test 5 s'),
-                ),
-                const SizedBox(width: 8),
-              ],
-              IconButton.outlined(
-                tooltip: 'Save as preset',
-                onPressed: busy || widget.onSavePreset == null
-                    ? null
-                    : () => run(widget.onSavePreset!, 'Preset saved.'),
-                icon: const Icon(Icons.bookmark_add_outlined),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(child: send),
+              const SizedBox(height: 8),
+              send,
             ],
           )
         : savePreset;
