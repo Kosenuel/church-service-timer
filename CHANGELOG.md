@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Swipe between tabs.** Swipe left or right to move between Live, Programs, Reports and Settings, as well as tapping the bar. Each tab keeps its place when you come back to it. While a service is loaded or running, Live stays put: leave it with the bar, and swipe back to it from anywhere. Swiping is off while the controls are locked or programs or reports are being selected, a sideways list or slider still scrolls as before, and a swipe from the very edge of the screen is still Android Back. With reduced motion on, the new tab appears at once.
+
 ## 0.29.0, 9/November/2026
 
 - **Reports, last touches.** On the graph each date ("15 Jan") sits under its own bar, instead of the first and last dates at the two ends. The search field and the **Dates** button are the same height. Under the graph, the chosen service reads “Ran 21 min · planned 25 min” with “4 min under” beneath it in the under colour, instead of “21 min · 4 min under plan”. The summary tile is labelled "Last live service" (it leaves rehearsals out, which the graph below may include) and says "1 min over" (and "avg" only when it averages more than one service) instead of "+1m avg". In a report, **Print report** is a full-width button at the foot of the summary card it prints, instead of floating on its own above it; beside the list on a tablet, the report’s ⋮ menu sits on the card’s top row.
