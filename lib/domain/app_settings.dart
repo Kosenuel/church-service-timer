@@ -103,6 +103,7 @@ const themeIds = {
   'cobalt_night',
   'graphite',
   'paper_ink',
+  'paper_ink_blue',
   'meadow',
 };
 const backupLimitBytes = 16 * 1024 * 1024;
