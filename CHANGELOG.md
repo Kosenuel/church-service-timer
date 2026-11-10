@@ -5,6 +5,8 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 ## Unreleased
 
 - **Print options you can always tick.** In Print order of service and Print report, **Church-name watermark** and **Include church banner** were greyed out whenever **Ink-saving** was ticked, and Ink-saving is remembered from your last print, so they could look stuck. They can now always be ticked, and ticking either one turns Ink-saving off.
+- **Graphite and Paper & Ink are back to their original colours.** Graphite's buttons and dial are clean white again, and Paper & Ink's are near-black ink, as before 0.29. If you liked the blue buttons from 0.29, choose the new **Paper & Ink (blue)** theme in Settings › Appearance.
+- **Swipe between tabs.** Swipe left or right to move between Live, Programs, Reports and Settings, as well as tapping the bar. Each tab keeps its place when you come back to it. While a service is loaded or running, Live stays put: leave it with the bar, and swipe back to it from anywhere. Swiping is off while the controls are locked or programs or reports are being selected, a sideways list or slider still scrolls as before, and a swipe from the very edge of the screen is still Android Back. With reduced motion on, the new tab appears at once.
 
 ## 0.29.0, 9/November/2026
 
