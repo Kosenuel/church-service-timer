@@ -252,18 +252,28 @@ const appPalettes = [
   AppPalette(
     'graphite',
     'Graphite',
-    'Neutral charcoal · soft blue, for dark booths',
+    'Neutral charcoal · clean white, for dark booths',
     Color(0xff121314),
     Color(0xff1c1e20),
-    // A soft blue, so links and buttons stand apart from the white text.
-    Color(0xff9db8ff),
+    Color(0xfff2f2f2),
     Color(0xffa9adb1),
     Color(0xffe8eaec),
   ),
   AppPalette(
     'paper_ink',
     'Paper & Ink',
-    'Bright paper · blue-black ink, for well-lit rooms',
+    'Bright paper · near-black ink, for well-lit rooms',
+    Color(0xfff5f5f2),
+    Color(0xffffffff),
+    Color(0xff1f2937),
+    Color(0xff5b6470),
+    Color(0xff111827),
+    light: true,
+  ),
+  AppPalette(
+    'paper_ink_blue',
+    'Paper & Ink (blue)',
+    'Bright paper · ink-blue buttons, for well-lit rooms',
     Color(0xfff5f5f2),
     Color(0xffffffff),
     // Ink blue, so links and buttons stand apart from the near-black text.

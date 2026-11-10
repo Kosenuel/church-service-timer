@@ -254,6 +254,26 @@ void main() {
       matchesGoldenFile('../goldens/print-service-sheet.png'),
     );
     expect(find.text('Print order of service'), findsOneWidget);
+    // Ink-saving leaves the watermark and banner tappable; ticking either
+    // turns Ink-saving off instead of being greyed out.
+    bool ticked(String key) =>
+        t.widget<CheckboxListTile>(find.byKey(ValueKey(key))).value!;
+    await t.tap(find.text('Ink-saving'));
+    await t.pumpAndSettle();
+    expect(ticked('print-watermark'), isFalse);
+    expect(ticked('print-banner'), isFalse);
+    await t.tap(find.byKey(const ValueKey('print-banner')));
+    await t.pumpAndSettle();
+    expect(ticked('print-banner'), isTrue);
+    expect(ticked('print-watermark'), isTrue);
+    expect(
+      t
+          .widget<CheckboxListTile>(
+            find.widgetWithText(CheckboxListTile, 'Ink-saving'),
+          )
+          .value,
+      isFalse,
+    );
     await t.tap(find.byKey(const ValueKey('print-service-pdf')));
     await t.pumpAndSettle();
     expect(p.pdf, isNotNull);

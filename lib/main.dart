@@ -26,6 +26,7 @@ import 'package:church_service_timer/programs/programs_page_state.dart';
 import 'package:church_service_timer/reports/reports_page_state.dart';
 import 'package:church_service_timer/programs/program_edit_actions.dart';
 import 'package:church_service_timer/shared/home_widgets.dart';
+import 'package:church_service_timer/shared/tab_swipe.dart';
 import 'package:church_service_timer/live/live_page.dart';
 import 'package:church_service_timer/reports/report_library_views.dart';
 
@@ -211,7 +212,53 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       setState(() => reportsPage.filter = value);
   void selectReportView(String value) =>
       setState(() => reportsPage.view = value);
-  void navigatePage(int value) => setState(() => page = value);
+
+  /// Each tab's scroll position, restored when the tab is shown again.
+  final tabScrollOffsets = <int, double>{};
+
+  /// The side the current tab slid in from after a swipe; 0 when it was
+  /// opened another way.
+  int tabSlide = 0;
+
+  void navigatePage(int value, {int slide = 0}) {
+    if (value != page && homeScroll.hasClients) {
+      tabScrollOffsets[page] = homeScroll.offset;
+    }
+    final changed = value != page;
+    setState(() {
+      page = value;
+      tabSlide = slide;
+    });
+    if (!changed) return;
+    final offset = tabScrollOffsets[value] ?? 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !homeScroll.hasClients || page != value) return;
+      final position = homeScroll.position;
+      homeScroll.jumpTo(
+        offset.clamp(position.minScrollExtent, position.maxScrollExtent),
+      );
+    });
+  }
+
+  /// Whether a swipe can move from this tab to the next (+1) or previous
+  /// (-1) one. Live keeps a loaded or running service in view, so swiping
+  /// away from it waits until the service is over; the bar still works.
+  bool canSwipeTab(int direction) {
+    final target = page + direction;
+    return target >= 0 &&
+        target <= 3 &&
+        c.ready &&
+        !c.corrupt &&
+        c.pairing.localControl &&
+        !focused &&
+        !controlsLocked &&
+        !programsPage.selecting &&
+        !reportsPage.selecting &&
+        !(page == 0 && !liveStandingBy);
+  }
+
+  void swipeTab(int direction) =>
+      unawaited(goToPage(page + direction, slide: direction));
   DateTime? _clickerNextArmed;
 
   /// Presentation clickers and foot pedals: Next (pressed twice) and Pause.
@@ -491,359 +538,374 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
             },
             child: Scaffold(
               body: navigationShell(
-                Listener(
-                  onPointerDown: (e) => menuAnchor = e.position,
-                  child: CustomScrollView(
-                    controller: homeScroll,
-                    slivers: [
-                      SliverAppBar(
-                        bottom: c.ready && page != 0 && c.liveSession.active
-                            ? RunningServiceBar.forContext(
-                                context,
-                                controller: c,
-                              )
-                            : null,
-                        pinned: true,
-                        clipBehavior: Clip.antiAlias,
-                        backgroundColor: Colors.transparent,
-                        elevation: 0,
-                        scrolledUnderElevation: 0,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                            bottom: Radius.circular(26),
-                          ),
-                        ),
-                        flexibleSpace: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            bottom: Radius.circular(26),
-                          ),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Color.alphaBlend(
-                                      appColors(
-                                        context,
-                                      ).accent.withValues(alpha: .04),
-                                      appColors(context).surface,
-                                    ).withValues(
-                                      alpha: appColors(context).highContrast
-                                          ? 1
-                                          : .84,
-                                    ),
-                                    appColors(context).surface.withValues(
-                                      alpha: appColors(context).highContrast
-                                          ? 1
-                                          : .92,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              child: const SizedBox.expand(),
+                TabSwipeDetector(
+                  canSwipe: canSwipeTab,
+                  onSwipe: swipeTab,
+                  child: Listener(
+                    onPointerDown: (e) => menuAnchor = e.position,
+                    child: CustomScrollView(
+                      controller: homeScroll,
+                      slivers: [
+                        SliverAppBar(
+                          bottom: c.ready && page != 0 && c.liveSession.active
+                              ? RunningServiceBar.forContext(
+                                  context,
+                                  controller: c,
+                                )
+                              : null,
+                          pinned: true,
+                          clipBehavior: Clip.antiAlias,
+                          backgroundColor: Colors.transparent,
+                          elevation: 0,
+                          scrolledUnderElevation: 0,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(26),
                             ),
                           ),
-                        ),
-                        actions: [
-                          if (c.ready)
-                            UnavailableAction(
-                              reason: controlsLocked
-                                  ? 'Unlock the controls to change the display.'
-                                  : !c.pairing.localControl
-                                  ? 'Take back control to change the display.'
-                                  : null,
-                              child: HeaderDisplayChip(
-                                key: const ValueKey('header-connection'),
-                                connection: c.displayConnection,
-                                label: headerDisplayLabel(),
-                                reconnecting: displayReconnecting,
-                                onPressed:
-                                    (controlsLocked || !c.pairing.localControl)
-                                    ? null
-                                    : chooseDisplay,
-                              ),
+                          flexibleSpace: ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(26),
                             ),
-                          if (c.ready && page == 0 && c.liveSession.active)
-                            IconButton(
-                              key: const ValueKey('control-lock'),
-                              tooltip: controlsLocked
-                                  ? 'Controls locked'
-                                  : 'Lock controls',
-                              onPressed: controlsLocked
-                                  ? null
-                                  : () => setState(
-                                      () => c.uiLocked = controlsLocked = true,
-                                    ),
-                              icon: Icon(
-                                controlsLocked ? Icons.lock : Icons.lock_open,
-                              ),
-                            ),
-                          if (c.ready && page == 0) liveMenu(),
-                          // Without the Live menu, the chip needs its own
-                          // margin so it does not touch the screen edge.
-                          SizedBox(width: c.ready && page == 0 ? 4 : 16),
-                        ],
-                        toolbarHeight: headerHeight(context),
-                        title: Row(
-                          children: [
-                            // Tap the mark to open Church profile, where the
-                            // logo, name and banner are set.
-                            Tooltip(
-                              message: 'Church profile',
-                              child: InkWell(
-                                key: const ValueKey('header-logo'),
-                                borderRadius: BorderRadius.circular(10),
-                                onTap: !c.ready || controlsLocked
-                                    ? null
-                                    : () => Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              ChurchProfilePage(controller: c),
-                                        ),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color.alphaBlend(
+                                        appColors(
+                                          context,
+                                        ).accent.withValues(alpha: .04),
+                                        appColors(context).surface,
+                                      ).withValues(
+                                        alpha: appColors(context).highContrast
+                                            ? 1
+                                            : .84,
                                       ),
-                                child: ChurchTimerMark(
-                                  logo: c.ready ? c.state.churchLogo : '',
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // One line beside the display chip; a
-                                  // long name ends in "…" and shows in
-                                  // full on long-press.
-                                  Tooltip(
-                                    message: headerTitle(),
-                                    child: Text(
-                                      headerTitle(),
-                                      key: const ValueKey('header-title'),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                  if (headerSubtitle().isNotEmpty)
-                                    Tooltip(
-                                      message: headerSubtitle(),
-                                      child: Text(
-                                        headerSubtitle(),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: appColors(context).muted,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (!c.ready)
-                        SliverFillRemaining(
-                          child: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const ChurchTimerMark(size: 84),
-                                  const SizedBox(height: 20),
-                                  const Text(
-                                    appName,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  if (c.loadingChurchName.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: Text(
-                                        c.loadingChurchName,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  const SizedBox(height: 24),
-                                  const CircularProgressIndicator(),
-                                ],
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        SliverToBoxAdapter(
-                          child: SafeArea(
-                            top: false,
-                            child: Padding(
-                              // During a service, room below End service for
-                              // the short notes at the bottom of the screen.
-                              padding: EdgeInsets.fromLTRB(
-                                20,
-                                12,
-                                20,
-                                page == 0 && c.liveSession.active ? 96 : 32,
-                              ),
-                              child: Center(
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 1200,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      if (c.pairing.hosting)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 12,
-                                          ),
-                                          child: panel(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.stretch,
-                                              children: [
-                                                Text(
-                                                  c.pairing.localControl
-                                                      ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices${c.webStage.activeDevices.isEmpty ? '' : ' · ${c.webStage.activeDevices.length} web screens'}'
-                                                      : 'Control is with a paired operator. This phone remains the service host.',
-                                                ),
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      openSettingsDetail(
-                                                        'Screens & devices',
-                                                        pairedDeviceSettings,
-                                                      ),
-                                                  child: const Text(
-                                                    'Manage devices and control',
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      if (c.backgroundError != null)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 12,
-                                          ),
-                                          // In a card with an icon, like the
-                                          // other notices, not loose text.
-                                          child: panel(
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.warning_amber_rounded,
-                                                  color: appColors(
-                                                    context,
-                                                  ).error,
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: Text(
-                                                    c.backgroundError!,
-                                                    style: TextStyle(
-                                                      color: appColors(
-                                                        context,
-                                                      ).error,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      if (c.error != null)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 16,
-                                          ),
-                                          child: panel(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  c.error!,
-                                                  style: TextStyle(
-                                                    color: appColors(
-                                                      context,
-                                                    ).warning,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                if (c.retry == null &&
-                                                    !c.corrupt)
-                                                  TextButton(
-                                                    key: const ValueKey(
-                                                      'dismiss-error',
-                                                    ),
-                                                    onPressed: c.dismissError,
-                                                    child: const Text(
-                                                      'Dismiss',
-                                                    ),
-                                                  ),
-                                                if (c.retry != null)
-                                                  TextButton(
-                                                    onPressed: c.busy
-                                                        ? null
-                                                        : () => c.retry!(),
-                                                    child: Text(
-                                                      c.reportSavePending
-                                                          ? 'Retry saving report'
-                                                          : 'Retry failed action',
-                                                    ),
-                                                  ),
-                                                if (c.corrupt)
-                                                  TextButton(
-                                                    onPressed: () async {
-                                                      if (await confirm(
-                                                        'Reset local state?',
-                                                        'This replaces unreadable local service and program data with starter programs. No physical display is connected.',
-                                                        'Reset local data',
-                                                        destructive: true,
-                                                      ))
-                                                        await c.resetCorrupt();
-                                                    },
-                                                    child: const Text(
-                                                      'Reset local data…',
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      AbsorbPointer(
-                                        absorbing:
-                                            c.corrupt ||
-                                            !c.pairing.localControl,
-                                        child: page == 0
-                                            ? live()
-                                            : page == 1
-                                            ? programsResponsive()
-                                            : page == 2
-                                            ? reportsResponsive()
-                                            : settingsHub(),
+                                      appColors(context).surface.withValues(
+                                        alpha: appColors(context).highContrast
+                                            ? 1
+                                            : .92,
                                       ),
                                     ],
                                   ),
                                 ),
+                                child: const SizedBox.expand(),
                               ),
                             ),
                           ),
+                          actions: [
+                            if (c.ready)
+                              UnavailableAction(
+                                reason: controlsLocked
+                                    ? 'Unlock the controls to change the display.'
+                                    : !c.pairing.localControl
+                                    ? 'Take back control to change the display.'
+                                    : null,
+                                child: HeaderDisplayChip(
+                                  key: const ValueKey('header-connection'),
+                                  connection: c.displayConnection,
+                                  label: headerDisplayLabel(),
+                                  reconnecting: displayReconnecting,
+                                  onPressed:
+                                      (controlsLocked ||
+                                          !c.pairing.localControl)
+                                      ? null
+                                      : chooseDisplay,
+                                ),
+                              ),
+                            if (c.ready && page == 0 && c.liveSession.active)
+                              IconButton(
+                                key: const ValueKey('control-lock'),
+                                tooltip: controlsLocked
+                                    ? 'Controls locked'
+                                    : 'Lock controls',
+                                onPressed: controlsLocked
+                                    ? null
+                                    : () => setState(
+                                        () =>
+                                            c.uiLocked = controlsLocked = true,
+                                      ),
+                                icon: Icon(
+                                  controlsLocked ? Icons.lock : Icons.lock_open,
+                                ),
+                              ),
+                            if (c.ready && page == 0) liveMenu(),
+                            // Without the Live menu, the chip needs its own
+                            // margin so it does not touch the screen edge.
+                            SizedBox(width: c.ready && page == 0 ? 4 : 16),
+                          ],
+                          toolbarHeight: headerHeight(context),
+                          title: Row(
+                            children: [
+                              // Tap the mark to open Church profile, where the
+                              // logo, name and banner are set.
+                              Tooltip(
+                                message: 'Church profile',
+                                child: InkWell(
+                                  key: const ValueKey('header-logo'),
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: !c.ready || controlsLocked
+                                      ? null
+                                      : () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => ChurchProfilePage(
+                                              controller: c,
+                                            ),
+                                          ),
+                                        ),
+                                  child: ChurchTimerMark(
+                                    logo: c.ready ? c.state.churchLogo : '',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // One line beside the display chip; a
+                                    // long name ends in "…" and shows in
+                                    // full on long-press.
+                                    Tooltip(
+                                      message: headerTitle(),
+                                      child: Text(
+                                        headerTitle(),
+                                        key: const ValueKey('header-title'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    if (headerSubtitle().isNotEmpty)
+                                      Tooltip(
+                                        message: headerSubtitle(),
+                                        child: Text(
+                                          headerSubtitle(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: appColors(context).muted,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                    ],
+                        if (!c.ready)
+                          SliverFillRemaining(
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const ChurchTimerMark(size: 84),
+                                    const SizedBox(height: 20),
+                                    const Text(
+                                      appName,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (c.loadingChurchName.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: Text(
+                                          c.loadingChurchName,
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    const SizedBox(height: 24),
+                                    const CircularProgressIndicator(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          SliverToBoxAdapter(
+                            child: SafeArea(
+                              top: false,
+                              child: Padding(
+                                // During a service, room below End service for
+                                // the short notes at the bottom of the screen.
+                                padding: EdgeInsets.fromLTRB(
+                                  20,
+                                  12,
+                                  20,
+                                  page == 0 && c.liveSession.active ? 96 : 32,
+                                ),
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 1200,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        if (c.pairing.hosting)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 12,
+                                            ),
+                                            child: panel(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.stretch,
+                                                children: [
+                                                  Text(
+                                                    c.pairing.localControl
+                                                        ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices${c.webStage.activeDevices.isEmpty ? '' : ' · ${c.webStage.activeDevices.length} web screens'}'
+                                                        : 'Control is with a paired operator. This phone remains the service host.',
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        openSettingsDetail(
+                                                          'Screens & devices',
+                                                          pairedDeviceSettings,
+                                                        ),
+                                                    child: const Text(
+                                                      'Manage devices and control',
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        if (c.backgroundError != null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 12,
+                                            ),
+                                            // In a card with an icon, like the
+                                            // other notices, not loose text.
+                                            child: panel(
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.warning_amber_rounded,
+                                                    color: appColors(
+                                                      context,
+                                                    ).error,
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Text(
+                                                      c.backgroundError!,
+                                                      style: TextStyle(
+                                                        color: appColors(
+                                                          context,
+                                                        ).error,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        if (c.error != null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 16,
+                                            ),
+                                            child: panel(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    c.error!,
+                                                    style: TextStyle(
+                                                      color: appColors(
+                                                        context,
+                                                      ).warning,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  if (c.retry == null &&
+                                                      !c.corrupt)
+                                                    TextButton(
+                                                      key: const ValueKey(
+                                                        'dismiss-error',
+                                                      ),
+                                                      onPressed: c.dismissError,
+                                                      child: const Text(
+                                                        'Dismiss',
+                                                      ),
+                                                    ),
+                                                  if (c.retry != null)
+                                                    TextButton(
+                                                      onPressed: c.busy
+                                                          ? null
+                                                          : () => c.retry!(),
+                                                      child: Text(
+                                                        c.reportSavePending
+                                                            ? 'Retry saving report'
+                                                            : 'Retry failed action',
+                                                      ),
+                                                    ),
+                                                  if (c.corrupt)
+                                                    TextButton(
+                                                      onPressed: () async {
+                                                        if (await confirm(
+                                                          'Reset local state?',
+                                                          'This replaces unreadable local service and program data with starter programs. No physical display is connected.',
+                                                          'Reset local data',
+                                                          destructive: true,
+                                                        ))
+                                                          await c
+                                                              .resetCorrupt();
+                                                      },
+                                                      child: const Text(
+                                                        'Reset local data…',
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        AbsorbPointer(
+                                          absorbing:
+                                              c.corrupt ||
+                                              !c.pairing.localControl,
+                                          child: TabSlideIn(
+                                            key: ValueKey('tab-$page'),
+                                            direction: tabSlide,
+                                            reduceMotion: reduceAppMotion(
+                                              context,
+                                            ),
+                                            child: page == 0
+                                                ? live()
+                                                : page == 1
+                                                ? programsResponsive()
+                                                : page == 2
+                                                ? reportsResponsive()
+                                                : settingsHub(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
