@@ -10,6 +10,7 @@ import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/quick_timer_sheet.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
 extension LivePage on HomeState {
@@ -400,6 +401,8 @@ extension LivePage on HomeState {
                       ? 'Standing by'
                       : t == null
                       ? 'Live production'
+                      : s.quickTimer
+                      ? 'Quick timer'
                       : 'Segment ${s.index + 1} of ${t.segments.length}',
                 ),
               ),
@@ -484,12 +487,13 @@ extension LivePage on HomeState {
             ),
           if (t != null) ...[
             const SizedBox(height: 6),
-            Text(
-              s.index + 1 < t.segments.length
-                  ? 'Next · ${t.segments[s.index + 1].name} · ${t.segments[s.index + 1].durationText}'
-                  : 'Final segment',
-              style: TextStyle(color: appColors(context).muted),
-            ),
+            if (!s.quickTimer)
+              Text(
+                s.index + 1 < t.segments.length
+                    ? 'Next · ${t.segments[s.index + 1].name} · ${t.segments[s.index + 1].durationText}'
+                    : 'Final segment',
+                style: TextStyle(color: appColors(context).muted),
+              ),
             if (s.active && !wide) ...[
               const SizedBox(height: 12),
               timingStatusLine(),
@@ -509,15 +513,34 @@ extension LivePage on HomeState {
           ] else
             const SizedBox(height: 18),
           if (!s.active && s.phase != 'ready' && !c.reportSavePending)
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: button(
-                'Start service',
-                Icons.play_arrow,
-                c.busy || c.corrupt ? null : chooseService,
-                primary: true,
-              ),
+            // Side by side when they fit, stacked at large text sizes.
+            ControlGrid(
+              maxColumns: 2,
+              minWidth: 150,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 54),
+                  child: button(
+                    'Start service',
+                    Icons.play_arrow,
+                    c.busy || c.corrupt ? null : chooseService,
+                    primary: true,
+                  ),
+                ),
+                // A single countdown with no program or Ready step.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 54),
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('quick-timer-live'),
+                    onPressed: quickTimerAvailable ? openQuickTimer : null,
+                    icon: const Icon(Icons.timer_outlined),
+                    label: const Text(
+                      'Quick timer',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
             ),
           if (standingBy) ...[
             const SizedBox(height: 10),
@@ -706,22 +729,28 @@ extension LivePage on HomeState {
                         final rev = s.revision;
                         if (await confirmTimer(
                           revision: rev,
-                          title: 'End ${t!.name}?',
-                          action: 'End service',
+                          title: s.quickTimer
+                              ? 'End the timer?'
+                              : 'End ${t!.name}?',
+                          action: s.quickTimer ? 'End timer' : 'End service',
                           destructive: true,
                           content: () => Text(
-                            c.hardware.enabled
+                            s.quickTimer
+                                ? s.noReport
+                                      ? 'Stop the timer and show the end screen. Nothing is saved.'
+                                      : 'Stop the timer, show the end screen and save it in Reports as a quick timer.'
+                                : c.hardware.enabled
                                 ? c.hardware.held || !c.hardware.connected
                                       ? 'Finish this service and save its report. The sign will keep its last program until you reconnect and restore output.'
                                       : 'Finish this service and save its report. The sign will show this service’s end screen, including its scrolling effect. A brief blink is expected.'
-                                : 'Finish this service, save its report, clear the active cue and show “${t.display.end.text}”.',
+                                : 'Finish this service, save its report, clear the active cue and show “${t!.display.end.text}”.',
                           ),
                         ))
                           await c.act('end', revision: rev);
                       }
                     : null,
                 icon: const Icon(Icons.stop_circle_outlined),
-                label: const Text('End service'),
+                label: Text(s.quickTimer ? 'End timer' : 'End service'),
                 style: FilledButton.styleFrom(
                   backgroundColor: destructiveColor,
                   foregroundColor: Colors.white,
@@ -941,7 +970,8 @@ extension LivePage on HomeState {
           const SizedBox(height: 16),
           // Display actions sit apart from the cues, in one even row.
           ControlGrid(
-            maxColumns: 3,
+            // Two by two: the display actions and Quick timer.
+            maxColumns: 2,
             minWidth: 92,
             children: [
               if (clockSwap)
@@ -1004,6 +1034,11 @@ extension LivePage on HomeState {
                   primary: s.outputBlank,
                 ),
                 radius: 12,
+              ),
+              stackedButton(
+                'Quick timer',
+                Icons.timer_outlined,
+                quickTimerAvailable ? openQuickTimer : null,
               ),
             ],
           ),

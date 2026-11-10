@@ -231,7 +231,11 @@ Future<Uint8List> createServicePdf(
         ),
         pw.SizedBox(height: 8),
         pw.Text(
-          '${full ? (data.report!.rehearsal ? 'Rehearsal report' : 'Service report') : 'Service rundown'} · ${durationLabel(total)} · ${data.includeNotes
+          '${full ? (data.report!.quickTimer
+                    ? 'Quick timer report'
+                    : data.report!.rehearsal
+                    ? 'Rehearsal report'
+                    : 'Service report') : 'Service rundown'} · ${durationLabel(total)} · ${data.includeNotes
               ? 'Operator copy — private notes included'
               : data.audience == 'operator'
               ? 'Operator copy — private notes excluded'

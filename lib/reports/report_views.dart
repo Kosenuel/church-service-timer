@@ -40,8 +40,11 @@ String shortReportDate(int wall) {
   return '${d.day} ${_months[d.month - 1]}';
 }
 
-String reportMode(ServiceReport r) =>
-    r.rehearsal ? 'Rehearsal ${r.rate}×' : 'Live';
+String reportMode(ServiceReport r) => r.quickTimer
+    ? 'Quick timer'
+    : r.rehearsal
+    ? 'Rehearsal ${r.rate}×'
+    : 'Live';
 
 Widget reportSurface(BuildContext context, {required Widget child}) => Material(
   color: appColors(context).surface,
@@ -235,7 +238,9 @@ extension ReportViews on HomeState {
   Widget reportSummary() {
     final colors = appColors(context);
     final recent =
-        c.state.reports.where((r) => r.comparable && !r.rehearsal).toList()
+        c.state.reports
+            .where((r) => r.comparable && !r.rehearsal && !r.quickTimer)
+            .toList()
           ..sort((a, b) => b.endedWall.compareTo(a.endedWall));
     final last = recent.take(4).toList();
     if (last.isEmpty) return const SizedBox.shrink();
@@ -495,6 +500,9 @@ extension ReportViews on HomeState {
                       'all': 'All',
                       'live': 'Live only',
                       'rehearsal': 'Rehearsals',
+                      // Only once a quick timer has been saved.
+                      if (c.state.reports.any((r) => r.quickTimer))
+                        'quick': 'Quick timers',
                     }.entries)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),

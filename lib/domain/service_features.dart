@@ -274,6 +274,9 @@ class ServiceReport {
 
   /// After-service reflection, separate from the recorded timings.
   final ReviewNote? review;
+
+  /// Saved from a Quick timer rather than a service.
+  final bool quickTimer;
   ServiceReport(
     this.id,
     this.name,
@@ -287,6 +290,7 @@ class ServiceReport {
     this.program,
     List<ServiceEvent> events = const [],
     this.review,
+    this.quickTimer = false,
   }) : rows = List.unmodifiable(rows),
        events = List.of(events);
 
@@ -304,6 +308,7 @@ class ServiceReport {
     program: program,
     events: events,
     review: note,
+    quickTimer: quickTimer,
   );
   factory ServiceReport.fromSession(Session s, Stamp now) {
     require(s.phase == 'ended', 'Reports are finalised when a service ends.');
@@ -332,6 +337,7 @@ class ServiceReport {
       churchName: s.churchName,
       program: s.timeline,
       events: s.events,
+      quickTimer: s.quickTimer,
     );
   }
   bool get rehearsal => rate > 1;
@@ -360,6 +366,7 @@ class ServiceReport {
         : Timeline.fromJson(Map<String, dynamic>.from(j['program'])),
     events: readServiceEvents(j['events']),
     review: j['review'] == null ? null : ReviewNote.fromJson(j['review']),
+    quickTimer: j['quickTimer'] == true,
   );
   Json toJson() => {
     'id': id,
@@ -374,6 +381,7 @@ class ServiceReport {
     'rows': rows.map((e) => e.toJson()).toList(),
     'events': events.map((e) => e.toJson()).toList(),
     if (review != null) 'review': review!.toJson(),
+    if (quickTimer) 'quickTimer': true,
   };
 
   /// JSON for export; the review note is included only when asked.
@@ -443,7 +451,11 @@ String exportReportsCsv(
     final metadata = [
       reportCsvText(r.id),
       reportCsvText(r.name),
-      r.rehearsal ? 'Rehearsal' : 'Live',
+      r.quickTimer
+          ? 'Quick timer'
+          : r.rehearsal
+          ? 'Rehearsal'
+          : 'Live',
       '${r.rate}',
       utc(r.startedWall),
       utc(r.endedWall),
@@ -503,7 +515,11 @@ String exportReportCsv(ServiceReport r, {bool includeReview = false}) {
       'Service,Mode,Speed,Started,Ended,Timing uncertain,Segment,Planned seconds,Actual seconds,Variance seconds,Paused seconds,Adjustment seconds,Status,Church${includeReview ? ',Review note' : ''}';
   final metadata = [
     textCell(r.name),
-    r.rehearsal ? 'Rehearsal' : 'Live',
+    r.quickTimer
+        ? 'Quick timer'
+        : r.rehearsal
+        ? 'Rehearsal'
+        : 'Live',
     '${r.rate}',
     r.startedWall == null
         ? ''

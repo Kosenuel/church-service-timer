@@ -28,6 +28,7 @@ List<DurationInsight> durationInsights(
                     program.name.trim().toLowerCase() &&
                 r.comparable &&
                 !r.rehearsal &&
+                !r.quickTimer &&
                 r.program?.type != 'rehearsal',
           )
           .toList()
