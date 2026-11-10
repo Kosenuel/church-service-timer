@@ -117,7 +117,7 @@ void main() {
     },
   );
   testWidgets(
-    'Print defaults watermark on; stage copy excludes notes and ink-saving disables decoration',
+    'Print defaults watermark on; stage copy excludes notes and ink-saving leaves decoration out',
     (t) async {
       size(t);
       final c = AppController(FakePort());
@@ -141,9 +141,10 @@ void main() {
       await tap(t, 'Operator copy');
       expect(box('Include private operator notes').value, true);
       await tap(t, 'Ink-saving');
-      expect(box('Church-name watermark').onChanged, isNull);
-      expect(box('Include church banner').onChanged, isNull);
-      // Ink-saving leaves them out, so they show unticked.
+      // Ink-saving leaves them out, so they show unticked, but they stay
+      // tappable (ticking one turns Ink-saving back off).
+      expect(box('Church-name watermark').onChanged, isNotNull);
+      expect(box('Include church banner').onChanged, isNotNull);
       expect(box('Church-name watermark').value, false);
       expect(box('Include church banner').value, false);
       await shot(t, 'print-ink-saving');
