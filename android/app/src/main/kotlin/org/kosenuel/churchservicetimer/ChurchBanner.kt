@@ -73,7 +73,10 @@ object ChurchBanner {
                 Bitmap.createScaledBitmap(image, (image.width * factor).toInt().coerceAtLeast(1), (image.height * factor).toInt().coerceAtLeast(1), true).also { scaled = it }
             }
             val encoded = ByteArrayOutputStream()
-            check(output.compress(Bitmap.CompressFormat.JPEG, 92, encoded)) { "Could not prepare the photo." }
+            // PNG when the photo has transparency, so a logo on a clear
+            // background is not turned black; JPEG keeps other photos small.
+            val format = if (output.hasAlpha()) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
+            check(output.compress(format, 92, encoded)) { "Could not prepare the photo." }
             return Base64.encodeToString(encoded.toByteArray(), Base64.NO_WRAP)
         } finally {
             scaled?.recycle()
