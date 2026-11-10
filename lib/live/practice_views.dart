@@ -65,9 +65,13 @@ extension PracticeViews on HomeState {
       }
       practiceReturnTo = previous;
     }
-    if (!await c.practice.start() && mounted)
-      await showError(c.error ?? 'Could not start practice.');
-    if (mounted) goToPage(0);
+    if (!await c.practice.start()) {
+      if (mounted) await showError(c.error ?? 'Could not start practice.');
+      return;
+    }
+    // Practice happens on Live: close Settings › About (or any other page
+    // it was started from) and show the Live tab.
+    if (mounted) returnToLive();
   }
 
   /// The invitation on Live while standing by, until hidden.
