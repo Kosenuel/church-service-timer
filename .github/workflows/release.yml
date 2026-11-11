@@ -93,3 +93,14 @@ jobs:
             --title "Church Service Timer $version" \
             --notes-file "$RUNNER_TEMP/notes.md" \
             --verify-tag
+
+  # Copy the release to the public guide site's Releases (see
+  # publish-to-guide.yml). Skipped with a warning if GUIDE_RELEASE_TOKEN is
+  # not set.
+  guide:
+    needs: release
+    uses: ./.github/workflows/publish-to-guide.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      GUIDE_RELEASE_TOKEN: ${{ secrets.GUIDE_RELEASE_TOKEN }}

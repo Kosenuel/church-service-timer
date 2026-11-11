@@ -1,0 +1,81 @@
+name: Publish to the guide site
+
+# Copies a published app release (its signed APK, checksum and notes) to the
+# public guide repository's Releases, which the guide site's Download button
+# opens. The app repository is private, so this is where people download it.
+#
+# Runs after every tagged release (called from release.yml), or by hand from
+# the Actions tab for an earlier tag, for example v0.30.0.
+#
+# Needs the repository secret GUIDE_RELEASE_TOKEN: a fine-grained personal
+# access token for ImmanuelOkose/church-service-timer-guide with
+# "Contents: Read and write". Without it the job warns and does nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, for example v0.30.0
+        required: true
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+    secrets:
+      GUIDE_RELEASE_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  GUIDE_REPO: ImmanuelOkose/church-service-timer-guide
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check the guide token
+        id: token
+        env:
+          GUIDE_TOKEN: ${{ secrets.GUIDE_RELEASE_TOKEN }}
+        run: |
+          if [ -z "$GUIDE_TOKEN" ]; then
+            echo "::warning::GUIDE_RELEASE_TOKEN is not set, so the APK was not published to the guide site."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download the app release
+        if: steps.token.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          mkdir dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern '*.apk' --pattern '*.sha256'
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,body \
+            --jq '.name' > "$RUNNER_TEMP/title.txt"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body \
+            --jq '.body' > "$RUNNER_TEMP/notes.md"
+          ls -l dist
+
+      - name: Publish on the guide repository
+        if: steps.token.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GUIDE_RELEASE_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if gh release view "$TAG" --repo "$GUIDE_REPO" > /dev/null 2>&1; then
+            # Already there (a re-run): replace the files and notes.
+            gh release upload "$TAG" dist/* --repo "$GUIDE_REPO" --clobber
+            gh release edit "$TAG" --repo "$GUIDE_REPO" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$TAG" dist/* --repo "$GUIDE_REPO" --target main \
+              --title "$(cat "$RUNNER_TEMP/title.txt")" \
+              --notes-file "$RUNNER_TEMP/notes.md" --latest
+          fi
+          echo "Published: https://github.com/$GUIDE_REPO/releases/tag/$TAG"

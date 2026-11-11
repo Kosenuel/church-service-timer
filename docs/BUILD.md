@@ -70,3 +70,5 @@ For 0.13, follow `history/FEATURES-0.13.md`: paired-device approval, private-not
    ```
 
 The [Release workflow](../.github/workflows/release.yml) checks that the tag matches both version strings, runs analysis and tests, builds the APK signed with the release key (it refuses to publish without the `CST_KEYSTORE_*` secrets), and publishes a GitHub Release with the APK, its SHA-256 checksum and that version's changelog section.
+
+It then copies that release to the public guide site's Releases ([publish-to-guide.yml](../.github/workflows/publish-to-guide.yml)), at https://github.com/ImmanuelOkose/church-service-timer-guide/releases, which the guide's **Download** button opens. This repository is private, so that is where people download the app. It needs the `GUIDE_RELEASE_TOKEN` repository secret: a fine-grained personal access token for `ImmanuelOkose/church-service-timer-guide` with **Contents: Read and write**. Without it the step warns and skips. To publish an earlier release there, run **Actions › Publish to the guide site › Run workflow** with its tag, for example `v0.30.0`.
