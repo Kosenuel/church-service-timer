@@ -2,7 +2,7 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
-## Unreleased
+## 0.30.1, 11/November/2026
 
 - **Privacy policy in the app.** Settings › About has a **Privacy policy** row that opens the policy on the guide website in your browser. It explains what the app keeps on your phone, what it connects to, and what never leaves it.
 - **Guided practice opens Live.** Starting **Guided practice** from Settings › About now closes Settings and takes you straight to Live, where the practice happens, instead of leaving you on the About page.
