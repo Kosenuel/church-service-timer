@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Guided practice opens Live.** Starting **Guided practice** from Settings › About now closes Settings and takes you straight to Live, where the practice happens, instead of leaving you on the About page.
+
 ## 0.30.0, 10/November/2026
 
 - **Quick timer.** For a prayer meeting, a break or a talk that isn't a whole service: tap **Quick timer** on Live (next to **Start service**, or the 4th tile beside Show clock, Send message and Blank screen), choose 5, 10, 15, 30 or 45 min or a custom length up to 59 min 59 s, and optionally give it a name. It starts straight away, with no Ready step, and counts down on the LED sign, stage screens and web screens together, with Pause, ±2 min, overtime, warnings and the lock-screen controls as usual. **End timer** stops it. Nothing is saved unless you turn on **Save as a report**; saved timers are marked "Quick timer" in Reports and have their own **Quick timers** filter, and they're left out of service averages and length suggestions. Your last three timers are offered as one-tap choices. Quick timer is available when no service is loaded or running.
