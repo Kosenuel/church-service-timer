@@ -103,6 +103,20 @@ jobs:
         if: env.RELEASE != 'true'
         run: flutter build apk --debug --target-platform android-arm64
 
+      # The App Bundle for Google Play (release.yml builds it for tagged
+      # releases). Built here too, so a broken bundle shows up before tagging.
+      - name: Build release App Bundle (Google Play)
+        if: env.RELEASE == 'true'
+        env:
+          CST_KEYSTORE_PASSWORD: ${{ secrets.CST_KEYSTORE_PASSWORD }}
+          CST_KEY_ALIAS: ${{ secrets.CST_KEY_ALIAS }}
+          CST_KEY_PASSWORD: ${{ secrets.CST_KEY_PASSWORD }}
+        run: flutter build appbundle --release
+
+      - name: Build debug App Bundle (Google Play)
+        if: env.RELEASE != 'true'
+        run: flutter build appbundle --debug
+
       - name: Name the APK
         run: |
           version=$(grep '^version:' pubspec.yaml | sed 's/version: //; s/+.*//')
@@ -112,10 +126,13 @@ jobs:
           else
             cp build/app/outputs/flutter-apk/app-debug.apk "dist/Church-Service-Timer-$version-arm64-debug.apk"
           fi
-          sha256sum dist/*.apk
+          if [ "$RELEASE" = "true" ]; then
+            cp build/app/outputs/bundle/release/app-release.aab "dist/Church-Service-Timer-$version.aab"
+          fi
+          sha256sum dist/*
 
       - uses: actions/upload-artifact@v4
         with:
           name: church-service-timer-apk
-          path: dist/*.apk
+          path: dist/*
           retention-days: 30

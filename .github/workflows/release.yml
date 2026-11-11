@@ -70,16 +70,28 @@ jobs:
           CST_KEY_PASSWORD: ${{ secrets.CST_KEY_PASSWORD }}
         run: flutter build apk --release
 
-      - name: Name the APK and record its checksum
+      # The Android App Bundle that Google Play needs. Signed with the same
+      # release key, which Play uses as the upload key.
+      - name: Build release App Bundle for Google Play
+        env:
+          CST_KEYSTORE_PASSWORD: ${{ secrets.CST_KEYSTORE_PASSWORD }}
+          CST_KEY_ALIAS: ${{ secrets.CST_KEY_ALIAS }}
+          CST_KEY_PASSWORD: ${{ secrets.CST_KEY_PASSWORD }}
+        run: flutter build appbundle --release
+
+      - name: Name the APK and bundle and record the APK checksum
         run: |
           version="${{ steps.version.outputs.version }}"
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk "dist/Church-Service-Timer-$version.apk"
           (cd dist && sha256sum "Church-Service-Timer-$version.apk" > "Church-Service-Timer-$version.apk.sha256")
+          cp build/app/outputs/bundle/release/app-release.aab "dist/Church-Service-Timer-$version.aab"
           {
             echo
             echo "---"
             echo "**Install:** download \`Church-Service-Timer-$version.apk\` on the phone and open it (Android 7.0 or newer)."
+            echo
+            echo "The \`.aab\` file is the bundle uploaded to Google Play; it can't be installed directly."
             echo
             echo "SHA-256: \`$(cut -d' ' -f1 "dist/Church-Service-Timer-$version.apk.sha256")\`"
           } >> "$RUNNER_TEMP/notes.md"

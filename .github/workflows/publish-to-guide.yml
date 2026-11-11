@@ -60,7 +60,7 @@ jobs:
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,body \
             --jq '.name' > "$RUNNER_TEMP/title.txt"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body \
-            --jq '.body' > "$RUNNER_TEMP/notes.md"
+            --jq '.body' | grep -v '\.aab' > "$RUNNER_TEMP/notes.md"
           ls -l dist
 
       - name: Publish on the guide repository
