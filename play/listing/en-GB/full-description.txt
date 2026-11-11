@@ -1,0 +1,35 @@
+Church Service Timer helps the person at the desk keep a service on time, calmly. Plan the service once, run it segment by segment, and show a clear countdown to whoever is speaking, on a stage screen, a web browser or a Wi-Fi LED sign.
+
+PLAN ONCE, USE EVERY WEEK
+• Build programs from segments with speakers, lengths to the second and private operator notes.
+• Keep a segment library, see version history, and import from a spreadsheet.
+• Send a program to another phone in a tap.
+
+RUN THE SERVICE
+• A big, clear countdown with Pause, +2 / −2 min and Next segment.
+• Warnings before time runs out, on stage and on your phone, even with the screen off.
+• Overtime is shown honestly, and Recover time helps you catch up.
+• Quick timer: a single countdown for a prayer meeting, a break or a talk.
+• Lock-screen controls, clicker and foot-pedal support.
+
+SHOW IT ON STAGE
+• Any phone or tablet becomes a stage screen.
+• Any browser on the same Wi-Fi can show the timer too, with no app to install.
+• Send a short, quiet message to one screen or all of them, and see when it has been read.
+• Speakers can ask for more time or say they're ready to finish.
+• Supports the Huidu W2 Wi-Fi LED sign (32 × 16).
+
+LEARN FROM EVERY SERVICE
+• A report for each service: on time, over or under, segment by segment.
+• Graphs, review notes, and printable reports and orders of service.
+
+MAKE IT YOURS
+• 13 themes in light and dark, plus your own colours.
+• Your church's name, logo and banner on printouts.
+• Guided practice teaches new volunteers the controls in a few minutes, without touching the stage.
+
+PRIVATE BY DESIGN
+No account, no ads, no tracking. Your programs, reports and settings stay on your phone. The app only talks to devices on your own Wi-Fi or hotspot.
+
+Privacy policy: https://immanuelokose.github.io/church-service-timer-guide/privacy-policy/
+Handbook: https://immanuelokose.github.io/church-service-timer-guide/
