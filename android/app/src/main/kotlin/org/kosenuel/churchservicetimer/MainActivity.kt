@@ -250,6 +250,15 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                     bundledFonts.rasterize(call.argument<String>("text") ?: "", (call.argument<Int>("height") ?: 2) * 7,
                         call.argument<Boolean>("bold") ?: false, call.argument<Boolean>("italic") ?: false)
                 }
+                "openWebPage" -> {
+                    // Only https pages, in whichever browser the user has.
+                    val url = call.argument<String>("url") ?: ""
+                    if (!url.startsWith("https://")) result.success(false)
+                    else try {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
+                        result.success(true)
+                    } catch (_: android.content.ActivityNotFoundException) { result.success(false) }
+                }
                 "pickChurchBanner", "pickChurchPhoto" -> {
                     if (pending != null) result.error("BUSY", "A document picker is already open", null)
                     else {

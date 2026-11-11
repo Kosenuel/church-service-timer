@@ -515,6 +515,19 @@ extension SettingsViews on HomeState {
         ),
       ),
       row(
+        Icons.privacy_tip_outlined,
+        'Privacy policy',
+        'On the guide website · opens your browser',
+        () async {
+          if (!await c.port.openWebPage(privacyPolicyUrl) && mounted) {
+            await showError(
+              'Could not open a browser. The privacy policy is at $privacyPolicyUrl',
+            );
+          }
+        },
+        key: const ValueKey('about-privacy-policy'),
+      ),
+      row(
         Icons.developer_board_outlined,
         'Display and hardware',
         'Simulator, W2 sign limits and recovery',
