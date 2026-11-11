@@ -46,6 +46,29 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
+  testWidgets('Starting practice from Settings › About opens Live', (t) async {
+    setScreen(t, const Size(430, 1000));
+    final c = AppController(FakePort());
+    await c.initialize(startTicker: false);
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Settings').last);
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.text('About', skipOffstage: false));
+    await t.pumpAndSettle();
+    await t.tap(find.text('About'));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.byKey(const ValueKey('about-practice')));
+    await t.tap(find.byKey(const ValueKey('about-practice')));
+    await t.pumpAndSettle();
+    expect(c.practice.active, isTrue);
+    // The About page is closed and the Live tab shows the coach.
+    expect(find.byKey(const ValueKey('about-practice')), findsNothing);
+    expect(t.state<HomeState>(find.byType(Home)).page, 0);
+    expect(find.byKey(const ValueKey('practice-coach')), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Don’t show again hides the invitation', (t) async {
     final c = AppController(FakePort());
     await c.initialize(startTicker: false);
