@@ -19,10 +19,14 @@ const font = (f) => dataUrl(path.join(root, 'assets', 'fonts', f), 'font/ttf');
 
 const bg = '#0a1210', panel = '#131d1a', lime = '#c9f96c', text = '#e4e7de', muted = '#9caaa5';
 
-// The launcher icon's line art (android/app/src/main/res/drawable/
-// ic_church_timer_foreground.xml), cropped to the mark.
-const mark = (size, viewBox = '14 13 80 80') =>
-  `<svg width="${size}" height="${size}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg"><path fill="none" stroke="${lime}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" d="M54,23v13M48,28h12M39,49v-2l15,-11l15,11v2l12,9v25h-54v-25zM39,49v34M69,49v34M48,83v-16q0,-8 6,-8q6,0 6,8v16M32,63v7M76,63v7M51,49h6"/></svg>`;
+// The app icon (style F): a countdown arc ending in a cross, the same
+// drawing as android/app/src/main/res/drawable/ic_church_timer_foreground.xml.
+// Drawn on the 108-unit adaptive-icon canvas and scaled into its safe zone
+// (a 66-unit circle in the middle), so no launcher mask clips the cross.
+const markPaths = `<g transform="translate(54 54) scale(0.72) translate(-55 -54.5)"><path fill="none" stroke="${lime}" stroke-width="7" stroke-linecap="round" d="M54,30 A26,26 0 1 0 80,56"/><path fill="none" stroke="${lime}" stroke-width="5" stroke-linecap="round" d="M76,26v22M69,33h14"/><circle cx="54" cy="56" r="4" fill="${lime}"/></g>`;
+// The visible part of an adaptive icon is the middle 72 × 72.
+const mark = (size, viewBox = '18 18 72 72') =>
+  `<svg width="${size}" height="${size}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">${markPaths}</svg>`;
 
 const page = (w, h, body) => `<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face{font-family:R;src:url(${font('Roboto-Regular.ttf')})}
@@ -39,7 +43,7 @@ const phone = [
   ['phone-4-report', 'report-detail-phone', 'See how each service really ran', 'On time, over or under, segment by segment, ready to print'],
   ['phone-5-warnings', 'warnings-settings-phone', 'Warnings that reach the stage', 'Stage cues and phone alerts at the times you choose'],
   ['phone-6-themes', 'appearance-phone', 'Make it yours', '13 themes in light and dark, your church logo and banner'],
-  ['phone-7-royal-navy', 'theme-royal_navy', 'Your colours on Live', 'Royal Navy, one of 13 themes, during a running service'],
+  ['phone-7-graphite', 'theme-graphite', 'Your colours on Live', 'Graphite, one of 13 themes, during a running service'],
 ];
 const tablet = [
   ['tablet-1-live', 'tablet-live', 'Made for tablets too', 'The countdown, rundown and stage preview side by side'],
