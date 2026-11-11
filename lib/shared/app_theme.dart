@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -538,8 +539,46 @@ class ChurchTimerMark extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(Icons.church_outlined, color: p.accent, size: size * .8),
+        child: CustomPaint(painter: AppMarkPainter(p.accent)),
       ),
     );
   }
+}
+
+/// The app's mark: a countdown arc that ends in a cross, as on the launcher
+/// icon (android/.../drawable/ic_church_timer_foreground.xml). Drawn in the
+/// icon's 108-unit grid, framed on the mark itself so it fills the box.
+class AppMarkPainter extends CustomPainter {
+  final Color color;
+  const AppMarkPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // The mark spans about 61 × 62 units around (55, 54.5); frame 66.
+    final scale = math.min(size.width, size.height) / 66;
+    canvas
+      ..translate(size.width / 2, size.height / 2)
+      ..scale(scale)
+      ..translate(-55, -54.5);
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    // The ring: three quarters of a circle, from the top round to the right.
+    canvas.drawArc(
+      Rect.fromCircle(center: const Offset(54, 56), radius: 26),
+      -math.pi / 2,
+      -math.pi * 1.5,
+      false,
+      stroke..strokeWidth = 7,
+    );
+    stroke.strokeWidth = 5;
+    canvas
+      ..drawLine(const Offset(76, 26), const Offset(76, 48), stroke)
+      ..drawLine(const Offset(69, 33), const Offset(83, 33), stroke)
+      ..drawCircle(const Offset(54, 56), 4, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(AppMarkPainter old) => old.color != color;
 }

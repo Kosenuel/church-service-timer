@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **A new app icon.** The icon is now a countdown ring that ends in a cross, in lime on dark green. It shows on your home screen, in Android 13's themed icons and at the top of every page. If you've added your church's logo, the header still shows your logo.
+
 ## 0.30.1, 11/November/2026
 
 - **Privacy policy in the app.** Settings › About has a **Privacy policy** row that opens the policy on the guide website in your browser. It explains what the app keeps on your phone, what it connects to, and what never leaves it.

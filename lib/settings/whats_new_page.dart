@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -68,7 +70,11 @@ List<ReleaseNotes> parseChangelog(String text) {
 class WhatsNewPage extends StatelessWidget {
   final Future<String> Function() load;
   const WhatsNewPage({super.key, this.load = _bundled});
-  static Future<String> _bundled() => rootBundle.loadString('CHANGELOG.md');
+  // Decoded here rather than with rootBundle.loadString, which moves files
+  // over 50 KB to a background isolate. The changelog keeps growing past
+  // that; decoding it directly is quick and behaves the same everywhere.
+  static Future<String> _bundled() async =>
+      utf8.decode((await rootBundle.load('CHANGELOG.md')).buffer.asUint8List());
 
   @override
   Widget build(BuildContext context) => Scaffold(
