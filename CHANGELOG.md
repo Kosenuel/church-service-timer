@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **The church icon is back.** The app icon is the church outline again, in lime on dark green, instead of 0.30.2's ring and cross. It's now sized so round and rounded-square home screens show all of it, and Android 13's themed icons use it too.
+
 ## 0.30.2, 11/November/2026
 
 - **A new app icon.** The icon is now a countdown ring that ends in a cross, in lime on dark green. It shows on your home screen, in Android 13's themed icons and at the top of every page. If you've added your church's logo, the header still shows your logo.

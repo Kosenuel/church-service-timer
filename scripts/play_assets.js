@@ -19,11 +19,10 @@ const font = (f) => dataUrl(path.join(root, 'assets', 'fonts', f), 'font/ttf');
 
 const bg = '#0a1210', panel = '#131d1a', lime = '#c9f96c', text = '#e4e7de', muted = '#9caaa5';
 
-// The app icon (style F): a countdown arc ending in a cross, the same
-// drawing as android/app/src/main/res/drawable/ic_church_timer_foreground.xml.
-// Drawn on the 108-unit adaptive-icon canvas and scaled into its safe zone
-// (a 66-unit circle in the middle), so no launcher mask clips the cross.
-const markPaths = `<g transform="translate(54 54) scale(0.72) translate(-55 -54.5)"><path fill="none" stroke="${lime}" stroke-width="7" stroke-linecap="round" d="M54,30 A26,26 0 1 0 80,56"/><path fill="none" stroke="${lime}" stroke-width="5" stroke-linecap="round" d="M76,26v22M69,33h14"/><circle cx="54" cy="56" r="4" fill="${lime}"/></g>`;
+// The church mark from android/app/src/main/res/drawable/
+// ic_church_timer_foreground.xml: drawn on the 108-unit adaptive-icon canvas
+// and scaled into its safe zone, so no launcher mask clips it.
+const markPaths = `<g transform="translate(54 54) scale(0.76) translate(-54 -53)"><path fill="none" stroke="${lime}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M54,23v13M48,28h12M39,49v-2l15,-11l15,11v2l12,9v25h-54v-25zM39,49v34M69,49v34M48,83v-16q0,-8 6,-8q6,0 6,8v16M32,63v7M76,63v7M51,49h6"/></g>`;
 // The visible part of an adaptive icon is the middle 72 × 72.
 const mark = (size, viewBox = '18 18 72 72') =>
   `<svg width="${size}" height="${size}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">${markPaths}</svg>`;
