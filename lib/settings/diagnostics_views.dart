@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/app/platform.dart';
 import 'package:church_service_timer/diagnostics/service_metrics.dart';
 import 'package:church_service_timer/diagnostics/performance_report.dart';
@@ -78,12 +79,16 @@ extension DiagnosticsViews on HomeState {
           ),
           const SizedBox(height: 4),
           Text(
-            'Recorded once a minute and at key moments: memory use, battery level and temperature, how smoothly the screen draws, timer accuracy against the phone clock, how promptly warnings fire, going to the background, and display or paired-phone reconnections.',
+            deviceText(
+              'Recorded once a minute and at key moments: memory use, battery level and temperature, how smoothly the screen draws, timer accuracy against the phone clock, how promptly warnings fire, going to the background, and display or paired-phone reconnections.',
+            ),
             style: TextStyle(color: colors.muted, height: 1.4),
           ),
           const SizedBox(height: 8),
           Text(
-            'Nothing about the service content or people is recorded: no program or segment names, notes, messages, church details or device names. The recording stays on this phone until you tap Share recording.',
+            deviceText(
+              'Nothing about the service content or people is recorded: no program or segment names, notes, messages, church details or device names. The recording stays on this phone until you tap Share recording.',
+            ),
             style: TextStyle(color: colors.muted, height: 1.4),
           ),
         ]),

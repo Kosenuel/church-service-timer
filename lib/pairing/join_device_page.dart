@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:nsd/nsd.dart' as nsd;
 import 'package:church_service_timer/pairing/pairing_pin.dart';
@@ -182,7 +183,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
       require(
         !widget.controller.state.session.active &&
             !widget.controller.reportSavePending,
-        'End this phone’s local service first.',
+        deviceText('End this phone’s local service first.'),
       );
       final host = hosts.where((s) => serviceKey(s) == selected).firstOrNull;
       require(
@@ -247,7 +248,9 @@ class _JoinDevicePageState extends State<JoinDevicePage>
               subtitle: Text(
                 wifiName.isEmpty
                     ? 'Wi-Fi name unavailable. Allow nearby Wi-Fi access to use this.'
-                    : 'This phone is on $wifiName. If the link drops, only this network is rejoined.',
+                    : deviceText(
+                        'This phone is on $wifiName. If the link drops, only this network is rejoined.',
+                      ),
                 style: muted,
               ),
             ),
@@ -297,7 +300,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
                 onChanged: busy
                     ? null
                     : (v) => setState(() => storeWifiPassword = v ?? true),
-                title: const Text('Save the password on this phone'),
+                title: Text(deviceText('Save the password on this phone')),
                 subtitle: Text(
                   'Encrypted. Used only to rejoin $wifiName for this host.',
                   style: muted,
@@ -418,7 +421,8 @@ class _JoinDevicePageState extends State<JoinDevicePage>
           ),
         ),
         const SizedBox(height: 12),
-        wifiRejoinSection(),
+        // Windows rejoins its own known networks; the app never switches.
+        if (!widget.controller.port.isDesktop) wifiRejoinSection(),
         const SizedBox(height: 12),
         if (error != null)
           Text(error!, style: TextStyle(color: appColors(context).error)),
@@ -428,19 +432,23 @@ class _JoinDevicePageState extends State<JoinDevicePage>
               : join,
           child: Text(busy ? 'Connecting…' : 'Join service'),
         ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: busy
-              ? null
-              : () async {
-                  final qr = await Navigator.of(context).push<String>(
-                    MaterialPageRoute(builder: (_) => const PairScannerPage()),
-                  );
-                  if (qr != null && mounted) await join(qr: qr);
-                },
-          icon: const Icon(Icons.qr_code_scanner),
-          label: const Text('Scan QR code instead'),
-        ),
+        // A PC has no camera scanner; the six-digit code does the same job.
+        if (!widget.controller.port.isDesktop) const SizedBox(height: 8),
+        if (!widget.controller.port.isDesktop)
+          OutlinedButton.icon(
+            onPressed: busy
+                ? null
+                : () async {
+                    final qr = await Navigator.of(context).push<String>(
+                      MaterialPageRoute(
+                        builder: (_) => const PairScannerPage(),
+                      ),
+                    );
+                    if (qr != null && mounted) await join(qr: qr);
+                  },
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Scan QR code instead'),
+          ),
         const SizedBox(height: 12),
         const Text(
           'Some sign hotspots isolate phones. If pairing fails, use a shared router or another hotspot.',

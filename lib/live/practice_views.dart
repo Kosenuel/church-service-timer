@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/app/practice_controller.dart';
 import 'package:church_service_timer/live/practice_pointer.dart';
 import 'package:church_service_timer/main.dart';
@@ -54,7 +55,9 @@ extension PracticeViews on HomeState {
       final name = c.destinationName;
       if (!await confirm(
         'Practise on the simulator?',
-        'Practice runs on this phone’s Simulator, so nothing appears on stage. $name stops receiving output until you switch back; you can do that when practice ends.',
+        deviceText(
+          'Practice runs on this phone’s Simulator, so nothing appears on stage. $name stops receiving output until you switch back; you can do that when practice ends.',
+        ),
         'Switch and practise',
       ))
         return;

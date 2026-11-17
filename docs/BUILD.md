@@ -17,6 +17,10 @@ The native bridge supplies Android `SystemClock.elapsedRealtime()` with `BOOT_CO
 
 Version 0.3 also requests notification permission and, optionally, precise-alarm access. These prompts are initiated by the operator from Settings → Warnings & alerts. A private, non-exported receiver posts scheduled warnings. There is no boot receiver. Version 0.12 adds a connected-device foreground service for an active authenticated sign session; it is not restarted automatically after process death.
 
+## Windows
+
+The Windows app is built from the same code with `flutter build windows --release` on a Windows PC (Visual Studio 2022 with "Desktop development with C++"), and packaged with `pwsh scripts/Package-Windows.ps1`. [WINDOWS.md](WINDOWS.md) explains how each part works on Windows, what has been tested and what to try on a real PC. The Android build, its identity and its signing are not affected by the Windows files.
+
 ## Installation checks (including 0.10)
 
 1. Upgrade without clearing app data. Confirm existing reports/cues survive and the original Matrix appearance is unchanged apart from the chosen LED cell shape.

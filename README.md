@@ -1,6 +1,6 @@
 # Church Service Timer
 
-An Android app for keeping a church service on time. It runs a program of timed segments, gives the operator large, confirmed controls, sends discreet cues to the stage, and records a report of how long each part actually took. Output can go to an exact 32 × 16 pixel simulator, to phone or tablet stage screens over local Wi-Fi, or to a Huidu W2 V6.02.232 32 × 16 red LED sign.
+An app for Android, and now Windows, for keeping a church service on time. It runs a program of timed segments, gives the operator large, confirmed controls, sends discreet cues to the stage, and records a report of how long each part actually took. Output can go to an exact 32 × 16 pixel simulator, to phone or tablet stage screens over local Wi-Fi, or to a Huidu W2 V6.02.232 32 × 16 red LED sign.
 
 Current version: **0.22.0**. See [CHANGELOG.md](CHANGELOG.md) for every release.
 
@@ -8,6 +8,10 @@ Current version: **0.22.0**. See [CHANGELOG.md](CHANGELOG.md) for every release.
 
 1. Install the APK on Android 7.0 (API 24) or newer, from [GitHub Releases](../../releases) or a CI build; see [Build and test](#build-and-test).
 2. 0.22 uses a new application ID (`io.github.immanuelokose.churchservicetimer`), so it installs **alongside** builds before 0.22. To move your setup, export from **Settings → Backup & restore** in the old app, restore it in the new one, then re-enter sign passwords and pair stage screens again. Backups never contain credentials or pairings.
+
+### Windows
+
+The same app runs on a Windows 10 or 11 PC, with the same programs, backups and file formats, so a service can be run from a laptop. The Windows build is new and is not code-signed; see [docs/WINDOWS.md](docs/WINDOWS.md) for how to build it, what differs from the phone and what has been tested.
 
 ## Quick start
 
@@ -67,6 +71,7 @@ Release builds are signed with the key in `android/key.properties` (`storeFile`,
 - `settings/`: Settings hub, display, appearance, warnings, clock, stage cues and search.
 - `feedback/`: Feedback Center form and email composition.
 - `shared/`: theme, menus, selection and undo helpers, choice fields, pickers, banner and small utilities.
+- `windows/` (in `lib/`): the Windows side of the device layer, in Dart: clock, saves, secrets, files, pictures, network and the window. `hardware/w2/` holds the Dart LED sign transport it uses.
 - Android sources live under `android/app/src/main/kotlin/org/kosenuel/churchservicetimer/` (W2 transport, credential vault, printing, fonts, notifications, foreground service).
 - `test/`: deterministic domain, fault-injection, rendering and UI checks, with golden screenshots in `test/goldens/`.
 - `scripts/`: standalone smoke and probe scripts; `docs/`: requirements, scope and release guides; `examples/`: portable program examples.
@@ -79,6 +84,7 @@ CSV uses UTF-8 with the headers `Segment Name,Duration (Minutes)` and an optiona
 
 - [CHANGELOG](CHANGELOG.md): release history, with links to each release guide in [docs/history](docs/history/).
 - [BUILD](docs/BUILD.md): toolchain, build helper and device checklists.
+- [WINDOWS](docs/WINDOWS.md): the Windows app: how each part works there, building, and a checklist for a real PC.
 - [WEB-SCREENS](docs/WEB-SCREENS.md): following the service from any browser: the three views, codes, easy name and join slide.
 - [PERFORMANCE-REVIEW](docs/PERFORMANCE-REVIEW.md): the per-release performance and endurance check, its targets and results.
 - [PROTOTYPE-SCOPE](docs/PROTOTYPE-SCOPE.md): implemented behaviour and hardware-dependent work.

@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -29,6 +30,8 @@ int textWidth(TextLayout l) {
       raster != null,
       NativeDisplayFonts.available
           ? 'Preparing Tinos preview…'
+          : desktopWording
+          ? 'Bundled Tinos could not be loaded. Reinstall the app to restore its fonts.'
           : 'Bundled Tinos could not be loaded. Android is required for native text rendering.',
     );
     return raster!.width;

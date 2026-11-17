@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
@@ -31,7 +32,9 @@ class AppearanceControls extends StatelessWidget {
       Text(
         value.density == 'automatic'
             ? 'Adapts to the available window. Using ${densityName(appLayout(context).density)} here.'
-            : 'Changes spacing and control size. Text follows your phone’s text-size setting.',
+            : deviceText(
+                'Changes spacing and control size. Text follows your phone’s text-size setting.',
+              ),
       ),
       const SizedBox(height: 16),
       ChoiceField<String>(

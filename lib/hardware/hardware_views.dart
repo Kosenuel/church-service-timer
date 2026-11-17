@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -53,7 +54,7 @@ extension HardwareViews on HomeState {
               : 'Reconnecting to LED sign',
           attempt: c.hardware.reconnectAttempt,
           detail:
-              'Timing, phone warnings and stage screens keep running. Cues you send now will show on the sign when it reconnects.${(c.hardware.offlineMs ?? 0) >= 60000 ? ' Check the sign is powered on and this phone is on its Wi-Fi.' : ''}',
+              'Timing, phone warnings and stage screens keep running. Cues you send now will show on the sign when it reconnects.${(c.hardware.offlineMs ?? 0) >= 60000 ? deviceText(' Check the sign is powered on and this phone is on its Wi-Fi.') : ''}',
           actions: [
             if (!c.hardware.connected)
               OutlinedButton.icon(
@@ -520,7 +521,9 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
               ),
               children: [
                 Text(
-                  'Connect this phone to the sign’s network in Android, then come back.',
+                  deviceText(
+                    'Connect this phone to the sign’s network in Android, then come back.',
+                  ),
                   style: muted,
                 ),
               ],
@@ -625,7 +628,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
                     controlAffinity: ListTileControlAffinity.leading,
-                    title: const Text('Remember password on this phone'),
+                    title: Text(deviceText('Remember password on this phone')),
                     subtitle: Text(
                       'Encrypted for easier reconnection.',
                       style: muted,

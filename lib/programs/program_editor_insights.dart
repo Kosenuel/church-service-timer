@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -11,8 +12,10 @@ Future<bool?> reviewSavedDraft(BuildContext context) => showDialog<bool>(
   animationStyle: reduceAppMotion(context) ? AnimationStyle.noAnimation : null,
   builder: (ctx) => AlertDialog(
     title: const Text('Restore program draft?'),
-    content: const Text(
-      'An unfinished edit is saved on this phone. Restore it for review; the saved program changes only when you save.',
+    content: Text(
+      deviceText(
+        'An unfinished edit is saved on this phone. Restore it for review; the saved program changes only when you save.',
+      ),
     ),
     actions: [
       StackedDialogActions(

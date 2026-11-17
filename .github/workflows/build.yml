@@ -10,6 +10,10 @@ on:
         description: Build the signed release APK (arm64) instead of a debug APK
         type: boolean
         default: true
+      windows:
+        description: Build the Windows app
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -22,7 +26,38 @@ concurrency:
 # slower of the two. Pull requests build a quick debug APK to prove Android
 # still compiles; main (and a manual run) build the signed release APK.
 # Published releases are built by release.yml, for every processor type.
+#
+# The Windows build runs on a Windows runner, which uses private-repository
+# minutes at twice the Linux rate. So it only runs when it can tell us
+# something: on main, on a manual run, and on branches and pull requests
+# that touch the Windows runner, the Windows code, the plugins or this
+# workflow. Shared Dart code is already checked by the analyzer and tests.
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      windows: ${{ steps.filter.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          WANTED: ${{ inputs.windows }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "windows=$WANTED" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            echo "windows=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only origin/main...HEAD | grep -qE '^(windows/|lib/windows/|pubspec\.(yaml|lock)$|\.github/workflows/|android/app/src/main/assets/display_fonts/)'; then
+            echo "windows=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "windows=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -134,5 +169,50 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: church-service-timer-apk
+          path: dist/*
+          retention-days: 30
+
+  # Proves the Windows app compiles and gives a build to try: unzip it
+  # anywhere and run church_service_timer.exe. Not signed, so Windows
+  # SmartScreen warns the first time (More info, then Run anyway).
+  windows:
+    needs: changes
+    if: needs.changes.outputs.windows == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows app
+        run: flutter build windows --release
+
+      # The zip and, when Inno Setup is on the runner, the installer. A
+      # missing Inno Setup must not fail the build that proves the app
+      # compiles, so the installer is attempted separately.
+      - name: Package the zip
+        shell: pwsh
+        run: ./scripts/Package-Windows.ps1 -SkipInstaller
+
+      - name: Package the installer
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          if (-not (Get-Command iscc.exe -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+          ./scripts/Package-Windows.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: church-service-timer-windows
           path: dist/*
           retention-days: 30

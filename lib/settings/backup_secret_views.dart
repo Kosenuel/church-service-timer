@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -72,7 +73,7 @@ class _BackupExportDialogState extends State<BackupExportDialog> {
             subtitle: Text(
               widget.hasPasswords
                   ? 'The LED sign’s device password and Wi-Fi details, encrypted with a passphrase you choose. Paired-device approvals are never included.'
-                  : 'No sign passwords are saved on this phone.',
+                  : deviceText('No sign passwords are saved on this phone.'),
               style: muted,
             ),
           ),
@@ -145,8 +146,10 @@ class _BackupPassphraseDialogState extends State<BackupPassphraseDialog> {
     content: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
-          'This backup includes encrypted sign passwords. Enter its passphrase to restore them to this phone, or skip.',
+        Text(
+          deviceText(
+            'This backup includes encrypted sign passwords. Enter its passphrase to restore them to this phone, or skip.',
+          ),
         ),
         const SizedBox(height: 12),
         TextField(

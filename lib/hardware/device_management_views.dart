@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -162,7 +163,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
       builder: (ctx) => AlertDialog(
         title: Text('Change the sign’s ${label.toLowerCase()}?'),
         content: Text(
-          'Display: ${c.hardware.rememberedName}.\n\n${kind == 'ssid' ? 'New Wi-Fi name: $next.\n\n' : ''}${kind == 'devicePassword' ? 'The saved connection password on this phone will be removed.' : 'The phone and paired devices may lose Wi-Fi. Join the sign again using its new details.'}\n\nThe connection will close after this request. Other password settings are not cleared. If no acknowledgement arrives, check the sign before retrying.',
+          'Display: ${c.hardware.rememberedName}.\n\n${kind == 'ssid' ? 'New Wi-Fi name: $next.\n\n' : ''}${kind == 'devicePassword' ? deviceText('The saved connection password on this phone will be removed.') : deviceText('The phone and paired devices may lose Wi-Fi. Join the sign again using its new details.')}\n\nThe connection will close after this request. Other password settings are not cleared. If no acknowledgement arrives, check the sign before retrying.',
         ),
         actions: [
           TextButton(
@@ -211,8 +212,11 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
     } catch (_) {
       if (mounted)
         setState(
-          () => status =
+          () => status = deviceText(
+            deviceText(
               'Wi-Fi details unavailable. Check Android Wi-Fi settings.',
+            ),
+          ),
         );
     }
   }
@@ -257,8 +261,10 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Stores your entry encrypted on this phone. It does not read or change the sign’s password.',
+            Text(
+              deviceText(
+                'Stores your entry encrypted on this phone. It does not read or change the sign’s password.',
+              ),
             ),
             TextField(
               controller: field,
@@ -294,7 +300,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
         if (mounted)
           setState(() {
             revealedWifi = null;
-            status = 'Wi-Fi password saved on this phone.';
+            status = deviceText('Wi-Fi password saved on this phone.');
           });
       });
   }
@@ -332,8 +338,8 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
         }
         status = secret == null
             ? (wifi
-                  ? 'No Wi-Fi password saved on this phone.'
-                  : 'No password saved on this phone.')
+                  ? deviceText('No Wi-Fi password saved on this phone.')
+                  : deviceText('No password saved on this phone.'))
             : null;
       });
   });
@@ -346,8 +352,10 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
           : null,
       builder: (ctx) => AlertDialog(
         title: const Text('Forget this sign?'),
-        content: const Text(
-          'Disconnect, remove its saved passwords from this phone and return to the simulator. The physical sign keeps its current output.',
+        content: Text(
+          deviceText(
+            'Disconnect, remove its saved passwords from this phone and return to the simulator. The physical sign keeps its current output.',
+          ),
         ),
         actions: [
           TextButton(
@@ -552,7 +560,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
                       ssid.isNotEmpty
                           ? ssid
                           : wifiConnected
-                          ? 'Android has not shared the Wi-Fi name'
+                          ? deviceText('Android has not shared the Wi-Fi name')
                           : 'No Wi-Fi connection',
                       style: muted,
                     ),
@@ -569,7 +577,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
             ],
           ),
         ),
-        sectionLabel('Saved on this phone'),
+        sectionLabel(deviceText('Saved on this phone')),
         card([
           ListTile(
             key: const ValueKey('led-saved-wifi'),
@@ -577,7 +585,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
             title: const Text('Wi-Fi password'),
             subtitle: revealedWifi != null
                 ? SelectableText(revealedWifi!)
-                : Text('Encrypted on this phone', style: muted),
+                : Text(deviceText('Encrypted on this phone'), style: muted),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -608,7 +616,9 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
             subtitle: revealed != null
                 ? SelectableText(revealed!)
                 : Text(
-                    'Encrypted on this phone · the sign never reveals it',
+                    deviceText(
+                      'Encrypted on this phone · the sign never reveals it',
+                    ),
                     style: muted,
                   ),
             trailing: Row(
@@ -656,7 +666,9 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Android needs location permission to read the Wi-Fi name; it is not used for tracking.',
+                    desktopWording
+                        ? 'Windows only shares the Wi-Fi name when Location is turned on in Windows settings; it is not used for tracking.'
+                        : 'Android needs location permission to read the Wi-Fi name; it is not used for tracking.',
                     style: muted,
                   ),
                 ),

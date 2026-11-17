@@ -269,7 +269,7 @@ extension PairMemory on PairHub {
   }
 
   Future<bool> reconnectDevice(String id) async {
-    require(hosting, 'Start sharing on this phone first.');
+    require(hosting, deviceText('Start sharing on this phone first.'));
     final device = _approvals[id];
     require(device != null, 'Pair this device again.');
     device!.suspended = false;

@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/services.dart';
@@ -320,7 +321,9 @@ extension SettingsPinViews on HomeState {
                 : () async {
                     if (await confirm(
                       'Turn off the PIN?',
-                      'Anyone using this phone will be able to open Settings and delete programs and reports.',
+                      deviceText(
+                        'Anyone using this phone will be able to open Settings and delete programs and reports.',
+                      ),
                       'Turn off PIN',
                       destructive: true,
                     ))
@@ -332,7 +335,9 @@ extension SettingsPinViews on HomeState {
         ],
         const SizedBox(height: 12),
         Text(
-          'The PIN is stored only as a salted hash on this phone and is never included in backups. Settings lock again whenever the app leaves the screen.',
+          deviceText(
+            'The PIN is stored only as a salted hash on this phone and is never included in backups. Settings lock again whenever the app leaves the screen.',
+          ),
           style: TextStyle(fontSize: 12, color: colors.muted),
         ),
       ],

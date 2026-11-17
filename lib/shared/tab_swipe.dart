@@ -17,11 +17,17 @@ class TabSwipeDetector extends StatefulWidget {
   /// Whether a swipe can move to the tab in [direction] (+1 or -1).
   final bool Function(int direction) canSwipe;
   final void Function(int direction) onSwipe;
+
+  /// On a computer, only a finger or pen on a touch screen swipes between
+  /// tabs: dragging with a mouse there selects text and moves sliders, and
+  /// must not also change the page.
+  final bool touchOnly;
   const TabSwipeDetector({
     super.key,
     required this.child,
     required this.canSwipe,
     required this.onSwipe,
+    this.touchOnly = false,
   });
 
   /// The share of the width a slow swipe has to cover.
@@ -53,7 +59,16 @@ class _TabSwipeDetectorState extends State<TabSwipeDetector> {
     gestures: {
       HorizontalDragGestureRecognizer:
           GestureRecognizerFactoryWithHandlers<HorizontalDragGestureRecognizer>(
-            () => HorizontalDragGestureRecognizer(debugOwner: this),
+            () => HorizontalDragGestureRecognizer(
+              debugOwner: this,
+              supportedDevices: widget.touchOnly
+                  ? const {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.stylus,
+                      PointerDeviceKind.invertedStylus,
+                    }
+                  : null,
+            ),
             (r) => r
               ..onStart = (d) {
                 _start = _fromEdge(d.globalPosition.dx)

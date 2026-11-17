@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -399,7 +400,9 @@ extension WebStageViews on HomeState {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
-                    'The easy name is not available on this phone; use the QR or the address.',
+                    deviceText(
+                      'The easy name is not available on this phone; use the QR or the address.',
+                    ),
                     style: TextStyle(color: colors.muted, fontSize: 13),
                   ),
                 ),
@@ -407,7 +410,9 @@ extension WebStageViews on HomeState {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
-                    'This phone’s address changed since you exported the join slide. Export it again.',
+                    deviceText(
+                      'This phone’s address changed since you exported the join slide. Export it again.',
+                    ),
                     key: const ValueKey('web-slide-stale'),
                     style: TextStyle(
                       color: colors.warning,
@@ -519,7 +524,9 @@ extension WebStageViews on HomeState {
               onTap: () => changeLocalName(settings),
             ),
             Text(
-              'Guest Wi-Fi often keeps devices apart; phones on it may not reach this phone. If a printed address stops working, the router gave this phone a new one: ask for it to be reserved, or show the join slide instead.',
+              deviceText(
+                'Guest Wi-Fi often keeps devices apart; phones on it may not reach this phone. If a printed address stops working, the router gave this phone a new one: ask for it to be reserved, or show the join slide instead.',
+              ),
               style: TextStyle(color: colors.muted, fontSize: 12, height: 1.4),
             ),
             if (devices.isNotEmpty) ...[

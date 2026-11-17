@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
@@ -52,7 +53,9 @@ extension ClockSettingsViews on HomeState {
         const SizedBox(height: 12),
         Text(
           style: TextStyle(color: appColors(context).muted),
-          'Shared across services and stage screens. Uses this phone’s current time and timezone. Countdown timers stay in minutes and seconds.',
+          deviceText(
+            'Shared across services and stage screens. Uses this phone’s current time and timezone. Countdown timers stay in minutes and seconds.',
+          ),
         ),
       ],
     ),

@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:church_service_timer/shared/app_menu.dart';
@@ -33,7 +34,7 @@ extension ProgramImportExportViews on HomeState {
       keyPrefix: '${share ? 'share' : 'export'}-programs',
       share: share,
       extraTitle: 'Include private operator notes',
-      extraHint: 'Off: notes stay on this phone',
+      extraHint: deviceText('Off: notes stay on this phone'),
       extraKey: 'include-private-notes',
     );
     if (picked == null) return;

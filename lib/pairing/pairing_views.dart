@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:church_service_timer/web_stage/web_stage_views.dart';
 import 'package:flutter/material.dart';
@@ -29,14 +30,16 @@ extension PairingViews on HomeState {
   Future<void> joinAsStageScreen() async {
     if (c.state.session.active || c.reportSavePending) {
       await showError(
-        'End this phone’s current service before joining a host.',
+        deviceText('End this phone’s current service before joining a host.'),
       );
       return;
     }
     if (c.pairing.hosting &&
         !await confirm(
           'Join another host?',
-          'This phone will stop sharing with its paired devices when you join.',
+          deviceText(
+            'This phone will stop sharing with its paired devices when you join.',
+          ),
           'Continue',
         ))
       return;
@@ -454,7 +457,7 @@ extension PairingViews on HomeState {
     }
 
     final steps = [
-      'Put both devices on the same Wi-Fi or this phone’s hotspot.',
+      deviceText('Put both devices on the same Wi-Fi or this phone’s hotspot.'),
       'On the other device, tap Join a service on Live.',
       'Enter the six-digit code shown here, then approve it.',
     ];
@@ -578,7 +581,7 @@ extension PairingViews on HomeState {
                     Expanded(child: label('Pair a device')),
                     Text(
                       hub.localControl
-                          ? 'Control: this phone'
+                          ? deviceText('Control: this phone')
                           : 'Control: paired operator',
                       style: TextStyle(
                         fontSize: 12,

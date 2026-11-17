@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
@@ -577,7 +578,9 @@ class _PairedScreenState extends State<PairedScreen> {
                 detail: hub.rejoiningWifi
                     ? 'Rejoining ${hub.rejoinSsid}…'
                     : longHostWait(hub)
-                    ? 'Still trying. Make sure this phone is on the same Wi-Fi or hotspot as the host. Controls return when the host answers.'
+                    ? deviceText(
+                        'Still trying. Make sure this phone is on the same Wi-Fi or hotspot as the host. Controls return when the host answers.',
+                      )
                     : 'Controls are paused until the host answers. The host keeps the service running.',
                 actions: [
                   if (longHostWait(hub))

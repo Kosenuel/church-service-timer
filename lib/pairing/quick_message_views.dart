@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -68,8 +69,8 @@ extension QuickMessageViews on HomeState {
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: MaterialBanner(
-          content: const Text(
-            'An unsent message draft is saved on this phone.',
+          content: Text(
+            deviceText('An unsent message draft is saved on this phone.'),
           ),
           actions: [
             TextButton(
@@ -224,7 +225,7 @@ extension QuickMessageViews on HomeState {
               ? 'On stage: ${c.currentQuickMessage!.headline.isNotEmpty ? c.currentQuickMessage!.headline : c.currentQuickMessage!.body}'
               : c.state.editDrafts.containsKey('quick-message') ||
                     quickDraft.body.isNotEmpty
-              ? 'Draft saved on this phone'
+              ? deviceText('Draft saved on this phone')
               : c.stageConnected
               ? stageRecipientSummary
               : 'Connect a stage screen to send messages.',
