@@ -372,7 +372,7 @@ function renderStage(s) {
   if (moving && motion && motion.key === key) { note.textContent = s.paused ? 'PAUSED' : ''; return; }
   stopMotion(); text.style.visibility = 'visible';
   clear(text); note.textContent = ''; stage.style.background = '#000'; stage.style.textAlign = 'center'; text.style.width = '';
-  if (!s.sharing) { text.textContent = 'Waiting for the host to share the stage'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
+  if (!s.sharing) { text.textContent = 'Waiting for the host. On the host, tap Show on stage screens on Live.'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {
     renderMessage(stage, text, s.message); return;
   }

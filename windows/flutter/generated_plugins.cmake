@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_windows
+  local_notifier
   nsd_windows
   printing
   share_plus

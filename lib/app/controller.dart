@@ -71,6 +71,16 @@ class AppController extends ChangeNotifier {
       (id: 'web:${d.token}', name: '${d.label} (web)'),
   ];
 
+  /// Stage screens that have joined but are shown nothing, because the
+  /// output is going to the simulator or the LED sign, or sharing to stage
+  /// screens was stopped. Live offers to send the output to them.
+  int get stageScreensWaiting =>
+      !pairing.hosting ||
+          (destination == 'mobile' && pairing.stageSharingEnabled)
+      ? 0
+      : pairing.stagePeers.where((p) => p.approved).length +
+            webStage.activeDevices.where((d) => d.role == WebRole.stage).length;
+
   /// A paired stage screen or a web Stage display is showing the output.
   bool get stageConnected =>
       destination == 'mobile' &&

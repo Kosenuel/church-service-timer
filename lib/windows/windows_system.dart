@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:church_service_timer/domain/domain.dart';
@@ -5,6 +6,7 @@ import 'package:church_service_timer/windows/secret_vault.dart';
 import 'package:church_service_timer/windows/win32_api.dart' as win32;
 import 'package:church_service_timer/windows/windows_port.dart';
 import 'package:flutter/foundation.dart';
+import 'package:local_notifier/local_notifier.dart';
 
 /// [DesktopSystem] on a real Windows PC. Every call is one line into
 /// win32_api.dart, and a failure there never stops the service: asking
@@ -31,6 +33,46 @@ class WindowsSystem implements DesktopSystem {
   Json power() => _quietly(win32.powerStatus, <String, dynamic>{});
   @override
   void flash() => _quietly(() => win32.flashWindow(win32.appWindow()), null);
+  static bool _notifierReady = false;
+  static LocalNotification? _shown;
+  static Timer? _clear;
+
+  @override
+  void notify(String title, String body, {int clearSeconds = 30}) {
+    unawaited(() async {
+      try {
+        if (!_notifierReady) {
+          // Windows only shows notifications from an app it can find in
+          // the Start menu, so this adds a shortcut there if none exists.
+          await localNotifier.setup(appName: 'Church Service Timer');
+          _notifierReady = true;
+        }
+        // One warning at a time, like the phone: a new one replaces the
+        // last instead of piling up.
+        _clear?.cancel();
+        await _shown?.close();
+        final notification = LocalNotification(
+          title: title,
+          body: body,
+          silent: true,
+        );
+        _shown = notification;
+        await notification.show();
+        if (clearSeconds > 0) {
+          _clear = Timer(Duration(seconds: clearSeconds), () {
+            if (_shown == notification) {
+              unawaited(notification.close().catchError((_) {}));
+              _shown = null;
+            }
+          });
+        }
+      } catch (_) {
+        // The taskbar flash has already happened; a notification that
+        // Windows would not show must not disturb the service.
+      }
+    }());
+  }
+
   @override
   void raise() => _quietly(() => win32.raiseWindow(win32.appWindow()), null);
   @override

@@ -680,12 +680,12 @@ extension WarningSettingsViews on HomeState {
             color: colors.accent,
           ),
           title: const Text(
-            'Taskbar button flashes at each warning',
+            'Windows notification at each warning',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
             c.notificationError ??
-                'No sound is played, so nothing goes out through the sound system. Warnings always show on Live and on the stage.',
+                'A notification appears and the taskbar button flashes. No sound is played, so nothing goes out through the sound system. Windows may hold notifications back while Do not disturb is on, which it turns on by itself when a screen is duplicated; the flash still shows.',
             style: TextStyle(
               fontSize: 13,
               color: c.notificationError == null

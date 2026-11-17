@@ -867,6 +867,59 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                               ),
                                             ),
                                           ),
+                                        if (c.stageScreensWaiting > 0)
+                                          Padding(
+                                            key: const ValueKey(
+                                              'stage-screens-waiting',
+                                            ),
+                                            padding: const EdgeInsets.only(
+                                              bottom: 12,
+                                            ),
+                                            child: panel(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.stretch,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons
+                                                            .warning_amber_rounded,
+                                                        color: appColors(
+                                                          context,
+                                                        ).warning,
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Expanded(
+                                                        child: Text(
+                                                          '${c.stageScreensWaiting == 1 ? 'A stage screen has joined but is' : '${c.stageScreensWaiting} stage screens have joined but are'} not being shown anything: the display is set to ${c.destinationName}.',
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  Align(
+                                                    alignment:
+                                                        Alignment.centerRight,
+                                                    child: TextButton(
+                                                      key: const ValueKey(
+                                                        'show-on-stage-screens',
+                                                      ),
+                                                      onPressed:
+                                                          controlsLocked ||
+                                                              !c
+                                                                  .pairing
+                                                                  .localControl
+                                                          ? null
+                                                          : showOnStageScreens,
+                                                      child: const Text(
+                                                        'Show on stage screens',
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                         if (c.backgroundError != null)
                                           Padding(
                                             padding: const EdgeInsets.only(

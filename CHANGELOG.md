@@ -10,8 +10,10 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
   - **It stays awake.** While a service runs, or screens are shared, the PC will not go to sleep or turn its screen off. If it does sleep (a closed lid), the timer is still right when it wakes. Closing the window during a service asks first.
   - **Screens and the LED sign.** The PC can host stage screens and web screens, join another device's service as a stage screen, and drive the W2 LED sign. It can be on a network cable and on the sign's Wi-Fi at the same time. Join the sign's Wi-Fi in Windows' own Wi-Fi settings; the app does not switch networks for you.
   - **Files.** Import, export, backup and reports use the usual Windows Open and Save windows. Where the phone says Share, the PC saves the file where you choose.
-  - **Warnings are silent.** At each warning the app's taskbar button flashes. It makes no sound, because a PC is often plugged into the sound system.
+  - **Warnings are silent.** At each warning a Windows notification appears and the app's taskbar button flashes. It makes no sound, because a PC is often plugged into the sound system. Windows holds notifications back while **Do not disturb** is on, and turns that on by itself when the screen is duplicated to a projector; the taskbar button still flashes.
   - **Not on Windows:** scanning a QR code with a camera (join with the six-digit code instead) and the phone's battery settings.
+
+- **A stage screen that joins is no longer left waiting without a reason.** If a phone, tablet, PC or browser joined as a stage screen while your display was set to the Simulator or the LED sign, it sat on a waiting message and nothing on your side said why. Live now shows a note with a **Show on stage screens** button, which sends the timer to them in one tap, and the waiting screen says what to do on the host.
 
 ## 0.30.2, 11/November/2026
 

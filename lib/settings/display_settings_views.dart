@@ -355,7 +355,7 @@ extension RefinedSettings on HomeState {
             ? 'Warnings on this computer'
             : 'Phone warnings',
         detail: c.port.isDesktop
-            ? 'Taskbar button flashes · no sound'
+            ? 'Windows notifications on · no sound'
             : warningsOn
             ? (c.notificationState['sound'] == true
                   ? 'Notifications and sound on'
@@ -493,9 +493,7 @@ extension RefinedSettings on HomeState {
                 ),
                 onPressed: () => run(c.port.testNotification),
                 child: Text(
-                  c.port.isDesktop
-                      ? 'Test taskbar flash'
-                      : 'Test warning sound',
+                  c.port.isDesktop ? 'Test notification' : 'Test warning sound',
                 ),
               ),
             ),

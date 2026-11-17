@@ -48,6 +48,10 @@ class FakeSystem implements DesktopSystem {
   final opened = <String>[];
   final awake = <String>[];
   int flashes = 0, raises = 0;
+  final notices = <String>[];
+  @override
+  void notify(String title, String body, {int clearSeconds = 30}) =>
+      notices.add('$title | $body | $clearSeconds');
   bool canOpen = true;
   @override
   bool open(String target) {
@@ -320,7 +324,7 @@ void main() {
     },
   );
 
-  test('warnings flash the taskbar and never make a sound', () async {
+  test('warnings notify, flash the taskbar and never make a sound', () async {
     final p = port();
     expect(await p.notificationStatus(), {
       'enabled': true,
@@ -329,12 +333,33 @@ void main() {
     });
     await p.testNotification();
     expect(system.flashes, 1);
+    expect(
+      system.notices.single,
+      startsWith('Church Service Timer test warning'),
+    );
     await p.syncWarnings({
       'session': 's',
+      'clearSeconds': 60,
+      'alarms': [],
+      'notice': {'id': 'n', 'title': 'Wrap up', 'body': 'Sermon · 02:00'},
+    });
+    expect(system.flashes, 2);
+    expect(system.notices.last, 'Wrap up | Sermon · 02:00 | 60');
+    // The same warning is not shown twice, and "until dismissed" is kept.
+    await p.syncWarnings({
+      'session': 's',
+      'clearSeconds': 0,
       'alarms': [],
       'notice': {'id': 'n', 'title': 'Wrap up', 'body': 'Sermon'},
     });
-    expect(system.flashes, 2);
+    expect(system.notices, hasLength(2));
+    await p.syncWarnings({
+      'session': 's',
+      'clearSeconds': 0,
+      'alarms': [],
+      'notice': {'id': 'm', 'title': 'Time', 'body': 'Sermon'},
+    });
+    expect(system.notices.last, 'Time | Sermon | 0');
     p.dispose();
   });
 
