@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -343,8 +344,10 @@ extension SettingsViews on HomeState {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Restore replaces the saved data on this phone. Export a backup first if you want to keep the current setup. You will review the file before confirming.',
+            Text(
+              deviceText(
+                'Restore replaces the saved data on this phone. Export a backup first if you want to keep the current setup. You will review the file before confirming.',
+              ),
             ),
             const SizedBox(height: 16),
             if (c.state.session.active || c.state.session.phase == 'ready')
@@ -431,7 +434,7 @@ extension SettingsViews on HomeState {
       final restored = importBackup(file['content'] as String, c.now);
       await NativeDisplayFonts.prepareState(restored);
       final okay = await confirm(
-        'Replace this phone’s saved setup?',
+        deviceText('Replace this phone’s saved setup?'),
         '${file['name']}\n\n${restored.templates.length} programs · ${restored.stageCues.length} stage cues · ${restored.reports.length} reports\nChurch: ${restored.churchName.isEmpty ? 'Not set' : restored.churchName}\nTheme: ${paletteFor(restored.themeId).name}\n\nThis replaces your current saved programs, cues, reports and preferences. The timer returns to idle. This cannot be undone without another backup.',
         'Restore and replace',
         destructive: true,
@@ -505,12 +508,14 @@ extension SettingsViews on HomeState {
       row(
         Icons.storage_outlined,
         'Your data',
-        'Stored only on this phone · backups you choose',
+        deviceText('Stored only on this phone · backups you choose'),
         () => openSettingsDetail(
           'Your data',
           () => detail(
             'Your data',
-            'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone. Pairings are never included in backups; saved sign passwords are included only if you choose, encrypted with a passphrase.',
+            deviceText(
+              'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone. Pairings are never included in backups; saved sign passwords are included only if you choose, encrypted with a passphrase.',
+            ),
           ),
         ),
       ),
@@ -535,7 +540,9 @@ extension SettingsViews on HomeState {
           'Display and hardware',
           () => detail(
             'Display and hardware',
-            'The simulator shows the 32 × 16 sign on this phone. A W2 Wi-Fi sign runs its own countdown, so pause, resume, time changes and scrolling warnings are sent to it as they happen, and the sign may blink briefly when it updates. During a service, the notification lets you control the timer from the lock screen. If the connection drops or Android closes the app, reconnect and check what the sign is showing.',
+            deviceText(
+              'The simulator shows the 32 × 16 sign on this phone. A W2 Wi-Fi sign runs its own countdown, so pause, resume, time changes and scrolling warnings are sent to it as they happen, and the sign may blink briefly when it updates. During a service, the notification lets you control the timer from the lock screen. If the connection drops or Android closes the app, reconnect and check what the sign is showing.',
+            ),
           ),
         ),
       ),

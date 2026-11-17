@@ -55,6 +55,8 @@ class ReportListRow extends StatelessWidget {
       key: ValueKey('open-report-${r.id}'),
       onTap: onTap,
       onLongPress: onMenu,
+      // A right-click does what a long-press does on a phone.
+      onSecondaryTap: onMenu,
       highlightColor: colors.accent.withValues(alpha: .1),
       child: Container(
         color: selected || checked == true

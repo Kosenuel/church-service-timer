@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:math' as math;
 
 import 'package:church_service_timer/diagnostics/service_metrics.dart';
@@ -246,7 +247,7 @@ PerformanceReport buildPerformanceReport(
           'Battery use',
           '${batteryRate.toStringAsFixed(1)}%/h (${levels.first.toStringAsFixed(0)}% → ${levels.last.toStringAsFixed(0)}%)',
           limit == null
-              ? 'first run sets this phone’s baseline'
+              ? deviceText('first run sets this phone’s baseline')
               : '≤ ${limit.toStringAsFixed(1)}%/h (last run ${batteryBaseline!.toStringAsFixed(1)}%/h)',
           limit == null ? null : batteryRate <= limit,
         ),

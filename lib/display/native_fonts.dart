@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:convert';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/app/platform.dart';
@@ -47,7 +48,9 @@ class NativeDisplayFonts {
     l.validate();
     require(
       available && _port != null,
-      'Bundled Tinos could not be loaded. Restart or reinstall the complete APK.',
+      desktopWording
+          ? 'Bundled Tinos could not be loaded. Reinstall the app to restore its fonts.'
+          : 'Bundled Tinos could not be loaded. Restart or reinstall the complete APK.',
     );
     final k = key(l);
     if (_cache.containsKey(k)) return;

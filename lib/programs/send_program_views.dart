@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/display/pixels.dart';
@@ -137,8 +138,10 @@ Future<void> reviewReceivedProgram(
               const SizedBox(height: 12),
               Text(
                 existing == null
-                    ? 'Save it to this phone’s programs.'
-                    : 'This phone already has “${existing.name}”. Update it (its current version is kept in Version history), or save this one as a copy.',
+                    ? deviceText('Save it to this phone’s programs.')
+                    : deviceText(
+                        'This phone already has “${existing.name}”. Update it (its current version is kept in Version history), or save this one as a copy.',
+                      ),
                 style: TextStyle(color: appColors(ctx).muted),
               ),
             ],
@@ -219,7 +222,7 @@ Future<void> reviewReceivedProgram(
         content: Text(
           choice == 'update'
               ? 'Updated “${existing!.name}”'
-              : 'Saved to this phone’s programs',
+              : deviceText('Saved to this phone’s programs'),
         ),
       ),
     );

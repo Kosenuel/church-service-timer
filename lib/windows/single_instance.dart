@@ -22,9 +22,11 @@ class SingleInstance {
   bool acquire() {
     try {
       dataDir.createSync(recursive: true);
+      // Append mode: opening must not truncate a file another copy has
+      // locked, or the open itself would fail and look like "no lock".
       final file = File(
         '${dataDir.path}${Platform.pathSeparator}instance.lock',
-      ).openSync(mode: FileMode.write);
+      ).openSync(mode: FileMode.append);
       try {
         file.lockSync(FileLock.exclusive);
       } catch (_) {

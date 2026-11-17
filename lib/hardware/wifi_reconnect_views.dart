@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -90,7 +91,9 @@ class _SignWifiProfileDialogState extends State<SignWifiProfileDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Wi-Fi network for ${widget.controller.hardware.rememberedName}. These details are saved on this phone; they do not change the sign.',
+            deviceText(
+              'Wi-Fi network for ${widget.controller.hardware.rememberedName}. These details are saved on this phone; they do not change the sign.',
+            ),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -140,8 +143,10 @@ class _SignWifiProfileDialogState extends State<SignWifiProfileDialog> {
             ),
           ],
           const SizedBox(height: 12),
-          const Text(
-            'Stored encrypted on this phone. Android asks for approval when joining this network for the first time.',
+          Text(
+            desktopWording
+                ? 'Stored encrypted on this computer and kept in backups that include passwords. Windows joins Wi-Fi networks itself: choose the sign’s network in Windows Wi-Fi settings.'
+                : 'Stored encrypted on this phone. Android asks for approval when joining this network for the first time.',
             style: TextStyle(fontSize: 12),
           ),
           if (error != null)
@@ -215,7 +220,7 @@ class _WifiReconnectDialogState extends State<WifiReconnectDialog> {
     var profile = await c.port.signWifiProfile(c.hardware.rememberedId);
     if (profile['supported'] != true)
       throw RuleError(
-        'Open Android Wi-Fi settings to join the sign, then retry.',
+        deviceText('Open Android Wi-Fi settings to join the sign, then retry.'),
       );
     if (profile['wifiEnabled'] == false)
       throw RuleError(

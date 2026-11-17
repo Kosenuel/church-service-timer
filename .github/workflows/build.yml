@@ -195,17 +195,21 @@ jobs:
       - name: Build Windows app
         run: flutter build windows --release
 
-      - name: Zip the app folder
+      # The zip and, when Inno Setup is on the runner, the installer. A
+      # missing Inno Setup must not fail the build that proves the app
+      # compiles, so the installer is attempted separately.
+      - name: Package the zip
         shell: pwsh
+        run: ./scripts/Package-Windows.ps1 -SkipInstaller
+
+      - name: Package the installer
+        shell: pwsh
+        continue-on-error: true
         run: |
-          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([^+\s]+)').Matches[0].Groups[1].Value
-          $release = 'build/windows/x64/runner/Release'
-          if (-not (Test-Path "$release/data/display_fonts/tinos/Tinos-Regular.ttf")) {
-            throw 'The LED display fonts were not bundled.'
+          if (-not (Get-Command iscc.exe -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
           }
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive -Path "$release/*" -DestinationPath "dist/Church-Service-Timer-$version-windows-x64.zip"
-          Get-FileHash dist/* -Algorithm SHA256 | Format-List
+          ./scripts/Package-Windows.ps1
 
       - uses: actions/upload-artifact@v4
         with:

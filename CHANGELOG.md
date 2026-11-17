@@ -2,6 +2,17 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **A Windows version (first build, still to be tried on a real PC).** Church Service Timer can now be built for Windows 10 and 11, so a service can be run from a laptop or PC. It is the same app: the same programs, reports, themes and settings, and a backup made on the phone restores on the PC and the other way round. On a PC:
+  - **Wide layout.** Live, Programs, Reports and Settings sit in a side rail, the window can be resized, and it reopens where you left it.
+  - **Keyboard.** On Live, **Space** pauses and resumes, **Page Down** (pressed twice) starts the next segment, **+** or **−** opens Adjust time and **Ctrl+Z** offers to undo the last segment change. Each still asks before it changes anything, and **Lock controls** blocks them all.
+  - **It stays awake.** While a service runs, or screens are shared, the PC will not go to sleep or turn its screen off. If it does sleep (a closed lid), the timer is still right when it wakes. Closing the window during a service asks first.
+  - **Screens and the LED sign.** The PC can host stage screens and web screens, join another device's service as a stage screen, and drive the W2 LED sign. It can be on a network cable and on the sign's Wi-Fi at the same time. Join the sign's Wi-Fi in Windows' own Wi-Fi settings; the app does not switch networks for you.
+  - **Files.** Import, export, backup and reports use the usual Windows Open and Save windows. Where the phone says Share, the PC saves the file where you choose.
+  - **Warnings are silent.** At each warning the app's taskbar button flashes. It makes no sound, because a PC is often plugged into the sound system.
+  - **Not on Windows:** scanning a QR code with a camera (join with the six-digit code instead) and the phone's battery settings.
+
 ## 0.30.2, 11/November/2026
 
 - **A new app icon.** The icon is now a countdown ring that ends in a cross, in lime on dark green. It shows on your home screen, in Android 13's themed icons and at the top of every page. If you've added your church's logo, the header still shows your logo.

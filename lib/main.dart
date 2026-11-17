@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'dart:io' show Platform, exit;
 import 'dart:ui' show AppExitResponse, ImageFilter;
@@ -88,6 +89,7 @@ void main(List<String> arguments) {
     final windows = startWindowsPort(arguments);
     if (windows == null) exit(0);
     port = windows;
+    desktopWording = true;
   } else {
     port = AndroidPort();
   }
@@ -615,6 +617,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                 TabSwipeDetector(
                   canSwipe: canSwipeTab,
                   onSwipe: swipeTab,
+                  touchOnly: c.port.isDesktop,
                   child: Listener(
                     onPointerDown: (e) => menuAnchor = e.position,
                     child: CustomScrollView(
@@ -843,8 +846,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                                 children: [
                                                   Text(
                                                     c.pairing.localControl
-                                                        ? 'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices${c.webStage.activeDevices.isEmpty ? '' : ' · ${c.webStage.activeDevices.length} web screens'}'
-                                                        : 'Control is with a paired operator. This phone remains the service host.',
+                                                        ? deviceText(
+                                                            'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices${c.webStage.activeDevices.isEmpty ? '' : ' · ${c.webStage.activeDevices.length} web screens'}',
+                                                          )
+                                                        : deviceText(
+                                                            'Control is with a paired operator. This phone remains the service host.',
+                                                          ),
                                                   ),
                                                   TextButton(
                                                     onPressed: () =>

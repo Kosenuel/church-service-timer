@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -230,8 +231,10 @@ extension RefinedSettings on HomeState {
           null,
         ),
       ]),
-      const Text(
-        'Choose a font when editing a cue, warning or end screen. Tinos is drawn on the phone and converted to LED pixels. No font import or internet connection is required.',
+      Text(
+        deviceText(
+          'Choose a font when editing a cue, warning or end screen. Tinos is drawn on the phone and converted to LED pixels. No font import or internet connection is required.',
+        ),
       ),
       const SizedBox(height: 12),
       const Text(
@@ -240,7 +243,9 @@ extension RefinedSettings on HomeState {
       if (!NativeDisplayFonts.available) ...[
         const SizedBox(height: 12),
         Text(
-          'Bundled Tinos is unavailable in this runtime. Android is required for its native rasterizer.',
+          desktopWording
+              ? 'Bundled Tinos could not be loaded. Reinstall the app to restore its fonts.'
+              : 'Bundled Tinos is unavailable in this runtime. Android is required for its native rasterizer.',
           style: TextStyle(color: appColors(context).warning),
         ),
       ],
