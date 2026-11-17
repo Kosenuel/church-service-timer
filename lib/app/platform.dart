@@ -16,6 +16,11 @@ class SharedFile {
 }
 
 abstract class DevicePort {
+  /// A computer with a window, keyboard and mouse rather than a phone or
+  /// tablet. Screens use it to hide what only a phone has (the camera
+  /// scanner, battery settings) and to word things for a PC.
+  bool get isDesktop => false;
+
   Future<Json> signWifiProfile(String id) async => {
     'ssid': '',
     'supported': false,
@@ -138,35 +143,9 @@ abstract class DevicePort {
   Future<void> exportFile(String filename, String content);
 }
 
-class AndroidPort extends DevicePort {
-  @override
-  Future<Json> signWifiProfile(String id) async => Map<String, dynamic>.from(
-    await channel.invokeMethod<Map>('signWifiProfile', id) ?? {},
-  );
-  @override
-  Future<void> saveSignWifiProfile(Json profile) =>
-      channel.invokeMethod<void>('saveSignWifiProfile', profile);
-  @override
-  Future<bool> joinSignWifi(String id) async =>
-      await channel.invokeMethod<bool>('joinSignWifi', id) ?? false;
-  @override
-  Future<void> cancelSignWifi() => channel.invokeMethod<void>('cancelSignWifi');
-  @override
-  Future<Json> pairWifiProfile(String host) async => Map<String, dynamic>.from(
-    await channel.invokeMethod<Map>('pairWifiProfile', host) ?? {},
-  );
-  @override
-  Future<void> savePairWifi(Json profile) =>
-      channel.invokeMethod<void>('savePairWifi', profile);
-  @override
-  Future<void> forgetPairWifi(String host) =>
-      channel.invokeMethod<void>('forgetPairWifi', host);
-  @override
-  Future<bool> joinPairWifi(String host) async =>
-      await channel.invokeMethod<bool>('joinPairWifi', host) ?? false;
-  @override
-  Future<void> cancelPairWifi() => channel.invokeMethod<void>('cancelPairWifi');
-
+/// Finding and announcing a host on the local network, and printing a PDF:
+/// both go through plugins that behave the same on Android and Windows.
+mixin LocalNetworkPairing on DevicePort {
   @override
   Future<void> printServicePdf(
     String name,
@@ -178,27 +157,6 @@ class AndroidPort extends DevicePort {
     );
   }
 
-  @override
-  Future<bool> shareFiles(List<SharedFile> files, {String? subject}) async {
-    final result = await SharePlus.instance.share(
-      ShareParams(
-        subject: subject,
-        title: subject,
-        files: [
-          for (final f in files)
-            XFile.fromData(f.bytes, mimeType: f.mimeType, name: f.name),
-        ],
-        fileNameOverrides: [for (final f in files) f.name],
-      ),
-    );
-    return result.status != ShareResultStatus.dismissed;
-  }
-
-  @override
-  Future<String?> loadPairing() => channel.invokeMethod<String>('loadPairing');
-  @override
-  Future<void> savePairing(String value) =>
-      channel.invokeMethod<void>('savePairing', value);
   @override
   Future<List<Json>> discoverPairHosts() async {
     final discovery = await nsd.startDiscovery(
@@ -222,14 +180,6 @@ class AndroidPort extends DevicePort {
     }
   }
 
-  @override
-  Future<void> setDisplayAutoReconnect(bool enabled) =>
-      channel.invokeMethod<void>('w2AutoReconnect', enabled);
-  @override
-  Future<Json> displayNetworkInfo({bool requestName = false}) async =>
-      Map<String, dynamic>.from(
-        (await channel.invokeMethod<Map>('w2NetworkInfo', requestName)) ?? {},
-      );
   nsd.Registration? _pairRegistration;
   int _pairAdvertisementGeneration = 0;
   @override
@@ -260,7 +210,66 @@ class AndroidPort extends DevicePort {
     _pairRegistration = null;
     if (registration != null) await nsd.unregister(registration);
   }
+}
 
+class AndroidPort extends DevicePort with LocalNetworkPairing {
+  @override
+  Future<Json> signWifiProfile(String id) async => Map<String, dynamic>.from(
+    await channel.invokeMethod<Map>('signWifiProfile', id) ?? {},
+  );
+  @override
+  Future<void> saveSignWifiProfile(Json profile) =>
+      channel.invokeMethod<void>('saveSignWifiProfile', profile);
+  @override
+  Future<bool> joinSignWifi(String id) async =>
+      await channel.invokeMethod<bool>('joinSignWifi', id) ?? false;
+  @override
+  Future<void> cancelSignWifi() => channel.invokeMethod<void>('cancelSignWifi');
+  @override
+  Future<Json> pairWifiProfile(String host) async => Map<String, dynamic>.from(
+    await channel.invokeMethod<Map>('pairWifiProfile', host) ?? {},
+  );
+  @override
+  Future<void> savePairWifi(Json profile) =>
+      channel.invokeMethod<void>('savePairWifi', profile);
+  @override
+  Future<void> forgetPairWifi(String host) =>
+      channel.invokeMethod<void>('forgetPairWifi', host);
+  @override
+  Future<bool> joinPairWifi(String host) async =>
+      await channel.invokeMethod<bool>('joinPairWifi', host) ?? false;
+  @override
+  Future<void> cancelPairWifi() => channel.invokeMethod<void>('cancelPairWifi');
+
+  @override
+  Future<bool> shareFiles(List<SharedFile> files, {String? subject}) async {
+    final result = await SharePlus.instance.share(
+      ShareParams(
+        subject: subject,
+        title: subject,
+        files: [
+          for (final f in files)
+            XFile.fromData(f.bytes, mimeType: f.mimeType, name: f.name),
+        ],
+        fileNameOverrides: [for (final f in files) f.name],
+      ),
+    );
+    return result.status != ShareResultStatus.dismissed;
+  }
+
+  @override
+  Future<String?> loadPairing() => channel.invokeMethod<String>('loadPairing');
+  @override
+  Future<void> savePairing(String value) =>
+      channel.invokeMethod<void>('savePairing', value);
+  @override
+  Future<void> setDisplayAutoReconnect(bool enabled) =>
+      channel.invokeMethod<void>('w2AutoReconnect', enabled);
+  @override
+  Future<Json> displayNetworkInfo({bool requestName = false}) async =>
+      Map<String, dynamic>.from(
+        (await channel.invokeMethod<Map>('w2NetworkInfo', requestName)) ?? {},
+      );
   static const channel = MethodChannel('church.timer/device');
   @override
   Future<Json> administerDisplay(

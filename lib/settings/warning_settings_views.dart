@@ -667,6 +667,39 @@ extension WarningSettingsViews on HomeState {
       }
     }
 
+    // A PC has no notification channel to manage: the app flashes its
+    // taskbar button, silently, because a PC is often plugged into the
+    // sound system.
+    if (c.port.isDesktop) {
+      return settingsGroup('Alerts on this computer', [
+        ListTile(
+          key: const ValueKey('desktop-alerts-status'),
+          contentPadding: appLayout(context).tileInsets,
+          leading: Icon(
+            Icons.notifications_active_outlined,
+            color: colors.accent,
+          ),
+          title: const Text(
+            'Taskbar button flashes at each warning',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            c.notificationError ??
+                'No sound is played, so nothing goes out through the sound system. Warnings always show on Live and on the stage.',
+            style: TextStyle(
+              fontSize: 13,
+              color: c.notificationError == null
+                  ? colors.muted
+                  : colors.warning,
+            ),
+          ),
+          trailing: TextButton(
+            onPressed: () => run(c.port.testNotification),
+            child: const Text('Test'),
+          ),
+        ),
+      ]);
+    }
     return settingsGroup('Phone alerts', [
       ListTile(
         key: const ValueKey('phone-alerts-status'),

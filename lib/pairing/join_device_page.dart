@@ -428,19 +428,23 @@ class _JoinDevicePageState extends State<JoinDevicePage>
               : join,
           child: Text(busy ? 'Connecting…' : 'Join service'),
         ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: busy
-              ? null
-              : () async {
-                  final qr = await Navigator.of(context).push<String>(
-                    MaterialPageRoute(builder: (_) => const PairScannerPage()),
-                  );
-                  if (qr != null && mounted) await join(qr: qr);
-                },
-          icon: const Icon(Icons.qr_code_scanner),
-          label: const Text('Scan QR code instead'),
-        ),
+        // A PC has no camera scanner; the six-digit code does the same job.
+        if (!widget.controller.port.isDesktop) const SizedBox(height: 8),
+        if (!widget.controller.port.isDesktop)
+          OutlinedButton.icon(
+            onPressed: busy
+                ? null
+                : () async {
+                    final qr = await Navigator.of(context).push<String>(
+                      MaterialPageRoute(
+                        builder: (_) => const PairScannerPage(),
+                      ),
+                    );
+                    if (qr != null && mounted) await join(qr: qr);
+                  },
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Scan QR code instead'),
+          ),
         const SizedBox(height: 12),
         const Text(
           'Some sign hotspots isolate phones. If pairing fails, use a shared router or another hotspot.',

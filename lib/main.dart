@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
+import 'dart:io' show Platform, exit;
+import 'dart:ui' show AppExitResponse, ImageFilter;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/app/platform.dart';
+import 'package:church_service_timer/windows/windows_app.dart';
 
 import 'package:church_service_timer/settings/settings_views.dart';
 import 'package:church_service_timer/pairing/pairing_views.dart';
@@ -28,6 +30,8 @@ import 'package:church_service_timer/programs/program_edit_actions.dart';
 import 'package:church_service_timer/shared/home_widgets.dart';
 import 'package:church_service_timer/shared/tab_swipe.dart';
 import 'package:church_service_timer/live/live_page.dart';
+import 'package:church_service_timer/live/live_actions.dart';
+import 'package:church_service_timer/live/live_timer_views.dart';
 import 'package:church_service_timer/reports/report_library_views.dart';
 
 export 'package:church_service_timer/settings/appearance_views.dart';
@@ -75,14 +79,24 @@ String styleSummary(TextLayout l) =>
     '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}\u00a0px · ${l.align == 'center' ? 'centre' : l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}\u00a0px/s' : ''}'
         .replaceAll(' · ', '\u00a0· ');
 
-void main() {
+void main(List<String> arguments) {
   WidgetsFlutterBinding.ensureInitialized();
+  final DevicePort port;
+  if (Platform.isWindows) {
+    // Null when the app is already open: that copy has been brought to
+    // the front (and given any file this one was asked to open).
+    final windows = startWindowsPort(arguments);
+    if (windows == null) exit(0);
+    port = windows;
+  } else {
+    port = AndroidPort();
+  }
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks([
       'Tinos',
     ], await rootBundle.loadString('assets/licenses/OFL-Tinos.txt'));
   });
-  runApp(TimerApp(controller: AppController(AndroidPort())));
+  runApp(TimerApp(controller: AppController(port)));
 }
 
 class TimerApp extends StatelessWidget {
@@ -266,8 +280,18 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   /// whenever touch controls would be unavailable.
   bool onClickerKey(KeyEvent event) {
     if (event is! KeyDownEvent || !mounted || !c.ready) return false;
-    final action = clickerActionFor(event.logicalKey);
-    if (action == null || !c.state.clickerControls) return false;
+    // A PC keyboard adds its own keys on top of the clicker's; they open
+    // the same confirmations as the buttons on screen.
+    final desktopAction = c.port.isDesktop
+        ? desktopLiveActionFor(
+            event.logicalKey,
+            control: HardwareKeyboard.instance.isControlPressed,
+          )
+        : null;
+    final action = c.state.clickerControls || c.port.isDesktop
+        ? clickerActionFor(event.logicalKey)
+        : null;
+    if (action == null && desktopAction == null) return false;
     final focus = FocusManager.instance.primaryFocus?.context;
     if (focus != null &&
         (focus.widget is EditableText ||
@@ -283,6 +307,15 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
         !c.pairing.localControl)
       return false;
     final messenger = ScaffoldMessenger.of(context);
+    if (desktopAction == DesktopLiveAction.adjustTime) {
+      unawaited(adjustTime());
+      return true;
+    }
+    if (desktopAction == DesktopLiveAction.undo) {
+      if (s.undo == null) return false;
+      unawaited(undo());
+      return true;
+    }
     if (action == ClickerAction.pause) {
       _clickerNextArmed = null;
       unawaited(c.act('pause', revision: s.revision));
@@ -327,6 +360,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     c.liveNavigation.addListener(returnToLive);
     HardwareKeyboard.instance.addHandler(onClickerKey);
     c.port.setIncomingFileHandler(receiveIncomingFile);
+    if (c.port.isDesktop) {
+      _windowClose = AppLifecycleListener(onExitRequested: confirmWindowClose);
+    }
     // A stage request: a short vibration and a note that opens Live,
     // where the request waits with its buttons.
     c.stageRequests.onRequest = (request) {
@@ -355,7 +391,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     };
     if (!c.ready) {
       c.initialize().then((_) => receiveIncomingFile()).catchError((Object e) {
-        if (mounted) showError('Could not start Android services: $e');
+        if (mounted)
+          showError(
+            c.port.isDesktop
+                ? 'Could not start the app: $e'
+                : 'Could not start Android services: $e',
+          );
       });
     } else {
       unawaited(receiveIncomingFile());
@@ -381,6 +422,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(onClickerKey);
     c.port.setIncomingFileHandler(null);
+    _windowClose?.dispose();
     c.removeListener(_followServiceCompletion);
     c.liveNavigation.removeListener(returnToLive);
     homeScroll.dispose();
@@ -391,6 +433,13 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (c.port.isDesktop) {
+      // A desktop app keeps running when its window is minimised or
+      // behind another, so the service is never suspended; only Settings
+      // locks again when the window is put away.
+      if (state == AppLifecycleState.hidden) c.lockSettings();
+      return;
+    }
     if (state == AppLifecycleState.paused) {
       c.lockSettings();
       c.suspend();
@@ -474,6 +523,31 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     }
     unawaited(confirmExit());
   }
+
+  /// Closing the window ends the app on a PC, so a running service asks
+  /// first. Called by the system when the window's close button is used.
+  Future<AppExitResponse> confirmWindowClose() async {
+    if (!c.ready || !c.liveSession.active || !mounted) {
+      return AppExitResponse.exit;
+    }
+    if (_closeDialogOpen) return AppExitResponse.cancel;
+    _closeDialogOpen = true;
+    try {
+      return await confirm(
+            'Close during the service?',
+            'A service is running. Closing the app stops the timer on stage screens and the LED sign, and stops warnings. The service is saved, and opening the app again carries on from the clock.',
+            'Close the app',
+            destructive: true,
+          )
+          ? AppExitResponse.exit
+          : AppExitResponse.cancel;
+    } finally {
+      _closeDialogOpen = false;
+    }
+  }
+
+  bool _closeDialogOpen = false;
+  AppLifecycleListener? _windowClose;
 
   bool _exitArmed = false;
   static const exitConfirmWindow = Duration(seconds: 2);

@@ -346,8 +346,12 @@ extension RefinedSettings on HomeState {
       ),
       ReadinessCheck(
         key: 'warnings',
-        title: 'Phone warnings',
-        detail: warningsOn
+        title: c.port.isDesktop
+            ? 'Warnings on this computer'
+            : 'Phone warnings',
+        detail: c.port.isDesktop
+            ? 'Taskbar button flashes · no sound'
+            : warningsOn
             ? (c.notificationState['sound'] == true
                   ? 'Notifications and sound on'
                   : 'Notifications on · channel sound off')
@@ -483,7 +487,11 @@ extension RefinedSettings on HomeState {
                   minimumSize: const Size.fromHeight(50),
                 ),
                 onPressed: () => run(c.port.testNotification),
-                child: const Text('Test warning sound'),
+                child: Text(
+                  c.port.isDesktop
+                      ? 'Test taskbar flash'
+                      : 'Test warning sound',
+                ),
               ),
             ),
           ],
