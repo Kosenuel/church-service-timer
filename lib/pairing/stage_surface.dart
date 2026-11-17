@@ -12,9 +12,13 @@ class StageSurface extends StatelessWidget {
       return const ColoredBox(
         color: Colors.black,
         child: Center(
-          child: Text(
-            'Stage sharing stopped',
-            style: TextStyle(color: Colors.white70),
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'The host is not sending to stage screens.\nOn the host, tap Show on stage screens on Live, or Change display and choose Phone, tablet or web screens.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70),
+            ),
           ),
         ),
       );

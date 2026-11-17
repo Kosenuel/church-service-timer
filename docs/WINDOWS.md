@@ -30,7 +30,7 @@ Be clear about this when reading the rest of the page.
 | Tinos on the LED display | Android canvas, no antialiasing | Flutter's text engine (`lib/display/tinos_rasterizer.dart`), a pixel lit at 45% coverage. Close to Android but not identical, especially at 7 rows. |
 | Printing | `printing` plugin | Same plugin (Windows print dialog). |
 | Staying alive | Foreground service, lock-screen card | A desktop app is not suspended. While a service runs or screens are shared, Windows is asked not to sleep or turn the screen off. Closing the window during a service asks first. |
-| Operator warnings | Notifications with sound | The taskbar button flashes. No sound, on purpose: a PC is often plugged into the sound system. |
+| Operator warnings | Notifications with sound | A silent Windows notification (`local_notifier`) and a flashing taskbar button. No sound, on purpose: a PC is often plugged into the sound system. Windows holds notifications back under Do not disturb, which it turns on when a screen is duplicated; the flash still shows. The first notification adds a Start-menu shortcut if there is none, because Windows requires one. |
 | Camera QR scanning | `mobile_scanner` | Not available; the button is hidden. Join with the six-digit code. The PC can still show a QR for phones to scan. |
 | Battery optimisation | Settings screen | Does not apply; hidden. |
 | Feedback email | Email app | The PC's email program through a `mailto:` link. A long message is put on the clipboard with a note to paste it. |

@@ -15,6 +15,15 @@ extension MobileDisplayViews on HomeState {
   Future<void> chooseDisplay() =>
       openSettingsDetail('Choose display', displayChoices);
 
+  /// Sends the output to the stage screens that are waiting for it.
+  Future<void> showOnStageScreens() async {
+    if (c.destination == 'mobile') {
+      await startStageSharing();
+    } else {
+      await chooseDestination('mobile');
+    }
+  }
+
   Future<void> chooseDestination(String target) async {
     var restoreUnblank = false;
     if (controlsLocked || !c.pairing.localControl) return;

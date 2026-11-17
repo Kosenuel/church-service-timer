@@ -33,6 +33,10 @@ abstract class DesktopSystem {
   /// flashes until the window is brought forward.
   void flash();
 
+  /// Shows a Windows notification, silently, and takes it down again
+  /// after [clearSeconds] (0 leaves it until dismissed).
+  void notify(String title, String body, {int clearSeconds = 30});
+
   /// Brings the window to the front.
   void raise();
 
@@ -79,8 +83,18 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   final SecretVault _vault, _pairingVault;
   late final DesktopWarnings _warnings = DesktopWarnings(
     monoMs: _clock.monotonicMs,
-    deliver: (_, _) => system.flash(),
+    deliver: _warn,
   );
+  int _clearSeconds = 30;
+
+  /// A warning reaches the operator two ways: a Windows notification, for
+  /// when another window is in front, and the flashing taskbar button,
+  /// which still shows when Windows is holding notifications back (it
+  /// does that by itself while a screen is being duplicated or presented).
+  void _warn(String title, String body) {
+    system.flash();
+    system.notify(title, body, clearSeconds: _clearSeconds);
+  }
 
   WindowsPort._(
     this.dataDir,
@@ -517,9 +531,19 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   };
 
   @override
-  Future<void> syncWarnings(Json plan) async => _warnings.sync(plan);
+  Future<void> syncWarnings(Json plan) async {
+    final clear = plan['clearSeconds'];
+    if (clear is int && const {0, 15, 30, 60}.contains(clear)) {
+      _clearSeconds = clear;
+    }
+    _warnings.sync(plan);
+  }
+
   @override
-  Future<void> testNotification() async => system.flash();
+  Future<void> testNotification() async => _warn(
+    'Church Service Timer test warning',
+    'Warnings appear like this, without sound, and the taskbar button flashes.',
+  );
 
   // ---- Fonts --------------------------------------------------------------
 
