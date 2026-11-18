@@ -366,3 +366,71 @@ void flashWindow(int window) {
 
 /// The Windows "exclamation" sound, at the PC's own volume.
 void warningBeep() => _messageBeep(0x30);
+
+// ---- Screens, for the stage window ----------------------------------------
+
+typedef _MonitorEnumNative =
+    Int32 Function(IntPtr, IntPtr, Pointer<Int32>, IntPtr);
+final _enumDisplayMonitors = _user32
+    .lookupFunction<
+      Int32 Function(
+        IntPtr,
+        Pointer<Void>,
+        Pointer<NativeFunction<_MonitorEnumNative>>,
+        IntPtr,
+      ),
+      int Function(
+        int,
+        Pointer<Void>,
+        Pointer<NativeFunction<_MonitorEnumNative>>,
+        int,
+      )
+    >('EnumDisplayMonitors');
+final _setWindowLongPtr = _user32
+    .lookupFunction<
+      IntPtr Function(IntPtr, Int32, IntPtr),
+      int Function(int, int, int)
+    >('SetWindowLongPtrW');
+final _setWindowPos = _user32
+    .lookupFunction<
+      Int32 Function(IntPtr, IntPtr, Int32, Int32, Int32, Int32, Uint32),
+      int Function(int, int, int, int, int, int, int)
+    >('SetWindowPos');
+
+/// Every screen of the desktop as `[left, top, right, bottom]`, in the
+/// order Windows reports them. The primary screen is the one at 0, 0.
+List<List<int>> displayMonitors() {
+  final found = <List<int>>[];
+  final callback = NativeCallable<_MonitorEnumNative>.isolateLocal((
+    int monitor,
+    int dc,
+    Pointer<Int32> rect,
+    int data,
+  ) {
+    found.add([rect[0], rect[1], rect[2], rect[3]]);
+    return 1;
+  }, exceptionalReturn: 0);
+  try {
+    _enumDisplayMonitors(0, nullptr, callback.nativeFunction, 0);
+  } finally {
+    callback.close();
+  }
+  return found;
+}
+
+/// Makes the window a borderless one covering [rect] exactly.
+void fillScreen(int window, List<int> rect, {required bool topmost}) {
+  if (window == 0 || rect.length != 4) return;
+  // GWL_STYLE = WS_POPUP: no title bar or borders. The runner shows the
+  // window itself with the first frame.
+  _setWindowLongPtr(window, -16, 0x80000000);
+  _setWindowPos(
+    window,
+    topmost ? -1 : 0, // HWND_TOPMOST : HWND_TOP
+    rect[0],
+    rect[1],
+    rect[2] - rect[0],
+    rect[3] - rect[1],
+    0x0020, // SWP_FRAMECHANGED
+  );
+}

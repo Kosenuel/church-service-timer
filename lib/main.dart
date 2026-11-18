@@ -16,6 +16,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/app/platform.dart';
+import 'package:church_service_timer/windows/stage_output_app.dart';
 import 'package:church_service_timer/windows/windows_app.dart';
 
 import 'package:church_service_timer/settings/settings_views.dart';
@@ -84,6 +85,12 @@ String styleSummary(TextLayout l) =>
 void main(List<String> arguments) {
   WidgetsFlutterBinding.ensureInitialized();
   final DevicePort port;
+  if (Platform.isWindows && arguments.contains('--stage-output')) {
+    // This copy was started by the app itself to be the stage window on
+    // a second screen; it shows the stage and nothing else.
+    unawaited(runStageOutput(arguments));
+    return;
+  }
   if (Platform.isWindows) {
     // Null when the app is already open: that copy has been brought to
     // the front (and given any file this one was asked to open).
