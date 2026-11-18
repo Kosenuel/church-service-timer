@@ -1,3 +1,4 @@
+import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:church_service_timer/web_stage/web_stage_views.dart';
@@ -416,6 +417,85 @@ extension PairingViews on HomeState {
     }
   }
 
+  /// A PC only: the stage output, full screen, on a projector or second
+  /// monitor plugged into this computer.
+  Widget secondScreenPanel() {
+    final window = c.port.stageOutput!;
+    final colors = appColors(context);
+    final muted = TextStyle(fontSize: 12, color: colors.muted);
+    final screens = window.monitors();
+    final others = screens.where((s) => !s.primary).toList();
+    String size(StageMonitor s) =>
+        '${s.rect[2] - s.rect[0]} × ${s.rect[3] - s.rect[1]}';
+    return panel(
+      child: Column(
+        key: const ValueKey('second-screen'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Second screen',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Look for screens again',
+                onPressed: () => refreshHome(() {}),
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+          Text(
+            'Show the stage output full screen on a projector or second monitor plugged into this computer. It works with any display choice and needs no network.',
+            style: muted,
+          ),
+          const SizedBox(height: 8),
+          if (others.isEmpty)
+            Text(
+              'No second screen found. Plug one in and set Windows to Extend (press Windows + P), then look again. With Duplicate, the second screen simply copies this one.',
+              style: TextStyle(color: colors.warning),
+            ),
+          for (final screen in others)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                window.monitor == screen.index
+                    ? Icons.connected_tv
+                    : Icons.tv_outlined,
+                color: window.monitor == screen.index ? colors.accent : null,
+              ),
+              title: Text('Screen ${screen.index + 1} · ${size(screen)}'),
+              subtitle: Text(
+                window.monitor != screen.index
+                    ? 'Not showing'
+                    : window.connected
+                    ? 'Showing the stage output · Esc on that screen closes it'
+                    : 'Opening…',
+                style: muted,
+              ),
+              trailing: window.monitor == screen.index
+                  ? OutlinedButton(
+                      key: ValueKey('second-screen-stop-${screen.index}'),
+                      onPressed: controlsLocked ? null : window.close,
+                      child: const Text('Stop'),
+                    )
+                  : FilledButton(
+                      key: ValueKey('second-screen-show-${screen.index}'),
+                      onPressed: controlsLocked
+                          ? null
+                          : () => window.show(screen),
+                      child: const Text('Show'),
+                    ),
+            ),
+          if (window.error != null)
+            Text(window.error!, style: TextStyle(color: colors.error)),
+        ],
+      ),
+    );
+  }
+
   Widget screensAndDevices() {
     final hub = c.pairing;
     final colors = appColors(context);
@@ -464,6 +544,10 @@ extension PairingViews on HomeState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (c.port.stageOutput != null) ...[
+          secondScreenPanel(),
+          const SizedBox(height: 16),
+        ],
         if (!hub.hosting) ...[
           panel(
             child: Column(

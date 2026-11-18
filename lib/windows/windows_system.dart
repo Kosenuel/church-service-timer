@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/windows/secret_vault.dart';
+import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:church_service_timer/windows/win32_api.dart' as win32;
 import 'package:church_service_timer/windows/windows_port.dart';
 import 'package:flutter/foundation.dart';
@@ -77,6 +78,38 @@ class WindowsSystem implements DesktopSystem {
   void raise() => _quietly(() => win32.raiseWindow(win32.appWindow()), null);
   @override
   String description() => 'Windows PC · ${Platform.operatingSystemVersion}';
+}
+
+class _ChildProcess implements StageChild {
+  final Process process;
+  _ChildProcess(this.process);
+  @override
+  Future<void> get exited => process.exitCode;
+  @override
+  void kill() => process.kill();
+}
+
+/// Lists the PC's screens and starts the second copy of the app that
+/// draws the stage window.
+class WindowsStageLauncher implements StageOutputLauncher {
+  const WindowsStageLauncher();
+  @override
+  List<StageMonitor> monitors() {
+    final rects = win32.displayMonitors();
+    return [
+      for (var i = 0; i < rects.length; i++)
+        (
+          index: i,
+          rect: rects[i],
+          primary: rects[i][0] == 0 && rects[i][1] == 0,
+        ),
+    ];
+  }
+
+  @override
+  Future<StageChild> launch(List<String> arguments) async => _ChildProcess(
+    await Process.start(Platform.resolvedExecutable, arguments),
+  );
 }
 
 /// Secrets sealed by Windows for this user account on this PC (DPAPI).

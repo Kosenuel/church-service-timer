@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:nsd/nsd.dart' as nsd;
@@ -20,6 +21,10 @@ abstract class DevicePort {
   /// tablet. Screens use it to hide what only a phone has (the camera
   /// scanner, battery settings) and to word things for a PC.
   bool get isDesktop => false;
+
+  /// A full-screen stage window on a second monitor or projector, where
+  /// the device can open one (a PC); null elsewhere.
+  StageOutputHost? get stageOutput => null;
 
   Future<Json> signWifiProfile(String id) async => {
     'ssid': '',

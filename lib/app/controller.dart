@@ -175,6 +175,28 @@ class AppController extends ChangeNotifier {
     return false;
   }
 
+  /// The picture for a stage window on a second screen of this computer:
+  /// what a paired stage screen would show. It is sent whatever the
+  /// display is set to, because the operator opened that window to see it.
+  Json stageWindowSnapshot() => {
+    ...pairedSnapshot(false)
+      ..remove('rundown')
+      ..remove('connection'),
+    'stageSharing': true,
+    'stageLayout': 'timer',
+  };
+
+  void _feedStageWindow() {
+    final window = port.stageOutput;
+    if (window == null || !window.connected || !ready || _disposed) return;
+    window.send(stageWindowSnapshot());
+  }
+
+  void _stageWindowChanged() {
+    _feedStageWindow();
+    if (!_disposed) notifyListeners();
+  }
+
   Future<void> stopSharing() async {
     quickMessages.reset();
     pairing.setStageSharing(false);
@@ -506,6 +528,12 @@ class AppController extends ChangeNotifier {
       );
     };
     port.setNotificationActionHandler(handleNotificationAction);
+    final stageWindow = port.stageOutput;
+    if (stageWindow != null) {
+      addListener(_feedStageWindow);
+      liveClock.addListener(_feedStageWindow);
+      stageWindow.addListener(_stageWindowChanged);
+    }
     port.setBackgroundHandler(() async {
       if (backgroundActive && !await port.activeServiceRunning()) {
         backgroundActive = false;
@@ -1358,6 +1386,7 @@ class AppController extends ChangeNotifier {
     metricsTracker.frameTimings(false);
     web.stop();
     editDrafts.dispose();
+    port.stageOutput?.removeListener(_stageWindowChanged);
     liveClock.dispose();
     previewClock.dispose();
     _disposed = true;

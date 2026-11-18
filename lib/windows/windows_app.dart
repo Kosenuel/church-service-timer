@@ -74,6 +74,7 @@ WindowsPort? startWindowsPort(List<String> arguments) {
     dialogs: const SystemFileDialogs(),
     system: system,
     loadTinosFace: (style) => File('$fonts\\Tinos-$style.ttf').readAsBytes(),
+    stageLauncher: const WindowsStageLauncher(),
   );
   if (file != null) port.offerIncomingFile(file);
   instance.listen((path) {
