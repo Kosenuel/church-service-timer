@@ -55,7 +55,13 @@ void main() {
         size(t, screen);
         final c = await open(
           t,
-          AppearancePreferences(density: density, dividers: dividers),
+          // The Classic layout, which opens out to Spacious in a wide
+          // window; a desktop layout stays Comfortable.
+          AppearancePreferences(
+            density: density,
+            dividers: dividers,
+            desktopLayout: 'classic',
+          ),
         );
         await tap(t, 'Start service');
         final list = find.byKey(const ValueKey('start-service-programs'));

@@ -28,9 +28,10 @@ import 'package:church_service_timer/live/clicker_controls.dart';
 import 'package:church_service_timer/programs/programs_page_state.dart';
 import 'package:church_service_timer/reports/reports_page_state.dart';
 import 'package:church_service_timer/programs/program_edit_actions.dart';
-import 'package:church_service_timer/shared/home_widgets.dart';
 import 'package:church_service_timer/shared/tab_swipe.dart';
 import 'package:church_service_timer/live/live_page.dart';
+import 'package:church_service_timer/live/desktop_live.dart';
+import 'package:church_service_timer/live/home_notices.dart';
 import 'package:church_service_timer/live/live_actions.dart';
 import 'package:church_service_timer/live/live_timer_views.dart';
 import 'package:church_service_timer/reports/report_library_views.dart';
@@ -635,14 +636,19 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                           backgroundColor: Colors.transparent,
                           elevation: 0,
                           scrolledUnderElevation: 0,
-                          shape: const RoundedRectangleBorder(
+                          // Square in a desktop layout, where panes meet
+                          // the header edge to edge.
+                          shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(26),
+                              bottom: Radius.circular(useTopTabs ? 0 : 26),
                             ),
+                            side: useTopTabs
+                                ? BorderSide(color: appColors(context).border)
+                                : BorderSide.none,
                           ),
                           flexibleSpace: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(26),
+                            borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(useTopTabs ? 0 : 26),
                             ),
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
@@ -740,7 +746,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Expanded(
+                              Flexible(
+                                flex: useTopTabs ? 0 : 1,
+                                fit: useTopTabs ? FlexFit.loose : FlexFit.tight,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -776,6 +784,13 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                   ],
                                 ),
                               ),
+                              // A desktop layout keeps the tabs in the
+                              // header, where a rail would cost a pane.
+                              if (useTopTabs) ...[
+                                const SizedBox(width: 28),
+                                desktopTabs(),
+                                const Spacer(),
+                              ],
                             ],
                           ),
                         ),
@@ -812,6 +827,38 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                               ),
                             ),
                           )
+                        else if (liveFillsWindow)
+                          SliverFillRemaining(
+                            child: SafeArea(
+                              top: false,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (homeNotices().isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        16,
+                                        12,
+                                        16,
+                                        0,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: homeNotices(),
+                                      ),
+                                    ),
+                                  Expanded(
+                                    child: AbsorbPointer(
+                                      absorbing:
+                                          c.corrupt || !c.pairing.localControl,
+                                      child: live(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
                         else
                           SliverToBoxAdapter(
                             child: SafeArea(
@@ -834,184 +881,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
                                       children: [
-                                        if (c.pairing.hosting)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 12,
-                                            ),
-                                            child: panel(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.stretch,
-                                                children: [
-                                                  Text(
-                                                    c.pairing.localControl
-                                                        ? deviceText(
-                                                            'This phone controls the service · ${c.pairing.peers.where((p) => p.approved).length} paired devices${c.webStage.activeDevices.isEmpty ? '' : ' · ${c.webStage.activeDevices.length} web screens'}',
-                                                          )
-                                                        : deviceText(
-                                                            'Control is with a paired operator. This phone remains the service host.',
-                                                          ),
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        openSettingsDetail(
-                                                          'Screens & devices',
-                                                          pairedDeviceSettings,
-                                                        ),
-                                                    child: const Text(
-                                                      'Manage devices and control',
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        if (c.stageScreensWaiting > 0)
-                                          Padding(
-                                            key: const ValueKey(
-                                              'stage-screens-waiting',
-                                            ),
-                                            padding: const EdgeInsets.only(
-                                              bottom: 12,
-                                            ),
-                                            child: panel(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.stretch,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Icon(
-                                                        Icons
-                                                            .warning_amber_rounded,
-                                                        color: appColors(
-                                                          context,
-                                                        ).warning,
-                                                      ),
-                                                      const SizedBox(width: 12),
-                                                      Expanded(
-                                                        child: Text(
-                                                          '${c.stageScreensWaiting == 1 ? 'A stage screen has joined but is' : '${c.stageScreensWaiting} stage screens have joined but are'} not being shown anything: the display is set to ${c.destinationName}.',
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  Align(
-                                                    alignment:
-                                                        Alignment.centerRight,
-                                                    child: TextButton(
-                                                      key: const ValueKey(
-                                                        'show-on-stage-screens',
-                                                      ),
-                                                      onPressed:
-                                                          controlsLocked ||
-                                                              !c
-                                                                  .pairing
-                                                                  .localControl
-                                                          ? null
-                                                          : showOnStageScreens,
-                                                      child: const Text(
-                                                        'Show on stage screens',
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        if (c.backgroundError != null)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 12,
-                                            ),
-                                            // In a card with an icon, like the
-                                            // other notices, not loose text.
-                                            child: panel(
-                                              child: Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.warning_amber_rounded,
-                                                    color: appColors(
-                                                      context,
-                                                    ).error,
-                                                  ),
-                                                  const SizedBox(width: 12),
-                                                  Expanded(
-                                                    child: Text(
-                                                      c.backgroundError!,
-                                                      style: TextStyle(
-                                                        color: appColors(
-                                                          context,
-                                                        ).error,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        if (c.error != null)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 16,
-                                            ),
-                                            child: panel(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    c.error!,
-                                                    style: TextStyle(
-                                                      color: appColors(
-                                                        context,
-                                                      ).warning,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  if (c.retry == null &&
-                                                      !c.corrupt)
-                                                    TextButton(
-                                                      key: const ValueKey(
-                                                        'dismiss-error',
-                                                      ),
-                                                      onPressed: c.dismissError,
-                                                      child: const Text(
-                                                        'Dismiss',
-                                                      ),
-                                                    ),
-                                                  if (c.retry != null)
-                                                    TextButton(
-                                                      onPressed: c.busy
-                                                          ? null
-                                                          : () => c.retry!(),
-                                                      child: Text(
-                                                        c.reportSavePending
-                                                            ? 'Retry saving report'
-                                                            : 'Retry failed action',
-                                                      ),
-                                                    ),
-                                                  if (c.corrupt)
-                                                    TextButton(
-                                                      onPressed: () async {
-                                                        if (await confirm(
-                                                          'Reset local state?',
-                                                          'This replaces unreadable local service and program data with starter programs. No physical display is connected.',
-                                                          'Reset local data',
-                                                          destructive: true,
-                                                        ))
-                                                          await c
-                                                              .resetCorrupt();
-                                                      },
-                                                      child: const Text(
-                                                        'Reset local data…',
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
+                                        ...homeNotices(),
                                         AbsorbPointer(
                                           absorbing:
                                               c.corrupt ||
@@ -1079,7 +949,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                         label: const Text('Exit focused view'),
                       ),
                     )
-                  : useNavigationRail
+                  : useNavigationRail || useTopTabs
                   ? null
                   : NavigationBar(
                       selectedIndex: page,

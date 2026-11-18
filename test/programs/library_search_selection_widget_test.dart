@@ -200,6 +200,11 @@ void main() {
       await c.act('start');
       p.at = after(20);
       await c.act('end');
+      await c.commit(
+        (draft, _) => draft.appearance = draft.appearance.copyWith(
+          desktopLayout: 'classic',
+        ),
+      );
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await tap(t, find.text('Programs').last);

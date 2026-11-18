@@ -5,13 +5,20 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 ## Unreleased
 
 - **A Windows version (first build, still to be tried on a real PC).** Church Service Timer can now be built for Windows 10 and 11, so a service can be run from a laptop or PC. It is the same app: the same programs, reports, themes and settings, and a backup made on the phone restores on the PC and the other way round. On a PC:
-  - **Wide layout.** Live, Programs, Reports and Settings sit in a side rail, the window can be resized, and it reopens where you left it.
+  - **Wide layout.** The window can be resized, and it reopens where you left it. In a wide window Live uses the new **Three panes** desktop layout, described below.
   - **Keyboard.** On Live, **Space** pauses and resumes, **Page Down** (pressed twice) starts the next segment, **+** or **−** opens Adjust time and **Ctrl+Z** offers to undo the last segment change. Each still asks before it changes anything, and **Lock controls** blocks them all.
   - **It stays awake.** While a service runs, or screens are shared, the PC will not go to sleep or turn its screen off. If it does sleep (a closed lid), the timer is still right when it wakes. Closing the window during a service asks first.
   - **Screens and the LED sign.** The PC can host stage screens and web screens, join another device's service as a stage screen, and drive the W2 LED sign. It can be on a network cable and on the sign's Wi-Fi at the same time. Join the sign's Wi-Fi in Windows' own Wi-Fi settings; the app does not switch networks for you.
   - **Files.** Import, export, backup and reports use the usual Windows Open and Save windows. Where the phone says Share, the PC saves the file where you choose.
   - **Warnings are silent.** At each warning a Windows notification appears and the app's taskbar button flashes. It makes no sound, because a PC is often plugged into the sound system. Windows holds notifications back while **Do not disturb** is on, and turns that on by itself when the screen is duplicated to a projector; the taskbar button still flashes.
   - **Not on Windows:** scanning a QR code with a camera (join with the six-digit code instead) and the phone's battery settings.
+
+- **Desktop layouts, starting with Three panes.** In a wide window (a computer, or a large tablet held sideways) Live now fills the screen instead of scrolling one column of cards:
+  - **Three panes.** The whole rundown is on the left, with how long each finished segment really took and how far ahead or behind the service is running. The timer and its controls are in the middle, with the private note in view. The stage preview, cues and messages are on the right. Live, Programs, Reports and Settings become tabs in the header. Everything works as before: every timer action still asks first, and **Lock controls** still blocks them all.
+  - **Choose it in Settings › Appearance › Layout & accessibility › Desktop layout.** **Three panes** is the default; **Classic** is the single column of cards from before. Choosing a layout also sets the theme it comes with (Three panes comes with Midnight Lime), and you can then pick any theme you like. If you already chose a theme, updating keeps it.
+  - **Saved looks.** **Save this look** keeps the layout, theme, spacing, contrast and key labels together under a name, so you can go back to it with one tap. Up to 8, and they are included in backups. **Reset to default** returns to Three panes with Midnight Lime.
+  - **Keys on the buttons.** On a computer, Pause, Next segment and Custom show the key that presses them (Space, Page Down, + and −). Turn this on or off with **Show keyboard keys on buttons**.
+  - Windows narrower than 1200 or shorter than 600 keep the phone and tablet layout, and so does the focused operator view. More desktop layouts are planned.
 
 - **A stage screen that joins is no longer left waiting without a reason.** If a phone, tablet, PC or browser joined as a stage screen while your display was set to the Simulator or the LED sign, it sat on a waiting message and nothing on your side said why. Live now shows a note with a **Show on stage screens** button, which sends the timer to them in one tap, and the waiting screen says what to do on the host.
 

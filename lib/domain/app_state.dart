@@ -49,6 +49,9 @@ class AppState {
   bool groupTemplates;
   String churchName, themeId, churchBanner;
 
+  /// Layout and theme combinations saved under a name.
+  List<SavedLook> savedLooks;
+
   /// The church's square logo, shown at the top left of every page in
   /// place of the built-in mark; empty for the built-in mark.
   String churchLogo;
@@ -93,6 +96,7 @@ class AppState {
     this.churchBanner = '',
     this.churchLogo = '',
     this.themeId = 'midnight_lime',
+    List<SavedLook>? savedLooks,
     this.keepScreenAwake = true,
     this.lockScreenControls = true,
     this.settingsLock,
@@ -118,6 +122,7 @@ class AppState {
     Json? webStage,
   }) : webStage = webStage ?? {},
        dismissedHints = dismissedHints ?? {},
+       savedLooks = savedLooks ?? [],
        recentQuickTimers = recentQuickTimers ?? [],
        importMappings = importMappings ?? {},
        segmentLibrary = segmentLibrary ?? [],
@@ -262,6 +267,7 @@ class AppState {
       churchBanner: churchBannerValue(j['churchBanner'] ?? ''),
       churchLogo: churchLogoValue(j['churchLogo'] ?? ''),
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
+      savedLooks: readSavedLooks(j['savedLooks']),
       keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
       lockScreenControls: boolSetting(j['lockScreenControls'] ?? true),
       settingsLock: j['settingsLock'] == null
@@ -417,6 +423,7 @@ class AppState {
     'churchBanner': churchBanner,
     'churchLogo': churchLogo,
     'themeId': themeId,
+    'savedLooks': [for (final l in savedLooks) l.toJson()],
     'keepScreenAwake': keepScreenAwake,
     'lockScreenControls': lockScreenControls,
     if (practisedWall != null) 'practisedWall': practisedWall,
