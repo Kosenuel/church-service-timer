@@ -13,6 +13,7 @@ import 'package:church_service_timer/windows/desktop_images.dart';
 import 'package:church_service_timer/windows/desktop_network.dart';
 import 'package:church_service_timer/windows/desktop_warnings.dart';
 import 'package:church_service_timer/windows/secret_vault.dart';
+import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:flutter/services.dart';
 
 /// The handful of things only the operating system can do. The real one
@@ -76,6 +77,8 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   final DesktopSystem system;
   final W2Transport sign;
   final TinosRasterizer _tinos;
+  @override
+  final StageOutputHost? stageOutput;
   late final AtomicTextFile _state = AtomicTextFile.json(
     File(_path('service-state.json')),
   );
@@ -105,6 +108,7 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     this._tinos,
     this._vault,
     this._pairingVault,
+    this.stageOutput,
   );
 
   factory WindowsPort({
@@ -116,6 +120,7 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     required Future<Uint8List> Function(String style) loadTinosFace,
     int Function()? wallMs,
     W2Transport? sign,
+    StageOutputLauncher? stageLauncher,
   }) {
     String path(String name) => '${dataDir.path}${Platform.pathSeparator}$name';
     final prefs = JsonPrefs(File(path('sign.json')));
@@ -136,6 +141,7 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
         protector,
         maxLength: 65536,
       ),
+      stageLauncher == null ? null : StageOutputHost(stageLauncher),
     );
   }
 
@@ -600,5 +606,8 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   @override
   Future<String> deviceDescription() async => system.description();
 
-  void dispose() => _warnings.dispose();
+  void dispose() {
+    _warnings.dispose();
+    stageOutput?.dispose();
+  }
 }

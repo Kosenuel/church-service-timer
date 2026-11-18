@@ -37,6 +37,12 @@ Be clear about this when reading the rest of the page.
 
 Only one copy of the app runs per Windows user; starting it again brings the first to the front.
 
+## Second screen
+
+**Settings › Screens & devices › Second screen** lists every screen except the main one and shows the stage output on the chosen one, full screen and borderless. Windows must be set to Extend; with Duplicate there is only one screen to Windows.
+
+Flutter draws one window per running app, so the stage window is a second copy of the app started with `--stage-output` (`lib/windows/stage_output_app.dart`). It does not run a service or touch saved data. The main app (`StageOutputHost` in `lib/windows/stage_output.dart`) sends it the same picture a paired stage screen gets, over a connection bound to this computer only and opened with a one-time token. It is sent whatever the display is set to. If the main app closes, the stage window closes; if the main app stops sending for a few seconds, the stage marks its timer as out of date. Esc on the stage window closes it.
+
 ## Keyboard on Live
 
 The clicker keys work without turning on the clicker setting: **Space** or **B** pauses and resumes, **Page Down** or **→** moves to the next segment (press twice). A PC adds **+** and **−**, which open Adjust time, and **Ctrl+Z**, which offers to undo the last segment change. Each opens the same confirmation as its button. Nothing happens while typing, on another tab, under a dialog or when **Lock controls** is on.
@@ -67,4 +73,5 @@ Nothing is code-signed. Windows SmartScreen shows "Windows protected your PC" th
 8. **Files.** Import a program, export one, make a backup and restore it; restore a backup made on the phone.
 9. **Second copy.** Start the app twice: the first window should come forward. Right-click a `.json` program, Open with, Church Service Timer.
 10. **Fonts.** Make a cue in Tinos at 7 and 14 rows and compare it with the phone.
-11. **Keys.** Space, Page Down twice, +, Ctrl+Z on Live; then Lock controls and try again.
+11. **Second screen.** Plug in a projector or monitor, press Windows + P and choose Extend. In Settings › Screens & devices, press **Show** beside the second screen. It should fill that screen with the timer, with no title bar or taskbar, and follow pause, cues, messages and Blank screen. Try a screen with a different scale setting from the laptop's. Press **Stop**, then show it again and press Esc on it, then close the main app while it is showing.
+12. **Keys.** Space, Page Down twice, +, Ctrl+Z on Live; then Lock controls and try again.
