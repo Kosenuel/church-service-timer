@@ -3,7 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/domain/domain.dart'
-    show AppearancePreferences;
+    show
+        AppearancePreferences,
+        desktopLayoutMinHeight,
+        desktopLayoutMinWidth,
+        effectiveDesktopLayout;
 
 String densityName(String value) => switch (value) {
   'comfortable' => 'Comfortable',
@@ -19,7 +23,13 @@ class AppLayout extends ThemeExtension<AppLayout> {
   factory AppLayout.resolve(AppearancePreferences preferences, Size size) {
     // Phones get Comfortable: larger touch targets for one-handed use
     // under time pressure, while a full rundown still fits.
-    final automatic = size.shortestSide < 600
+    // A desktop layout packs three panes into the window, so it keeps to
+    // Comfortable where a single column would stretch to Spacious.
+    final desktop =
+        effectiveDesktopLayout(preferences.desktopLayout) != 'classic' &&
+        size.width >= desktopLayoutMinWidth &&
+        size.height >= desktopLayoutMinHeight;
+    final automatic = size.shortestSide < 600 || desktop
         ? 'comfortable'
         : size.width >= 1000 && size.height >= 700
         ? 'spacious'

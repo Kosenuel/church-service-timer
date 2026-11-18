@@ -8,6 +8,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/live/practice_views.dart';
 
 class OperatorNotes extends StatefulWidget {
@@ -43,7 +44,15 @@ String operatorTimeDescription(int balance) =>
 class SegmentGauge extends StatelessWidget {
   final Session session;
   final Stamp now;
-  const SegmentGauge({super.key, required this.session, required this.now});
+
+  /// The widest the dial is drawn; the desktop layouts make it larger.
+  final double maxWidth;
+  const SegmentGauge({
+    super.key,
+    required this.session,
+    required this.now,
+    this.maxWidth = 306,
+  });
   @override
   Widget build(BuildContext context) {
     final balance = session.balance(now);
@@ -100,7 +109,7 @@ class SegmentGauge extends StatelessWidget {
     );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = math.min(306.0, constraints.maxWidth);
+        final width = math.min(maxWidth, constraints.maxWidth);
         final outsideLabels =
             MediaQuery.textScalerOf(context).scale(14) > 21 || width < 230;
         return SizedBox(
@@ -137,7 +146,16 @@ class SegmentGauge extends StatelessWidget {
                               label(labelText),
                               const SizedBox(height: 4),
                             ],
-                            FittedBox(fit: BoxFit.scaleDown, child: number),
+                            // The figures grow with a larger dial.
+                            SizedBox(
+                              height: width > 306 ? 74 * width / 306 : null,
+                              child: FittedBox(
+                                fit: width > 306
+                                    ? BoxFit.contain
+                                    : BoxFit.scaleDown,
+                                child: number,
+                              ),
+                            ),
                             if (!outsideLabels) ...[
                               const SizedBox(height: 6),
                               Text(
@@ -636,7 +654,7 @@ extension LiveViewActions on HomeState {
                   s.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
                   size: 26,
                 ),
-                label: Text(s.paused ? 'Resume' : 'Pause'),
+                label: keyLabel(s.paused ? 'Resume' : 'Pause', 'Space'),
               ),
             ),
           ),
@@ -668,7 +686,7 @@ extension LiveViewActions on HomeState {
                   ),
                 ),
                 icon: const Icon(Icons.skip_next_rounded, size: 26),
-                label: Text(nextLabel, textAlign: TextAlign.center),
+                label: keyLabel(nextLabel, 'PgDn', textAlign: TextAlign.center),
               ),
             ),
           ),
@@ -677,6 +695,7 @@ extension LiveViewActions on HomeState {
           String text,
           VoidCallback? callback, {
           bool last = false,
+          String? keys,
         }) => UnavailableAction(
           reason: callback == null ? unavailableReason(text) : null,
           child: TextButton(
@@ -689,7 +708,9 @@ extension LiveViewActions on HomeState {
                 context,
               ).textTheme.labelLarge?.copyWith(fontSize: 14),
             ),
-            child: Text(text, textAlign: TextAlign.center),
+            child: keys == null
+                ? Text(text, textAlign: TextAlign.center)
+                : keyLabel(text, keys, textAlign: TextAlign.center),
           ),
         );
         final adjust = [
@@ -705,7 +726,7 @@ extension LiveViewActions on HomeState {
                 ? () => adjustTime(fixedSeconds: 120)
                 : null,
           ),
-          segment('Custom', enabled ? adjustTime : null),
+          segment('Custom', enabled ? adjustTime : null, keys: '+ −'),
         ];
         final adjustGroup = Semantics(
           container: true,
@@ -749,7 +770,7 @@ extension LiveViewActions on HomeState {
                 ? null
                 : unavailableReason('Undo'),
             child: Tooltip(
-              message: 'Undo',
+              message: showKeyHints ? 'Undo · Ctrl+Z' : 'Undo',
               child: OutlinedButton(
                 key: const ValueKey('undo'),
                 onPressed: enabled && s.undo != null ? undo : null,

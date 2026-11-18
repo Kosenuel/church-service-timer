@@ -1,3 +1,4 @@
+import 'package:church_service_timer/settings/desktop_layout_views.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -689,8 +690,90 @@ class AppearancePage extends StatefulWidget {
 class _AppearancePageState extends State<AppearancePage> {
   late String selected = widget.controller.state.themeId;
   late AppearancePreferences appearance = widget.controller.state.appearance;
+  late List<SavedLook> looks = [...widget.controller.state.savedLooks];
   bool saving = false;
   String? error;
+
+  /// Shows a layout, look or reset straight away; Save appearance keeps it.
+  void show(AppearancePreferences value, String themeId) {
+    setState(() {
+      appearance = value;
+      selected = themeId;
+    });
+    widget.controller.previewAppearance(value);
+    widget.controller.previewTheme(themeId);
+  }
+
+  /// Saved looks are kept at once: they are a list to choose from, not
+  /// part of what Save appearance applies.
+  Future<void> storeLooks(List<SavedLook> next) async {
+    final saved = await widget.controller.commit(
+      (draft, _) => draft.savedLooks = next,
+    );
+    if (!mounted) return;
+    setState(() {
+      if (saved) looks = next;
+      error = saved
+          ? null
+          : widget.controller.error ?? 'Could not save. Try again.';
+    });
+  }
+
+  Future<void> saveLook() async {
+    final name = await askLookName(context, existing: looks);
+    if (name == null || !mounted) return;
+    final look = SavedLook.of(name, appearance, selected);
+    await storeLooks([
+      for (final l in looks)
+        if (l.name.toLowerCase() != name.toLowerCase()) l,
+      look,
+    ]);
+  }
+
+  Future<void> deleteLook(SavedLook look) async {
+    final sure = await showDialog<bool>(
+      context: context,
+      animationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
+      builder: (context) => AlertDialog(
+        title: Text('Delete “${look.name}”?'),
+        content: const Text(
+          'The saved look is removed. The layout and theme in use now stay as they are.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete look'),
+          ),
+        ],
+      ),
+    );
+    if (sure == true && mounted) {
+      await storeLooks([
+        for (final l in looks)
+          if (l.name != look.name) l,
+      ]);
+    }
+  }
+
+  void resetLook() {
+    show(defaultLook.applyTo(appearance), defaultLook.themeId);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            'Back to ${desktopLayoutName(defaultLook.layout)} with ${paletteFor(defaultLook.themeId).name}. Save appearance to keep it.',
+          ),
+        ),
+      );
+  }
+
   List<AppPalette> get choices => [
     ...appPalettes,
     if (selected.startsWith('custom:')) paletteFor(selected),
@@ -833,6 +916,13 @@ class _AppearancePageState extends State<AppearancePage> {
                                     key: const ValueKey('preview-theme'),
                                     name: palette.name,
                                   )
+                                // A short window gives the room to the
+                                // settings; the page itself shows them.
+                                : MediaQuery.sizeOf(context).height < 820
+                                ? const SizedBox(
+                                    key: ValueKey('preview-layout'),
+                                    width: double.infinity,
+                                  )
                                 : const AppearanceSample(
                                     key: ValueKey('preview-layout'),
                                     compact: true,
@@ -901,14 +991,45 @@ class _AppearancePageState extends State<AppearancePage> {
                         ),
                         SingleChildScrollView(
                           padding: const EdgeInsets.all(16),
-                          child: AppearanceControls(
-                            value: appearance,
-                            onChanged: saving
-                                ? null
-                                : (value) {
-                                    setState(() => appearance = value);
-                                    widget.controller.previewAppearance(value);
-                                  },
+                          // The desktop layouts lead in a wide window,
+                          // where they apply; on a phone they follow the
+                          // settings that matter there.
+                          child: Builder(
+                            builder: (context) {
+                              final layouts = DesktopLayoutSection(
+                                appearance: appearance,
+                                themeId: selected,
+                                looks: looks,
+                                desktop: widget.controller.port.isDesktop,
+                                onChanged: saving ? null : show,
+                                onSaveLook: saving ? null : saveLook,
+                                onReset: saving ? null : resetLook,
+                                onDeleteLook: saving ? null : deleteLook,
+                              );
+                              final controls = AppearanceControls(
+                                value: appearance,
+                                onChanged: saving
+                                    ? null
+                                    : (value) {
+                                        setState(() => appearance = value);
+                                        widget.controller.previewAppearance(
+                                          value,
+                                        );
+                                      },
+                              );
+                              const gap = Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: AppDivider(indent: 0, endIndent: 0),
+                              );
+                              final wide =
+                                  MediaQuery.sizeOf(context).width >= 840;
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: wide
+                                    ? [layouts, gap, controls]
+                                    : [controls, gap, layouts],
+                              );
+                            },
                           ),
                         ),
                       ],

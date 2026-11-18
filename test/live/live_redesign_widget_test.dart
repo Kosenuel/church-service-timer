@@ -100,7 +100,14 @@ void main() {
   testWidgets('Wide windows use a navigation rail and the timing bar', (
     t,
   ) async {
-    await running(t, at: const Size(1280, 900));
+    final c = await running(t, at: const Size(1280, 900));
+    // The Classic layout; the desktop layouts have their own tests.
+    await c.commit(
+      (draft, _) => draft.appearance = draft.appearance.copyWith(
+        desktopLayout: 'classic',
+      ),
+    );
+    await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('navigation-rail')), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
     expect(find.byKey(const ValueKey('timing-status-bar')), findsOneWidget);

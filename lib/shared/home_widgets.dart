@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/desktop_live.dart';
 
 /// Small building blocks shared by the home pages.
 extension HomeWidgets on HomeState {
@@ -40,11 +41,13 @@ extension HomeWidgets on HomeState {
     VoidCallback? action, {
     bool primary = false,
   }) {
+    // Shorter in a desktop layout, where the cue pane must not scroll.
+    final dense = liveFillsWindow;
     final child = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 22),
-        const SizedBox(height: 4),
+        Icon(icon, size: dense ? 20 : 22),
+        SizedBox(height: dense ? 2 : 4),
         Text(
           text,
           textAlign: TextAlign.center,
@@ -54,9 +57,9 @@ extension HomeWidgets on HomeState {
       ],
     );
     final style = ButtonStyle(
-      minimumSize: const WidgetStatePropertyAll(Size(0, 76)),
-      padding: const WidgetStatePropertyAll(
-        EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      minimumSize: WidgetStatePropertyAll(Size(0, dense ? 58 : 76)),
+      padding: WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 6, vertical: dense ? 4 : 8),
       ),
     );
     return UnavailableAction(

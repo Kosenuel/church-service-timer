@@ -132,6 +132,7 @@ void main() {
       await c.commit(
         (draft, _) => draft.appearance = const AppearancePreferences(
           density: 'automatic',
+          desktopLayout: 'classic',
         ),
       );
       await t.pumpWidget(TimerApp(controller: c));

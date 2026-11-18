@@ -63,6 +63,12 @@ void main() {
       await c.act('load', value: c.state.templates.first);
       await c.act('start');
       await c.act('cue', value: const TextLayout('WRAP UP', bold: true));
+      // The Classic layout; the desktop layouts have their own tests.
+      await c.commit(
+        (draft, _) => draft.appearance = draft.appearance.copyWith(
+          desktopLayout: 'classic',
+        ),
+      );
       port.at = after(90);
       await c.tick();
       await tester.pumpWidget(TimerApp(controller: c));

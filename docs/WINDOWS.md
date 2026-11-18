@@ -37,6 +37,16 @@ Be clear about this when reading the rest of the page.
 
 Only one copy of the app runs per Windows user; starting it again brings the first to the front.
 
+## Desktop layouts
+
+In a window at least 1200 wide and 600 tall, Live uses a desktop layout, chosen in **Settings › Appearance › Layout & accessibility › Desktop layout**. This is not Windows-only: a large tablet held sideways gets it too.
+
+- **Three panes** (the default): the rundown on the left, the timer in the middle, the stage preview and cues on the right, with Live, Programs, Reports and Settings as tabs in the header. Each pane scrolls on its own. With no service loaded, Live keeps its single centred column.
+- **Classic**: the side rail and one column of cards, as before.
+
+A layout arrives with a theme (Three panes with Midnight Lime); any theme can be chosen afterwards. **Save this look** stores the layout, theme, spacing, contrast and key labels under a name; saved looks are included in backups, while the layout in use stays on the device like the other appearance settings. **Reset to default** returns to Three panes with Midnight Lime.
+
+The layouts only arrange the same timer, cues, stage preview and rundown that the phone uses (`lib/live/desktop_live.dart`), so a change to one of those shows everywhere. Smaller windows, and the focused operator view, use the phone and tablet layout.
 ## Second screen
 
 **Settings › Screens & devices › Second screen** lists every screen except the main one and shows the stage output on the chosen one, full screen and borderless. Windows must be set to Extend; with Duplicate there is only one screen to Windows.
@@ -45,7 +55,7 @@ Flutter draws one window per running app, so the stage window is a second copy o
 
 ## Keyboard on Live
 
-The clicker keys work without turning on the clicker setting: **Space** or **B** pauses and resumes, **Page Down** or **→** moves to the next segment (press twice). A PC adds **+** and **−**, which open Adjust time, and **Ctrl+Z**, which offers to undo the last segment change. Each opens the same confirmation as its button. Nothing happens while typing, on another tab, under a dialog or when **Lock controls** is on.
+The clicker keys work without turning on the clicker setting: **Space** or **B** pauses and resumes, **Page Down** or **→** moves to the next segment (press twice). A PC adds **+** and **−**, which open Adjust time, and **Ctrl+Z**, which offers to undo the last segment change. Each opens the same confirmation as its button. Nothing happens while typing, on another tab, under a dialog or when **Lock controls** is on. On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
 
 ## Building
 

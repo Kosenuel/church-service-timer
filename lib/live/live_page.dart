@@ -10,6 +10,7 @@ import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/live/quick_timer_sheet.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
@@ -354,6 +355,55 @@ extension LivePage on HomeState {
     );
   }
 
+  /// A segment's times, speaker and private note, opened from the rundown.
+  Future<void> showSegmentDetails(int index) {
+    final s = c.liveSession, t = s.timeline!;
+    final segment = t.segments[index];
+    final current = index == s.index;
+    return showAppSelection<void>(
+      context,
+      title: 'Segment details',
+      builder: (context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(segment.name, style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 12),
+          Text(
+            'Segment ${index + 1} of ${t.segments.length} · ${segment.durationText} planned',
+          ),
+          if (current)
+            Text(
+              '${operatorTimeDescription(s.balance(c.now))} · ${formatTime(s.allocatedMs)} allocated',
+            ),
+          if (s.run?.actualMs[index] != null)
+            Text(
+              'Recorded duration: ${durationLabel(s.run!.actualMs[index]!)}',
+            ),
+          if (segment.speaker.isNotEmpty) Text('Speaker: ${segment.speaker}'),
+          SizedBox(height: appLayout(context).gap),
+          const AppDivider(indent: 0, endIndent: 0),
+          SizedBox(height: appLayout(context).gap),
+          const Text(
+            'Private operator note',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            segment.notes.isEmpty
+                ? 'No private note for this segment.'
+                : segment.notes,
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget liveContent() {
     final s = c.liveSession;
     // A practice run just ended: show its summary once, after this frame.
@@ -388,57 +438,99 @@ extension LivePage on HomeState {
         ? 'Service ended'
         : 'Standing by';
     final canJump = enabled && t != null && s.index + 1 < t.segments.length;
+    final timerHeader = Row(
+      children: [
+        Expanded(
+          child: label(
+            standingBy
+                ? 'Standing by'
+                : t == null
+                ? 'Live production'
+                : s.quickTimer
+                ? 'Quick timer'
+                : 'Segment ${s.index + 1} of ${t.segments.length}',
+          ),
+        ),
+        // Visible whenever recording is on, so it is never left on by
+        // accident.
+        if (c.state.recordMetrics || c.metrics.recording)
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: ActionChip(
+              key: const ValueKey('metrics-chip'),
+              avatar: Icon(
+                Icons.fiber_manual_record,
+                size: 12,
+                color: appColors(context).error,
+              ),
+              label: Text(
+                s.noReport ? 'Test · recording' : 'Recording metrics',
+              ),
+              onPressed: openDiagnostics,
+            ),
+          ),
+        if (!standingBy)
+          Chip(
+            label: Text(
+              !standingBy && s.rehearsal ? '$phase · ${s.rate}×' : phase,
+            ),
+            avatar: Icon(
+              s.active && !s.paused ? Icons.circle : Icons.circle_outlined,
+              size: 12,
+              color: appColors(context).accent,
+            ),
+          ),
+      ],
+    );
+    Widget endServiceButton({bool compact = false}) => practiceSpot(
+      'end',
+      FilledButton.icon(
+        key: const ValueKey('end-service'),
+        onPressed: enabled
+            ? () async {
+                final rev = s.revision;
+                if (await confirmTimer(
+                  revision: rev,
+                  title: s.quickTimer ? 'End the timer?' : 'End ${t!.name}?',
+                  action: s.quickTimer ? 'End timer' : 'End service',
+                  destructive: true,
+                  content: () => Text(
+                    s.quickTimer
+                        ? s.noReport
+                              ? 'Stop the timer and show the end screen. Nothing is saved.'
+                              : 'Stop the timer, show the end screen and save it in Reports as a quick timer.'
+                        : c.hardware.enabled
+                        ? c.hardware.held || !c.hardware.connected
+                              ? 'Finish this service and save its report. The sign will keep its last program until you reconnect and restore output.'
+                              : 'Finish this service and save its report. The sign will show this service’s end screen, including its scrolling effect. A brief blink is expected.'
+                        : 'Finish this service, save its report, clear the active cue and show “${t!.display.end.text}”.',
+                  ),
+                ))
+                  await c.act('end', revision: rev);
+              }
+            : null,
+        icon: const Icon(Icons.stop_circle_outlined),
+        label: Text(s.quickTimer ? 'End timer' : 'End service'),
+        style: FilledButton.styleFrom(
+          backgroundColor: destructiveColor,
+          foregroundColor: Colors.white,
+          minimumSize: compact
+              ? const Size(0, 44)
+              : const Size(double.infinity, 54),
+          textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+            fontSize: compact ? 14 : 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      radius: 12,
+    );
     Widget timerPanelOf({required bool wide}) => panel(
       child: Column(
         key: const ValueKey('timer-card-content'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: label(
-                  standingBy
-                      ? 'Standing by'
-                      : t == null
-                      ? 'Live production'
-                      : s.quickTimer
-                      ? 'Quick timer'
-                      : 'Segment ${s.index + 1} of ${t.segments.length}',
-                ),
-              ),
-              // Visible whenever recording is on, so it is never left on by
-              // accident.
-              if (c.state.recordMetrics || c.metrics.recording)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ActionChip(
-                    key: const ValueKey('metrics-chip'),
-                    avatar: Icon(
-                      Icons.fiber_manual_record,
-                      size: 12,
-                      color: appColors(context).error,
-                    ),
-                    label: Text(
-                      s.noReport ? 'Test · recording' : 'Recording metrics',
-                    ),
-                    onPressed: openDiagnostics,
-                  ),
-                ),
-              if (!standingBy)
-                Chip(
-                  label: Text(
-                    !standingBy && s.rehearsal ? '$phase · ${s.rate}×' : phase,
-                  ),
-                  avatar: Icon(
-                    s.active && !s.paused
-                        ? Icons.circle
-                        : Icons.circle_outlined,
-                    size: 12,
-                    color: appColors(context).accent,
-                  ),
-                ),
-            ],
-          ),
+          timerHeader,
           const SizedBox(height: 8),
           if (t == null)
             const Text(
@@ -720,53 +812,12 @@ extension LivePage on HomeState {
             // Set apart from the time adjustments above, so a slip doesn't
             // land on End service.
             const SizedBox(height: 28),
-            practiceSpot(
-              'end',
-              FilledButton.icon(
-                key: const ValueKey('end-service'),
-                onPressed: enabled
-                    ? () async {
-                        final rev = s.revision;
-                        if (await confirmTimer(
-                          revision: rev,
-                          title: s.quickTimer
-                              ? 'End the timer?'
-                              : 'End ${t!.name}?',
-                          action: s.quickTimer ? 'End timer' : 'End service',
-                          destructive: true,
-                          content: () => Text(
-                            s.quickTimer
-                                ? s.noReport
-                                      ? 'Stop the timer and show the end screen. Nothing is saved.'
-                                      : 'Stop the timer, show the end screen and save it in Reports as a quick timer.'
-                                : c.hardware.enabled
-                                ? c.hardware.held || !c.hardware.connected
-                                      ? 'Finish this service and save its report. The sign will keep its last program until you reconnect and restore output.'
-                                      : 'Finish this service and save its report. The sign will show this service’s end screen, including its scrolling effect. A brief blink is expected.'
-                                : 'Finish this service, save its report, clear the active cue and show “${t!.display.end.text}”.',
-                          ),
-                        ))
-                          await c.act('end', revision: rev);
-                      }
-                    : null,
-                icon: const Icon(Icons.stop_circle_outlined),
-                label: Text(s.quickTimer ? 'End timer' : 'End service'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: destructiveColor,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 54),
-                  textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              radius: 12,
-            ),
+            endServiceButton(),
           ],
         ],
       ),
     );
+    final dense = liveFillsWindow;
     final displayPanel = c.destination == 'mobile'
         ? panel(
             child: Column(
@@ -793,13 +844,14 @@ extension LivePage on HomeState {
                     child: Text('Screen intentionally blanked'),
                   ),
                 const SizedBox(height: 12),
-                Text(
-                  '32 × 16 · ${c.state.pixelShape == 'square' ? 'Square' : 'Circular'} LEDs',
-                  style: TextStyle(
-                    color: appColors(context).muted,
-                    fontSize: 12,
+                if (!dense)
+                  Text(
+                    '32 × 16 · ${c.state.pixelShape == 'square' ? 'Square' : 'Circular'} LEDs',
+                    style: TextStyle(
+                      color: appColors(context).muted,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
                 if (s.disconnected ||
                     (s.held && (s.active || s.phase == 'ended'))) ...[
                   const SizedBox(height: 8),
@@ -840,22 +892,28 @@ extension LivePage on HomeState {
                     );
                   },
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  c.hardware.enabled
-                      ? 'Preview is an estimate of the last accepted program, not a live camera view of the sign.'
-                      : 'Simulator only · connect a display in Settings for physical output.',
-                  style: TextStyle(
-                    color: appColors(context).muted,
-                    fontSize: 12,
+                // A desktop layout keeps the stage pane short, so the cues
+                // below stay in view; the chip in the header changes display.
+                if (!dense || c.hardware.enabled) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    c.hardware.enabled
+                        ? 'Preview is an estimate of the last accepted program, not a live camera view of the sign.'
+                        : 'Simulator only · connect a display in Settings for physical output.',
+                    style: TextStyle(
+                      color: appColors(context).muted,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                button(
-                  'Change display',
-                  Icons.devices,
-                  c.busy || c.corrupt ? null : chooseDisplay,
-                ),
+                ],
+                if (!dense) ...[
+                  const SizedBox(height: 12),
+                  button(
+                    'Change display',
+                    Icons.devices,
+                    c.busy || c.corrupt ? null : chooseDisplay,
+                  ),
+                ],
               ],
             ),
           );
@@ -947,7 +1005,7 @@ extension LivePage on HomeState {
                         : unavailableReason('Send cue'),
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 68),
+                        minimumSize: Size(0, dense ? 48 : 68),
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                       ),
@@ -1135,52 +1193,7 @@ extension LivePage on HomeState {
                         '${e.value.durationText}${current ? ' · Now' : ''}',
                       ),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => showAppSelection<void>(
-                        context,
-                        title: 'Segment details',
-                        builder: (context) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              e.value.name,
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Segment ${e.key + 1} of ${t.segments.length} · ${e.value.durationText} planned',
-                            ),
-                            if (current)
-                              Text(
-                                '${operatorTimeDescription(s.balance(c.now))} · ${formatTime(s.allocatedMs)} allocated',
-                              ),
-                            if (s.run?.actualMs[e.key] != null)
-                              Text(
-                                'Recorded duration: ${durationLabel(s.run!.actualMs[e.key]!)}',
-                              ),
-                            if (e.value.speaker.isNotEmpty)
-                              Text('Speaker: ${e.value.speaker}'),
-                            SizedBox(height: appLayout(context).gap),
-                            const AppDivider(indent: 0, endIndent: 0),
-                            SizedBox(height: appLayout(context).gap),
-                            const Text(
-                              'Private operator note',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              e.value.notes.isEmpty
-                                  ? 'No private note for this segment.'
-                                  : e.value.notes,
-                            ),
-                            const SizedBox(height: 16),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Close'),
-                            ),
-                          ],
-                        ),
-                      ),
+                      onTap: () => showSegmentDetails(e.key),
                     ),
                   ),
                 ),
@@ -1190,149 +1203,160 @@ extension LivePage on HomeState {
         ],
       ),
     );
+    final liveNotices = <Widget>[
+      if (controlsLocked)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Material(
+            key: const ValueKey('controls-locked-banner'),
+            color: appColors(context).surface,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.lock, color: appColors(context).warning),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Controls locked',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Semantics(
+                    label: 'Hold to unlock controls',
+                    child: OutlinedButton(
+                      key: const ValueKey('unlock-controls'),
+                      onPressed: () =>
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Press and hold to unlock controls.',
+                              ),
+                            ),
+                          ),
+                      onLongPress: () => refreshHome(
+                        () => c.uiLocked = controlsLocked = false,
+                      ),
+                      child: const Text('Hold to unlock'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      if (c.practice.active) practiceCoach(),
+      if (!c.hardware.enabled &&
+          c.displayConnection == DisplayConnection.disconnected &&
+          (s.active || s.phase == 'ended'))
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Container(
+            key: const ValueKey('display-disconnected-banner'),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: appColors(context).surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.wifi_off, color: appColors(context).error),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Display disconnected',
+                        style: TextStyle(
+                          color: appColors(context).error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      if (c.hardware.enabled)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: hardwareStatusPanel(),
+        ),
+      if (c.destination == 'simulator' &&
+          s.held &&
+          (s.active || s.phase == 'ended'))
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: panel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Output paused after an interruption',
+                  style: TextStyle(
+                    color: appColors(context).warning,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${s.timeline!.name}\nLast activity: ${DateTime.fromMillisecondsSinceEpoch(s.checkpoint.wall).toLocal()}\n${s.uncertain ? 'Elapsed time is uncertain after a reboot or clock change. ' : ''}${s.phase == 'ended' ? 'The service has ended.' : 'The timer continues locally.'} Check the time, then resume to update the simulator.',
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    button(
+                      s.phase == 'ended' ? 'Send end screen' : 'Resume output',
+                      Icons.play_arrow,
+                      c.busy ? null : () => c.act('release'),
+                      primary: true,
+                    ),
+                    if (s.hasManualCue(c.now))
+                      button(
+                        'Dismiss alert & show timer',
+                        Icons.timer,
+                        c.busy ? null : () => c.act('releaseTimer'),
+                      ),
+                    button(
+                      'Keep disconnected',
+                      Icons.link_off,
+                      c.busy ? null : () => c.act('disconnect'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+    ];
+    if (liveFillsWindow) {
+      return threePaneLive(
+        notices: liveNotices,
+        header: timerHeader,
+        // Ready and a report still saving keep the card's own content.
+        timer: s.active ? null : FlatPanels(child: timerPanelOf(wide: true)),
+        endService: endServiceButton(compact: true),
+        display: displayPanel,
+        cues: cuePanel,
+        enabled: enabled,
+        canJump: canJump,
+      );
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 760;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (controlsLocked)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Material(
-                  key: const ValueKey('controls-locked-banner'),
-                  color: appColors(context).surface,
-                  borderRadius: BorderRadius.circular(14),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.lock, color: appColors(context).warning),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Controls locked',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        Semantics(
-                          label: 'Hold to unlock controls',
-                          child: OutlinedButton(
-                            key: const ValueKey('unlock-controls'),
-                            onPressed: () =>
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Press and hold to unlock controls.',
-                                    ),
-                                  ),
-                                ),
-                            onLongPress: () => refreshHome(
-                              () => c.uiLocked = controlsLocked = false,
-                            ),
-                            child: const Text('Hold to unlock'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            if (c.practice.active) practiceCoach(),
-            if (!c.hardware.enabled &&
-                c.displayConnection == DisplayConnection.disconnected &&
-                (s.active || s.phase == 'ended'))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Container(
-                  key: const ValueKey('display-disconnected-banner'),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: appColors(context).surface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.wifi_off, color: appColors(context).error),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Display disconnected',
-                              style: TextStyle(
-                                color: appColors(context).error,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            if (c.hardware.enabled)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: hardwareStatusPanel(),
-              ),
-            if (c.destination == 'simulator' &&
-                s.held &&
-                (s.active || s.phase == 'ended'))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: panel(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Output paused after an interruption',
-                        style: TextStyle(
-                          color: appColors(context).warning,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${s.timeline!.name}\nLast activity: ${DateTime.fromMillisecondsSinceEpoch(s.checkpoint.wall).toLocal()}\n${s.uncertain ? 'Elapsed time is uncertain after a reboot or clock change. ' : ''}${s.phase == 'ended' ? 'The service has ended.' : 'The timer continues locally.'} Check the time, then resume to update the simulator.',
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          button(
-                            s.phase == 'ended'
-                                ? 'Send end screen'
-                                : 'Resume output',
-                            Icons.play_arrow,
-                            c.busy ? null : () => c.act('release'),
-                            primary: true,
-                          ),
-                          if (s.hasManualCue(c.now))
-                            button(
-                              'Dismiss alert & show timer',
-                              Icons.timer,
-                              c.busy ? null : () => c.act('releaseTimer'),
-                            ),
-                          button(
-                            'Keep disconnected',
-                            Icons.link_off,
-                            c.busy ? null : () => c.act('disconnect'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            ...liveNotices,
             if (focused) ...[
               stageRequestCards(),
               timerPanelOf(wide: true),

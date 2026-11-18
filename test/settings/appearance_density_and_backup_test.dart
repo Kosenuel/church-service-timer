@@ -105,7 +105,19 @@ void main() {
       AppLayout.resolve(auto, const Size(800, 1100)).density,
       'comfortable',
     );
-    expect(AppLayout.resolve(auto, const Size(1280, 800)).density, 'spacious');
+    // A desktop layout packs the window, so it stays Comfortable; the
+    // Classic single column still opens out.
+    expect(
+      AppLayout.resolve(auto, const Size(1280, 800)).density,
+      'comfortable',
+    );
+    expect(
+      AppLayout.resolve(
+        const AppearancePreferences(desktopLayout: 'classic'),
+        const Size(1280, 800),
+      ).density,
+      'spacious',
+    );
     expect(
       AppLayout.resolve(
         const AppearancePreferences(density: 'spacious'),

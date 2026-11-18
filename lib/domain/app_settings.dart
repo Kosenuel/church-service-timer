@@ -13,6 +13,10 @@ const privacyPolicyUrl =
 /// portable backup. Output animation is configured separately.
 class AppearancePreferences {
   final String density, dividers, pickerFeedback;
+
+  /// How Live is arranged in a wide window, and whether buttons show their
+  /// keyboard key ('automatic' shows them on a computer).
+  final String desktopLayout, keyHints;
   final bool highContrast, reducedMotion;
   const AppearancePreferences({
     this.density = 'automatic',
@@ -20,6 +24,8 @@ class AppearancePreferences {
     this.pickerFeedback = 'haptics',
     this.highContrast = false,
     this.reducedMotion = false,
+    this.desktopLayout = defaultDesktopLayout,
+    this.keyHints = 'automatic',
   });
   factory AppearancePreferences.fromJson(Json j) {
     require(
@@ -49,12 +55,19 @@ class AppearancePreferences {
       }.contains(j['pickerFeedback'] ?? 'haptics'),
       'Unknown picker feedback.',
     );
+    require(
+      desktopLayoutIds.contains(j['desktopLayout'] ?? defaultDesktopLayout) &&
+          keyHintChoices.contains(j['keyHints'] ?? 'automatic'),
+      'Unknown desktop layout.',
+    );
     return AppearancePreferences(
       density: j['density'] ?? 'automatic',
       dividers: j['dividers'] ?? 'subtle',
       pickerFeedback: j['pickerFeedback'] ?? 'haptics',
       highContrast: j['highContrast'] ?? false,
       reducedMotion: j['reducedMotion'] ?? false,
+      desktopLayout: j['desktopLayout'] ?? defaultDesktopLayout,
+      keyHints: j['keyHints'] ?? 'automatic',
     );
   }
   AppearancePreferences copyWith({
@@ -63,12 +76,16 @@ class AppearancePreferences {
     String? pickerFeedback,
     bool? highContrast,
     bool? reducedMotion,
+    String? desktopLayout,
+    String? keyHints,
   }) => AppearancePreferences(
     density: density ?? this.density,
     dividers: dividers ?? this.dividers,
     pickerFeedback: pickerFeedback ?? this.pickerFeedback,
     highContrast: highContrast ?? this.highContrast,
     reducedMotion: reducedMotion ?? this.reducedMotion,
+    desktopLayout: desktopLayout ?? this.desktopLayout,
+    keyHints: keyHints ?? this.keyHints,
   );
   Json toJson() => {
     'density': density,
@@ -76,6 +93,8 @@ class AppearancePreferences {
     'pickerFeedback': pickerFeedback,
     'highContrast': highContrast,
     'reducedMotion': reducedMotion,
+    'desktopLayout': desktopLayout,
+    'keyHints': keyHints,
   };
   @override
   bool operator ==(Object other) =>
@@ -84,7 +103,9 @@ class AppearancePreferences {
       dividers == other.dividers &&
       pickerFeedback == other.pickerFeedback &&
       highContrast == other.highContrast &&
-      reducedMotion == other.reducedMotion;
+      reducedMotion == other.reducedMotion &&
+      desktopLayout == other.desktopLayout &&
+      keyHints == other.keyHints;
   @override
   int get hashCode => Object.hash(
     density,
@@ -92,6 +113,8 @@ class AppearancePreferences {
     pickerFeedback,
     highContrast,
     reducedMotion,
+    desktopLayout,
+    keyHints,
   );
 }
 
@@ -265,10 +288,13 @@ String exportBackup(
     ..remove('metricsBatteryBaseline')
     ..remove('importMappings')
     ..remove('webStage')
-    ..remove('churchLogo');
+    ..remove('churchLogo')
+    ..remove('savedLooks');
   // The logo only when one is set, so plain backups stay readable by
   // earlier versions.
   if (state.churchLogo.isNotEmpty) data['churchLogo'] = state.churchLogo;
+  if (state.savedLooks.isNotEmpty)
+    data['savedLooks'] = [for (final l in state.savedLooks) l.toJson()];
   if (state.segmentLibrary.isNotEmpty)
     data['segmentLibrary'] = [for (final s in state.segmentLibrary) s.toJson()];
   // Earlier program versions, keyed by name because IDs stay on the phone.
@@ -291,10 +317,12 @@ String exportBackup(
   ];
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    // Version 10 only with a church logo, 9 only with program history or a
+    // Version 11 only with saved looks, 10 only with a church logo, 9 only with program history or a
     // segment library, 8 only with sealed passwords, so plain backups
     // remain readable by earlier versions.
-    'schemaVersion': state.churchLogo.isNotEmpty
+    'schemaVersion': state.savedLooks.isNotEmpty
+        ? 11
+        : state.churchLogo.isNotEmpty
         ? 10
         : history.isNotEmpty || state.segmentLibrary.isNotEmpty
         ? 9
@@ -331,7 +359,19 @@ AppState importBackup(String raw, Stamp now) {
     }, 'Backup');
     require(
       envelope['type'] == 'church-service-timer-backup' &&
-          {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}.contains(envelope['schemaVersion']),
+          {
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+          }.contains(envelope['schemaVersion']),
       'Choose a supported Church Service Timer backup.',
     );
     final data = Map<String, dynamic>.from(envelope['data']);
@@ -354,10 +394,12 @@ AppState importBackup(String raw, Stamp now) {
       if (envelope['schemaVersion'] >= 9) 'programHistory',
       if (envelope['schemaVersion'] >= 9) 'segmentLibrary',
       if (envelope['schemaVersion'] >= 10) 'churchLogo',
+      if (envelope['schemaVersion'] >= 11) 'savedLooks',
     }, 'Backup data');
     final history = data.remove('programHistory');
     final logo = churchLogoValue(data.remove('churchLogo') ?? '');
     final segments = readSegmentLibrary(data.remove('segmentLibrary'));
+    final looks = readSavedLooks(data.remove('savedLooks'));
     require(
       data.length ==
               (envelope['schemaVersion'] >= 7
@@ -398,6 +440,7 @@ AppState importBackup(String raw, Stamp now) {
     });
     restored.segmentLibrary = segments;
     restored.churchLogo = logo;
+    restored.savedLooks = looks;
     for (final e in versions.entries) {
       final program = restored.templates.where((t) => t.name == e.key);
       require(program.isNotEmpty, 'Backup history names a missing program.');

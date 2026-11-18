@@ -6,6 +6,7 @@ import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/desktop_live.dart';
 
 /// Header status, menus and compact Live helpers shared by the phone and
 /// tablet layouts.
@@ -28,7 +29,10 @@ extension LiveLayout on HomeState {
 
   /// Wide screens use a side rail so Live keeps its full height.
   bool get useNavigationRail =>
-      !focused && c.ready && MediaQuery.sizeOf(context).width >= 840;
+      !focused &&
+      c.ready &&
+      !useTopTabs &&
+      MediaQuery.sizeOf(context).width >= 840;
 
   Widget navigationShell(Widget body) {
     if (!useNavigationRail) return body;
