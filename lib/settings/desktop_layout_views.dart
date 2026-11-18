@@ -305,6 +305,34 @@ class LayoutSketchPainter extends CustomPainter {
         bar(w * .76, h * (.56 + i * .14), w * .09);
         bar(w * .87, h * (.56 + i * .14), w * .09);
       }
+    } else if (id == 'mission_control') {
+      // A rail, three columns, and the rundown timeline along the bottom.
+      canvas
+        ..drawLine(Offset(w * .08, h * .14), Offset(w * .08, h), stroke)
+        ..drawLine(Offset(w * .08, h * .7), Offset(w, h * .7), stroke)
+        ..drawLine(Offset(w * .42, h * .14), Offset(w * .42, h * .7), stroke)
+        ..drawLine(Offset(w * .7, h * .14), Offset(w * .7, h * .7), stroke);
+      dial(Offset(w * .21, h * .4), h * .14);
+      bar(w * .3, h * .3, w * .08);
+      bar(w * .3, h * .42, w * .08);
+      bar(w * .13, h * .6, w * .11, bright);
+      bar(w * .26, h * .6, w * .11);
+      canvas.drawRect(Rect.fromLTWH(w * .46, h * .22, w * .2, h * .24), block);
+      for (var i = 0; i < 2; i++) {
+        bar(w * .74, h * (.24 + i * .14), w * .1);
+        bar(w * .86, h * (.24 + i * .14), w * .1);
+      }
+      var x = w * .12;
+      for (final (i, part) in const [.1, .2, .3, .12, .08].indexed) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(x, h * .78, w * part - 3, h * .13),
+            const Radius.circular(2),
+          ),
+          i == 2 ? bright : block,
+        );
+        x += w * part;
+      }
     } else {
       // Classic: a rail, then two columns of cards.
       canvas.drawLine(Offset(w * .08, h * .14), Offset(w * .08, h), stroke);

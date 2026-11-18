@@ -42,6 +42,7 @@ Only one copy of the app runs per Windows user; starting it again brings the fir
 In a window at least 1200 wide and 600 tall, Live uses a desktop layout, chosen in **Settings › Appearance › Layout & accessibility › Desktop layout**. This is not Windows-only: a large tablet held sideways gets it too.
 
 - **Three panes** (the default): the rundown on the left, the timer in the middle, the stage preview and cues on the right, with Live, Programs, Reports and Settings as tabs in the header. Each pane scrolls on its own. With no service loaded, Live keeps its single centred column.
+- **Mission control**: a status strip (ahead or behind, time now, planned finish, now ending, End service), then the timer, stage preview and cues side by side, with the rundown as a timeline along the bottom and the Live keys listed under it. It keeps the side rail. The timeline is `RundownTimeline` in `lib/live/mission_control_live.dart`.
 - **Classic**: the side rail and one column of cards, as before.
 
 A layout arrives with a theme (Three panes with Midnight Lime); any theme can be chosen afterwards. **Save this look** stores the layout, theme, spacing, contrast and key labels under a name; saved looks are included in backups, while the layout in use stays on the device like the other appearance settings. **Reset to default** returns to Three panes with Midnight Lime.

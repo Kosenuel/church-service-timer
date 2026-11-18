@@ -27,6 +27,9 @@ extension DesktopLive on HomeState {
   /// Tabs in the header replace the side rail.
   bool get useTopTabs => desktopLayout == 'three_panes';
 
+  /// Panes meet the header edge to edge, so it loses its rounded corners.
+  bool get squareHeader => desktopLayout != null;
+
   /// Live fills the window, each pane scrolling on its own, once a
   /// service is loaded. Standing by keeps its single centred column.
   bool get liveFillsWindow =>
@@ -195,6 +198,49 @@ extension DesktopLive on HomeState {
     );
   }
 
+  /// The running segment's name; tap it to jump to a later segment.
+  Widget segmentTitle(bool canJump, {double size = 34, bool centred = true}) {
+    final colors = appColors(context);
+    final segment = c.liveSession.timeline!.segments[c.liveSession.index];
+    return Semantics(
+      button: true,
+      enabled: canJump,
+      hint: 'Jump to segment',
+      child: InkWell(
+        key: const ValueKey('jump-to-segment'),
+        borderRadius: BorderRadius.circular(8),
+        onTap: canJump ? jumpToSegment : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  segment.name,
+                  textAlign: centred ? TextAlign.center : TextAlign.start,
+                  style: TextStyle(
+                    fontSize: size,
+                    fontWeight: FontWeight.w700,
+                    height: 1.15,
+                  ),
+                ),
+              ),
+              if (canJump) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.expand_more,
+                  color: colors.muted,
+                  semanticLabel: 'Jump to segment',
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// The running segment in the middle pane: name, countdown, controls,
   /// private note and End service.
   Widget desktopTimer({
@@ -215,43 +261,7 @@ extension DesktopLive on HomeState {
       children: [
         header,
         const SizedBox(height: 6),
-        Semantics(
-          button: true,
-          enabled: canJump,
-          hint: 'Jump to segment',
-          child: InkWell(
-            key: const ValueKey('jump-to-segment'),
-            borderRadius: BorderRadius.circular(8),
-            onTap: canJump ? jumpToSegment : null,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      segment.name,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        height: 1.15,
-                      ),
-                    ),
-                  ),
-                  if (canJump) ...[
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.expand_more,
-                      color: colors.muted,
-                      semanticLabel: 'Jump to segment',
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
+        segmentTitle(canJump),
         const SizedBox(height: 6),
         if (!s.quickTimer)
           Text(

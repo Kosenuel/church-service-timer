@@ -3,6 +3,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_port.dart';
@@ -112,6 +113,150 @@ void main() {
       find.byType(MaterialApp),
       matchesGoldenFile('../goldens/desktop-three-panes-1080-paper.png'),
     );
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Mission control at laptop size', (t) async {
+    await running(t, layout: 'mission_control');
+    expect(t.takeException(), isNull);
+    expect(find.byKey(const ValueKey('mission-control-live')), findsOneWidget);
+    expect(find.byKey(const ValueKey('three-pane-live')), findsNothing);
+    // The side rail stays; nothing an operator needs is off screen.
+    expect(find.byKey(const ValueKey('navigation-rail')), findsOneWidget);
+    for (final key in ['pause-resume', 'next-segment', 'end-service', 'undo']) {
+      expect(find.byKey(ValueKey(key)).hitTestable(), findsOneWidget);
+    }
+    expect(find.text('Blank screen').hitTestable(), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('timeline-4')).hitTestable(),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/desktop-mission-control.png'),
+    );
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Mission control at full HD', (t) async {
+    await running(t, layout: 'mission_control', size: const Size(1920, 1080));
+    expect(t.takeException(), isNull);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/desktop-mission-control-1080.png'),
+    );
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Mission control shows the service against plan', (t) async {
+    final (c, port) = await running(t, layout: 'mission_control');
+    final status = find.byKey(const ValueKey('mission-status'));
+    Finder inStatus(String text) =>
+        find.descendant(of: status, matching: find.text(text));
+    expect(inStatus('2 min 50 s behind'), findsOneWidget);
+    expect(inStatus('55 min 12 s'), findsOneWidget);
+    expect(inStatus('Now ending'), findsOneWidget);
+    // Finished segments show what they took and how far over they ran.
+    final welcome = find.byKey(const ValueKey('timeline-0'));
+    expect(
+      find.descendant(of: welcome, matching: find.text('05:40 · +0:40')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('timeline-2')),
+        matching: find.text('12:38 left of 40:00'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('timeline-now')), findsOneWidget);
+    await t.tap(welcome);
+    await t.pumpAndSettle();
+    expect(find.text('Segment details'), findsOneWidget);
+    expect(find.text('Recorded duration: 5 min 40 s'), findsOneWidget);
+    await t.tapAt(const Offset(5, 5));
+    await t.pumpAndSettle();
+    await c.act('pause');
+    port.at = after(port.at.mono ~/ 1000 + 60);
+    await c.tick();
+    await t.pumpAndSettle();
+    expect(inStatus('Ending, if resumed now'), findsOneWidget);
+    expect(t.takeException(), isNull);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Mission control keeps confirmations, the lock and the keys', (
+    t,
+  ) async {
+    final (c, _) = await running(t, layout: 'mission_control');
+    expect(find.byKey(const ValueKey('key-legend')), findsOneWidget);
+    await t.tap(find.byKey(const ValueKey('end-service')));
+    await t.pumpAndSettle();
+    expect(find.text('End Sunday Service?'), findsOneWidget);
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+    expect(c.state.session.active, isTrue);
+    // Page Down is Next segment, pressed twice; it never scrolls a pane.
+    await t.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await t.pump();
+    expect(c.state.session.index, 2);
+    await t.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await t.pumpAndSettle();
+    expect(c.state.session.index, 3);
+    expect(t.takeException(), isNull);
+    await t.tap(find.byKey(const ValueKey('control-lock')));
+    await t.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('controls-locked-banner')),
+      findsOneWidget,
+    );
+    await t.sendKeyEvent(LogicalKeyboardKey.space);
+    await t.tap(find.byKey(const ValueKey('end-service')), warnIfMissed: false);
+    await t.pumpAndSettle();
+    expect(c.state.session.paused, isFalse);
+    expect(find.text('End Sunday Service?'), findsNothing);
+    await c.commit(
+      (draft, _) =>
+          draft.appearance = draft.appearance.copyWith(keyHints: 'off'),
+    );
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('key-legend')), findsNothing);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Mission control before the start and in overtime', (t) async {
+    setScreen(t, const Size(1366, 768));
+    final port = DesktopFakePort();
+    final c = AppController(port);
+    await c.initialize(startTicker: false);
+    await c.commit(
+      (draft, _) => draft.appearance = draft.appearance.copyWith(
+        desktopLayout: 'mission_control',
+      ),
+    );
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    // Standing by keeps its centred column.
+    expect(find.byKey(const ValueKey('mission-control-live')), findsNothing);
+    await c.act('load', value: sunday());
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('mission-control-live')), findsOneWidget);
+    expect(find.text('Start first segment'), findsOneWidget);
+    expect(find.byKey(const ValueKey('mission-status')), findsNothing);
+    expect(find.text('5 segments · 1 h 20 min planned'), findsOneWidget);
+    await c.act('start');
+    // Six minutes into a five-minute Welcome.
+    port.at = after(360);
+    await c.tick();
+    await t.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('timeline-0')),
+        matching: find.text('+01:00 over of 05:00'),
+      ),
+      findsOneWidget,
+    );
+    expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox());
   });
 
