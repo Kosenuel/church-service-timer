@@ -15,11 +15,15 @@ class ServiceDial extends StatelessWidget {
   final Session session;
   final Stamp now;
   final double size;
+
+  /// Called with a segment's index when its piece of the ring is clicked.
+  final ValueChanged<int>? onSegment;
   const ServiceDial({
     super.key,
     required this.session,
     required this.now,
     required this.size,
+    this.onSegment,
   });
 
   @override
@@ -91,6 +95,15 @@ class ServiceDial extends StatelessWidget {
                 ),
               ),
             ),
+            if (onSegment != null)
+              Positioned.fill(
+                child: _RingTaps(
+                  size: size,
+                  pieces: pieces,
+                  total: total,
+                  onSegment: onSegment!,
+                ),
+              ),
             // When the service is now set to end, beside the cross.
             if (s.active && run != null)
               Positioned(
@@ -259,6 +272,76 @@ class DialGeometry {
         paint,
       );
   }
+}
+
+/// The segment whose piece of the service ring is at [position], in a dial
+/// [size] across; null in the middle, outside the ring, and in the gap
+/// where the cross stands. The margin just outside the ring, where the
+/// segment numbers are, counts as the ring.
+int? dialSegmentAt(
+  Offset position,
+  double size,
+  List<TimelinePiece> pieces,
+  int total,
+) {
+  final g = DialGeometry(size);
+  final offset = position - g.centre;
+  final radius = offset.distance;
+  if (radius < g.outer - g.stroke / 2 - 4 ||
+      radius > g.outer + g.stroke / 2 + 24) {
+    return null;
+  }
+  var angle = math.atan2(offset.dy, offset.dx);
+  if (angle < 0) angle += math.pi * 2;
+  for (final p in pieces) {
+    if (angle >= DialGeometry.angle(p.startMs, total) &&
+        angle < DialGeometry.angle(p.startMs + p.lengthMs, total)) {
+      return p.index;
+    }
+  }
+  return null;
+}
+
+/// Clicks on the service ring, and the hand cursor over it. Everything
+/// else on the dial is left alone.
+class _RingTaps extends StatefulWidget {
+  final double size;
+  final List<TimelinePiece> pieces;
+  final int total;
+  final ValueChanged<int> onSegment;
+  const _RingTaps({
+    required this.size,
+    required this.pieces,
+    required this.total,
+    required this.onSegment,
+  });
+  @override
+  State<_RingTaps> createState() => _RingTapsState();
+}
+
+class _RingTapsState extends State<_RingTaps> {
+  bool over = false;
+  int? at(Offset position) =>
+      dialSegmentAt(position, widget.size, widget.pieces, widget.total);
+  void hover(bool value) {
+    if (value != over) setState(() => over = value);
+  }
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    key: const ValueKey('dial-ring'),
+    opaque: false,
+    cursor: over ? SystemMouseCursors.click : MouseCursor.defer,
+    onHover: (event) => hover(at(event.localPosition) != null),
+    onExit: (_) => hover(false),
+    child: GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTapUp: (details) {
+        final index = at(details.localPosition);
+        if (index != null) widget.onSegment(index);
+      },
+    ),
+  );
 }
 
 class ServiceDialPainter extends CustomPainter {

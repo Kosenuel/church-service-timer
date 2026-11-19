@@ -989,7 +989,11 @@ extension LivePage on HomeState {
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                       ),
-                      icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                      // A desktop layout sets the cue as the stage shows
+                      // it, so it needs no icon to say what it is.
+                      icon: dense
+                          ? null
+                          : const Icon(Icons.chat_bubble_outline, size: 20),
                       label: Row(
                         children: [
                           Expanded(
@@ -998,6 +1002,7 @@ extension LivePage on HomeState {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.left,
+                              style: dense ? stageCueStyle : null,
                             ),
                           ),
                           // The number key that sends it, on a computer.

@@ -9,6 +9,12 @@ Future<void> loadAppFonts() async {
         ..addFont(rootBundle.load('assets/fonts/Roboto-Light.ttf'))
         ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf')))
       .load();
+  await (FontLoader('Tinos')..addFont(
+        rootBundle.load(
+          'android/app/src/main/assets/display_fonts/tinos/Tinos-Bold.ttf',
+        ),
+      ))
+      .load();
   await (FontLoader(
     'MaterialIcons',
   )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();

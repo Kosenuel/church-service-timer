@@ -43,3 +43,9 @@ flutter:
           weight: 300
         - asset: assets/fonts/Roboto-Bold.ttf
           weight: 700
+    # The LED text face, for cue buttons that show a cue as the stage does.
+    # The same file the Android and Windows display code loads.
+    - family: Tinos
+      fonts:
+        - asset: android/app/src/main/assets/display_fonts/tinos/Tinos-Bold.ttf
+          weight: 700
