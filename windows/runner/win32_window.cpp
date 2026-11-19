@@ -175,8 +175,32 @@ bool Win32Window::CreateFullScreen(const std::wstring& title,
   return OnCreate();
 }
 
+bool Win32Window::CreateAt(const std::wstring& title,
+                           const RECT& frame,
+                           bool maximised) {
+  Destroy();
+
+  const wchar_t* window_class =
+      WindowClassRegistrar::GetInstance()->GetWindowClass();
+
+  show_command_ = maximised ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+
+  HWND window = CreateWindow(
+      window_class, title.c_str(), WS_OVERLAPPEDWINDOW, frame.left, frame.top,
+      frame.right - frame.left, frame.bottom - frame.top, nullptr, nullptr,
+      GetModuleHandle(nullptr), this);
+
+  if (!window) {
+    return false;
+  }
+
+  UpdateTheme(window);
+
+  return OnCreate();
+}
+
 bool Win32Window::Show() {
-  return ShowWindow(window_handle_, SW_SHOWNORMAL);
+  return ShowWindow(window_handle_, show_command_);
 }
 
 // static
