@@ -6,6 +6,8 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 - **Second screen shows the stage properly.** On a PC, **Show** in Settings › Screens & devices › Second screen could leave the projector or second monitor stuck on a black picture with part of an enormous letter at one edge. It happened when the two screens use different scaling in Windows (for example a laptop at 150% and a 4K monitor at 200%): Windows resized the stage window as it moved across, and the window then stopped updating. The stage window is now created on its own screen from the start and keeps to that screen's exact size.
 
+- **The stage countdown holds still.** On a stage screen, a second screen or a web screen's app view, the large time used to shift and change size slightly each second, because some digits are wider than others and the time was refitted to the screen every time it changed. The time now keeps one size and each digit keeps its place.
+
 ## 0.32.0, 19/November/2026
 
 - **Pages use the room in a wide window.** On a computer, or a large tablet held sideways, pages no longer sit as a narrow phone column in the middle of the screen. Phones and smaller windows look exactly as before.
