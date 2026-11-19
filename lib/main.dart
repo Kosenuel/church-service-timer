@@ -42,6 +42,7 @@ import 'package:church_service_timer/live/live_timer_views.dart';
 import 'package:church_service_timer/live/planning_views.dart';
 import 'package:church_service_timer/live/time_recovery_views.dart';
 import 'package:church_service_timer/live/timing_overview_views.dart';
+import 'package:church_service_timer/live/mini_timer.dart';
 import 'package:church_service_timer/reports/report_library_views.dart';
 import 'package:church_service_timer/reports/reports_desktop.dart';
 
@@ -85,6 +86,7 @@ export 'package:church_service_timer/live/live_page.dart';
 export 'package:church_service_timer/live/text_composer.dart';
 export 'package:church_service_timer/programs/template_editor.dart';
 export 'package:church_service_timer/live/control_grid.dart';
+export 'package:church_service_timer/live/mini_timer.dart';
 
 /// One line describing a layout. Each " · " stays with the word before
 /// it, so a wrap never starts a line with "· scroll".
@@ -227,6 +229,70 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     focused = value;
     page = 0;
   });
+
+  /// The window is the mini timer: small, above other programs, showing
+  /// only the running segment (a computer only; see mini_timer.dart).
+  bool miniTimer = false;
+  bool _miniTimerChanging = false;
+
+  /// Opens the mini timer or expands back to the full window. Opening
+  /// needs a computer, a running service and nothing else open on top;
+  /// otherwise nothing happens. Returns whether the mini timer is showing
+  /// afterwards.
+  Future<bool> setMiniTimer(bool value) async {
+    final window = c.port.miniWindow;
+    if (window == null || !mounted || _miniTimerChanging) return miniTimer;
+    if (value == miniTimer) return miniTimer;
+    if (value &&
+        (!miniTimerAvailable || ModalRoute.of(context)?.isCurrent != true)) {
+      return false;
+    }
+    _miniTimerChanging = true;
+    try {
+      if (value) {
+        // The small layout first: it fits any window, the full one does
+        // not fit a small window.
+        setState(() {
+          miniTimer = true;
+          page = 0;
+        });
+        var entered = false;
+        try {
+          entered = await window.enter(
+            width: miniTimerSize.width,
+            height: miniTimerSize.height,
+          );
+        } catch (_) {}
+        if (!entered && mounted) {
+          setState(() => miniTimer = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('The window could not be made small.'),
+            ),
+          );
+        }
+      } else {
+        try {
+          await window.leave();
+        } catch (_) {}
+        if (mounted) setState(() => miniTimer = false);
+      }
+    } finally {
+      _miniTimerChanging = false;
+    }
+    // The service may have ended while the window was changing.
+    if (mounted && miniTimer && !miniTimerAvailable) {
+      return setMiniTimer(false);
+    }
+    return miniTimer;
+  }
+
+  /// The mini timer is for a running service: when it ends (or this
+  /// device joins another's), the full window comes back.
+  void _followMiniTimer() {
+    if (miniTimer && !miniTimerAvailable) unawaited(setMiniTimer(false));
+  }
+
   final settingsRefresh = ValueNotifier<int>(0);
 
   final programsPage = ProgramsPageState();
@@ -325,6 +391,17 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
         )) {
       if (!commandPaletteAvailable || typingInField) return false;
       unawaited(openCommandPalette());
+      return true;
+    }
+    // Ctrl+M shrinks the app to the mini timer and brings it back.
+    if (c.port.isDesktop &&
+        isMiniTimerKey(
+          event.logicalKey,
+          control: HardwareKeyboard.instance.isControlPressed,
+        )) {
+      if (controlsLocked || typingInField) return false;
+      if (!miniTimer && !miniTimerAvailable) return false;
+      unawaited(setMiniTimer(!miniTimer));
       return true;
     }
     // A PC keyboard adds its own keys on top of the clicker's; they open
@@ -447,6 +524,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _followServiceCompletion();
     c.addListener(_followServiceCompletion);
+    c.addListener(_followMiniTimer);
     c.liveNavigation.addListener(returnToLive);
     HardwareKeyboard.instance.addHandler(onClickerKey);
     c.port.setIncomingFileHandler(receiveIncomingFile);
@@ -504,7 +582,10 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       if (mounted) await showError('Could not open the received file: $e');
       return;
     }
-    if (file != null && mounted) await importFile(received: file);
+    if (file == null || !mounted) return;
+    // The import review needs the full window.
+    if (miniTimer && await setMiniTimer(false)) return;
+    if (mounted) await importFile(received: file);
   }
 
   @override
@@ -514,6 +595,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     c.port.setIncomingFileHandler(null);
     _windowClose?.dispose();
     c.removeListener(_followServiceCompletion);
+    c.removeListener(_followMiniTimer);
     c.liveNavigation.removeListener(returnToLive);
     homeScroll.dispose();
     settingsRefresh.dispose();
@@ -543,51 +625,62 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> showError(String message) => showDialog<void>(
-    context: context,
-    animationStyle: reduceAppMotion(context)
-        ? AnimationStyle.noAnimation
-        : null,
-    builder: (context) => AlertDialog(
-      title: const Text('Please review'),
-      content: SingleChildScrollView(child: Text(message)),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
-        ),
-      ],
-    ),
-  );
+  Future<void> showError(String message) => miniTimer
+      ? miniError(message)
+      : showDialog<void>(
+          context: context,
+          animationStyle: reduceAppMotion(context)
+              ? AnimationStyle.noAnimation
+              : null,
+          builder: (context) => AlertDialog(
+            title: const Text('Please review'),
+            content: SingleChildScrollView(child: Text(message)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
   Future<bool> confirm(
     String title,
     String body,
     String button, {
     bool destructive = false,
   }) async =>
-      await showDialog<bool>(
-        context: context,
-        animationStyle: reduceAppMotion(context)
-            ? AnimationStyle.noAnimation
-            : null,
-        builder: (context) => AlertDialog(
-          title: Text(title),
-          content: SingleChildScrollView(child: Text(body)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              key: const ValueKey('confirm-action'),
-              onPressed: () => Navigator.pop(context, true),
-              style: destructive ? destructiveFilled() : null,
-              child: Text(button),
-            ),
-          ],
-        ),
-      ) ??
-      false;
+      // A dialog does not fit the mini timer window; the same question is
+      // asked in a compact form there.
+      miniTimer
+      ? miniConfirm(
+          title: title,
+          action: button,
+          destructive: destructive,
+          content: () => Text(body),
+        )
+      : await showDialog<bool>(
+              context: context,
+              animationStyle: reduceAppMotion(context)
+                  ? AnimationStyle.noAnimation
+                  : null,
+              builder: (context) => AlertDialog(
+                title: Text(title),
+                content: SingleChildScrollView(child: Text(body)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    key: const ValueKey('confirm-action'),
+                    onPressed: () => Navigator.pop(context, true),
+                    style: destructive ? destructiveFilled() : null,
+                    child: Text(button),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
 
   void handleBack() {
     if (programsPage.selecting || reportsPage.selecting) {
@@ -692,6 +785,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     animation: c,
     builder: (context, _) => c.pairing.joined
         ? PairedScreen(controller: c)
+        : miniTimer
+        ? miniTimerView()
         : PopScope(
             // Android Back leaves selection mode, cancels a service that is
             // loaded but not started, returns to Live, and only then asks

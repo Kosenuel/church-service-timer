@@ -422,10 +422,7 @@ void main() {
         findsOneWidget,
       );
       // On the same line as the keys, left of the reminder.
-      expect(
-        inside(legend, find.textContaining('Commands')),
-        findsOneWidget,
-      );
+      expect(inside(legend, find.textContaining('Commands')), findsOneWidget);
       final line = t.getRect(status), words = t.getRect(find.text(reminder));
       expect(line.right, lessThan(words.left));
       expect(words.right, lessThanOrEqualTo(1366));

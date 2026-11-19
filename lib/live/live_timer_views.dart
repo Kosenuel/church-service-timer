@@ -566,45 +566,64 @@ extension LiveViewActions on HomeState {
     required String action,
     required Widget Function() content,
     bool destructive = false,
-  }) async =>
-      await showDialog<bool>(
-        context: context,
-        animationStyle: reduceAppMotion(context)
-            ? AnimationStyle.noAnimation
-            : null,
-        builder: (ctx) => AnimatedBuilder(
-          animation: Listenable.merge([c, c.liveClock]),
-          builder: (ctx, _) {
-            final stale = c.state.session.revision != revision;
-            return AlertDialog(
-              title: Text(title),
-              content: SingleChildScrollView(
-                child: stale
-                    ? const Text(
-                        'The service changed. Cancel and review this action again.',
-                      )
-                    : content(),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
+  }) async {
+    // The same question, in a form that fits the mini timer window.
+    if (miniTimer) {
+      return miniConfirm(
+        revision: revision,
+        title: title,
+        action: action,
+        content: content,
+        destructive: destructive,
+      );
+    }
+    return await showDialog<bool>(
+          context: context,
+          animationStyle: reduceAppMotion(context)
+              ? AnimationStyle.noAnimation
+              : null,
+          builder: (ctx) => AnimatedBuilder(
+            animation: Listenable.merge([c, c.liveClock]),
+            builder: (ctx, _) {
+              final stale = c.state.session.revision != revision;
+              return AlertDialog(
+                title: Text(title),
+                content: SingleChildScrollView(
+                  child: stale ? const Text(staleActionText) : content(),
                 ),
-                FilledButton(
-                  onPressed: stale || c.busy
-                      ? null
-                      : () => Navigator.pop(ctx, true),
-                  style: destructive ? destructiveFilled() : null,
-                  child: Text(action),
-                ),
-              ],
-            );
-          },
-        ),
-      ) ??
-      false;
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: stale || c.busy
+                        ? null
+                        : () => Navigator.pop(ctx, true),
+                    style: destructive ? destructiveFilled() : null,
+                    child: Text(action),
+                  ),
+                ],
+              );
+            },
+          ),
+        ) ??
+        false;
+  }
 
   Future<void> adjustTime({int? fixedSeconds}) async {
+    // Adjust time has more on it than the mini timer window can hold.
+    if (miniTimer) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            key: ValueKey('mini-adjust-hint'),
+            content: Text('Expand the window to adjust the time.'),
+          ),
+        );
+      return;
+    }
     final revision = c.state.session.revision;
     final delta = await showDialog<int>(
       context: context,
