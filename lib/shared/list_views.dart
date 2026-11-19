@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -142,7 +143,7 @@ extension ListViews on HomeState {
             padding: const EdgeInsets.fromLTRB(4, 2, 4, 8),
             child: Text(
               [
-                'Tap $noun to add or remove them · Back to finish',
+                deviceText('Tap $noun to add or remove them · Back to finish'),
                 if (hidden > 0) '$hidden selected hidden by filters',
               ].join(' · '),
               style: TextStyle(color: appColors(context).muted, fontSize: 13),

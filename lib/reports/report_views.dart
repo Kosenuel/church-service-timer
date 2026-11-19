@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/reports/report_outcome.dart';
 import 'package:church_service_timer/shared/list_views.dart';
@@ -657,7 +658,7 @@ extension ReportViews on HomeState {
             history.isNotEmpty)
           listHint(
             'reports-select',
-            'Tap a report to open it · press and hold to select',
+            deviceText('Tap a report to open it · press and hold to select'),
           ),
         if (history.isEmpty)
           panel(
@@ -844,7 +845,7 @@ extension ReportViews on HomeState {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Tap a bar to see that service',
+                          deviceText('Tap a bar to see that service'),
                           style: TextStyle(color: colors.muted, fontSize: 13),
                         ),
                       ],
@@ -1047,7 +1048,9 @@ extension ReportViews on HomeState {
           label('Planned vs actual · oldest first'),
           const SizedBox(height: 8),
           Text(
-            'All filtered records on one scale. Tap a service for its segment breakdown.',
+            deviceText(
+              'All filtered records on one scale. Tap a service for its segment breakdown.',
+            ),
             style: TextStyle(color: appColors(context).muted),
           ),
           const SizedBox(height: 16),

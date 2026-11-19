@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -103,7 +104,9 @@ class DesktopLayoutSection extends StatelessWidget {
         Text(
           looks.isEmpty
               ? 'Save this layout and theme together under a name, to come back to later. Saved looks are included in backups.'
-              : 'Tap a look to use it. Up to $savedLookLimit; they are included in backups.',
+              : deviceText(
+                  'Tap a look to use it. Up to $savedLookLimit; they are included in backups.',
+                ),
           style: muted,
         ),
         for (final look in looks)

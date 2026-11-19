@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
 import 'dart:async';
 import 'package:church_service_timer/shared/app_menu.dart';
@@ -616,7 +617,9 @@ extension WarningSettingsViews on HomeState {
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             subtitle: Text(
-              'Countdown, Pause and Next in a notification. Next needs a second tap.',
+              deviceText(
+                'Countdown, Pause and Next in a notification. Next needs a second tap.',
+              ),
               style: TextStyle(fontSize: 13, color: appColors(context).muted),
             ),
             value: c.state.lockScreenControls,
@@ -706,8 +709,9 @@ extension WarningSettingsViews on HomeState {
     }
 
     // A PC has no notification channel to manage: the app flashes its
-    // taskbar button, silently, because a PC is often plugged into the
-    // sound system.
+    // taskbar button and shows a notification. Its sound is a setting,
+    // off unless turned on, because a PC is often plugged into the sound
+    // system.
     if (c.port.isDesktop) {
       return settingsGroup('Alerts on this computer', [
         ListTile(
@@ -723,7 +727,7 @@ extension WarningSettingsViews on HomeState {
           ),
           subtitle: Text(
             c.notificationError ??
-                'A notification appears and the taskbar button flashes. No sound is played, so nothing goes out through the sound system. Windows may hold notifications back while Do not disturb is on, which it turns on by itself when a screen is duplicated; the flash still shows.',
+                'A notification appears and the taskbar button flashes. Windows may hold notifications back while Do not disturb is on, which it turns on by itself when a screen is duplicated; the flash still shows.',
             style: TextStyle(
               fontSize: 13,
               color: c.notificationError == null
@@ -735,6 +739,32 @@ extension WarningSettingsViews on HomeState {
             onPressed: () => run(c.port.testNotification),
             child: const Text('Test'),
           ),
+        ),
+        SwitchListTile.adaptive(
+          key: const ValueKey('desktop-warning-sound'),
+          contentPadding: appLayout(context).tileInsets,
+          secondary: Icon(
+            c.notificationState['sound'] == true
+                ? Icons.volume_up_outlined
+                : Icons.volume_off_outlined,
+            color: colors.accent,
+          ),
+          title: const Text(
+            'Play the Windows notification sound',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            c.notificationState['sound'] == true
+                ? 'On. Each warning plays the sound, through whatever this computer’s sound goes to.'
+                : 'Off. Warnings make no sound, so nothing goes out through the sound system.',
+            style: TextStyle(fontSize: 13, color: colors.muted),
+          ),
+          value: c.notificationState['sound'] == true,
+          onChanged: (on) => run(() async {
+            await c.port.setWarningSound(on);
+            await c.phoneWarnings.sync();
+            settingsRefresh.value++;
+          }),
         ),
       ]);
     }

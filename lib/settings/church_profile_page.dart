@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 import 'dart:convert';
@@ -374,7 +375,9 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(4, 0, 4, 18),
                     child: Text(
-                      'Preview of the top of each page. Tap the logo there to come back here.',
+                      deviceText(
+                        'Preview of the top of each page. Tap the logo there to come back here.',
+                      ),
                       style: TextStyle(color: colors.muted, fontSize: 12),
                     ),
                   ),

@@ -50,8 +50,12 @@ class FakeSystem implements DesktopSystem {
   int flashes = 0, raises = 0;
   final notices = <String>[];
   @override
-  void notify(String title, String body, {int clearSeconds = 30}) =>
-      notices.add('$title | $body | $clearSeconds');
+  void notify(
+    String title,
+    String body, {
+    int clearSeconds = 30,
+    bool sound = false,
+  }) => notices.add('$title | $body | $clearSeconds${sound ? ' | sound' : ''}');
   bool canOpen = true;
   @override
   bool open(String target) {
@@ -362,6 +366,27 @@ void main() {
     expect(system.notices.last, 'Time | Sermon | 0');
     p.dispose();
   });
+
+  test(
+    'the warning sound is a setting, off until turned on, and kept',
+    () async {
+      final p = port();
+      await p.testNotification();
+      expect(system.notices.last, isNot(endsWith('| sound')));
+      await p.setWarningSound(true);
+      expect((await p.notificationStatus())['sound'], true);
+      await p.testNotification();
+      expect(system.notices.last, endsWith('| sound'));
+      p.dispose();
+      // It is remembered on this computer.
+      final again = port();
+      expect((await again.notificationStatus())['sound'], true);
+      await again.setWarningSound(false);
+      await again.testNotification();
+      expect(system.notices.last, isNot(endsWith('| sound')));
+      again.dispose();
+    },
+  );
 
   test('only https pages open, and feedback goes to the one address', () async {
     final p = port();

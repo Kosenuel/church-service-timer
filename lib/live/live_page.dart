@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/live/standing_by_desktop.dart';
 import 'package:church_service_timer/live/practice_views.dart';
@@ -268,7 +269,7 @@ extension LivePage on HomeState {
                 c.hardware.held));
     final preServiceHint = outputHeld
         ? 'Output is held, so the display does not show it yet.'
-        : 'Tap Start first segment when the service begins.';
+        : deviceText('Tap Start first segment when the service begins.');
     final summary = at == null
         ? 'Off · the display keeps its current output'
         : left > preServiceCountdownMs
@@ -1210,9 +1211,11 @@ extension LivePage on HomeState {
                       key: const ValueKey('unlock-controls'),
                       onPressed: () =>
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Text(
-                                'Press and hold to unlock controls.',
+                                deviceText(
+                                  'Press and hold to unlock controls.',
+                                ),
                               ),
                             ),
                           ),

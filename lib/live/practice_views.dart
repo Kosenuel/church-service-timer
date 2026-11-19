@@ -40,7 +40,7 @@ extension PracticeViews on HomeState {
   }) => PracticePointer(
     active: enabled && c.practice.pointer == id,
     radius: radius,
-    label: label,
+    label: deviceText(label),
     child: child,
   );
 
@@ -209,7 +209,10 @@ extension PracticeViews on HomeState {
               ),
               if (step != null) ...[
                 const SizedBox(height: 2),
-                Text(step.how, style: TextStyle(color: colors.muted)),
+                Text(
+                  deviceText(step.how),
+                  style: TextStyle(color: colors.muted),
+                ),
               ],
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,

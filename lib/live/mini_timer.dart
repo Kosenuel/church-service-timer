@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -689,8 +690,8 @@ extension MiniTimerMode on HomeState {
             onUnlock: () =>
                 refreshHome(() => c.uiLocked = controlsLocked = false),
             onUnlockHint: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Press and hold to unlock controls.'),
+              SnackBar(
+                content: Text(deviceText('Press and hold to unlock controls.')),
               ),
             ),
           ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
@@ -164,7 +165,7 @@ extension LiveLayout on HomeState {
       // than inviting a tap that does nothing.
       _ =>
         s.active || s.phase == 'ended'
-            ? 'Tap a cue to send it to the stage'
+            ? deviceText('Tap a cue to send it to the stage')
             : 'Cues work once the service starts',
     };
   }
