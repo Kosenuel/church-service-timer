@@ -150,6 +150,18 @@ abstract class DevicePort {
   /// On a PC: whether a warning's notification plays the Windows
   /// notification sound. A phone manages sound in its own settings.
   Future<void> setWarningSound(bool on) async {}
+
+  /// On a PC: the countdown as the tooltip of an icon in the notification
+  /// area, beside the Windows clock, for when another program is in front
+  /// of the app. [text] is null when nothing is running. A phone has its
+  /// ongoing notification instead.
+  Future<void> showTrayCountdown(String? text) async {}
+
+  /// On a PC: whether that icon is shown at all.
+  Future<void> setTrayCountdown(bool on) async {}
+
+  /// On a PC: the window is about to close and the app with it.
+  Future<void> windowClosing() async {}
   Future<Stamp> clock();
   Future<String?> load();
   Future<void> save(String state);

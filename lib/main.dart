@@ -720,6 +720,17 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   /// Closing the window ends the app on a PC, so a running service asks
   /// first. Called by the system when the window's close button is used.
   Future<AppExitResponse> confirmWindowClose() async {
+    final response = await _confirmWindowClose();
+    // The icon in the notification area goes with the window.
+    if (response == AppExitResponse.exit) {
+      try {
+        await c.port.windowClosing();
+      } catch (_) {}
+    }
+    return response;
+  }
+
+  Future<AppExitResponse> _confirmWindowClose() async {
     if (!c.ready || !c.liveSession.active || !mounted) {
       return AppExitResponse.exit;
     }

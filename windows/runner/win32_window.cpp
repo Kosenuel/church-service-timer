@@ -237,6 +237,17 @@ Win32Window::MessageHandler(HWND hwnd,
       }
       return 0;
 
+    // The notification-area icon was clicked (trayCallbackMessage in
+    // lib/windows/win32_api.dart): bring this window forward. Nothing else.
+    case WM_APP + 0x3C7:
+      if (lparam == WM_LBUTTONUP || lparam == WM_LBUTTONDBLCLK) {
+        if (IsIconic(hwnd)) {
+          ShowWindow(hwnd, SW_RESTORE);
+        }
+        SetForegroundWindow(hwnd);
+      }
+      return 0;
+
     case WM_DPICHANGED: {
       if (fixed_) {
         // The stage window covers its screen; the size Windows suggests for
