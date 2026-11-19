@@ -5,6 +5,7 @@ analyzer:
     - build/**
     - android/**
     - windows/**
+    - third_party/**
 linter:
   rules:
     # Brace-less single-statement ifs are used deliberately throughout.

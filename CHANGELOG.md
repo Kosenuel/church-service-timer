@@ -2,6 +2,18 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Pages use the room in a wide window.** On a computer, or a large tablet held sideways, pages no longer sit as a narrow phone column in the middle of the screen. Phones and smaller windows look exactly as before.
+  - **Live, before a service.** Choose a program on the left and its order of service shows in the middle, under the time of day, with one **Start service** button. Quick timer, Share to screens and Join a service sit underneath. The stage preview and cues are open on the right.
+  - **Settings.** The groups sit in two columns. Appearance keeps its preview beside the themes and layouts. Display settings lists its sections down the left. Warnings & alerts and Stage cues show what the sign will show; point at a preview to play it. Church profile, Backup & restore, Feedback centre, Settings PIN, About, Diagnostics and Ready for service each put a preview or a summary beside the settings.
+  - **Screens & devices and Join a service.** Screens & devices has three areas: phones and tablets with the app, this computer, and browsers without the app. Join a service is three numbered steps: choose the host, name this device, enter the code.
+  - **Reports.** In a large window, review notes and the activity timeline sit beside the timings, and the Graph tab puts its summary beside the charts.
+  - **Programs.** The program editor shows the running order beside the form: when each segment starts and when the service ends.
+  - **Dialogs.** Quick timer, Print, Export, Version history, Segment library, Recover time and Edit upcoming open as dialogs in the middle of the window, not as sheets across the bottom.
+
+- **Warnings on a PC are silent again.** A warning's Windows notification played the Windows notification sound, although the app asked for none: the notification package ignored the request on Windows. The app now carries a corrected copy, so a warning shows its notification and flashes the taskbar button without a sound.
+
 ## 0.31.1, 19/November/2026
 
 - **Desktop layout is easier to find.** It was the second tab of Appearance, which was easy to miss. Settings now has its own **Desktop layout** row, which names the layout in use and opens straight on it; searching Settings for "layout" finds it; and the Theme tab has a **Desktop layout and spacing** button that switches to the other tab.

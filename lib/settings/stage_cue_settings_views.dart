@@ -158,7 +158,7 @@ extension OperatorSettings on HomeState {
       title: 'On the sign',
       note: cues.isEmpty
           ? 'No cues yet. Create one and it is shown here as the sign will show it.'
-          : 'What each cue shows when you send it from Live, in the order of the buttons there. Nothing here is sent to the sign.',
+          : 'What each cue shows when you send it from Live, in the order of the buttons there. Nothing here is sent to the sign. Point at a preview to play it.',
       children: [
         if (cues.isNotEmpty)
           SignPreviewGrid(

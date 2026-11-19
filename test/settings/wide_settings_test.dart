@@ -4,6 +4,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/settings/image_crop_page.dart';
+import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/settings/whats_new_page.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
@@ -382,5 +383,33 @@ void main() {
       expect(c.error, isNull);
       await t.pumpWidget(const SizedBox());
     }
+  });
+
+  testWidgets('a sign preview plays while pointed at, then rests', (t) async {
+    setScreen(t, const Size(1920, 1080));
+    await t.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 320,
+              child: SignPreview(
+                TextLayout('A LONG WARNING THAT SCROLLS', effect: 'scroll'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final mouse = await t.createGesture(kind: ui.PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(t.getCenter(find.byType(SignPreview)));
+    await t.pump(const Duration(milliseconds: 400));
+    expect(t.takeException(), isNull);
+    // Moving away stops it; a timer left running would fail this test.
+    await mouse.moveTo(Offset.zero);
+    await t.pump();
+    await mouse.removePointer();
+    expect(t.takeException(), isNull);
   });
 }

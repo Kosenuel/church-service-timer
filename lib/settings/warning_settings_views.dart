@@ -670,7 +670,7 @@ extension WarningSettingsViews on HomeState {
       title: 'On the stage display',
       note: rules.isEmpty
           ? 'No automatic warnings yet. Add one and it is shown here as the stage will see it.'
-          : 'What each automatic warning shows when its time is reached. A warning that is switched off shows nothing.',
+          : 'What each automatic warning shows when its time is reached. A warning that is switched off shows nothing. Point at a preview to play it.',
       children: [
         if (rules.isNotEmpty)
           SignPreviewGrid(

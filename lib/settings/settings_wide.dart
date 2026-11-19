@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -236,18 +237,56 @@ bool scrollsOnSign(TextLayout layout) {
 
 /// The sign showing [layout], or a line of text while its font is still
 /// being prepared.
-class SignPreview extends StatelessWidget {
+class SignPreview extends StatefulWidget {
   final TextLayout layout;
   const SignPreview(this.layout, {super.key});
+  @override
+  State<SignPreview> createState() => _SignPreviewState();
+}
+
+/// Still at rest, so a page of previews stays calm. Pointing at one plays
+/// it as the sign would: scrolling text scrolls, a flash flashes.
+class _SignPreviewState extends State<SignPreview> {
+  final watch = Stopwatch();
+  Timer? timer;
+
+  void play(bool on) {
+    timer?.cancel();
+    timer = null;
+    watch
+      ..stop()
+      ..reset();
+    if (on) {
+      watch.start();
+      timer = Timer.periodic(const Duration(milliseconds: 80), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    watch.stop();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     List<bool>? pixels;
     try {
-      pixels = renderPixels(layout, 0);
+      pixels = renderPixels(widget.layout, watch.elapsedMilliseconds);
     } catch (_) {
       pixels = null;
     }
-    if (pixels != null) return LedMatrix(pixels: pixels);
+    if (pixels != null) {
+      return MouseRegion(
+        onEnter: (_) => play(true),
+        onExit: (_) => play(false),
+        child: LedMatrix(pixels: pixels),
+      );
+    }
     return AspectRatio(
       aspectRatio: 2,
       child: Center(
