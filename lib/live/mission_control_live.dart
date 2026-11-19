@@ -506,14 +506,14 @@ extension MissionControlLive on HomeState {
                   style: small,
                   onPressed: enabled ? editUpcoming : null,
                   icon: const Icon(Icons.edit_calendar_outlined, size: 17),
-                  label: const Text('Edit upcoming'),
+                  label: keyLabel('Edit upcoming', 'E'),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
                   style: small,
                   onPressed: enabled ? recoverTime : null,
                   icon: const Icon(Icons.auto_fix_high_outlined, size: 17),
-                  label: const Text('Recover time'),
+                  label: keyLabel('Recover time', 'R'),
                 ),
               ],
               IconButton(
@@ -925,12 +925,15 @@ class KeyLegend extends StatelessWidget {
       child: Row(
         children: [
           item('Space', 'Pause'),
-          item('PgDn PgDn', 'Next segment'),
+          item('PgDn PgDn', 'Next'),
           item('+ −', 'Adjust time'),
           item('Ctrl Z', 'Undo'),
           if (cues) item('1 – 9', 'Cues'),
+          item('M', 'Message'),
+          item('Ctrl L', 'Lock'),
+          item('Ctrl K', 'Commands'),
           const Spacer(),
-          Text('Every action asks to confirm', style: style),
+          Text('Timer changes ask to confirm', style: style),
         ],
       ),
     );

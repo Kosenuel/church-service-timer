@@ -17,6 +17,20 @@ import 'package:church_service_timer/settings/diagnostics_views.dart';
 export 'package:church_service_timer/settings/church_profile_page.dart';
 
 extension SettingsViews on HomeState {
+  /// Settings › Appearance. A look being tried out is dropped on leaving.
+  Future<void> openAppearance() async {
+    try {
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => AppearancePage(controller: c)));
+    } finally {
+      if (mounted) {
+        c.previewTheme(null);
+        c.previewAppearance(null);
+      }
+    }
+  }
+
   Future<void> openSettingsDetail(
     String title,
     Widget Function() content, {
@@ -157,20 +171,7 @@ extension SettingsViews on HomeState {
               Icons.palette_outlined,
               'Appearance',
               paletteFor(c.state.themeId).name,
-              () async {
-                try {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => AppearancePage(controller: c),
-                    ),
-                  );
-                } finally {
-                  if (mounted) {
-                    c.previewTheme(null);
-                    c.previewAppearance(null);
-                  }
-                }
-              },
+              openAppearance,
             ),
           ]),
           group('Service & display', [

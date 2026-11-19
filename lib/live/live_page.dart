@@ -488,29 +488,7 @@ extension LivePage on HomeState {
       'end',
       FilledButton.icon(
         key: const ValueKey('end-service'),
-        onPressed: enabled
-            ? () async {
-                final rev = s.revision;
-                if (await confirmTimer(
-                  revision: rev,
-                  title: s.quickTimer ? 'End the timer?' : 'End ${t!.name}?',
-                  action: s.quickTimer ? 'End timer' : 'End service',
-                  destructive: true,
-                  content: () => Text(
-                    s.quickTimer
-                        ? s.noReport
-                              ? 'Stop the timer and show the end screen. Nothing is saved.'
-                              : 'Stop the timer, show the end screen and save it in Reports as a quick timer.'
-                        : c.hardware.enabled
-                        ? c.hardware.held || !c.hardware.connected
-                              ? 'Finish this service and save its report. The sign will keep its last program until you reconnect and restore output.'
-                              : 'Finish this service and save its report. The sign will show this service’s end screen, including its scrolling effect. A brief blink is expected.'
-                        : 'Finish this service, save its report, clear the active cue and show “${t!.display.end.text}”.',
-                  ),
-                ))
-                  await c.act('end', revision: rev);
-              }
-            : null,
+        onPressed: enabled ? confirmEndService : null,
         icon: const Icon(Icons.stop_circle_outlined),
         label: Text(s.quickTimer ? 'End timer' : 'End service'),
         style: FilledButton.styleFrom(
@@ -1084,24 +1062,7 @@ extension LivePage on HomeState {
                           !c.corrupt &&
                           !controlsLocked &&
                           c.pairing.localControl
-                      ? () async {
-                          final revision = s.revision;
-                          if (await confirmTimer(
-                            revision: revision,
-                            title: s.outputBlank
-                                ? 'Unblank the screen?'
-                                : 'Blank the screen?',
-                            action: s.outputBlank
-                                ? 'Confirm unblank'
-                                : 'Confirm blank',
-                            content: () => Text(
-                              s.outputBlank
-                                  ? 'Show the current cue, countdown or service end screen again.'
-                                  : 'Blank the screen. Timing and phone warnings continue; tap Unblank screen to restore the current output.',
-                            ),
-                          ))
-                            await c.act('blank', revision: revision);
-                        }
+                      ? confirmBlank
                       : null,
                   primary: s.outputBlank,
                 ),
@@ -1149,13 +1110,13 @@ extension LivePage on HomeState {
                 TextButton.icon(
                   onPressed: enabled ? editUpcoming : null,
                   icon: const Icon(Icons.edit_calendar_outlined),
-                  label: const Text('Edit upcoming'),
+                  label: keyLabel('Edit upcoming', 'E'),
                 ),
               if (s.active)
                 TextButton.icon(
                   onPressed: enabled ? recoverTime : null,
                   icon: const Icon(Icons.auto_fix_high_outlined),
-                  label: const Text('Recover time'),
+                  label: keyLabel('Recover time', 'R'),
                 ),
             ],
           ),

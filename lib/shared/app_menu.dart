@@ -24,11 +24,15 @@ class AppMenuAction<T> {
   final String label;
   final bool destructive;
   final bool? checked;
+
+  /// The keyboard key that does the same, shown quietly at the right.
+  final String? keys;
   const AppMenuAction(
     this.value,
     this.label, {
     this.destructive = false,
     this.checked,
+    this.keys,
   });
 }
 
@@ -54,12 +58,28 @@ List<PopupMenuEntry<T>> appMenuEntries<T>(
           value: actions[i].value,
           height: layout.controlHeight,
           padding: layout.tileInsets,
-          child: Text(
-            actions[i].label,
-            style: actions[i].destructive
-                ? TextStyle(color: appColors(context).error)
-                : null,
-          ),
+          child: actions[i].keys == null
+              ? Text(
+                  actions[i].label,
+                  style: actions[i].destructive
+                      ? TextStyle(color: appColors(context).error)
+                      : null,
+                )
+              : Row(
+                  children: [
+                    Expanded(child: Text(actions[i].label)),
+                    const SizedBox(width: 24),
+                    ExcludeSemantics(
+                      child: Text(
+                        actions[i].keys!,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: appColors(context).muted,
+                          letterSpacing: .4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
         ),
     ],
   ];
