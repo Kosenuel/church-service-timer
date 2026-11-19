@@ -38,6 +38,7 @@ import 'package:church_service_timer/live/home_notices.dart';
 import 'package:church_service_timer/live/live_actions.dart';
 import 'package:church_service_timer/live/live_timer_views.dart';
 import 'package:church_service_timer/reports/report_library_views.dart';
+import 'package:church_service_timer/reports/reports_desktop.dart';
 
 export 'package:church_service_timer/settings/appearance_views.dart';
 export 'package:church_service_timer/reports/report_views.dart';
@@ -62,6 +63,7 @@ export 'package:church_service_timer/programs/program_import_export_views.dart';
 export 'package:church_service_timer/programs/program_library_views.dart';
 export 'package:church_service_timer/reports/report_actions.dart';
 export 'package:church_service_timer/reports/report_library_views.dart';
+export 'package:church_service_timer/reports/reports_desktop.dart';
 export 'package:church_service_timer/reports/timing_insights_views.dart';
 export 'package:church_service_timer/settings/clock_settings_views.dart';
 export 'package:church_service_timer/settings/settings_search_views.dart';
@@ -859,7 +861,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                               ),
                             ),
                           )
-                        else if (liveFillsWindow)
+                        else if (liveFillsWindow || reportsFillWindow)
                           SliverFillRemaining(
                             child: SafeArea(
                               top: false,
@@ -884,7 +886,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                     child: AbsorbPointer(
                                       absorbing:
                                           c.corrupt || !c.pairing.localControl,
-                                      child: live(),
+                                      child: page == 2
+                                          ? reportsDesktop()
+                                          : live(),
                                     ),
                                   ),
                                 ],
