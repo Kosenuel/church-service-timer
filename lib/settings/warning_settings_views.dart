@@ -766,6 +766,27 @@ extension WarningSettingsViews on HomeState {
             settingsRefresh.value++;
           }),
         ),
+        SwitchListTile.adaptive(
+          key: const ValueKey('desktop-tray-countdown'),
+          contentPadding: appLayout(context).tileInsets,
+          secondary: Icon(Icons.timer_outlined, color: colors.accent),
+          title: const Text(
+            'Show the countdown in the notification area',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            c.notificationState['tray'] != false
+                ? 'On. While a service runs, an icon beside the Windows clock shows the time left when you point at it. Click the icon to bring this window forward.'
+                : 'Off. No icon is added beside the Windows clock.',
+            style: TextStyle(fontSize: 13, color: colors.muted),
+          ),
+          value: c.notificationState['tray'] != false,
+          onChanged: (on) => run(() async {
+            await c.port.setTrayCountdown(on);
+            await c.phoneWarnings.sync();
+            settingsRefresh.value++;
+          }),
+        ),
       ]);
     }
     return settingsGroup('Phone alerts', [

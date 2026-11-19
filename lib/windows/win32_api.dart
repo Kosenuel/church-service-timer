@@ -486,3 +486,171 @@ bool pinWindow(int window, {required bool onTop}) {
       ) !=
       0;
 }
+
+// ---- The notification-area icon -------------------------------------------
+//
+// One icon beside the Windows clock whose tooltip is the countdown. Windows
+// knows it by the app window and [_trayIconId]; a click comes back to that
+// window as [trayCallbackMessage], which the runner answers by bringing the
+// window forward (windows/runner/win32_window.cpp). Nothing here can change
+// a service.
+
+final _shellNotifyIcon = _shell32
+    .lookupFunction<
+      Int32 Function(Uint32, Pointer<Uint8>),
+      int Function(int, Pointer<Uint8>)
+    >('Shell_NotifyIconW');
+final _getModuleHandle = _kernel32
+    .lookupFunction<
+      IntPtr Function(Pointer<Utf16>),
+      int Function(Pointer<Utf16>)
+    >('GetModuleHandleW');
+final _loadImage = _user32
+    .lookupFunction<
+      IntPtr Function(IntPtr, Pointer<Utf16>, Uint32, Int32, Int32, Uint32),
+      int Function(int, Pointer<Utf16>, int, int, int, int)
+    >('LoadImageW');
+final _getSystemMetrics = _user32
+    .lookupFunction<Int32 Function(Int32), int Function(int)>(
+      'GetSystemMetrics',
+    );
+
+/// The message Windows sends to the app window when the icon is clicked:
+/// WM_APP (0x8000) + 0x3C7, with the mouse message in `lParam`. The same
+/// number is written in windows/runner/win32_window.cpp; change both
+/// together.
+const trayCallbackMessage = 0x83C7;
+
+/// The icon's number within the app window. There is only one.
+const _trayIconId = 1;
+
+/// IDI_APP_ICON in windows/runner/resource.h: the app's own icon.
+const _appIconResource = 101;
+
+/// `sizeof(NOTIFYICONDATAW)` on 64-bit Windows, the only kind the app is
+/// built for. Windows reads the size first and refuses a wrong one.
+const notifyIconDataSize = 976;
+
+/// A `NOTIFYICONDATAW` for 64-bit Windows, as little-endian bytes.
+///
+/// The offsets, from shellapi.h with the usual alignment (a handle is 8
+/// bytes and starts on a multiple of 8):
+///
+/// | offset | size | field                                    |
+/// |-------:|-----:|------------------------------------------|
+/// |      0 |    4 | `DWORD cbSize` (976)                     |
+/// |      4 |    4 | padding                                  |
+/// |      8 |    8 | `HWND hWnd`                              |
+/// |     16 |    4 | `UINT uID`                               |
+/// |     20 |    4 | `UINT uFlags`                            |
+/// |     24 |    4 | `UINT uCallbackMessage`                  |
+/// |     28 |    4 | padding                                  |
+/// |     32 |    8 | `HICON hIcon`                            |
+/// |     40 |  256 | `WCHAR szTip[128]` (UTF-16, ends with 0) |
+/// |    296 |    4 | `DWORD dwState`                          |
+/// |    300 |    4 | `DWORD dwStateMask`                      |
+/// |    304 |  512 | `WCHAR szInfo[256]`                      |
+/// |    816 |    4 | `UINT uTimeout` / `uVersion`             |
+/// |    820 |  128 | `WCHAR szInfoTitle[64]`                  |
+/// |    948 |    4 | `DWORD dwInfoFlags`                      |
+/// |    952 |   16 | `GUID guidItem`                          |
+/// |    968 |    8 | `HICON hBalloonIcon`                     |
+///
+/// Everything after `szTip` stays zero: the app shows no balloon and
+/// hides nothing. [flags] says which of the message, icon and tip fields
+/// Windows should read. A [tip] longer than 127 UTF-16 units is cut
+/// short, never in the middle of a character.
+///
+/// This makes no Windows call, so it runs (and is tested) anywhere.
+Uint8List notifyIconData({
+  required int window,
+  required int flags,
+  int icon = 0,
+  String tip = '',
+}) {
+  final bytes = Uint8List(notifyIconDataSize);
+  final data = ByteData.sublistView(bytes);
+  data.setUint32(0, notifyIconDataSize, Endian.little); // cbSize
+  data.setInt64(8, window, Endian.little); // hWnd
+  data.setUint32(16, _trayIconId, Endian.little); // uID
+  data.setUint32(20, flags, Endian.little); // uFlags
+  data.setUint32(24, trayCallbackMessage, Endian.little); // uCallbackMessage
+  data.setInt64(32, icon, Endian.little); // hIcon
+  var units = tip.codeUnits;
+  if (units.length > 127) {
+    units = units.sublist(0, 127);
+    // Do not leave the first half of a two-unit character at the end.
+    if (units.last >= 0xD800 && units.last <= 0xDBFF) units.removeLast();
+  }
+  for (var i = 0; i < units.length; i++) {
+    data.setUint16(40 + i * 2, units[i], Endian.little); // szTip
+  }
+  return bytes;
+}
+
+const _nimAdd = 0, _nimModify = 1, _nimDelete = 2;
+const _nifMessage = 0x1, _nifIcon = 0x2, _nifTip = 0x4;
+
+bool _notifyIcon(int message, Uint8List data) {
+  final native = calloc<Uint8>(data.length);
+  try {
+    native.asTypedList(data.length).setAll(0, data);
+    return _shellNotifyIcon(message, native) != 0;
+  } finally {
+    calloc.free(native);
+  }
+}
+
+/// The app's icon at the size the notification area uses. It is the copy
+/// Windows shares within the program, so it is never freed here. 0 if it
+/// could not be loaded; the icon is then an empty space with the tooltip.
+int _smallAppIcon() => _loadImage(
+  _getModuleHandle(nullptr), // this program's own resources
+  Pointer.fromAddress(_appIconResource), // MAKEINTRESOURCE(IDI_APP_ICON)
+  1, // IMAGE_ICON
+  _getSystemMetrics(49), // SM_CXSMICON
+  _getSystemMetrics(50), // SM_CYSMICON
+  0x8000, // LR_SHARED
+);
+
+/// The window the icon was added for, or 0 while there is no icon.
+int _trayWindow = 0;
+
+/// Shows the notification-area icon with [tip] as its tooltip: adds it if
+/// it is not there, and otherwise changes only the text, which does not
+/// flicker. False when Windows refused (no window yet, or no taskbar to
+/// put it on).
+///
+/// If Windows no longer knows the icon (Explorer restarted, which empties
+/// the notification area), changing the text fails and the icon is added
+/// again.
+bool showTrayIcon(int window, String tip) {
+  if (window == 0) return false;
+  if (_trayWindow == window &&
+      _notifyIcon(
+        _nimModify,
+        notifyIconData(window: window, flags: _nifTip, tip: tip),
+      )) {
+    return true;
+  }
+  if (_trayWindow != 0) removeTrayIcon();
+  final added = _notifyIcon(
+    _nimAdd,
+    notifyIconData(
+      window: window,
+      flags: _nifMessage | _nifIcon | _nifTip,
+      icon: _smallAppIcon(),
+      tip: tip,
+    ),
+  );
+  if (added) _trayWindow = window;
+  return added;
+}
+
+/// Takes the icon away. Does nothing when there is none.
+void removeTrayIcon() {
+  final window = _trayWindow;
+  if (window == 0) return;
+  _trayWindow = 0;
+  _notifyIcon(_nimDelete, notifyIconData(window: window, flags: 0));
+}
