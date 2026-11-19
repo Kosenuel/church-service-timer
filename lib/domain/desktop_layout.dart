@@ -17,6 +17,7 @@ const builtDesktopLayouts = [
   'three_panes',
   'mission_control',
   'dial',
+  'keys',
   'classic',
 ];
 const defaultDesktopLayout = 'three_panes';
@@ -34,7 +35,7 @@ String desktopLayoutName(String id) => switch (id) {
   'three_panes' => 'Three panes',
   'mission_control' => 'Mission control',
   'dial' => 'The dial',
-  'keys' => 'Keys & mini',
+  'keys' => 'Keys',
   _ => 'Classic',
 };
 
@@ -44,7 +45,8 @@ String desktopLayoutDescription(String id) => switch (id) {
   'mission_control' =>
     'Everything on one screen, with the rundown as a timeline.',
   'dial' => 'The whole service as a ring, with the countdown inside.',
-  'keys' => 'A dense, keyboard-first console.',
+  'keys' =>
+    'Dense and keyboard-first: the timer in a strip, the rundown as a table.',
   _ => 'One column of cards, as on a tablet.',
 };
 

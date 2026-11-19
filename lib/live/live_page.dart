@@ -11,6 +11,7 @@ import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
+import 'package:church_service_timer/live/keys_live.dart';
 import 'package:church_service_timer/live/mission_control_live.dart';
 import 'package:church_service_timer/live/quick_timer_sheet.dart';
 
@@ -1011,11 +1012,23 @@ extension LivePage on HomeState {
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                       ),
                       icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                      label: Text(
-                        e.value.text,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.left,
+                      label: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              e.value.text,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.left,
+                            ),
+                          ),
+                          // The number key that sends it, on a computer.
+                          if (showKeyHints && c.port.isDesktop && e.key < 9)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: KeyHint('${e.key + 1}'),
+                            ),
+                        ],
                       ),
                       onPressed: outputControlsEnabled && !c.hardware.sending
                           ? () => sendPreparedCue(e.value)
@@ -1339,6 +1352,19 @@ extension LivePage on HomeState {
         ),
     ];
     if (liveFillsWindow) {
+      // Keys is for a running service; Ready and a report still saving
+      // use the panes, which have room for their forms.
+      if (desktopLayout == 'keys' && s.active) {
+        return keysLive(
+          notices: liveNotices,
+          header: timerHeader,
+          endService: endServiceButton(compact: true),
+          display: displayPanel,
+          cues: cuePanel,
+          enabled: enabled,
+          canJump: canJump,
+        );
+      }
       final arrange = desktopLayout == 'mission_control'
           ? missionControlLive
           : threePaneLive;

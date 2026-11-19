@@ -35,15 +35,12 @@ void main() {
     );
   });
 
-  test('a layout this version cannot draw falls back to the default', () {
-    // Stored and kept, so a later version can use it.
-    final later = AppearancePreferences.fromJson({'desktopLayout': 'keys'});
-    expect(later.desktopLayout, 'keys');
-    expect(effectiveDesktopLayout('keys'), 'three_panes');
+  test('every layout is built, and an unknown one falls back', () {
+    expect(builtDesktopLayouts.toSet(), desktopLayoutIds);
+    expect(builtDesktopLayouts.first, defaultDesktopLayout);
     expect(effectiveDesktopLayout('classic'), 'classic');
-    for (final id in builtDesktopLayouts) {
-      expect(desktopLayoutIds, contains(id));
-    }
+    // Not a stored value, but the app must still draw something.
+    expect(effectiveDesktopLayout('sideways'), 'three_panes');
   });
 
   test('a saved look round-trips and applies only what it covers', () {

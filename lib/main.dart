@@ -31,6 +31,8 @@ import 'package:church_service_timer/reports/reports_page_state.dart';
 import 'package:church_service_timer/programs/program_edit_actions.dart';
 import 'package:church_service_timer/shared/tab_swipe.dart';
 import 'package:church_service_timer/live/live_page.dart';
+import 'package:church_service_timer/live/stage_output_views.dart';
+import 'package:church_service_timer/settings/stage_cue_settings_views.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/live/home_notices.dart';
 import 'package:church_service_timer/live/live_actions.dart';
@@ -301,7 +303,14 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     final action = c.state.clickerControls || c.port.isDesktop
         ? clickerActionFor(event.logicalKey)
         : null;
-    if (action == null && desktopAction == null) return false;
+    final cueIndex = c.port.isDesktop
+        ? desktopCueIndexFor(
+            event.logicalKey,
+            control: HardwareKeyboard.instance.isControlPressed,
+          )
+        : null;
+    if (action == null && desktopAction == null && cueIndex == null)
+      return false;
     final focus = FocusManager.instance.primaryFocus?.context;
     if (focus != null &&
         (focus.widget is EditableText ||
@@ -317,6 +326,22 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
         !c.pairing.localControl)
       return false;
     final messenger = ScaffoldMessenger.of(context);
+    if (cueIndex != null) {
+      // The same as tapping the cue's button: send it, or, if it is the
+      // one showing, go back to the timer.
+      if (cueIndex >= c.state.stageCues.length ||
+          !outputControlsEnabled ||
+          c.hardware.sending)
+        return false;
+      final cue = c.state.stageCues[cueIndex];
+      final showing =
+          !s.outputBlank &&
+          s.hasManualCue(c.now) &&
+          !s.alertIsMessage &&
+          s.alert!.text == cue.text;
+      unawaited(showing ? c.act('clearCue') : sendPreparedCue(cue));
+      return true;
+    }
     if (desktopAction == DesktopLiveAction.adjustTime) {
       unawaited(adjustTime());
       return true;

@@ -38,3 +38,35 @@ DesktopLiveAction? desktopLiveActionFor(
     return DesktopLiveAction.adjustTime;
   return null;
 }
+
+/// The number keys send the prepared cues on a PC: 1 is the first cue.
+/// Returns its position in the list, or null for any other key.
+int? desktopCueIndexFor(LogicalKeyboardKey key, {required bool control}) {
+  if (control) return null;
+  const digits = [
+    LogicalKeyboardKey.digit1,
+    LogicalKeyboardKey.digit2,
+    LogicalKeyboardKey.digit3,
+    LogicalKeyboardKey.digit4,
+    LogicalKeyboardKey.digit5,
+    LogicalKeyboardKey.digit6,
+    LogicalKeyboardKey.digit7,
+    LogicalKeyboardKey.digit8,
+    LogicalKeyboardKey.digit9,
+  ];
+  const pad = [
+    LogicalKeyboardKey.numpad1,
+    LogicalKeyboardKey.numpad2,
+    LogicalKeyboardKey.numpad3,
+    LogicalKeyboardKey.numpad4,
+    LogicalKeyboardKey.numpad5,
+    LogicalKeyboardKey.numpad6,
+    LogicalKeyboardKey.numpad7,
+    LogicalKeyboardKey.numpad8,
+    LogicalKeyboardKey.numpad9,
+  ];
+  final index = digits.indexOf(key);
+  if (index >= 0) return index;
+  final onPad = pad.indexOf(key);
+  return onPad >= 0 ? onPad : null;
+}
