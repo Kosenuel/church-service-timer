@@ -79,6 +79,39 @@ extension SettingsViews on HomeState {
     ),
   );
 
+  /// The groups of settings: one column on a phone, two side by side
+  /// where there is room, so a wide window is not one long thin list.
+  Widget settingsGroups(List<Widget> groups) => LayoutBuilder(
+    builder: (context, space) {
+      if (space.maxWidth < 900) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: groups,
+        );
+      }
+      final half = (groups.length / 2).ceil();
+      return Row(
+        key: const ValueKey('settings-two-columns'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: groups.sublist(0, half),
+            ),
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: groups.sublist(half),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+
   Widget settingsHub() {
     Widget entry(
       IconData icon,
@@ -157,162 +190,165 @@ extension SettingsViews on HomeState {
         const SizedBox(height: 16),
         if (settingsQuery.trim().isNotEmpty)
           settingsSearchResults()
-        else ...[
-          group('Personalisation', [
-            entry(
-              Icons.church_outlined,
-              'Church profile',
-              c.state.churchName.isEmpty
-                  ? 'Church name and banner'
-                  : c.state.churchName,
-              () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ChurchProfilePage(controller: c),
-                ),
-              ),
-            ),
-            entry(
-              Icons.palette_outlined,
-              'Appearance',
-              paletteFor(c.state.themeId).name,
-              openAppearance,
-            ),
-            // Its own row, because it was easy to miss as the second tab
-            // of Appearance.
-            entry(
-              Icons.dashboard_customize_outlined,
-              'Desktop layout',
-              '${desktopLayoutName(effectiveDesktopLayout(c.state.appearance.desktopLayout))} · for a wide window',
-              () => openAppearance(tab: 1),
-            ),
-          ]),
-          group('Service & display', [
-            entry(
-              Icons.notifications_active_outlined,
-              'Warnings & alerts',
-              'Shared thresholds, phone notifications and sound',
-              () => openSettingsDetail('Warnings & alerts', warningsSettings),
-            ),
-            entry(
-              Icons.display_settings_outlined,
-              'Display settings',
-              'Connection, profile, end screens, fonts and LEDs',
-              () => openSettingsDetail('Display settings', displaySettings),
-            ),
-            Padding(
-              padding: appLayout(context).tileInsets,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: Icon(
-                      Icons.light_mode_outlined,
-                      color: appColors(context).accent,
-                      size: 22,
-                    ),
-                    title: const Text(
-                      'Keep screen awake',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'Prevent sleep while the app is visible.',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    value: c.state.keepScreenAwake,
-                    onChanged: c.busy
-                        ? null
-                        : (value) => c.commit(
-                            (draft, _) => draft.keepScreenAwake = value,
-                          ),
+        else
+          settingsGroups([
+            group('Personalisation', [
+              entry(
+                Icons.church_outlined,
+                'Church profile',
+                c.state.churchName.isEmpty
+                    ? 'Church name and banner'
+                    : c.state.churchName,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChurchProfilePage(controller: c),
                   ),
-                  if (c.deviceSettingsError != null) ...[
-                    Text(
-                      c.deviceSettingsError!,
-                      style: TextStyle(color: appColors(context).warning),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        await c.syncDeviceSettings();
-                        settingsRefresh.value++;
-                      },
-                      child: const Text('Retry screen setting'),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ]),
-          group('Service tools', [
-            entry(
-              Icons.message_outlined,
-              'Quick message presets',
-              'Saved messages for phone or tablet stage screens',
-              () => openSettingsDetail(
-                'Quick message presets',
-                quickPresetSettings,
-              ),
-            ),
-            entry(
-              Icons.chat_bubble_outline,
-              'Stage cues',
-              'Create, format and reorder your Live buttons',
-              () => openSettingsDetail('Stage cues', stageCueSettings),
-            ),
-            entry(
-              Icons.devices,
-              'Screens & devices',
-              'Stage screens, viewers and second operators',
-              () => openSettingsDetail(
-                'Screens & devices',
-                pairedDeviceSettings,
-                showLiveShortcut: true,
-              ),
-            ),
-            entry(
-              Icons.router_outlined,
-              'LED device management',
-              'LED sign Wi-Fi and connection credentials',
-              () =>
-                  openSettingsDetail('LED device management', deviceManagement),
-            ),
-          ]),
-          group('Data & app', [
-            entry(
-              Icons.backup_outlined,
-              'Backup & restore',
-              'Programs, stage cues, reports and preferences',
-              () => openSettingsDetail('Backup & restore', backupSettings),
-            ),
-            entry(
-              Icons.feedback_outlined,
-              'Feedback centre',
-              'Share a complaint or suggestion by email',
-              () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => FeedbackCenterPage(controller: c),
                 ),
               ),
-            ),
-            entry(
-              Icons.lock_outline,
-              'Settings PIN',
-              c.state.settingsLock == null
-                  ? 'Off · anyone can change settings or delete'
-                  : 'On · locks Settings, deleting and sign administration',
-              () => openSettingsDetail('Settings PIN', settingsPinSettings),
-            ),
-            entry(
-              Icons.info_outline,
-              'About',
-              '$appName · ${c.appVersion}',
-              () => openSettingsDetail('About', aboutSettings),
-            ),
+              entry(
+                Icons.palette_outlined,
+                'Appearance',
+                paletteFor(c.state.themeId).name,
+                openAppearance,
+              ),
+              // Its own row, because it was easy to miss as the second tab
+              // of Appearance.
+              entry(
+                Icons.dashboard_customize_outlined,
+                'Desktop layout',
+                '${desktopLayoutName(effectiveDesktopLayout(c.state.appearance.desktopLayout))} · for a wide window',
+                () => openAppearance(tab: 1),
+              ),
+            ]),
+            group('Service & display', [
+              entry(
+                Icons.notifications_active_outlined,
+                'Warnings & alerts',
+                'Shared thresholds, phone notifications and sound',
+                () => openSettingsDetail('Warnings & alerts', warningsSettings),
+              ),
+              entry(
+                Icons.display_settings_outlined,
+                'Display settings',
+                'Connection, profile, end screens, fonts and LEDs',
+                () => openSettingsDetail('Display settings', displaySettings),
+              ),
+              Padding(
+                padding: appLayout(context).tileInsets,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: Icon(
+                        Icons.light_mode_outlined,
+                        color: appColors(context).accent,
+                        size: 22,
+                      ),
+                      title: const Text(
+                        'Keep screen awake',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'Prevent sleep while the app is visible.',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      value: c.state.keepScreenAwake,
+                      onChanged: c.busy
+                          ? null
+                          : (value) => c.commit(
+                              (draft, _) => draft.keepScreenAwake = value,
+                            ),
+                    ),
+                    if (c.deviceSettingsError != null) ...[
+                      Text(
+                        c.deviceSettingsError!,
+                        style: TextStyle(color: appColors(context).warning),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await c.syncDeviceSettings();
+                          settingsRefresh.value++;
+                        },
+                        child: const Text('Retry screen setting'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ]),
+            group('Service tools', [
+              entry(
+                Icons.message_outlined,
+                'Quick message presets',
+                'Saved messages for phone or tablet stage screens',
+                () => openSettingsDetail(
+                  'Quick message presets',
+                  quickPresetSettings,
+                ),
+              ),
+              entry(
+                Icons.chat_bubble_outline,
+                'Stage cues',
+                'Create, format and reorder your Live buttons',
+                () => openSettingsDetail('Stage cues', stageCueSettings),
+              ),
+              entry(
+                Icons.devices,
+                'Screens & devices',
+                'Stage screens, viewers and second operators',
+                () => openSettingsDetail(
+                  'Screens & devices',
+                  pairedDeviceSettings,
+                  showLiveShortcut: true,
+                ),
+              ),
+              entry(
+                Icons.router_outlined,
+                'LED device management',
+                'LED sign Wi-Fi and connection credentials',
+                () => openSettingsDetail(
+                  'LED device management',
+                  deviceManagement,
+                ),
+              ),
+            ]),
+            group('Data & app', [
+              entry(
+                Icons.backup_outlined,
+                'Backup & restore',
+                'Programs, stage cues, reports and preferences',
+                () => openSettingsDetail('Backup & restore', backupSettings),
+              ),
+              entry(
+                Icons.feedback_outlined,
+                'Feedback centre',
+                'Share a complaint or suggestion by email',
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => FeedbackCenterPage(controller: c),
+                  ),
+                ),
+              ),
+              entry(
+                Icons.lock_outline,
+                'Settings PIN',
+                c.state.settingsLock == null
+                    ? 'Off · anyone can change settings or delete'
+                    : 'On · locks Settings, deleting and sign administration',
+                () => openSettingsDetail('Settings PIN', settingsPinSettings),
+              ),
+              entry(
+                Icons.info_outline,
+                'About',
+                '$appName · ${c.appVersion}',
+                () => openSettingsDetail('About', aboutSettings),
+              ),
+            ]),
           ]),
-        ],
       ],
     );
   }
@@ -898,6 +934,166 @@ class _AppearancePageState extends State<AppearancePage> {
   Widget build(BuildContext context) {
     final colors = appColors(context);
     final palette = paletteFor(selected);
+    // A wide window keeps the preview beside the settings, always in view.
+    final wide = MediaQuery.sizeOf(context).width >= 1200;
+    final tabsAndSettings = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // The pinned preview follows the tab: colours on Theme,
+        // spacing and dividers on Layout & accessibility.
+        if (!wide)
+          Builder(
+            builder: (context) {
+              final tabs = DefaultTabController.of(context);
+              return AnimatedBuilder(
+                animation: tabs,
+                builder: (context, _) => Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: AnimatedSwitcher(
+                    duration: reduceAppMotion(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 180),
+                    child: tabs.index == 0
+                        ? ThemePreviewCard(
+                            key: const ValueKey('preview-theme'),
+                            name: palette.name,
+                          )
+                        // A short window gives the room to the
+                        // settings; the page itself shows them.
+                        : MediaQuery.sizeOf(context).height < 820
+                        ? const SizedBox(
+                            key: ValueKey('preview-layout'),
+                            width: double.infinity,
+                          )
+                        : const AppearanceSample(
+                            key: ValueKey('preview-layout'),
+                            compact: true,
+                          ),
+                  ),
+                ),
+              );
+            },
+          ),
+        TabBar(
+          isScrollable: wide,
+          tabAlignment: wide ? TabAlignment.start : null,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
+          indicatorColor: colors.accent,
+          labelColor: colors.text,
+          unselectedLabelColor: colors.muted,
+          tabs: const [
+            Tab(text: 'Theme'),
+            Tab(text: 'Layout & accessibility'),
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
+            children: [
+              ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  LayoutBuilder(
+                    builder: (context, space) {
+                      final columns = space.maxWidth >= 1000
+                          ? 5
+                          : space.maxWidth >= 760
+                          ? 4
+                          : space.maxWidth >= 520
+                          ? 3
+                          : 2;
+                      final width =
+                          (space.maxWidth - 10 * (columns - 1)) / columns;
+                      return Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          for (final p in choices)
+                            SizedBox(width: width, child: themeTile(p)),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(46),
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create custom theme'),
+                    onPressed: saving ? null : createCustom,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    palette.description,
+                    style: TextStyle(color: colors.muted, fontSize: 12),
+                  ),
+                  const SizedBox(height: 8),
+                  // The second tab is easy to miss.
+                  Builder(
+                    builder: (context) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        key: const ValueKey('to-desktop-layout'),
+                        onPressed: () =>
+                            DefaultTabController.of(context).animateTo(1),
+                        icon: const Icon(
+                          Icons.dashboard_customize_outlined,
+                          size: 18,
+                        ),
+                        label: const Text('Desktop layout and spacing'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                // The desktop layouts lead in a wide window,
+                // where they apply; on a phone they follow the
+                // settings that matter there.
+                child: Builder(
+                  builder: (context) {
+                    final layouts = DesktopLayoutSection(
+                      appearance: appearance,
+                      themeId: selected,
+                      looks: looks,
+                      desktop: widget.controller.port.isDesktop,
+                      onChanged: saving ? null : show,
+                      onSaveLook: saving ? null : saveLook,
+                      onReset: saving ? null : resetLook,
+                      onDeleteLook: saving ? null : deleteLook,
+                    );
+                    final controls = AppearanceControls(
+                      value: appearance,
+                      onChanged: saving
+                          ? null
+                          : (value) {
+                              setState(() => appearance = value);
+                              widget.controller.previewAppearance(value);
+                            },
+                    );
+                    const gap = Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: AppDivider(indent: 0, endIndent: 0),
+                    );
+                    final wide = MediaQuery.sizeOf(context).width >= 840;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: wide
+                          ? [layouts, gap, controls]
+                          : [controls, gap, layouts],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
     return DefaultTabController(
       length: 2,
       initialIndex: widget.initialTab,
@@ -913,173 +1109,71 @@ class _AppearancePageState extends State<AppearancePage> {
         ),
         body: SafeArea(
           bottom: false,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // The pinned preview follows the tab: colours on Theme,
-                  // spacing and dividers on Layout & accessibility.
-                  Builder(
-                    builder: (context) {
-                      final tabs = DefaultTabController.of(context);
-                      return AnimatedBuilder(
-                        animation: tabs,
-                        builder: (context, _) => Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                          child: AnimatedSwitcher(
-                            duration: reduceAppMotion(context)
-                                ? Duration.zero
-                                : const Duration(milliseconds: 180),
-                            child: tabs.index == 0
-                                ? ThemePreviewCard(
-                                    key: const ValueKey('preview-theme'),
-                                    name: palette.name,
-                                  )
-                                // A short window gives the room to the
-                                // settings; the page itself shows them.
-                                : MediaQuery.sizeOf(context).height < 820
-                                ? const SizedBox(
-                                    key: ValueKey('preview-layout'),
-                                    width: double.infinity,
-                                  )
-                                : const AppearanceSample(
-                                    key: ValueKey('preview-layout'),
-                                    compact: true,
-                                  ),
-                          ),
+          child: wide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1100),
+                          child: tabsAndSettings,
                         ),
-                      );
-                    },
-                  ),
-                  TabBar(
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                      ),
                     ),
-                    indicatorColor: colors.accent,
-                    labelColor: colors.text,
-                    unselectedLabelColor: colors.muted,
-                    tabs: const [
-                      Tab(text: 'Theme'),
-                      Tab(text: 'Layout & accessibility'),
-                    ],
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        ListView(
-                          padding: const EdgeInsets.all(16),
+                    VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: colors.border,
+                    ),
+                    SizedBox(
+                      width: (MediaQuery.sizeOf(context).width * .32).clamp(
+                        400.0,
+                        640.0,
+                      ),
+                      child: ColoredBox(
+                        color: colors.background,
+                        child: ListView(
+                          key: const ValueKey('appearance-preview-pane'),
+                          padding: const EdgeInsets.all(24),
                           children: [
-                            LayoutBuilder(
-                              builder: (context, space) {
-                                final columns = space.maxWidth >= 520 ? 3 : 2;
-                                final width =
-                                    (space.maxWidth - 10 * (columns - 1)) /
-                                    columns;
-                                return Wrap(
-                                  spacing: 10,
-                                  runSpacing: 10,
-                                  children: [
-                                    for (final p in choices)
-                                      SizedBox(
-                                        width: width,
-                                        child: themeTile(p),
-                                      ),
-                                  ],
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(46),
-                              ),
-                              icon: const Icon(Icons.add),
-                              label: const Text('Create custom theme'),
-                              onPressed: saving ? null : createCustom,
-                            ),
-                            const SizedBox(height: 8),
                             Text(
-                              palette.description,
-                              style: TextStyle(
-                                color: colors.muted,
-                                fontSize: 12,
-                              ),
+                              'PREVIEW',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: colors.muted,
+                                    letterSpacing: 1.4,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                             ),
-                            const SizedBox(height: 8),
-                            // The second tab is easy to miss.
-                            Builder(
-                              builder: (context) => Align(
-                                alignment: Alignment.centerLeft,
-                                child: TextButton.icon(
-                                  key: const ValueKey('to-desktop-layout'),
-                                  onPressed: () => DefaultTabController.of(
-                                    context,
-                                  ).animateTo(1),
-                                  icon: const Icon(
-                                    Icons.dashboard_customize_outlined,
-                                    size: 18,
-                                  ),
-                                  label: const Text(
-                                    'Desktop layout and spacing',
-                                  ),
-                                ),
-                              ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Changes show here and behind this page straight away. Nothing is kept until you save.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: colors.muted),
+                            ),
+                            const SizedBox(height: 16),
+                            ThemePreviewCard(
+                              key: const ValueKey('preview-theme'),
+                              name: palette.name,
+                            ),
+                            const SizedBox(height: 16),
+                            const AppearanceSample(
+                              key: ValueKey('preview-layout'),
                             ),
                           ],
                         ),
-                        SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          // The desktop layouts lead in a wide window,
-                          // where they apply; on a phone they follow the
-                          // settings that matter there.
-                          child: Builder(
-                            builder: (context) {
-                              final layouts = DesktopLayoutSection(
-                                appearance: appearance,
-                                themeId: selected,
-                                looks: looks,
-                                desktop: widget.controller.port.isDesktop,
-                                onChanged: saving ? null : show,
-                                onSaveLook: saving ? null : saveLook,
-                                onReset: saving ? null : resetLook,
-                                onDeleteLook: saving ? null : deleteLook,
-                              );
-                              final controls = AppearanceControls(
-                                value: appearance,
-                                onChanged: saving
-                                    ? null
-                                    : (value) {
-                                        setState(() => appearance = value);
-                                        widget.controller.previewAppearance(
-                                          value,
-                                        );
-                                      },
-                              );
-                              const gap = Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                child: AppDivider(indent: 0, endIndent: 0),
-                              );
-                              final wide =
-                                  MediaQuery.sizeOf(context).width >= 840;
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: wide
-                                    ? [layouts, gap, controls]
-                                    : [controls, gap, layouts],
-                              );
-                            },
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
+                  ],
+                )
+              : Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: tabsAndSettings,
                   ),
-                ],
-              ),
-            ),
-          ),
+                ),
         ),
         bottomNavigationBar: Material(
           color: colors.surface,
@@ -1102,27 +1196,55 @@ class _AppearancePageState extends State<AppearancePage> {
                         style: TextStyle(color: colors.error),
                       ),
                     ),
-                  Row(
-                    children: [
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 52),
+                  if (wide)
+                    // Ordinary buttons at the right, not one the width of
+                    // the window.
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(120, 46),
+                          ),
+                          onPressed: saving
+                              ? null
+                              : () => Navigator.pop(context),
+                          child: const Text('Cancel'),
                         ),
-                        onPressed: saving ? null : () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: FilledButton(
+                        const SizedBox(width: 10),
+                        FilledButton(
                           style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(52),
+                            minimumSize: const Size(220, 46),
                           ),
                           onPressed: saving ? null : save,
                           child: const Text('Save appearance'),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 52),
+                          ),
+                          onPressed: saving
+                              ? null
+                              : () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(52),
+                            ),
+                            onPressed: saving ? null : save,
+                            child: const Text('Save appearance'),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
