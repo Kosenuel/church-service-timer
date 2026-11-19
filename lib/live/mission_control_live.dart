@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
@@ -34,6 +35,9 @@ extension MissionControlLive on HomeState {
             builder: (context, space) {
               final timerWidth = (space.maxWidth * .37).clamp(440.0, 640.0);
               final stageWidth = (space.maxWidth * .3).clamp(340.0, 520.0);
+              // A tall window has room under the stage preview and the
+              // cues for who is connected and what has happened.
+              final tall = space.maxHeight >= 620;
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -86,6 +90,7 @@ extension MissionControlLive on HomeState {
                               const AppDivider(),
                               quickMessagePanel(),
                             ],
+                            if (tall) ...[const AppDivider(), screensSection()],
                           ],
                         ),
                       ),
@@ -97,7 +102,18 @@ extension MissionControlLive on HomeState {
                       key: const ValueKey('live-cue-pane'),
                       primary: false,
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: FlatPanels(child: cues),
+                      child: FlatPanels(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            cues,
+                            if (tall) ...[
+                              const AppDivider(),
+                              activitySection(),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -109,6 +125,158 @@ extension MissionControlLive on HomeState {
         ColoredBox(color: colors.surface, child: timelineStrip(enabled)),
         if (showKeyHints && s.active) ...[rule, const KeyLegend()],
       ],
+    );
+  }
+
+  Widget _sectionTitle(String text, {Widget? action}) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          text,
+          style: TextStyle(
+            color: appColors(context).muted,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      ?action,
+    ],
+  );
+
+  /// Where the output is going and which screens have joined.
+  Widget screensSection() {
+    final colors = appColors(context);
+    final muted = TextStyle(color: colors.muted, fontSize: 13);
+    Widget row(String name, String status, Color dot) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(status, style: muted),
+        ],
+      ),
+    );
+    final peers = c.pairing.peers.where((p) => p.approved).toList();
+    final web = c.webStage.activeDevices;
+    final connection = c.displayConnection;
+    return Padding(
+      key: const ValueKey('screens-section'),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionTitle(
+            'Screens & sign',
+            action: TextButton(
+              onPressed: controlsLocked
+                  ? null
+                  : () => openSettingsDetail(
+                      'Screens & devices',
+                      pairedDeviceSettings,
+                    ),
+              child: const Text('Manage'),
+            ),
+          ),
+          row(
+            'Showing on ${c.destinationName}',
+            displayReconnecting
+                ? 'Reconnecting…'
+                : connection == DisplayConnection.simulator
+                ? 'no physical display'
+                : connection.label,
+            displayReconnecting
+                ? colors.warning
+                : switch (connection) {
+                    DisplayConnection.disconnected ||
+                    DisplayConnection.stageDisconnected => colors.error,
+                    DisplayConnection.stageWaiting => colors.warning,
+                    DisplayConnection.simulator => colors.info,
+                    _ => colors.success,
+                  },
+          ),
+          for (final p in peers)
+            row(
+              p.name,
+              '${p.role == 'stage' ? 'Stage screen' : 'Operator'} · ${p.connected ? 'connected' : 'not answering'}',
+              p.connected ? colors.success : colors.warning,
+            ),
+          for (final d in web)
+            row(
+              d.label.isEmpty ? 'Web screen' : d.label,
+              'Web screen',
+              colors.success,
+            ),
+          if (peers.isEmpty && web.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('No stage screens have joined.', style: muted),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// The latest entries of the service's activity, newest first; the
+  /// report keeps them all.
+  Widget activitySection() {
+    final colors = appColors(context);
+    final events = c.liveSession.events.reversed.take(8).toList();
+    final muted = TextStyle(
+      color: colors.muted,
+      fontSize: 12,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    return Padding(
+      key: const ValueKey('activity-section'),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionTitle('Activity'),
+          const SizedBox(height: 6),
+          if (events.isEmpty)
+            Text(
+              'Nothing yet.',
+              style: TextStyle(color: colors.muted, fontSize: 13),
+            ),
+          for (final e in events)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 48,
+                    child: Text(clockLabel(e.wall), style: muted),
+                  ),
+                  Expanded(
+                    child: Text(
+                      e.message,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
