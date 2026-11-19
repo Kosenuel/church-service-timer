@@ -6,6 +6,7 @@ import 'package:church_service_timer/live/quick_timer_sheet.dart';
 import 'package:church_service_timer/live/shortcuts.dart';
 import 'package:church_service_timer/live/shortcuts_sheet.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/windows/second_screen.dart';
 
 /// One thing the operator can do from the command palette. Running it
 /// calls the same function as its button on screen, so anything that asks
@@ -312,6 +313,23 @@ extension CommandPalette on HomeState {
           group: 'Stage',
           words: 'blank unblank black hide display',
           run: confirmBlank,
+        ),
+      if (c.secondScreen case final second?
+          when second.host.open || second.target != null)
+        PaletteCommand(
+          id: 'second-screen',
+          label: second.host.open
+              ? 'Stop the second screen'
+              : 'Show on second screen',
+          detail: switch (second.showingOn ?? second.target) {
+            final screen? => stageMonitorLabel(screen),
+            null => '',
+          },
+          icon: second.host.open ? Icons.tv_off_outlined : Icons.connected_tv,
+          group: 'Stage',
+          words: 'projector monitor hdmi output full screen second stop show',
+          run: () =>
+              second.host.open ? second.stop() : second.show(second.target!),
         ),
       // This window.
       if (c.liveSession.active)

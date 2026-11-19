@@ -175,6 +175,12 @@ abstract class DevicePort {
 
   /// On a PC: the window is about to close and the app with it.
   Future<void> windowClosing() async {}
+
+  /// On a PC: the operator's choices for the second screen (which monitor
+  /// was used last, whether it opens with a service, what it shows). Kept
+  /// on that computer only, never in the app's state or its backups.
+  Future<Json> secondScreenSettings() async => {};
+  Future<void> saveSecondScreenSettings(Json settings) async {}
   Future<Stamp> clock();
   Future<String?> load();
   Future<void> save(String state);

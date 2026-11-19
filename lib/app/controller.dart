@@ -19,6 +19,7 @@ import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/hardware/hardware_display.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
+import 'package:church_service_timer/windows/second_screen.dart';
 import 'package:church_service_timer/app/appearance_preview.dart';
 import 'package:church_service_timer/app/edit_draft_queue.dart';
 import 'package:church_service_timer/app/practice_controller.dart';
@@ -183,8 +184,15 @@ class AppController extends ChangeNotifier {
       ..remove('rundown')
       ..remove('connection'),
     'stageSharing': true,
-    'stageLayout': 'timer',
+    // The second screen's own choice; paired screens keep theirs.
+    'stageLayout': secondScreen?.layout ?? 'timer',
   };
+
+  /// The operator's choices for the second screen of this computer, where
+  /// it can have one (a PC); null elsewhere.
+  late final SecondScreen? secondScreen = port.stageOutput == null
+      ? null
+      : SecondScreen(port.stageOutput!, port);
 
   void _feedStageWindow() {
     final window = port.stageOutput;
@@ -533,6 +541,7 @@ class AppController extends ChangeNotifier {
       addListener(_feedStageWindow);
       liveClock.addListener(_feedStageWindow);
       stageWindow.addListener(_stageWindowChanged);
+      secondScreen!.addListener(_stageWindowChanged);
     }
     port.setBackgroundHandler(() async {
       if (backgroundActive && !await port.activeServiceRunning()) {
@@ -621,6 +630,7 @@ class AppController extends ChangeNotifier {
       corrupt = true;
       error = 'Saved state could not be recovered. Output is held. $e';
     }
+    await secondScreen?.load();
     ready = true;
     // Create the order-of-service code and easy name once, so they stay the
     // same week after week (and slides stay valid).
@@ -987,6 +997,9 @@ class AppController extends ChangeNotifier {
       await syncActiveService();
       _publish();
     }
+    // A practice run stays on this screen.
+    if (saved && action == 'start' && !practice.active)
+      unawaited(secondScreen?.serviceStarted());
     if (saved) await practice.observe(action, value);
     return saved;
   }
@@ -1387,6 +1400,7 @@ class AppController extends ChangeNotifier {
     web.stop();
     editDrafts.dispose();
     port.stageOutput?.removeListener(_stageWindowChanged);
+    secondScreen?.dispose();
     liveClock.dispose();
     previewClock.dispose();
     _disposed = true;
