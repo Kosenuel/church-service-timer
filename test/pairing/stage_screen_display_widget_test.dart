@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:church_service_timer/display/clock_text.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
 
 class NetworkPort extends FakePort {
   int wifiOpened = 0;
@@ -141,4 +143,56 @@ void main() {
       await t.pumpWidget(const SizedBox());
     },
   );
+
+  testWidgets('the stage countdown holds still as its digits change', (
+    t,
+  ) async {
+    await loadAppFonts();
+    t.view.physicalSize = const Size(1920, 1080);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    Future<Rect> show(String time) async {
+      await t.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            backgroundColor: Colors.black,
+            body: StageMessage(
+              data: {
+                'displayText': time,
+                'effect': 'static',
+                'displayIsTimer': true,
+                'paused': true,
+              },
+              stale: false,
+              fullscreen: true,
+            ),
+          ),
+        ),
+      );
+      await t.pump();
+      return t.getRect(find.byKey(const ValueKey('stage-time-width')));
+    }
+
+    // Wide digits, narrow digits and a mix all take the same room, so the
+    // time is never refitted to the screen from one second to the next.
+    final wide = await show('24:32');
+    final narrow = await show('11:11');
+    final mixed = await show('20:01');
+    expect(narrow, wide);
+    expect(mixed, wide);
+    // The digits themselves are equal width, so they do not shift either.
+    Rect drawn() => t.getRect(
+      find
+          .descendant(
+            of: find.byType(ClockText),
+            matching: find.byType(RichText),
+          )
+          .first,
+    );
+    await show('24:32');
+    final a = drawn();
+    await show('11:11');
+    expect(drawn(), a);
+    await t.pumpWidget(const SizedBox());
+  });
 }

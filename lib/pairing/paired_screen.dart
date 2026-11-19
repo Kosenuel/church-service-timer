@@ -755,6 +755,12 @@ class _StageMessageState extends State<StageMessage>
             ? FontStyle.italic
             : FontStyle.normal,
       );
+      // The time is set in Roboto on every device: its digits are all the
+      // same width, which Windows' own font does not promise.
+      final steady = style.copyWith(
+        fontFamily: 'Roboto',
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
       if (effect == 'scroll') {
         final painter = TextPainter(
           text: TextSpan(text: text, style: style),
@@ -803,14 +809,34 @@ class _StageMessageState extends State<StageMessage>
                 widget.data['outputMode'] == 'Clock' ||
                     (widget.data['displayIsTimer'] == true &&
                         effect == 'static')
-                ? ClockText(
-                    text: text,
-                    style: style,
-                    blink:
-                        widget.data['clockBlink'] != false &&
-                        (widget.data['outputMode'] == 'Clock' ||
-                            widget.data['paused'] != true),
-                    stale: widget.stale,
+                // Sized for the widest the time can be ("00:00"), with
+                // every digit the same width, so the numbers hold still
+                // as they count instead of being refitted each second.
+                ? Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ExcludeSemantics(
+                        child: Opacity(
+                          opacity: 0,
+                          child: Text(
+                            text.replaceAll(RegExp(r'[0-9]'), '0'),
+                            key: const ValueKey('stage-time-width'),
+                            style: steady,
+                            softWrap: false,
+                            textScaler: TextScaler.noScaling,
+                          ),
+                        ),
+                      ),
+                      ClockText(
+                        text: text,
+                        style: steady,
+                        blink:
+                            widget.data['clockBlink'] != false &&
+                            (widget.data['outputMode'] == 'Clock' ||
+                                widget.data['paused'] != true),
+                        stale: widget.stale,
+                      ),
+                    ],
                   )
                 : Text(
                     text,
