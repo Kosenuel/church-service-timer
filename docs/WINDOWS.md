@@ -58,7 +58,11 @@ Flutter draws one window per running app, so the stage window is a second copy o
 
 ## Keyboard on Live
 
-The clicker keys work without turning on the clicker setting: **Space** or **B** pauses and resumes, **Page Down** or **→** moves to the next segment (press twice). A PC adds **+** and **−**, which open Adjust time, **Ctrl+Z**, which offers to undo the last segment change, and **1** to **9**, which send the first nine prepared cues as a click on them would (the number of the cue that is showing goes back to the timer). Each opens the same confirmation as its button. Nothing happens while typing, on another tab, under a dialog or when **Lock controls** is on. On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
+The clicker keys work without turning on the clicker setting: **Space** or **B** pauses and resumes, **Page Down** or **→** moves to the next segment (press twice). A PC adds **+** and **−**, which open Adjust time, **Ctrl+Z**, which offers to undo the last segment change, and **1** to **9**, which send the first nine prepared cues as a click on them would (the number of the cue that is showing goes back to the timer). **M** opens Send message, **E** Edit upcoming, **R** Recover time and **J** Jump to segment; **Ctrl+L** locks the controls and cannot unlock them. Each opens the same confirmation as its button. Nothing happens while typing, on another tab, under a dialog or when **Lock controls** is on. On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
+
+## Commands
+
+**Ctrl+K**, or **Commands** in the Live ⋮ menu, opens a searchable list of what can be done now (`lib/live/command_palette.dart`). It works on any tab of the home screen, but not under a dialog, while typing in a field or with the controls locked. Each command calls the same function as its button, so timer changes still ask to confirm, and a command is listed only while its button would be enabled.
 
 ## Building
 
