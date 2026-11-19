@@ -1,6 +1,7 @@
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -255,6 +256,170 @@ void main() {
     await t.pumpAndSettle();
     expect(c.state.appearance.desktopLayout, 'dial');
     expect(c.state.themeId, 'royal_navy');
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Keys at laptop size', (t) async {
+    await running(t, layout: 'keys', theme: 'graphite');
+    expect(t.takeException(), isNull);
+    expect(find.byKey(const ValueKey('keys-live')), findsOneWidget);
+    expect(find.byKey(const ValueKey('desktop-tabs')), findsOneWidget);
+    for (final key in ['pause-resume', 'next-segment', 'end-service', 'undo']) {
+      expect(find.byKey(ValueKey(key)).hitTestable(), findsOneWidget);
+    }
+    expect(find.text('Blank screen').hitTestable(), findsOneWidget);
+    expect(
+      t.getRect(find.byKey(const ValueKey('key-legend'))).bottom,
+      lessThanOrEqualTo(768),
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/desktop-keys.png'),
+    );
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Keys at full HD', (t) async {
+    await running(
+      t,
+      layout: 'keys',
+      theme: 'graphite',
+      size: const Size(1920, 1080),
+    );
+    expect(t.takeException(), isNull);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/desktop-keys-1080.png'),
+    );
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the Keys rundown table has every figure in its column', (
+    t,
+  ) async {
+    final (c, _) = await running(t, layout: 'keys');
+    final table = find.byKey(const ValueKey('rundown-table'));
+    List<String?> row(int i) => t
+        .widgetList<Text>(
+          find.descendant(
+            of: find.byKey(ValueKey('rundown-$i')),
+            matching: find.byType(Text),
+          ),
+        )
+        .map((w) => w.data)
+        .toList();
+    expect(row(0), [
+      '1',
+      'Welcome',
+      'Deacon Ruth',
+      '05:00',
+      isNotNull,
+      '05:40',
+      '+0:40',
+      'Done',
+    ]);
+    expect(row(2).sublist(0, 4), ['3', 'Sermon', 'Pastor Samuel', '40:00']);
+    expect(row(2)[5], '27:22 so far');
+    expect(row(2).last, 'Running');
+    expect(row(3).last, 'Next');
+    expect(row(3)[4], startsWith('~'));
+    expect(row(4).last, 'Upcoming');
+    expect(
+      find.descendant(of: table, matching: find.text('Private note · Sermon')),
+      findsOneWidget,
+    );
+    final strip = find.byKey(const ValueKey('now-strip'));
+    expect(
+      find.descendant(of: strip, matching: find.text('12:38')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: strip, matching: find.text('2 min 50 s behind')),
+      findsOneWidget,
+    );
+    await c.act('pause');
+    await t.pumpAndSettle();
+    expect(row(2).last, 'Paused');
+    await t.tap(find.byKey(const ValueKey('rundown-0')));
+    await t.pumpAndSettle();
+    expect(find.text('Segment details'), findsOneWidget);
+    expect(t.takeException(), isNull);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Keys uses the panes before the start and is Compact', (t) async {
+    setScreen(t, const Size(1366, 768));
+    final c = AppController(DesktopFakePort());
+    await c.initialize(startTicker: false);
+    await c.commit(
+      (draft, _) =>
+          draft.appearance = draft.appearance.copyWith(desktopLayout: 'keys'),
+    );
+    await c.act('load', value: sunday());
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('keys-live')), findsNothing);
+    expect(find.byKey(const ValueKey('three-pane-live')), findsOneWidget);
+    expect(find.text('Start first segment'), findsOneWidget);
+    expect(
+      appLayout(
+        t.element(find.byKey(const ValueKey('three-pane-live'))),
+      ).density,
+      'compact',
+    );
+    await c.act('start');
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('keys-live')), findsOneWidget);
+    expect(t.takeException(), isNull);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('number keys send cues on a computer, in any layout', (t) async {
+    for (final layout in ['keys', 'three_panes', 'classic']) {
+      final (c, _) = await running(t, layout: layout);
+      final cues = c.state.stageCues;
+      // Each cue button shows its number.
+      expect(find.text('1'), findsWidgets, reason: layout);
+      await t.sendKeyEvent(LogicalKeyboardKey.digit2);
+      await t.pumpAndSettle();
+      expect(c.state.session.alert?.text, cues[1].text, reason: layout);
+      expect(c.state.session.outputMode(c.now), 'Cue', reason: layout);
+      // Another number replaces it; the same number goes back to the timer.
+      await t.sendKeyEvent(LogicalKeyboardKey.numpad1);
+      await t.pumpAndSettle();
+      expect(c.state.session.alert?.text, cues[0].text, reason: layout);
+      await t.sendKeyEvent(LogicalKeyboardKey.digit1);
+      await t.pumpAndSettle();
+      expect(c.state.session.outputMode(c.now), 'Countdown', reason: layout);
+      // A number with no cue behind it does nothing.
+      await t.sendKeyEvent(LogicalKeyboardKey.digit9);
+      await t.pumpAndSettle();
+      expect(c.state.session.outputMode(c.now), 'Countdown', reason: layout);
+      // Nor does any number while the controls are locked.
+      await t.tap(find.byKey(const ValueKey('control-lock')));
+      await t.pumpAndSettle();
+      await t.sendKeyEvent(LogicalKeyboardKey.digit1);
+      await t.pumpAndSettle();
+      expect(c.state.session.outputMode(c.now), 'Countdown', reason: layout);
+      expect(t.takeException(), isNull, reason: layout);
+      await t.pumpWidget(const SizedBox());
+    }
+  });
+
+  testWidgets('number keys are left alone on a tablet and while typing', (
+    t,
+  ) async {
+    setScreen(t, const Size(1366, 768));
+    desktopWording = false;
+    final c = AppController(FakePort());
+    await c.initialize(startTicker: false);
+    await c.act('load', value: sunday());
+    await c.act('start');
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    await t.sendKeyEvent(LogicalKeyboardKey.digit1);
+    await t.pumpAndSettle();
+    expect(c.state.session.outputMode(c.now), 'Countdown');
     await t.pumpWidget(const SizedBox());
   });
 

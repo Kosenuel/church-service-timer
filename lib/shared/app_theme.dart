@@ -29,7 +29,10 @@ class AppLayout extends ThemeExtension<AppLayout> {
         effectiveDesktopLayout(preferences.desktopLayout) != 'classic' &&
         size.width >= desktopLayoutMinWidth &&
         size.height >= desktopLayoutMinHeight;
-    final automatic = size.shortestSide < 600 || desktop
+    // The Keys layout is the dense one.
+    final automatic = desktop && preferences.desktopLayout == 'keys'
+        ? 'compact'
+        : size.shortestSide < 600 || desktop
         ? 'comfortable'
         : size.width >= 1000 && size.height >= 700
         ? 'spacious'

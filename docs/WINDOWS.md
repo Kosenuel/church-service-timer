@@ -44,6 +44,7 @@ In a window at least 1200 wide and 600 tall, Live uses a desktop layout, chosen 
 - **Three panes** (the default): the rundown on the left, the timer in the middle, the stage preview and cues on the right, with Live, Programs, Reports and Settings as tabs in the header. Each pane scrolls on its own. With no service loaded, Live keeps its single centred column.
 - **Mission control**: a status strip (ahead or behind, time now, planned finish, now ending, End service), then the timer, stage preview and cues side by side, with the rundown as a timeline along the bottom and the Live keys listed under it. It keeps the side rail. The timeline is `RundownTimeline` in `lib/live/mission_control_live.dart`.
 - **The dial**: Three panes with the service ring in the middle in place of the countdown dial: the whole service as a ring ending at the cross, the running segment's time left as an inner ring (`ServiceDial` in `lib/live/service_dial.dart`). It arrives with Royal Navy.
+- **Keys**: the dense layout. A strip with the running segment, a large countdown and the controls; the rundown as a table (`lib/live/keys_live.dart`); the stage preview and cues beside it; the keys along the bottom. Automatic spacing is Compact, and it arrives with Graphite. Before the first segment starts it shows the three panes.
 - **Classic**: the side rail and one column of cards, as before.
 
 A layout arrives with a theme (Three panes with Midnight Lime); any theme can be chosen afterwards. **Save this look** stores the layout, theme, spacing, contrast and key labels under a name; saved looks are included in backups, while the layout in use stays on the device like the other appearance settings. **Reset to default** returns to Three panes with Midnight Lime.
@@ -57,7 +58,7 @@ Flutter draws one window per running app, so the stage window is a second copy o
 
 ## Keyboard on Live
 
-The clicker keys work without turning on the clicker setting: **Space** or **B** pauses and resumes, **Page Down** or **→** moves to the next segment (press twice). A PC adds **+** and **−**, which open Adjust time, and **Ctrl+Z**, which offers to undo the last segment change. Each opens the same confirmation as its button. Nothing happens while typing, on another tab, under a dialog or when **Lock controls** is on. On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
+The clicker keys work without turning on the clicker setting: **Space** or **B** pauses and resumes, **Page Down** or **→** moves to the next segment (press twice). A PC adds **+** and **−**, which open Adjust time, **Ctrl+Z**, which offers to undo the last segment change, and **1** to **9**, which send the first nine prepared cues as a click on them would (the number of the cue that is showing goes back to the timer). Each opens the same confirmation as its button. Nothing happens while typing, on another tab, under a dialog or when **Lock controls** is on. On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
 
 ## Building
 

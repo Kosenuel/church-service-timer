@@ -27,7 +27,7 @@ extension DesktopLive on HomeState {
 
   /// Tabs in the header replace the side rail.
   bool get useTopTabs =>
-      desktopLayout == 'three_panes' || desktopLayout == 'dial';
+      const {'three_panes', 'dial', 'keys'}.contains(desktopLayout);
 
   /// Panes meet the header edge to edge, so it loses its rounded corners.
   bool get squareHeader => desktopLayout != null;

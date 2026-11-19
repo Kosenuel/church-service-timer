@@ -351,6 +351,34 @@ class LayoutSketchPainter extends CustomPainter {
         bar(w * .76, h * (.56 + i * .14), w * .09);
         bar(w * .87, h * (.56 + i * .14), w * .09);
       }
+    } else if (id == 'keys') {
+      // The timer as a strip, the rundown as a table, stage and cues beside.
+      canvas
+        ..drawLine(Offset(0, h * .42), Offset(w, h * .42), stroke)
+        ..drawLine(Offset(w * .56, h * .42), Offset(w * .56, h), stroke)
+        ..drawLine(Offset(w * .77, h * .42), Offset(w * .77, h), stroke);
+      bar(w * .04, h * .2, w * .16);
+      bar(w * .04, h * .3, w * .1);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(w * .34, h * .2, w * .2, h * .15),
+          const Radius.circular(2),
+        ),
+        bright,
+      );
+      bar(w * .72, h * .2, w * .11, bright);
+      bar(w * .85, h * .2, w * .11);
+      bar(w * .72, h * .3, w * .24);
+      for (var i = 0; i < 5; i++) {
+        canvas.drawRect(
+          Rect.fromLTWH(w * .04, h * (.5 + i * .095), w * .48, h * .045),
+          i == 2 ? bright : block,
+        );
+      }
+      canvas.drawRect(Rect.fromLTWH(w * .6, h * .5, w * .13, h * .2), block);
+      for (var i = 0; i < 3; i++) {
+        bar(w * .8, h * (.5 + i * .13), w * .16);
+      }
     } else if (id == 'mission_control') {
       // A rail, three columns, and the rundown timeline along the bottom.
       canvas

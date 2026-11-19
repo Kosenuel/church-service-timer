@@ -825,7 +825,9 @@ class RundownTimeline extends StatelessWidget {
 
 /// The keys that work on Live, along the bottom of the window.
 class KeyLegend extends StatelessWidget {
-  const KeyLegend({super.key});
+  /// Also lists the number keys that send cues.
+  final bool cues;
+  const KeyLegend({super.key, this.cues = true});
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context);
@@ -860,6 +862,7 @@ class KeyLegend extends StatelessWidget {
           item('PgDn PgDn', 'Next segment'),
           item('+ −', 'Adjust time'),
           item('Ctrl Z', 'Undo'),
+          if (cues) item('1 – 9', 'Cues'),
           const Spacer(),
           Text('Every action asks to confirm', style: style),
         ],
