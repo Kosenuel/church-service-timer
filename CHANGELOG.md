@@ -2,7 +2,7 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
-## Unreleased
+## 0.32.0, 19/November/2026
 
 - **Pages use the room in a wide window.** On a computer, or a large tablet held sideways, pages no longer sit as a narrow phone column in the middle of the screen. Phones and smaller windows look exactly as before.
   - **Live, before a service.** Choose a program on the left and its order of service shows in the middle, under the time of day, with one **Start service** button. Quick timer, Share to screens and Join a service sit underneath. The stage preview and cues are open on the right.
