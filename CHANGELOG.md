@@ -2,7 +2,7 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
-## Unreleased
+## 0.31.1, 19/November/2026
 
 - **Desktop layout is easier to find.** It was the second tab of Appearance, which was easy to miss. Settings now has its own **Desktop layout** row, which names the layout in use and opens straight on it; searching Settings for "layout" finds it; and the Theme tab has a **Desktop layout and spacing** button that switches to the other tab.
 
