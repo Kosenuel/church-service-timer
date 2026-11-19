@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/live/standing_by_desktop.dart';
 import 'package:church_service_timer/live/practice_views.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -1317,6 +1318,15 @@ extension LivePage on HomeState {
           ),
         ),
     ];
+    if (liveFillsWindow && standingBy) {
+      return standingByDesktop(
+        notices: liveNotices,
+        header: timerHeader,
+        start: timerPanelOf(wide: false),
+        display: displayPanel,
+        cues: cuePanel,
+      );
+    }
     if (liveFillsWindow) {
       // Keys is for a running service; Ready and a report still saving
       // use the panes, which have room for their forms.

@@ -33,10 +33,9 @@ extension DesktopLive on HomeState {
   /// Panes meet the header edge to edge, so it loses its rounded corners.
   bool get squareHeader => desktopLayout != null;
 
-  /// Live fills the window, each pane scrolling on its own, once a
-  /// service is loaded. Standing by keeps its single centred column.
-  bool get liveFillsWindow =>
-      desktopLayout != null && page == 0 && !liveStandingBy;
+  /// Live fills the window, each pane scrolling on its own, before a
+  /// service as well as during one.
+  bool get liveFillsWindow => desktopLayout != null && page == 0;
 
   /// Programs fills the window too: the list, the chosen program as a
   /// table, and its summary, each scrolling on its own.

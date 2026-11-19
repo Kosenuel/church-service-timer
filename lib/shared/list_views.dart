@@ -1,6 +1,7 @@
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
 
 /// One choice in the Share or Export sheet.
@@ -216,67 +217,80 @@ extension ListViews on HomeState {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-          child: Row(
-            children: [
-              if (programs)
-                action(
-                  'pin-selected-programs',
-                  allPinned ? 'Unpin' : 'Pin',
-                  allPinned ? Icons.push_pin_outlined : Icons.push_pin,
-                  none || c.corrupt
-                      ? null
-                      : () async {
-                          if (!await c.commit((draft, _) {
-                                final pins = draft.programLibrary.favourites;
-                                allPinned
-                                    ? pins.removeAll(chosen)
-                                    : pins.addAll(chosen);
-                              }) &&
-                              mounted)
-                            await showError(
-                              c.error ?? 'Could not update pins.',
-                            );
-                        },
-                  reason: 'Select at least one program to pin.',
-                ),
-              action(
-                'share-selected-$noun',
-                'Share',
-                Icons.share_outlined,
-                none ? null : () => share(true),
-                reason: 'Select at least one item to share.',
+          // In a wide window the actions stay together in the middle
+          // instead of spreading across the whole width.
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: isWideWindow(context) ? 560 : double.infinity,
               ),
-              action(
-                'export-selected-$noun',
-                'Export',
-                Icons.download_outlined,
-                none ? null : () => share(false),
-                reason: 'Select at least one item to export.',
+              child: Row(
+                children: [
+                  if (programs)
+                    action(
+                      'pin-selected-programs',
+                      allPinned ? 'Unpin' : 'Pin',
+                      allPinned ? Icons.push_pin_outlined : Icons.push_pin,
+                      none || c.corrupt
+                          ? null
+                          : () async {
+                              if (!await c.commit((draft, _) {
+                                    final pins =
+                                        draft.programLibrary.favourites;
+                                    allPinned
+                                        ? pins.removeAll(chosen)
+                                        : pins.addAll(chosen);
+                                  }) &&
+                                  mounted)
+                                await showError(
+                                  c.error ?? 'Could not update pins.',
+                                );
+                            },
+                      reason: 'Select at least one program to pin.',
+                    ),
+                  action(
+                    'share-selected-$noun',
+                    'Share',
+                    Icons.share_outlined,
+                    none ? null : () => share(true),
+                    reason: 'Select at least one item to share.',
+                  ),
+                  action(
+                    'export-selected-$noun',
+                    'Export',
+                    Icons.download_outlined,
+                    none ? null : () => share(false),
+                    reason: 'Select at least one item to export.',
+                  ),
+                  // A divider sets Delete apart from the actions that keep things.
+                  SizedBox(
+                    height: 40,
+                    child: VerticalDivider(
+                      width: 17,
+                      thickness: 1,
+                      color: colors.border,
+                    ),
+                  ),
+                  action(
+                    'delete-selected-$noun',
+                    'Delete',
+                    Icons.delete_outline,
+                    none || c.corrupt
+                        ? null
+                        : () => deleteSelected(
+                            programs: programs,
+                            chosen: chosen,
+                            hidden: chosen
+                                .difference(shownIds(programs))
+                                .length,
+                          ),
+                    color: colors.error,
+                    reason: 'Select at least one item to delete.',
+                  ),
+                ],
               ),
-              // A divider sets Delete apart from the actions that keep things.
-              SizedBox(
-                height: 40,
-                child: VerticalDivider(
-                  width: 17,
-                  thickness: 1,
-                  color: colors.border,
-                ),
-              ),
-              action(
-                'delete-selected-$noun',
-                'Delete',
-                Icons.delete_outline,
-                none || c.corrupt
-                    ? null
-                    : () => deleteSelected(
-                        programs: programs,
-                        chosen: chosen,
-                        hidden: chosen.difference(shownIds(programs)).length,
-                      ),
-                color: colors.error,
-                reason: 'Select at least one item to delete.',
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -298,13 +312,8 @@ extension ListViews on HomeState {
   }) {
     var format = formats.first.id;
     var extra = false;
-    return showModalBottomSheet<(String, bool)>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      sheetAnimationStyle: reduceAppMotion(context)
-          ? AnimationStyle.noAnimation
-          : null,
+    return showAppSheet<(String, bool)>(
+      context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) {
           final colors = appColors(ctx);

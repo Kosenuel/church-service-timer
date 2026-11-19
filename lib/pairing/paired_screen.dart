@@ -5,6 +5,7 @@ import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/programs/send_program_views.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/reconnect_banner.dart';
 import 'package:church_service_timer/display/clock_text.dart';
 import 'package:church_service_timer/app/controller.dart';
@@ -320,6 +321,38 @@ class _PairedScreenState extends State<PairedScreen> {
           ),
         ),
       );
+    final wide = isWideWindow(context);
+    // The order of service: below the controls on a phone, in its own
+    // pane in a wide window.
+    final rundown = <Widget>[
+      if (data != null)
+        for (final e in rows.asMap().entries)
+          ListTile(
+            title: Text(
+              e.value['name'],
+              style: TextStyle(
+                fontWeight: e.key == data['index']
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+              ),
+            ),
+            subtitle: Text(
+              [
+                    durationLabel(
+                      ((e.value['minutes'] as int) * 60 +
+                              (e.value['seconds'] as int? ?? 0)) *
+                          1000,
+                    ),
+                    if ((e.value['speaker'] as String? ?? '').isNotEmpty)
+                      e.value['speaker'],
+                  ].join(' · ') +
+                  // Private notes only when there are some.
+                  ((e.value['notes'] as String? ?? '').isEmpty
+                      ? ''
+                      : '\nPrivate: ${e.value['notes']}'),
+            ),
+          ),
+    ];
     Widget content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -528,35 +561,55 @@ class _PairedScreenState extends State<PairedScreen> {
             const SizedBox(height: 12),
             Text(hub.requestResult),
           ],
-          for (final e in rows.asMap().entries)
-            ListTile(
-              title: Text(
-                e.value['name'],
-                style: TextStyle(
-                  fontWeight: e.key == data['index']
-                      ? FontWeight.bold
-                      : FontWeight.normal,
-                ),
-              ),
-              subtitle: Text(
-                [
-                      durationLabel(
-                        ((e.value['minutes'] as int) * 60 +
-                                (e.value['seconds'] as int? ?? 0)) *
-                            1000,
-                      ),
-                      if ((e.value['speaker'] as String? ?? '').isNotEmpty)
-                        e.value['speaker'],
-                    ].join(' · ') +
-                    // Private notes only when there are some.
-                    ((e.value['notes'] as String? ?? '').isEmpty
-                        ? ''
-                        : '\nPrivate: ${e.value['notes']}'),
-              ),
-            ),
+          if (!wide) ...rundown,
         ],
       ],
     );
+    final openStage = FilledButton.icon(
+      onPressed: () => hub.showStage(!stage),
+      icon: Icon(stage ? Icons.view_list : Icons.fullscreen),
+      label: Text(stage ? 'Back to service overview' : 'Open stage display'),
+    );
+    final main = <Widget>[
+      if (hub.reconnecting) ...[
+        ReconnectingBanner(
+          key: const ValueKey('host-reconnecting'),
+          title: 'Reconnecting to host device',
+          attempt: hub.reconnectAttempt,
+          detail: hub.rejoiningWifi
+              ? 'Rejoining ${hub.rejoinSsid}…'
+              : longHostWait(hub)
+              ? deviceText(
+                  'Still trying. Make sure this phone is on the same Wi-Fi or hotspot as the host. Controls return when the host answers.',
+                )
+              : 'Controls are paused until the host answers. The host keeps the service running.',
+          actions: [
+            if (longHostWait(hub))
+              OutlinedButton.icon(
+                key: const ValueKey('open-wifi-settings'),
+                onPressed: () => controller.port.openWifiSettings(),
+                icon: const Icon(Icons.wifi),
+                label: const Text('Open Wi-Fi settings'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+      ],
+      // Commands cannot reach the host while reconnecting, so the
+      // controls are dimmed and ignore taps until it answers.
+      IgnorePointer(
+        ignoring: hub.reconnecting,
+        child: AnimatedOpacity(
+          opacity: hub.reconnecting ? .45 : 1,
+          duration: reduceAppMotion(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
+          child: content,
+        ),
+      ),
+      const SizedBox(height: 24),
+      if (hub.mode != 'operator') wide ? Center(child: openStage) : openStage,
+    ];
     return Scaffold(
       appBar: stage
           ? null
@@ -567,56 +620,53 @@ class _PairedScreenState extends State<PairedScreen> {
               actions: [leaveButton()],
             ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            if (hub.reconnecting) ...[
-              ReconnectingBanner(
-                key: const ValueKey('host-reconnecting'),
-                title: 'Reconnecting to host device',
-                attempt: hub.reconnectAttempt,
-                detail: hub.rejoiningWifi
-                    ? 'Rejoining ${hub.rejoinSsid}…'
-                    : longHostWait(hub)
-                    ? deviceText(
-                        'Still trying. Make sure this phone is on the same Wi-Fi or hotspot as the host. Controls return when the host answers.',
-                      )
-                    : 'Controls are paused until the host answers. The host keeps the service running.',
-                actions: [
-                  if (longHostWait(hub))
-                    OutlinedButton.icon(
-                      key: const ValueKey('open-wifi-settings'),
-                      onPressed: () => controller.port.openWifiSettings(),
-                      icon: const Icon(Icons.wifi),
-                      label: const Text('Open Wi-Fi settings'),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
-            // Commands cannot reach the host while reconnecting, so the
-            // controls are dimmed and ignore taps until it answers.
-            IgnorePointer(
-              ignoring: hub.reconnecting,
-              child: AnimatedOpacity(
-                opacity: hub.reconnecting ? .45 : 1,
-                duration: reduceAppMotion(context)
-                    ? Duration.zero
-                    : const Duration(milliseconds: 200),
-                child: content,
-              ),
-            ),
-            const SizedBox(height: 24),
-            if (hub.mode != 'operator')
-              FilledButton.icon(
-                onPressed: () => hub.showStage(!stage),
-                icon: Icon(stage ? Icons.view_list : Icons.fullscreen),
-                label: Text(
-                  stage ? 'Back to service overview' : 'Open stage display',
+        child: wide
+            ? SplitPage(
+                mainMaxWidth: 640,
+                main: ListView(
+                  key: const ValueKey('paired-main-pane'),
+                  primary: false,
+                  padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
+                  children: main,
                 ),
-              ),
-          ],
-        ),
+                side: Material(
+                  key: const ValueKey('paired-rundown-pane'),
+                  color: appColors(context).surface,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(24, 24, 24, 8),
+                        child: PaneLabel('Order of service'),
+                      ),
+                      Expanded(
+                        child: rundown.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  24,
+                                  4,
+                                  24,
+                                  0,
+                                ),
+                                child: Text(
+                                  'The segments appear here when the host starts a service.',
+                                  style: TextStyle(
+                                    color: appColors(context).muted,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              )
+                            : ListView(
+                                primary: false,
+                                padding: const EdgeInsets.fromLTRB(8, 0, 8, 24),
+                                children: rundown,
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : ListView(padding: const EdgeInsets.all(20), children: main),
       ),
     );
   }

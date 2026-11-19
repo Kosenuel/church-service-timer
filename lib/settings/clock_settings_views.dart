@@ -5,15 +5,18 @@ import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
 
 extension ClockSettingsViews on HomeState {
-  Widget clockFormatSettings() => panel(
+  /// [titled] is false where the page around it already has the heading.
+  Widget clockFormatSettings({bool titled = true}) => panel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Clock format',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
+        if (titled) ...[
+          const Text(
+            'Clock format',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+        ],
         RadioGroup<String>(
           groupValue: c.state.clockFormat,
           onChanged: (v) {

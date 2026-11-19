@@ -200,6 +200,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   /// Not now on the practice invitation hides it until the app is next
   /// opened; Don't show again hides it for good.
   bool practicePromptSnoozed = false;
+
+  /// The program picked on the wide Live page before a service.
+  String? standingByProgramId;
   final homeScroll = ScrollController();
   bool? _completedService;
 
