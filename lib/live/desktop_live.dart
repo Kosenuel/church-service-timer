@@ -37,6 +37,10 @@ extension DesktopLive on HomeState {
   bool get liveFillsWindow =>
       desktopLayout != null && page == 0 && !liveStandingBy;
 
+  /// Programs fills the window too: the list, the chosen program as a
+  /// table, and its summary, each scrolling on its own.
+  bool get programsFillWindow => desktopLayout != null && page == 1;
+
   /// Whether buttons show the key that presses them.
   bool get showKeyHints => switch (appLayout(context).preferences.keyHints) {
     'on' => true,

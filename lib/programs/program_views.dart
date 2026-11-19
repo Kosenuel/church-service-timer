@@ -1,3 +1,4 @@
+import 'package:church_service_timer/live/desktop_live.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -38,6 +39,14 @@ String lastUsedLabel(int? wall) {
     'Dec',
   ];
   return 'last used ${days[d.weekday - 1]} ${d.day} ${months[d.month - 1]}';
+}
+
+/// The program rows on the desktop Programs page: no card around them.
+class FlatRows extends StatelessWidget {
+  final Widget child;
+  const FlatRows(this.child, {super.key});
+  @override
+  Widget build(BuildContext context) => child;
 }
 
 /// Proportional strip of a program's segments, alternating accent shades.
@@ -87,9 +96,12 @@ extension TemplateViews on HomeState {
       programsPage.filter,
     );
     final disabled = c.busy || c.corrupt;
-    Widget rows(List<Timeline> values) => panel(
-      padding: EdgeInsets.zero,
-      child: Column(
+    // The desktop Programs page shows the list as a flat column, with the
+    // chosen program beside it.
+    final flat = programsFillWindow;
+    final beside = useMasterDetail || flat;
+    Widget rows(List<Timeline> values) => (flat ? FlatRows.new : flatless)(
+      Column(
         children: [
           for (var i = 0; i < values.length; i++) ...[
             if (i > 0) const AppDivider(),
@@ -105,7 +117,7 @@ extension TemplateViews on HomeState {
                   );
                   return;
                 }
-                if (useMasterDetail)
+                if (beside)
                   refreshHome(() => programsPage.open = values[i].name);
                 else
                   openTemplate(values[i].name);
@@ -126,8 +138,7 @@ extension TemplateViews on HomeState {
                 color:
                     (programsPage.selecting
                         ? programsPage.selected.contains(values[i].id)
-                        : useMasterDetail &&
-                              programsPage.open == values[i].name)
+                        : beside && programsPage.open == values[i].name)
                     ? appColors(context).accent.withValues(alpha: .12)
                     : null,
                 constraints: const BoxConstraints(minHeight: 72),
@@ -203,7 +214,7 @@ extension TemplateViews on HomeState {
                       ),
                     ),
                     // A chevron says "opens"; selection shows checkboxes.
-                    if (!programsPage.selecting && !useMasterDetail)
+                    if (!programsPage.selecting && !beside)
                       Padding(
                         padding: const EdgeInsets.only(left: 4),
                         child: Icon(
@@ -219,182 +230,348 @@ extension TemplateViews on HomeState {
         ],
       ),
     );
+    final children = <Widget>[
+      if (programsPage.selecting)
+        selectionHeader(programs: true, shown: items.map((p) => p.id).toSet())
+      else
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Programs',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    programsPage.query.trim().isNotEmpty ||
+                            programsPage.filter != 'all'
+                        ? '${items.length} of ${c.state.templates.length} programs'
+                        : '${items.length} saved',
+                    style: TextStyle(
+                      color: appColors(context).muted,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!programsPage.selecting) ...[
+              selectToggle(programs: true),
+              PopupMenuButton<bool>(
+                key: const ValueKey('program-list-options'),
+                icon: const Icon(Icons.tune),
+                tooltip: 'Program list options',
+                enabled: !disabled,
+                onSelected: (value) async {
+                  await c.commit((draft, _) => draft.groupTemplates = value);
+                },
+                itemBuilder: (ctx) => appMenuEntries(ctx, [
+                  AppMenuAction(
+                    false,
+                    'Single list',
+                    checked: !c.state.groupTemplates,
+                  ),
+                  AppMenuAction(
+                    true,
+                    'Services & rehearsals',
+                    checked: c.state.groupTemplates,
+                  ),
+                ]),
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'More program actions',
+                enabled: !disabled,
+                onSelected: (action) => switch (action) {
+                  'import' => importFile(),
+                  'segments' => openSegmentLibrary(),
+                  _ => exportAllPrograms(),
+                },
+                itemBuilder: (ctx) => appMenuEntries(ctx, [
+                  const AppMenuAction(
+                    'import',
+                    'Import programs (JSON or CSV)',
+                  ),
+                  if (c.state.templates.isNotEmpty)
+                    const AppMenuAction('export', 'Export all programs'),
+                  AppMenuAction(
+                    'segments',
+                    c.state.segmentLibrary.isEmpty
+                        ? 'Segment library'
+                        : 'Segment library (${c.state.segmentLibrary.length})',
+                  ),
+                ]),
+              ),
+            ],
+          ],
+        ),
+      if (programsPage.selecting)
+        programSearch()
+      else ...[
+        const SizedBox(height: 14),
+        ReceivedProgramCards(controller: c),
+        programSearch(),
+        // The desktop page has no room for the hint; its Select button
+        // is always in view.
+        if (c.state.templates.isNotEmpty && !flat)
+          listHint(
+            'programs-select',
+            'Tap a program to open it · press and hold to select',
+          ),
+      ],
+      if (items.isEmpty && c.state.templates.isEmpty)
+        // Nothing saved yet: say so and offer the two ways to start.
+        panel(
+          child: Column(
+            key: const ValueKey('programs-empty'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'No programs yet',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Create one, or import a program file (JSON) or spreadsheet (CSV).',
+                style: TextStyle(color: appColors(context).muted),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => editTemplate(),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create program'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => importFile(),
+                    icon: const Icon(Icons.file_open_outlined),
+                    label: const Text('Import'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        )
+      else if (items.isEmpty)
+        // Programs exist but the search or filter hides them all.
+        panel(
+          child: Column(
+            key: const ValueKey('programs-no-match'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                programsPage.query.trim().isEmpty
+                    ? 'No programs in this filter.'
+                    : 'No programs match “${programsPage.query.trim()}”.',
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: const ValueKey('clear-program-search'),
+                onPressed: () => refreshHome(() {
+                  programsPage
+                    ..query = ''
+                    ..filter = 'all';
+                  programsPage.searchReset++;
+                }),
+                icon: const Icon(Icons.clear),
+                label: const Text('Show all programs'),
+              ),
+            ],
+          ),
+        )
+      else if (!c.state.groupTemplates)
+        rows(items)
+      else
+        for (final type in ['service', 'rehearsal'])
+          if (items.any((t) => t.type == type)) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: label(type == 'service' ? 'Services' : 'Rehearsals'),
+            ),
+            rows(items.where((t) => t.type == type).toList()),
+            const SizedBox(height: 20),
+          ],
+      const SizedBox(height: 88),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (programsPage.selecting)
-          selectionHeader(programs: true, shown: items.map((p) => p.id).toSet())
-        else
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Programs',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      programsPage.query.trim().isNotEmpty ||
-                              programsPage.filter != 'all'
-                          ? '${items.length} of ${c.state.templates.length} programs'
-                          : '${items.length} saved',
-                      style: TextStyle(
-                        color: appColors(context).muted,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+        for (final child in children)
+          // Rows and panels reach the column's edges; the rest lines up
+          // with their text.
+          !flat || child is FlatRows || child is AppPanel
+              ? child
+              : Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: child,
                 ),
-              ),
-              if (!programsPage.selecting) ...[
-                selectToggle(programs: true),
-                PopupMenuButton<bool>(
-                  key: const ValueKey('program-list-options'),
-                  icon: const Icon(Icons.tune),
-                  tooltip: 'Program list options',
-                  enabled: !disabled,
-                  onSelected: (value) async {
-                    await c.commit((draft, _) => draft.groupTemplates = value);
-                  },
-                  itemBuilder: (ctx) => appMenuEntries(ctx, [
-                    AppMenuAction(
-                      false,
-                      'Single list',
-                      checked: !c.state.groupTemplates,
-                    ),
-                    AppMenuAction(
-                      true,
-                      'Services & rehearsals',
-                      checked: c.state.groupTemplates,
-                    ),
-                  ]),
-                ),
-                PopupMenuButton<String>(
-                  tooltip: 'More program actions',
-                  enabled: !disabled,
-                  onSelected: (action) => switch (action) {
-                    'import' => importFile(),
-                    'segments' => openSegmentLibrary(),
-                    _ => exportAllPrograms(),
-                  },
-                  itemBuilder: (ctx) => appMenuEntries(ctx, [
-                    const AppMenuAction(
-                      'import',
-                      'Import programs (JSON or CSV)',
-                    ),
-                    if (c.state.templates.isNotEmpty)
-                      const AppMenuAction('export', 'Export all programs'),
-                    AppMenuAction(
-                      'segments',
-                      c.state.segmentLibrary.isEmpty
-                          ? 'Segment library'
-                          : 'Segment library (${c.state.segmentLibrary.length})',
-                    ),
-                  ]),
-                ),
-              ],
-            ],
-          ),
-        if (programsPage.selecting)
-          programSearch()
-        else ...[
-          const SizedBox(height: 14),
-          ReceivedProgramCards(controller: c),
-          programSearch(),
-          if (c.state.templates.isNotEmpty)
-            listHint(
-              'programs-select',
-              'Tap a program to open it · press and hold to select',
-            ),
-        ],
-        if (items.isEmpty && c.state.templates.isEmpty)
-          // Nothing saved yet: say so and offer the two ways to start.
-          panel(
-            child: Column(
-              key: const ValueKey('programs-empty'),
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'No programs yet',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Create one, or import a program file (JSON) or spreadsheet (CSV).',
-                  style: TextStyle(color: appColors(context).muted),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: () => editTemplate(),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Create program'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => importFile(),
-                      icon: const Icon(Icons.file_open_outlined),
-                      label: const Text('Import'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          )
-        else if (items.isEmpty)
-          // Programs exist but the search or filter hides them all.
-          panel(
-            child: Column(
-              key: const ValueKey('programs-no-match'),
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  programsPage.query.trim().isEmpty
-                      ? 'No programs in this filter.'
-                      : 'No programs match “${programsPage.query.trim()}”.',
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  key: const ValueKey('clear-program-search'),
-                  onPressed: () => refreshHome(() {
-                    programsPage
-                      ..query = ''
-                      ..filter = 'all';
-                    programsPage.searchReset++;
-                  }),
-                  icon: const Icon(Icons.clear),
-                  label: const Text('Show all programs'),
-                ),
-              ],
-            ),
-          )
-        else if (!c.state.groupTemplates)
-          rows(items)
-        else
-          for (final type in ['service', 'rehearsal'])
-            if (items.any((t) => t.type == type)) ...[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: label(type == 'service' ? 'Services' : 'Rehearsals'),
-              ),
-              rows(items.where((t) => t.type == type).toList()),
-              const SizedBox(height: 20),
-            ],
-        const SizedBox(height: 88),
       ],
     );
   }
 
+  Widget flatless(Widget list) => panel(padding: EdgeInsets.zero, child: list);
+
   Future<void> openTemplate(String name) => Navigator.of(
     context,
   ).push<void>(MaterialPageRoute(builder: (_) => programDetails(name)));
+
+  /// Pin and the ⋮ menu for one saved program, shared by the detail page
+  /// and the desktop Programs page. [select] shows another program (after
+  /// Duplicate); [onDeleted] runs once the program is gone.
+  List<Widget> programActionButtons(
+    Timeline t, {
+    required ValueChanged<String> select,
+    required VoidCallback onDeleted,
+  }) {
+    final disabled = c.busy || c.corrupt;
+    final pinned = c.state.programLibrary.favourites.contains(t.id);
+    Future<void> duplicate() async {
+      Timeline? copy;
+      final ok = await c.commit(
+        (draft, _) => copy = draft.duplicateTemplate(t),
+      );
+      if (ok)
+        select(copy!.name);
+      else if (mounted)
+        await showError(c.error ?? 'Could not duplicate program.');
+    }
+
+    Future<void> delete() async {
+      if (!await ensureSettingsUnlocked(
+        reason: 'Enter the Settings PIN to delete programs.',
+      ))
+        return;
+      if (!await confirm(
+        'Delete ${t.name}?',
+        'Delete this saved program? Any loaded service and its report remain unchanged.',
+        'Delete program',
+        destructive: true,
+      ))
+        return;
+      final ok = await c.commit((draft, _) => draft.deleteTemplate(t));
+      if (ok && mounted) {
+        onDeleted();
+      } else if (mounted)
+        await showError(c.error ?? 'Could not delete program.');
+    }
+
+    return [
+      IconButton(
+        tooltip: pinned ? 'Unpin program' : 'Pin program',
+        onPressed: disabled ? null : () => toggleFavourite(t),
+        icon: Icon(pinned ? Icons.push_pin : Icons.push_pin_outlined),
+      ),
+      PopupMenuButton<String>(
+        tooltip: 'Program options',
+        enabled: !disabled,
+        onSelected: (action) async {
+          switch (action) {
+            case 'duplicate':
+              await duplicate();
+            case 'json':
+              await export(t, 'json');
+            case 'csv':
+              await export(t, 'csv');
+            case 'print':
+              await printServiceSheet(t);
+            case 'history':
+              await openVersionHistory(t);
+            case 'send':
+              await sendProgramToPhones(t);
+            case 'delete':
+              await delete();
+          }
+        },
+        itemBuilder: (ctx) => appMenuEntries(ctx, [
+          const AppMenuAction('duplicate', 'Duplicate'),
+          const AppMenuAction('json', 'Export JSON'),
+          const AppMenuAction('csv', 'Export CSV'),
+          const AppMenuAction('print', 'Print order of service'),
+          // Only while a phone that can receive is connected.
+          if (c.pairing.hosting && c.pairing.programRecipients.isNotEmpty)
+            const AppMenuAction('send', 'Send to paired phone'),
+          AppMenuAction(
+            'history',
+            c.state.versionsOf(t.id).isEmpty
+                ? 'Version history'
+                : 'Version history (${c.state.versionsOf(t.id).length})',
+          ),
+          const AppMenuAction('delete', 'Delete program', destructive: true),
+        ]),
+      ),
+    ];
+  }
+
+  /// Loads [t] into Live and shows it. Disabled, with the reason, while a
+  /// service is running.
+  Widget loadIntoLiveButton(Timeline t, BuildContext pageContext) {
+    final canLoad =
+        !c.busy &&
+        !c.corrupt &&
+        !c.state.session.active &&
+        !c.reportSavePending &&
+        !controlsLocked;
+    Future<void> load() async {
+      try {
+        c.state.templateIndex(t);
+        await c.act('load', value: t);
+        if (!mounted) return;
+        navigatePage(0);
+        if (pageContext.mounted)
+          Navigator.of(pageContext).popUntil((r) => r.isFirst);
+      } catch (e) {
+        if (mounted) await showError('$e');
+      }
+    }
+
+    return UnavailableAction(
+      reason: c.state.session.active
+          ? 'End the current service before loading another program.'
+          : null,
+      child: FilledButton.icon(
+        key: const ValueKey('load-into-live'),
+        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+        onPressed: canLoad ? load : null,
+        icon: const Icon(Icons.play_arrow),
+        label: const Text('Load into Live'),
+      ),
+    );
+  }
+
+  /// Opens [t] in the program editor; a rename is passed to [select].
+  Future<void> editProgram(
+    Timeline t, {
+    required ValueChanged<String> select,
+  }) async {
+    final index = c.state.templates.indexWhere((p) => p.id == t.id);
+    if (index < 0) return;
+    final result = await editTemplate(index: index);
+    if (result != null) select(result.name);
+  }
+
+  Widget editProgramButton(
+    Timeline t, {
+    required ValueChanged<String> select,
+    double height = 50,
+  }) => OutlinedButton.icon(
+    key: const ValueKey('edit-program'),
+    style: OutlinedButton.styleFrom(minimumSize: Size(0, height)),
+    onPressed: c.busy || c.corrupt
+        ? null
+        : () => editProgram(t, select: select),
+    icon: const Icon(Icons.edit_outlined),
+    label: const Text('Edit program'),
+  );
+
+  /// The end screen and shared warnings lines under a program's rundown.
+  String endScreenLine(Timeline t) =>
+      'End screen · ${styleSummary(t.display.end).substring(t.display.end.text.length + 3)}';
+  String get programWarningsLine =>
+      '${plural(c.state.defaults.warnings.where((w) => w.enabled).length, 'shared warning')} apply. Edits take effect the next time you load this program; your current service stays unchanged.';
 
   Widget programDetails(String name, {bool embedded = false}) {
     var selectedName = name;
@@ -406,7 +583,6 @@ extension TemplateViews on HomeState {
             (t) => t.name == selectedName,
           );
           final t = index < 0 ? null : c.state.templates[index];
-          final disabled = c.busy || c.corrupt;
           void select(String next) {
             if (embedded)
               refreshHome(() => programsPage.open = next);
@@ -415,113 +591,18 @@ extension TemplateViews on HomeState {
           }
 
           final colors = appColors(pageContext);
-          final pinned =
-              t != null && c.state.programLibrary.favourites.contains(t.id);
-          Future<void> duplicate() async {
-            Timeline? copy;
-            final ok = await c.commit(
-              (draft, _) => copy = draft.duplicateTemplate(t!),
-            );
-            if (ok)
-              select(copy!.name);
-            else if (mounted)
-              await showError(c.error ?? 'Could not duplicate program.');
-          }
-
-          Future<void> delete() async {
-            if (!await ensureSettingsUnlocked(
-              reason: 'Enter the Settings PIN to delete programs.',
-            ))
-              return;
-            if (!await confirm(
-              'Delete ${t!.name}?',
-              'Delete this saved program? Any loaded service and its report remain unchanged.',
-              'Delete program',
-              destructive: true,
-            ))
-              return;
-            final ok = await c.commit((draft, _) => draft.deleteTemplate(t));
-            if (ok && mounted) {
-              if (embedded)
-                refreshHome(() => programsPage.open = null);
-              else if (pageContext.mounted)
-                Navigator.pop(pageContext);
-            } else if (mounted)
-              await showError(c.error ?? 'Could not delete program.');
-          }
-
-          Future<void> load() async {
-            try {
-              c.state.templateIndex(t!);
-              await c.act('load', value: t);
-              if (!mounted) return;
-              navigatePage(0);
-              if (pageContext.mounted)
-                Navigator.of(pageContext).popUntil((r) => r.isFirst);
-            } catch (e) {
-              if (mounted) await showError('$e');
-            }
-          }
-
           final actions = t == null
               ? <Widget>[]
-              : <Widget>[
-                  IconButton(
-                    tooltip: pinned ? 'Unpin program' : 'Pin program',
-                    onPressed: disabled ? null : () => toggleFavourite(t),
-                    icon: Icon(
-                      pinned ? Icons.push_pin : Icons.push_pin_outlined,
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    tooltip: 'Program options',
-                    enabled: !disabled,
-                    onSelected: (action) async {
-                      switch (action) {
-                        case 'duplicate':
-                          await duplicate();
-                        case 'json':
-                          await export(t, 'json');
-                        case 'csv':
-                          await export(t, 'csv');
-                        case 'print':
-                          await printServiceSheet(t);
-                        case 'history':
-                          await openVersionHistory(t);
-                        case 'send':
-                          await sendProgramToPhones(t);
-                        case 'delete':
-                          await delete();
-                      }
-                    },
-                    itemBuilder: (ctx) => appMenuEntries(ctx, [
-                      const AppMenuAction('duplicate', 'Duplicate'),
-                      const AppMenuAction('json', 'Export JSON'),
-                      const AppMenuAction('csv', 'Export CSV'),
-                      const AppMenuAction('print', 'Print order of service'),
-                      // Only while a phone that can receive is connected.
-                      if (c.pairing.hosting &&
-                          c.pairing.programRecipients.isNotEmpty)
-                        const AppMenuAction('send', 'Send to paired phone'),
-                      AppMenuAction(
-                        'history',
-                        c.state.versionsOf(t.id).isEmpty
-                            ? 'Version history'
-                            : 'Version history (${c.state.versionsOf(t.id).length})',
-                      ),
-                      const AppMenuAction(
-                        'delete',
-                        'Delete program',
-                        destructive: true,
-                      ),
-                    ]),
-                  ),
-                ];
-          final canLoad =
-              !disabled &&
-              !c.state.session.active &&
-              !c.reportSavePending &&
-              !controlsLocked;
+              : programActionButtons(
+                  t,
+                  select: select,
+                  onDeleted: () {
+                    if (embedded)
+                      refreshHome(() => programsPage.open = null);
+                    else if (pageContext.mounted)
+                      Navigator.pop(pageContext);
+                  },
+                );
           final body = SingleChildScrollView(
             padding: EdgeInsets.all(appLayout(pageContext).panelPadding),
             child: t == null
@@ -555,38 +636,9 @@ extension TemplateViews on HomeState {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(
-                            child: UnavailableAction(
-                              reason: c.state.session.active
-                                  ? 'End the current service before loading another program.'
-                                  : null,
-                              child: FilledButton.icon(
-                                key: const ValueKey('load-into-live'),
-                                style: FilledButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(50),
-                                ),
-                                onPressed: canLoad ? load : null,
-                                icon: const Icon(Icons.play_arrow),
-                                label: const Text('Load into Live'),
-                              ),
-                            ),
-                          ),
+                          Expanded(child: loadIntoLiveButton(t, pageContext)),
                           const SizedBox(width: 10),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size(0, 50),
-                            ),
-                            onPressed: disabled
-                                ? null
-                                : () async {
-                                    final result = await editTemplate(
-                                      index: index,
-                                    );
-                                    if (result != null) select(result.name);
-                                  },
-                            icon: const Icon(Icons.edit_outlined),
-                            label: const Text('Edit program'),
-                          ),
+                          editProgramButton(t, select: select),
                         ],
                       ),
                       const SizedBox(height: 22),
@@ -672,14 +724,14 @@ extension TemplateViews on HomeState {
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           subtitle: Text(
-                            'End screen · ${styleSummary(t.display.end).substring(t.display.end.text.length + 3)}',
+                            endScreenLine(t),
                             style: TextStyle(fontSize: 12, color: colors.muted),
                           ),
                         ),
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '${plural(c.state.defaults.warnings.where((w) => w.enabled).length, 'shared warning')} apply. Edits take effect the next time you load this program; your current service stays unchanged.',
+                        programWarningsLine,
                         style: TextStyle(fontSize: 12, color: colors.muted),
                       ),
                     ],
