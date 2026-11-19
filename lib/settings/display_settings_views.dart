@@ -1,3 +1,5 @@
+import 'package:church_service_timer/settings/settings_wide.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -58,63 +60,118 @@ extension RefinedSettings on HomeState {
     ],
   );
 
-  Widget displaySettings() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      settingsGroup('Sign', [
-        settingsRow(
-          connectionIcon(c.displayConnection),
-          'Display connection',
-          c.displayConnection.label,
-          chooseDisplay,
-        ),
-        settingsRow(
-          Icons.grid_on_outlined,
-          'Display profile',
-          c.hardware.profile == null
-              ? '32 × 16 preview · connect to read the sign'
-              : '${c.hardware.profile!['width']} × ${c.hardware.profile!['height']} · red monochrome · W2',
-          () => openSettingsDetail('Display profile', displayProfile),
-        ),
-      ]),
-      settingsGroup('Content & preview', [
-        settingsRow(
-          Icons.schedule,
-          'Clock format',
-          c.state.clockFormat == '12h' ? '12-hour · AM/PM' : '24-hour',
-          () => openSettingsDetail('Clock format', clockFormatSettings),
-        ),
-        settingsRow(
-          Icons.apps,
-          'LED preview shape',
-          c.state.pixelShape == 'square' ? 'Square LEDs' : 'Circular LEDs',
-          () => openSettingsDetail('LED preview shape', ledShapeSettings),
-        ),
-        settingsRow(
-          Icons.text_fields,
-          'Display fonts',
-          'Matrix, Sq-Matrix and bundled Tinos',
-          () => openSettingsDetail('Display fonts', displayFonts),
-        ),
-        settingsRow(
-          Icons.timer_off_outlined,
-          'At zero',
-          '${c.state.defaults.zero?.text ?? '00:00'} · shared across all services',
-          () => openSettingsDetail('At zero', sharedZeroSettings),
-        ),
-        settingsRow(
-          Icons.flag_outlined,
-          'Default end screen',
-          '${c.state.defaults.end.text} · for new programs',
-          () => openSettingsDetail('Default end screen', defaultEndSettings),
-        ),
-      ]),
-      Text(
-        'Each program keeps its own end screen. Manage shared warnings under Warnings & alerts in Settings.',
-        style: TextStyle(color: appColors(context).muted),
+  /// The parts of Display settings, in the order they are listed: rows
+  /// that each open a page on a phone, and the sections of one page in a
+  /// wide window.
+  List<DisplaySection> displaySections() => [
+    DisplaySection(
+      'connection',
+      'Sign',
+      connectionIcon(c.displayConnection),
+      'Display connection',
+      c.displayConnection.label,
+      connectionSettings,
+    ),
+    DisplaySection(
+      'profile',
+      'Sign',
+      Icons.grid_on_outlined,
+      'Display profile',
+      c.hardware.profile == null
+          ? '32 × 16 preview · connect to read the sign'
+          : '${c.hardware.profile!['width']} × ${c.hardware.profile!['height']} · red monochrome · W2',
+      displayProfile,
+    ),
+    DisplaySection(
+      'clock',
+      'Content & preview',
+      Icons.schedule,
+      'Clock format',
+      c.state.clockFormat == '12h' ? '12-hour · AM/PM' : '24-hour',
+      clockFormatSettings,
+    ),
+    DisplaySection(
+      'shape',
+      'Content & preview',
+      Icons.apps,
+      'LED preview shape',
+      c.state.pixelShape == 'square' ? 'Square LEDs' : 'Circular LEDs',
+      ledShapeSettings,
+    ),
+    DisplaySection(
+      'fonts',
+      'Content & preview',
+      Icons.text_fields,
+      'Display fonts',
+      'Matrix, Sq-Matrix and bundled Tinos',
+      displayFonts,
+    ),
+    DisplaySection(
+      'zero',
+      'Content & preview',
+      Icons.timer_off_outlined,
+      'At zero',
+      '${c.state.defaults.zero?.text ?? '00:00'} · shared across all services',
+      sharedZeroSettings,
+    ),
+    DisplaySection(
+      'end',
+      'Content & preview',
+      Icons.flag_outlined,
+      'Default end screen',
+      '${c.state.defaults.end.text} · for new programs',
+      defaultEndSettings,
+    ),
+  ];
+
+  static const displaySettingsNote =
+      'Each program keeps its own end screen. Manage shared warnings under Warnings & alerts in Settings.';
+
+  /// Display settings. A wide window shows the sections down the left and
+  /// the chosen one, [section], beside them.
+  Widget displaySettings({String section = 'connection'}) {
+    final sections = displaySections();
+    Widget rows(String group) => settingsGroup(group, [
+      for (final s in sections)
+        if (s.group == group)
+          settingsRow(
+            s.icon,
+            s.title,
+            s.summary,
+            // On a phone the connection row goes straight to the choices.
+            s.key == 'connection'
+                ? chooseDisplay
+                : () => openSettingsDetail(s.title, s.content),
+          ),
+    ]);
+    return SettingsWide(
+      body: (context) => DisplaySettingsDesk(home: this, initial: section),
+      main: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          rows('Sign'),
+          rows('Content & preview'),
+          Text(
+            displaySettingsNote,
+            style: TextStyle(color: appColors(context).muted),
+          ),
+        ],
       ),
-    ],
-  );
+    );
+  }
+
+  /// Opens one part of Display settings: its own page on a phone, and
+  /// Display settings with that section chosen in a wide window.
+  Future<void> openDisplaySection(String key) {
+    if (isWideWindow(context)) {
+      return openSettingsDetail(
+        'Display settings',
+        () => displaySettings(section: key),
+      );
+    }
+    final section = displaySections().firstWhere((s) => s.key == key);
+    return openSettingsDetail(section.title, section.content);
+  }
 
   Widget defaultEndSettings() => panel(
     child: Column(
@@ -128,25 +185,28 @@ extension RefinedSettings on HomeState {
           'Used when creating a new program. Existing programs and the loaded service retain their end screens.',
         ),
         const SizedBox(height: 16),
-        button(
-          'Edit end screen',
-          Icons.edit_outlined,
-          c.busy
-              ? null
-              : () async {
-                  final next = await compose(
-                    c.state.defaults.end,
-                    'End screen',
-                    'Save end screen',
-                  );
-                  if (next != null &&
-                      !await c.commit(
-                        (draft, _) =>
-                            draft.defaults = draft.defaults.withEnd(next),
-                      ) &&
-                      mounted)
-                    await showError(c.error ?? 'Could not save end screen.');
-                },
+        ordinarySize(
+          context,
+          button(
+            'Edit end screen',
+            Icons.edit_outlined,
+            c.busy
+                ? null
+                : () async {
+                    final next = await compose(
+                      c.state.defaults.end,
+                      'End screen',
+                      'Save end screen',
+                    );
+                    if (next != null &&
+                        !await c.commit(
+                          (draft, _) =>
+                              draft.defaults = draft.defaults.withEnd(next),
+                        ) &&
+                        mounted)
+                      await showError(c.error ?? 'Could not save end screen.');
+                  },
+          ),
         ),
       ],
     ),
@@ -289,26 +349,35 @@ extension RefinedSettings on HomeState {
           'Connection and delivery are separate. “Controller accepted” means the final upload was acknowledged; check the sign to confirm its appearance.',
         ),
         const SizedBox(height: 16),
-        button(
-          'Connect a display',
-          Icons.wifi,
-          c.busy ? null : chooseDisplay,
-          primary: true,
+        ordinarySize(
+          context,
+          button(
+            'Connect a display',
+            Icons.wifi,
+            c.busy ? null : chooseDisplay,
+            primary: true,
+          ),
         ),
         const SizedBox(height: 12),
         if (!c.hardware.enabled)
-          button(
-            s.disconnected ? 'Reconnect simulator' : 'Disconnect simulator',
-            s.disconnected ? Icons.link : Icons.link_off,
-            c.busy || c.corrupt
-                ? null
-                : () => c.act(s.disconnected ? 'connect' : 'disconnect'),
+          ordinarySize(
+            context,
+            button(
+              s.disconnected ? 'Reconnect simulator' : 'Disconnect simulator',
+              s.disconnected ? Icons.link : Icons.link_off,
+              c.busy || c.corrupt
+                  ? null
+                  : () => c.act(s.disconnected ? 'connect' : 'disconnect'),
+            ),
           ),
         if (c.hardware.enabled && c.hardware.connected)
-          button(
-            'Disconnect display',
-            Icons.link_off,
-            c.hardware.sending ? null : () => c.hardware.disconnect(),
+          ordinarySize(
+            context,
+            button(
+              'Disconnect display',
+              Icons.link_off,
+              c.hardware.sending ? null : () => c.hardware.disconnect(),
+            ),
           ),
         if (s.held || (c.hardware.enabled && c.hardware.held))
           const Padding(
@@ -346,8 +415,7 @@ extension RefinedSettings on HomeState {
             '${connection.label}${(c.hardware.enabled ? c.hardware.held : s.held) ? ' · output held' : ''}',
         ok: displayOk,
         fix: displayOk ? null : 'Connect',
-        onFix: () =>
-            openSettingsDetail('Display connection', connectionSettings),
+        onFix: () => openDisplaySection('connection'),
       ),
       ReadinessCheck(
         key: 'warnings',
@@ -403,107 +471,190 @@ extension RefinedSettings on HomeState {
       }
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          key: const ValueKey('readiness-verdict'),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: tone.withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: tone.withValues(alpha: .4)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
-                child: issues == 0
-                    ? Icon(Icons.check, color: colors.surface, size: 24)
-                    : Text(
-                        '$issues',
-                        style: TextStyle(
-                          color: colors.surface,
-                          fontSize: 20,
+    return SettingsWide(
+      side: (context) => readinessProgramPane(),
+      main: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            key: const ValueKey('readiness-verdict'),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: tone.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: tone.withValues(alpha: .4)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: tone,
+                    shape: BoxShape.circle,
+                  ),
+                  child: issues == 0
+                      ? Icon(Icons.check, color: colors.surface, size: 24)
+                      : Text(
+                          '$issues',
+                          style: TextStyle(
+                            color: colors.surface,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        issues == 0
+                            ? 'All set'
+                            : '${plural(issues, 'thing')} to check',
+                        style: const TextStyle(
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      issues == 0
-                          ? 'All set'
-                          : '${plural(issues, 'thing')} to check',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                      const SizedBox(height: 2),
+                      Text(
+                        timeline == null
+                            ? 'Load a program, then check again.'
+                            : issues == 0
+                            ? '$name is ready to start.'
+                            : '$name is ready to start. Fix ${issues == 1 ? 'this' : 'these'} for a smoother service.',
+                        style: TextStyle(fontSize: 13, color: colors.muted),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      timeline == null
-                          ? 'Load a program, then check again.'
-                          : issues == 0
-                          ? '$name is ready to start.'
-                          : '$name is ready to start. Fix ${issues == 1 ? 'this' : 'these'} for a smoother service.',
-                      style: TextStyle(fontSize: 13, color: colors.muted),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          panel(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (var i = 0; i < checks.length; i++) ...[
+                  if (i > 0) const AppDivider(),
+                  readinessRow(checks[i], run),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                  ),
+                  onPressed: previewTestCue,
+                  child: const Text('Preview test cue'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                  ),
+                  onPressed: () => run(c.port.testNotification),
+                  child: Text(
+                    c.port.isDesktop
+                        ? 'Test notification'
+                        : 'Test warning sound',
+                  ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          Text(
+            'Tests never change the timer or the sign. Sound also depends on phone volume and Do Not Disturb. To check the sign itself, run a short rehearsal.',
+            style: TextStyle(fontSize: 12, color: colors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Beside Ready for service in a wide window: the program that is
+  /// loaded, so the operator can see it is the right one before starting.
+  Widget readinessProgramPane() {
+    final colors = appColors(context);
+    final text = Theme.of(context).textTheme;
+    final timeline = c.state.session.timeline;
+    if (timeline == null) {
+      return const SidePane(
+        title: 'Program to run',
+        note:
+            'No program is loaded yet. Choose one from Live or Programs and its segments are listed here.',
+        children: [],
+      );
+    }
+    return SidePane(
+      title: 'Program to run',
+      note: 'Check this is the right program before you start.',
+      children: [
+        Text(
+          timeline.name,
+          style: text.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          templateSummary(timeline),
+          style: text.bodyMedium?.copyWith(color: colors.muted),
         ),
         const SizedBox(height: 14),
-        panel(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              for (var i = 0; i < checks.length; i++) ...[
-                if (i > 0) const AppDivider(),
-                readinessRow(checks[i], run),
+        for (final (i, segment) in timeline.segments.indexed) ...[
+          const AppDivider(indent: 0, endIndent: 0),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 28,
+                  child: Text(
+                    '${i + 1}',
+                    style: text.bodyMedium?.copyWith(color: colors.muted),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        segment.name,
+                        style: text.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (segment.speaker.isNotEmpty)
+                        Text(
+                          segment.speaker,
+                          style: text.bodySmall?.copyWith(color: colors.muted),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  segment.durationText,
+                  style: text.bodyMedium?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
               ],
-            ],
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                onPressed: previewTestCue,
-                child: const Text('Preview test cue'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                onPressed: () => run(c.port.testNotification),
-                child: Text(
-                  c.port.isDesktop ? 'Test notification' : 'Test warning sound',
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Tests never change the timer or the sign. Sound also depends on phone volume and Do Not Disturb. To check the sign itself, run a short rehearsal.',
-          style: TextStyle(fontSize: 12, color: colors.muted),
-        ),
+        ],
       ],
     );
   }
@@ -579,6 +730,181 @@ extension RefinedSettings on HomeState {
       ],
     ),
   );
+}
+
+/// One part of Display settings.
+class DisplaySection {
+  final String key, group, title;
+  final IconData icon;
+
+  /// The current state, in words.
+  final String summary;
+  final Widget Function() content;
+  const DisplaySection(
+    this.key,
+    this.group,
+    this.icon,
+    this.title,
+    this.summary,
+    this.content,
+  );
+}
+
+/// Display settings in a wide window: the sections down the left, each
+/// with its current state, and the chosen section beside them.
+class DisplaySettingsDesk extends StatefulWidget {
+  final HomeState home;
+  final String initial;
+  const DisplaySettingsDesk({
+    super.key,
+    required this.home,
+    this.initial = 'connection',
+  });
+  @override
+  State<DisplaySettingsDesk> createState() => _DisplaySettingsDeskState();
+}
+
+class _DisplaySettingsDeskState extends State<DisplaySettingsDesk> {
+  late String chosen = widget.initial;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    final text = Theme.of(context).textTheme;
+    final sections = widget.home.displaySections();
+    final section = sections.firstWhere(
+      (s) => s.key == chosen,
+      orElse: () => sections.first,
+    );
+    Widget entry(DisplaySection s) {
+      final on = s.key == section.key;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Material(
+          color: on ? colors.accent.withValues(alpha: .12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: ValueKey('display-section-${s.key}'),
+            onTap: () => setState(() => chosen = s.key),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    s.icon,
+                    size: 22,
+                    color: on ? colors.accent : colors.muted,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s.title,
+                          style: text.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          s.summary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.bodySmall?.copyWith(color: colors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final groups = <String>[];
+    for (final s in sections) {
+      if (!groups.contains(s.group)) groups.add(s.group);
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: (MediaQuery.sizeOf(context).width * .24).clamp(300.0, 400.0),
+          child: ColoredBox(
+            color: colors.surface,
+            child: ListView(
+              key: const ValueKey('display-sections'),
+              primary: false,
+              padding: const EdgeInsets.fromLTRB(12, 24, 12, 24),
+              children: [
+                for (final group in groups) ...[
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      12,
+                      group == groups.first ? 0 : 20,
+                      12,
+                      10,
+                    ),
+                    child: PaneLabel(group),
+                  ),
+                  for (final s in sections)
+                    if (s.group == group) entry(s),
+                ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
+                  child: Text(
+                    RefinedSettings.displaySettingsNote,
+                    style: text.bodySmall?.copyWith(
+                      color: colors.muted,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        VerticalDivider(width: 1, thickness: 1, color: colors.border),
+        Expanded(
+          child: SingleChildScrollView(
+            key: ValueKey('display-detail-${section.key}'),
+            primary: false,
+            padding: const EdgeInsets.fromLTRB(40, 28, 40, 32),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      section.title,
+                      style: text.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      section.summary,
+                      style: text.bodyMedium?.copyWith(color: colors.muted),
+                    ),
+                    const SizedBox(height: 20),
+                    section.key == 'clock'
+                        ? widget.home.clockFormatSettings(titled: false)
+                        : section.content(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class ReadinessCheck {

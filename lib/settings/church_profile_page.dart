@@ -1,3 +1,5 @@
+import 'package:church_service_timer/settings/settings_wide.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'dart:convert';
 
 import 'package:church_service_timer/app/controller.dart';
@@ -156,13 +158,206 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
     final shownName = name.text.trim().isEmpty
         ? 'Church Service Timer'
         : name.text.trim();
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Church profile'),
-        bottom: c.liveSession.active
-            ? RunningServiceBar.forContext(context, controller: c)
-            : null,
+    final wide = isWideWindow(context);
+    final appBar = AppBar(
+      title: const Text('Church profile'),
+      bottom: c.liveSession.active
+          ? RunningServiceBar.forContext(context, controller: c)
+          : null,
+    );
+    // What the top of every page will look like.
+    final headerPreview = Container(
+      key: const ValueKey('profile-header-preview'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
       ),
+      child: Row(
+        children: [
+          ChurchTimerMark(logo: logo),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              shownName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    final bannerPreview = Semantics(
+      button: true,
+      label: 'Choose church banner',
+      child: InkWell(
+        key: const ValueKey('choose-church-banner'),
+        borderRadius: BorderRadius.circular(18),
+        onTap: busy ? null : () => pick('banner'),
+        child: ChurchProfileBanner(image: banner),
+      ),
+    );
+    final logoSection = section(
+      'Logo',
+      'Square, shown at the top left of every page. After choosing a photo you crop it to a square.',
+      [
+        Row(
+          children: [
+            ChurchTimerMark(size: 72, logo: logo),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    key: const ValueKey('choose-church-logo'),
+                    onPressed: busy ? null : () => pick('logo'),
+                    icon: const Icon(Icons.crop_square),
+                    label: Text(
+                      picking == 'logo'
+                          ? 'Opening photo…'
+                          : logo.isEmpty
+                          ? 'Choose logo'
+                          : 'Change logo',
+                    ),
+                  ),
+                  if (logo.isNotEmpty)
+                    TextButton(
+                      key: const ValueKey('remove-church-logo'),
+                      onPressed: busy ? null : () => setState(() => logo = ''),
+                      child: const Text('Use built-in mark'),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        problem(logoError),
+      ],
+    );
+    final nameSection = section(
+      'Church name',
+      'Shown at the top of every page, on the opening screen and on new service reports. Services already loaded and older reports keep the name they had.',
+      [
+        TextField(
+          controller: name,
+          enabled: !busy,
+          maxLength: 80,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            labelText: 'Church name (optional)',
+            hintText: 'e.g. Grace Community Church',
+            errorText: error,
+          ),
+        ),
+      ],
+    );
+    final bannerSection = section(
+      'Banner',
+      'Three times as wide as it is tall, used on printed services and reports. After choosing a photo you crop it to that shape.',
+      [
+        // In a wide window the banner is in the preview pane.
+        if (!wide) ...[bannerPreview, const SizedBox(height: 10)],
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: busy ? null : () => pick('banner'),
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+              label: Text(
+                picking == 'banner'
+                    ? 'Opening photo…'
+                    : banner.isEmpty
+                    ? 'Choose banner'
+                    : 'Change banner',
+              ),
+            ),
+            if (banner.isNotEmpty)
+              TextButton(
+                onPressed: busy ? null : () => setState(() => banner = ''),
+                child: const Text('Use built-in banner'),
+              ),
+          ],
+        ),
+        problem(bannerError),
+      ],
+    );
+    final saveLabel = Text(saving ? 'Saving…' : 'Save church profile');
+    if (wide) {
+      return Scaffold(
+        appBar: appBar,
+        body: SafeArea(
+          bottom: false,
+          child: SplitPage(
+            mainMaxWidth: 704,
+            main: SingleChildScrollView(
+              primary: false,
+              padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [nameSection, logoSection, bannerSection],
+              ),
+            ),
+            side: SidePane(
+              title: 'Preview',
+              note:
+                  'How your church appears as you change it. Nothing is kept until you save.',
+              children: [
+                PaneBlock(
+                  heading: 'Top of each page',
+                  detail: 'The logo and name, at the top left of the app.',
+                  child: headerPreview,
+                ),
+                PaneBlock(
+                  heading: 'Printed services and reports',
+                  detail: 'The banner across the top of the page.',
+                  child: bannerPreview,
+                ),
+              ],
+            ),
+          ),
+        ),
+        bottomNavigationBar: Material(
+          color: colors.surface,
+          child: SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: colors.border)),
+              ),
+              child: Row(
+                children: [
+                  const Spacer(),
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(120, 46),
+                    ),
+                    onPressed: busy ? null : () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton(
+                    key: const ValueKey('save-church-profile'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(220, 46),
+                    ),
+                    onPressed: busy ? null : save,
+                    child: saveLabel,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return Scaffold(
+      appBar: appBar,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -172,33 +367,9 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // What the top of every page will look like.
-                  Container(
-                    key: const ValueKey('profile-header-preview'),
-                    padding: const EdgeInsets.all(14),
-                    margin: const EdgeInsets.only(bottom: 6),
-                    decoration: BoxDecoration(
-                      color: colors.background,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        ChurchTimerMark(logo: logo),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            shownName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: headerPreview,
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(4, 0, 4, 18),
@@ -207,115 +378,16 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
                       style: TextStyle(color: colors.muted, fontSize: 12),
                     ),
                   ),
-                  section(
-                    'Logo',
-                    'Square, shown at the top left of every page. After choosing a photo you crop it to a square.',
-                    [
-                      Row(
-                        children: [
-                          ChurchTimerMark(size: 72, logo: logo),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                OutlinedButton.icon(
-                                  key: const ValueKey('choose-church-logo'),
-                                  onPressed: busy ? null : () => pick('logo'),
-                                  icon: const Icon(Icons.crop_square),
-                                  label: Text(
-                                    picking == 'logo'
-                                        ? 'Opening photo…'
-                                        : logo.isEmpty
-                                        ? 'Choose logo'
-                                        : 'Change logo',
-                                  ),
-                                ),
-                                if (logo.isNotEmpty)
-                                  TextButton(
-                                    key: const ValueKey('remove-church-logo'),
-                                    onPressed: busy
-                                        ? null
-                                        : () => setState(() => logo = ''),
-                                    child: const Text('Use built-in mark'),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      problem(logoError),
-                    ],
-                  ),
-                  section(
-                    'Church name',
-                    'Shown at the top of every page, on the opening screen and on new service reports. Services already loaded and older reports keep the name they had.',
-                    [
-                      TextField(
-                        controller: name,
-                        enabled: !busy,
-                        maxLength: 80,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: InputDecoration(
-                          labelText: 'Church name (optional)',
-                          hintText: 'e.g. Grace Community Church',
-                          errorText: error,
-                        ),
-                      ),
-                    ],
-                  ),
-                  section(
-                    'Banner',
-                    'Three times as wide as it is tall, used on printed services and reports. After choosing a photo you crop it to that shape.',
-                    [
-                      Semantics(
-                        button: true,
-                        label: 'Choose church banner',
-                        child: InkWell(
-                          key: const ValueKey('choose-church-banner'),
-                          borderRadius: BorderRadius.circular(18),
-                          onTap: busy ? null : () => pick('banner'),
-                          child: ChurchProfileBanner(image: banner),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: busy ? null : () => pick('banner'),
-                            icon: const Icon(
-                              Icons.add_photo_alternate_outlined,
-                            ),
-                            label: Text(
-                              picking == 'banner'
-                                  ? 'Opening photo…'
-                                  : banner.isEmpty
-                                  ? 'Choose banner'
-                                  : 'Change banner',
-                            ),
-                          ),
-                          if (banner.isNotEmpty)
-                            TextButton(
-                              onPressed: busy
-                                  ? null
-                                  : () => setState(() => banner = ''),
-                              child: const Text('Use built-in banner'),
-                            ),
-                        ],
-                      ),
-                      problem(bannerError),
-                    ],
-                  ),
+                  logoSection,
+                  nameSection,
+                  bannerSection,
                   FilledButton(
                     key: const ValueKey('save-church-profile'),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(52),
                     ),
                     onPressed: busy ? null : save,
-                    child: Text(saving ? 'Saving…' : 'Save church profile'),
+                    child: saveLabel,
                   ),
                 ],
               ),

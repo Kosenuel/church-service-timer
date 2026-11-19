@@ -11,7 +11,7 @@ extension SettingsSearchViews on HomeState {
         'Clock format',
         'clock time 12 hour 24 hour blinking colon',
         Icons.schedule,
-        () => openSettingsDetail('Clock format', clockFormatSettings),
+        () => openDisplaySection('clock'),
       ),
       (
         'LED device management',
@@ -23,7 +23,7 @@ extension SettingsSearchViews on HomeState {
         'Display fonts',
         'font tinos matrix typography',
         Icons.text_fields,
-        () => openSettingsDetail('Display fonts', displayFonts),
+        () => openDisplaySection('fonts'),
       ),
       (
         'Warnings & alerts',
@@ -62,19 +62,19 @@ extension SettingsSearchViews on HomeState {
         'LED preview shape',
         'square circular pixels',
         Icons.apps,
-        () => openSettingsDetail('LED preview shape', ledShapeSettings),
+        () => openDisplaySection('shape'),
       ),
       (
         'At zero',
         'zero overtime elapsed end countdown',
         Icons.timer_off_outlined,
-        () => openSettingsDetail('At zero', sharedZeroSettings),
+        () => openDisplaySection('zero'),
       ),
       (
         'Default end screen',
         'end screen hallelujah',
         Icons.flag_outlined,
-        () => openSettingsDetail('Default end screen', defaultEndSettings),
+        () => openDisplaySection('end'),
       ),
       (
         'Stage cues',
