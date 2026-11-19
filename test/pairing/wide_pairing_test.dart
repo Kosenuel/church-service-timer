@@ -272,6 +272,10 @@ void main() {
         await c.webStage.start('127.0.0.1');
       }
     });
+    // Whether the easy name could be announced depends on the machine
+    // (the mDNS port may be taken), and decides which line the page shows.
+    // The screenshot is of the usual case, where it could.
+    c.web.localNameActive = true;
     c.state.webStage['orderCode'] = '4821';
     c.webStage.teamCode = '246810';
     c.pairing.pin = '001234';
