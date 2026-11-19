@@ -29,6 +29,8 @@ import 'package:church_service_timer/programs/programs_desktop.dart';
 import 'package:church_service_timer/settings/settings_pin_views.dart';
 import 'package:church_service_timer/live/clicker_controls.dart';
 import 'package:church_service_timer/live/command_palette.dart';
+import 'package:church_service_timer/live/shortcuts_sheet.dart';
+import 'package:church_service_timer/settings/clicker_test_page.dart';
 import 'package:church_service_timer/programs/programs_page_state.dart';
 import 'package:church_service_timer/reports/reports_page_state.dart';
 import 'package:church_service_timer/programs/program_edit_actions.dart';
@@ -387,6 +389,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   /// whenever touch controls would be unavailable.
   bool onClickerKey(KeyEvent event) {
     if (event is! KeyDownEvent || !mounted || !c.ready) return false;
+    // The clicker test page only shows what a key would do: nothing
+    // pressed there reaches the service.
+    if (clickerTestOpen) return false;
     // Ctrl+K opens the command palette from any tab of the home screen.
     if (c.port.isDesktop &&
         isCommandPaletteKey(
@@ -406,6 +411,17 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       if (controlsLocked || typingInField) return false;
       if (!miniTimer && !miniTimerAvailable) return false;
       unawaited(setMiniTimer(!miniTimer));
+      return true;
+    }
+    // ? or F1 lists the keys, from any tab of the home screen.
+    if (c.port.isDesktop &&
+        isShortcutsSheetKey(
+          event.logicalKey,
+          shift: HardwareKeyboard.instance.isShiftPressed,
+          character: event.character,
+        )) {
+      if (!shortcutsSheetAvailable || typingInField) return false;
+      unawaited(openShortcutsSheet());
       return true;
     }
     // A PC keyboard adds its own keys on top of the clicker's; they open

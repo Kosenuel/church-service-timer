@@ -80,7 +80,41 @@ Known limits: a window that was snapped to a screen edge comes back at the size 
 
 ## Keyboard on Live
 
-The clicker keys work without turning on the clicker setting: **Space** or **B** asks to pause or resume, exactly as the Pause button does, and a second **Space** or **Enter** confirms (**Esc** cancels); **Page Down** or **→** moves to the next segment (press twice). On a phone or tablet a clicker's Space or B still pauses at once, because there is no screen in the hand to confirm on. A PC adds **+** and **−**, which open Adjust time, **Ctrl+Z**, which offers to undo the last segment change, and **1** to **9**, which send the first nine prepared cues as a click on them would (the number of the cue that is showing goes back to the timer). **M** opens Send message, **E** Edit upcoming, **R** Recover time and **J** Jump to segment; **Ctrl+L** locks the controls and cannot unlock them. Each opens the same confirmation as its button, and in a confirmation Space or Enter presses the confirming button, except for End service and the other destructive questions, which must be clicked. Nothing happens while typing, on another tab, under a dialog or when **Lock controls** is on. On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
+Every key is listed once, in `lib/live/shortcuts.dart`. The shortcuts sheet, the key shown beside each command in Commands, the clicker test page and the table below all follow that list, and `test/live/shortcuts_sheet_test.dart` holds the list to what `HomeState.onClickerKey` really does: a key that is added without being listed, or listed without doing anything, fails the test.
+
+| Keys | What it does | How it confirms |
+|---|---|---|
+| **Space** or **B** | Pause or resume | Asks first |
+| **Page Down** or **→** | Next segment | Press twice to confirm |
+| **+** or **−** | Adjust time | You choose, then confirm |
+| **Ctrl+Z** | Undo the last segment change | Asks first |
+| **J** | Jump to a later segment | You choose, then confirm |
+| **R** | Recover time | You choose, then confirm |
+| **E** | Edit upcoming | You edit, then save |
+| **Ctrl+L** | Lock controls | At once; hold to unlock |
+| **1** to **9** | Show a prepared cue | At once; again to go back to the timer |
+| **M** | Send message | You type, then send |
+| **Ctrl+K** | Commands | A list of everything you can do now |
+| **Ctrl+M** | Mini timer | A small window on top; again to leave it |
+| **?** or **F1** | Keyboard shortcuts | This list |
+| **Enter** or **Space** | Confirm the question on screen | Not End service, which must be clicked |
+| **Esc** | Cancel or close | Nothing is changed |
+
+Two rules hold for all of them: every timer action asks to confirm before anything changes, and **Lock controls** blocks every key until it is held to unlock (Ctrl+L locks and cannot unlock).
+
+- **When they work.** The keys from Space down to M work on Live while a service is running, with no question or other page on top; the cue numbers and M also need a display connected. Ctrl+Z needs a segment change to undo and J a later segment to jump to. Ctrl+K and ? or F1 work on any tab of the home screen, but not under a dialog or another page. Ctrl+M works whenever a service is running, whatever page is showing. None of them does anything while typing in a field, so ? typed into a field is a question mark.
+- **Clicker keys.** Space, B, Page Down and → are the keys a clicker or pedal sends. On a computer they work without turning on **Clicker and foot pedal**, and holding Ctrl makes no difference to them. On a phone or tablet they need that setting, and a clicker's Space or B pauses at once, because there is no screen in the hand to confirm on; the other keys in the table need a computer.
+- **Other spellings.** The + key works without Shift (the = key), the number pad's + and − open Adjust time, and its 1 to 9 send cues. The number of the cue that is showing goes back to the timer.
+- **In a question.** Space or Enter presses the confirming button and Esc cancels, except for End service and the other destructive questions, which must be clicked.
+- **Key labels.** On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
+
+### Shortcuts sheet
+
+**?** (Shift and /) or **F1** opens the list above as a dialog (`lib/live/shortcuts_sheet.dart`); so do **Keyboard shortcuts** in Commands, in the Live ⋮ menu and in Settings search. Esc closes it. It does not open while the controls are locked, in the mini timer, or under another dialog.
+
+### Testing a clicker or pedal
+
+**Settings › Warnings & alerts › Test a clicker or pedal** (`lib/settings/clicker_test_page.dart`) names each key as it is pressed ("Page Down", "Right arrow", "F5") and says what it does on Live, or that the app does not use it, and keeps the last few presses. While the page is open nothing pressed reaches the service: `onClickerKey` returns at once, so there is no timer action, no question and no mini timer. Tab, Enter and Esc still do their ordinary job there, so the page can be left from the keyboard. It works on Android too, where a Bluetooth clicker sends keys.
 
 ## Commands
 

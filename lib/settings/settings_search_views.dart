@@ -1,6 +1,8 @@
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/feedback/feedback_page.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/shortcuts_sheet.dart';
+import 'package:church_service_timer/settings/clicker_test_page.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 
@@ -31,6 +33,19 @@ extension SettingsSearchViews on HomeState {
         Icons.notifications_outlined,
         () => openSettingsDetail('Warnings & alerts', warningsSettings),
       ),
+      (
+        'Test a clicker or pedal',
+        'clicker pedal foot presenter remote bluetooth test try keyboard keys buttons shortcuts',
+        Icons.ads_click,
+        openClickerTest,
+      ),
+      if (c.port.isDesktop)
+        (
+          'Keyboard shortcuts',
+          'shortcuts keyboard keys help clicker pedal test hotkeys',
+          Icons.keyboard_outlined,
+          openShortcutsSheet,
+        ),
       (
         'Appearance',
         'theme density compact comfortable spacious dividers contrast motion picker feedback sound haptics',
@@ -142,6 +157,9 @@ extension SettingsSearchViews on HomeState {
           'Saved passwords, the sign’s Wi-Fi and connection',
       'Display fonts': 'Fonts for the stage display',
       'Warnings & alerts': 'Shared thresholds, phone notifications and sound',
+      'Test a clicker or pedal':
+          'See the key each button sends and what it does',
+      'Keyboard shortcuts': 'Every key and what it does',
       'Appearance': 'Theme, spacing and motion',
       'Desktop layout': 'How Live is arranged in a wide window',
       'Church profile': 'Logo, church name and banner',

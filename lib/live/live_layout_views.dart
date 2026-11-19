@@ -9,6 +9,8 @@ import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/live/command_palette.dart';
+import 'package:church_service_timer/live/shortcuts.dart';
+import 'package:church_service_timer/live/shortcuts_sheet.dart';
 
 /// Header status, menus and compact Live helpers shared by the phone and
 /// tablet layouts.
@@ -107,6 +109,7 @@ extension LiveLayout on HomeState {
         openSettingsDetail('Ready for service', readinessSettings);
       }
       if (value == 'commands') openCommandPalette();
+      if (value == 'shortcuts') openShortcutsSheet();
     },
     itemBuilder: (context) => appMenuEntries(context, [
       AppMenuAction(
@@ -127,6 +130,12 @@ extension LiveLayout on HomeState {
           'commands',
           'Commands',
           keys: showKeyHints ? 'Ctrl K' : null,
+        ),
+      if (shortcutsSheetAvailable)
+        AppMenuAction(
+          'shortcuts',
+          'Keyboard shortcuts',
+          keys: showKeyHints ? shortcutHint('shortcuts') : null,
         ),
     ]),
   );
