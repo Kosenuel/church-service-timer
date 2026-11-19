@@ -10,6 +10,7 @@ import 'package:church_service_timer/reports/report_outcome.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 
 /// A segment counts as having run over from this much past its plan.
 const reportOverrunMs = 60000;
@@ -33,28 +34,54 @@ extension ReportsDesktop on HomeState {
     final graph = reportsPage.view == 'graph' && !reportsPage.selecting;
     final Widget main;
     if (graph && history.isNotEmpty) {
-      main = SingleChildScrollView(
-        key: const ValueKey('reports-graph-pane'),
-        primary: false,
-        padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: reportGraphs(history),
+      main = LayoutBuilder(
+        builder: (context, space) => SingleChildScrollView(
+          key: const ValueKey('reports-graph-pane'),
+          primary: false,
+          padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
+          child: Align(
+            alignment: Alignment.topLeft,
+            // With room, the totals sit beside the charts instead of
+            // under them.
+            child: space.maxWidth >= 1300
+                ? ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1560),
+                    child: reportGraphs(history, columns: true),
+                  )
+                : ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 900),
+                    child: reportGraphs(history),
+                  ),
           ),
         ),
       );
     } else if (shown == null) {
       main = Center(
+        key: const ValueKey('reports-detail-empty'),
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Text(
-            c.state.reports.isEmpty
-                ? 'End a live service or fast rehearsal to see its report here.'
-                : 'No report matches this search.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: colors.muted),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.insights_outlined, size: 40, color: colors.muted),
+              const SizedBox(height: 14),
+              Text(
+                c.state.reports.isEmpty ? 'No reports yet' : 'Nothing to show',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                c.state.reports.isEmpty
+                    ? 'End a live service or fast rehearsal to see its report here.'
+                    : 'No report matches this search.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.muted),
+              ),
+            ],
           ),
         ),
       );
@@ -98,6 +125,10 @@ extension ReportsDesktop on HomeState {
     );
   }
 }
+
+/// The report page is this wide before notes and activity move into a
+/// pane of their own beside the timings.
+const reportAsideMinWidth = 1500.0;
 
 /// The colour for how a segment or service compared with its plan. Royal
 /// Navy's gold accent would read as the amber warning, so its "on time"
@@ -161,14 +192,22 @@ class _ReportDesktopDetailState extends State<ReportDesktopDetail> {
       builder: (context, space) {
         final beside = widget.ring && space.maxWidth >= 900;
         final ringSize = (space.maxWidth * .3).clamp(280.0, 400.0);
-        return SingleChildScrollView(
-          key: const ValueKey('report-detail-pane'),
+        // In a large window the notes and the activity record get a pane
+        // of their own, so the timings keep a comfortable width.
+        final aside = space.maxWidth >= reportAsideMinWidth;
+        final asideWidth = (space.maxWidth * .3).clamp(400.0, 640.0);
+        // A tall window has room for deeper timeline blocks.
+        final lane = MediaQuery.sizeOf(context).height >= 1200 ? 64.0 : 50.0;
+        // The report as a whole keeps the 'report-detail-pane' key: the
+        // scrolling timings on their own, or the row with the pane.
+        final timings = SingleChildScrollView(
+          key: ValueKey(aside ? 'report-timings-pane' : 'report-detail-pane'),
           primary: false,
           padding: const EdgeInsets.fromLTRB(28, 18, 28, 28),
           child: Align(
             alignment: Alignment.topLeft,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1360),
+              constraints: BoxConstraints(maxWidth: aside ? 1480 : 1360),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -346,26 +385,63 @@ class _ReportDesktopDetailState extends State<ReportDesktopDetail> {
                         ),
                       )
                     else
-                      ReportTwinTimeline(report: r),
+                      ReportTwinTimeline(report: r, laneHeight: lane),
                     const SizedBox(height: 22),
                     table,
                   ],
-                  const SizedBox(height: 22),
-                  rule,
-                  const SizedBox(height: 16),
-                  ReviewNoteSection(
-                    review: r.review,
-                    busy: busy,
-                    flat: true,
-                    onEdit: () => run(widget.onEditReview),
-                  ),
-                  const SizedBox(height: 16),
-                  rule,
-                  ReportActivityTile(report: r),
+                  if (!aside) ...[
+                    const SizedBox(height: 22),
+                    rule,
+                    const SizedBox(height: 16),
+                    ReviewNoteSection(
+                      review: r.review,
+                      busy: busy,
+                      flat: true,
+                      onEdit: () => run(widget.onEditReview),
+                    ),
+                    const SizedBox(height: 16),
+                    rule,
+                    ReportActivityTile(report: r),
+                  ],
                 ],
               ),
             ),
           ),
+        );
+        if (!aside) return timings;
+        return Row(
+          key: const ValueKey('report-detail-pane'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: timings),
+            VerticalDivider(width: 1, thickness: 1, color: colors.border),
+            SizedBox(
+              width: asideWidth,
+              child: ColoredBox(
+                color: colors.surface,
+                child: SingleChildScrollView(
+                  key: const ValueKey('report-aside-pane'),
+                  primary: false,
+                  padding: const EdgeInsets.fromLTRB(24, 22, 24, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ReviewNoteSection(
+                        review: r.review,
+                        busy: busy,
+                        flat: true,
+                        onEdit: () => run(widget.onEditReview),
+                      ),
+                      const SizedBox(height: 20),
+                      rule,
+                      const SizedBox(height: 20),
+                      ReportActivityList(report: r),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -511,7 +587,14 @@ class ReportPieces {
 /// scale, with clock times underneath: the Live timeline, looking back.
 class ReportTwinTimeline extends StatelessWidget {
   final ServiceReport report;
-  const ReportTwinTimeline({super.key, required this.report});
+
+  /// How deep each row of blocks is.
+  final double laneHeight;
+  const ReportTwinTimeline({
+    super.key,
+    required this.report,
+    this.laneHeight = 50,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -526,7 +609,7 @@ class ReportTwinTimeline extends StatelessWidget {
     );
     const gutter = 64.0;
     Widget lane(String name, double w, List<Widget> blocks) => SizedBox(
-      height: 50,
+      height: laneHeight,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1051,6 +1134,83 @@ class VarianceBar extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Everything recorded during the service, in order, opened out for the
+/// pane beside a report in a large window. The same events as
+/// [ReportActivityTile].
+class ReportActivityList extends StatelessWidget {
+  final ServiceReport report;
+  const ReportActivityList({super.key, required this.report});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    final r = report;
+    final muted = TextStyle(color: colors.muted, fontSize: 13);
+    String two(int n) => n.toString().padLeft(2, '0');
+    return Column(
+      key: const ValueKey('report-activity-list'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(child: PaneLabel('Activity timeline')),
+            Text('${r.events.length} recorded events', style: muted),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text('Controller acceptance is not visual confirmation.', style: muted),
+        const SizedBox(height: 8),
+        if (r.events.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'No activity events were recorded for this service.',
+              style: muted,
+            ),
+          ),
+        for (final (i, event) in r.events.indexed) ...[
+          if (i > 0) Divider(height: 1, thickness: 1, color: colors.border),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 76,
+                  child: Text(
+                    '${clockLabel(event.wall)}:${two(DateTime.fromMillisecondsSinceEpoch(event.wall).second)}',
+                    style: muted.copyWith(fontFeatures: _figures),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 1, right: 10),
+                  child: Icon(
+                    event.kind == 'failed' || event.kind == 'hold'
+                        ? Icons.warning_amber
+                        : event.kind == 'accepted'
+                        ? Icons.check_circle_outline
+                        : Icons.history,
+                    size: 16,
+                    color: event.kind == 'failed' || event.kind == 'hold'
+                        ? colors.warning
+                        : colors.muted,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    event.message,
+                    style: const TextStyle(fontSize: 14, height: 1.3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

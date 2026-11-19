@@ -2,83 +2,81 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
 
 extension ProgramHistoryViews on HomeState {
   /// Lists the earlier versions of [program], newest first, each with what
   /// changed in the version after it, and offers to restore one.
-  Future<void> openVersionHistory(
-    Timeline program,
-  ) => Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (pageContext) => AnimatedBuilder(
-        animation: c,
-        builder: (pageContext, _) {
-          final current = c.state.programById(program.id);
-          final versions = c.state.versionsOf(program.id);
-          final colors = appColors(pageContext);
-          return Scaffold(
-            appBar: AppBar(title: const Text('Version history')),
-            body: current == null
-                ? const Center(child: Text('This program was removed.'))
-                : ListView(
-                    padding: const EdgeInsets.all(20),
-                    children: [
-                      Text(
-                        current.name,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
+  Future<void> openVersionHistory(Timeline program) => pushAppPage<void>(
+    context,
+    builder: (pageContext) => AnimatedBuilder(
+      animation: c,
+      builder: (pageContext, _) {
+        final current = c.state.programById(program.id);
+        final versions = c.state.versionsOf(program.id);
+        final colors = appColors(pageContext);
+        return Scaffold(
+          appBar: AppBar(title: const Text('Version history')),
+          body: current == null
+              ? const Center(child: Text('This program was removed.'))
+              : ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    Text(
+                      current.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'The last $programHistoryLimit saved versions are kept, and included in backups. Restoring keeps the current version here too.',
+                      style: TextStyle(color: colors.muted),
+                    ),
+                    const SizedBox(height: 16),
+                    if (versions.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          'No earlier versions yet. Each time you save a change to this program, the version before it is kept here.',
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'The last $programHistoryLimit saved versions are kept, and included in backups. Restoring keeps the current version here too.',
-                        style: TextStyle(color: colors.muted),
-                      ),
-                      const SizedBox(height: 16),
-                      if (versions.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Text(
-                            'No earlier versions yet. Each time you save a change to this program, the version before it is kept here.',
-                          ),
-                        )
-                      else
-                        // In a card like the other lists, not bare rows.
-                        Material(
-                          color: colors.surface,
-                          clipBehavior: Clip.antiAlias,
-                          shape: RoundedRectangleBorder(
-                            side: BorderSide(color: colors.border),
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: AppMenuList(
-                            key: const ValueKey('program-versions'),
-                            children: [
-                              for (var i = 0; i < versions.length; i++)
-                                ListTile(
-                                  key: ValueKey('program-version-$i'),
-                                  leading: const Icon(Icons.history),
-                                  title: Text(
-                                    'Until ${serviceDateLabel(versions[i].replacedWall)} · ${wallTime(versions[i].replacedWall)}',
-                                  ),
-                                  subtitle: Text(
-                                    '${templateSummary(versions[i].program)}\nNext save: ${describeProgramChange(versions[i].program, i == 0 ? current : versions[i - 1].program)}',
-                                  ),
-                                  isThreeLine: true,
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () =>
-                                      previewVersion(pageContext, current, i),
+                      )
+                    else
+                      // In a card like the other lists, not bare rows.
+                      Material(
+                        color: colors.surface,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          side: BorderSide(color: colors.border),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: AppMenuList(
+                          key: const ValueKey('program-versions'),
+                          children: [
+                            for (var i = 0; i < versions.length; i++)
+                              ListTile(
+                                key: ValueKey('program-version-$i'),
+                                leading: const Icon(Icons.history),
+                                title: Text(
+                                  'Until ${serviceDateLabel(versions[i].replacedWall)} · ${wallTime(versions[i].replacedWall)}',
                                 ),
-                            ],
-                          ),
+                                subtitle: Text(
+                                  '${templateSummary(versions[i].program)}\nNext save: ${describeProgramChange(versions[i].program, i == 0 ? current : versions[i - 1].program)}',
+                                ),
+                                isThreeLine: true,
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () =>
+                                    previewVersion(pageContext, current, i),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
-          );
-        },
-      ),
+                      ),
+                  ],
+                ),
+        );
+      },
     ),
   );
 

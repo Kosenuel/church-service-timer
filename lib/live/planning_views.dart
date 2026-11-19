@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -12,18 +13,18 @@ import 'package:church_service_timer/app/platform.dart';
 extension PlanningViews on HomeState {
   Future<void> editUpcoming() async {
     final s = c.state.session, revision = c.state.session.revision;
-    final result = await Navigator.of(context).push<Timeline>(
-      MaterialPageRoute(
-        builder: (_) => TemplateEditor(
-          initial: Timeline(
-            s.timeline!.name,
-            s.timeline!.segments.skip(s.index + 1).toList(),
-            s.timeline!.display,
-          ),
-          defaultEnd: s.timeline!.display.end,
-          existingNames: const {},
-          upcomingOnly: true,
+    final result = await pushAppPage<Timeline>(
+      context,
+      dismissible: false,
+      builder: (_) => TemplateEditor(
+        initial: Timeline(
+          s.timeline!.name,
+          s.timeline!.segments.skip(s.index + 1).toList(),
+          s.timeline!.display,
         ),
+        defaultEnd: s.timeline!.display.end,
+        existingNames: const {},
+        upcomingOnly: true,
       ),
     );
     if (result == null || !mounted) return;
@@ -61,14 +62,9 @@ extension PlanningViews on HomeState {
       actualDate ?? c.now.wall,
     );
     final title = report != null ? 'Print report' : 'Print order of service';
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+    final choice = await showAppSheet<String>(
+      context,
       useSafeArea: true,
-      sheetAnimationStyle: reduceAppMotion(context)
-          ? AnimationStyle.noAnimation
-          : null,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => Padding(
           key: const ValueKey('print-sheet'),
