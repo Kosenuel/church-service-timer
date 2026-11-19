@@ -148,6 +148,52 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a tall Mission control window adds screens and activity', (
+    t,
+  ) async {
+    await running(t, layout: 'mission_control', size: const Size(1920, 1080));
+    final screens = find.byKey(const ValueKey('screens-section'));
+    expect(
+      find.descendant(of: screens, matching: find.text('Showing on Simulator')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: screens,
+        matching: find.text('No stage screens have joined.'),
+      ),
+      findsOneWidget,
+    );
+    final activity = find.byKey(const ValueKey('activity-section'));
+    // Newest first.
+    final started = t
+        .widgetList<Text>(
+          find.descendant(
+            of: activity,
+            matching: find.textContaining(' started'),
+          ),
+        )
+        .map((w) => w.data)
+        .toList();
+    expect(started, [
+      'Sermon started',
+      'Praise & Worship started',
+      'Welcome started',
+    ]);
+    await t.tap(find.descendant(of: screens, matching: find.text('Manage')));
+    await t.pumpAndSettle();
+    expect(find.text('Screens & devices'), findsWidgets);
+    expect(t.takeException(), isNull);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a laptop Mission control window keeps to what fits', (t) async {
+    await running(t, layout: 'mission_control');
+    expect(find.byKey(const ValueKey('screens-section')), findsNothing);
+    expect(find.byKey(const ValueKey('activity-section')), findsNothing);
+    await t.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Mission control shows the service against plan', (t) async {
     final (c, port) = await running(t, layout: 'mission_control');
     final status = find.byKey(const ValueKey('mission-status'));
