@@ -3,6 +3,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
 
 String librarySegmentSummary(Segment s) => [
@@ -14,10 +15,9 @@ String librarySegmentSummary(Segment s) => [
 
 /// Picks a saved segment to insert; returns null when cancelled.
 Future<Segment?> pickLibrarySegment(BuildContext context, AppController c) =>
-    showModalBottomSheet<Segment>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+    showAppSheet<Segment>(
+      context,
+      reduceMotion: false,
       builder: (ctx) => _LibraryPicker(controller: c),
     );
 
@@ -97,53 +97,52 @@ class _LibraryPickerState extends State<_LibraryPicker> {
 
 extension SegmentLibraryViews on HomeState {
   /// Lists saved segments with Remove (and Undo).
-  Future<void> openSegmentLibrary() => Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (pageContext) => AnimatedBuilder(
-        animation: c,
-        builder: (pageContext, _) {
-          final library = c.state.segmentLibrary;
-          return Scaffold(
-            appBar: AppBar(title: const Text('Segment library')),
-            body: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(
-                  'Reusable segments, such as Offering or Announcements, with their duration, speaker and notes. In the program editor, open a segment and choose Save to library, then use From library to add it to any program. Up to $segmentLibraryLimit.',
-                  style: TextStyle(color: appColors(pageContext).muted),
-                ),
-                const SizedBox(height: 16),
-                if (library.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Text('No saved segments yet.'),
-                  )
-                else
-                  AppMenuList(
-                    key: const ValueKey('segment-library'),
-                    children: [
-                      for (final s in library)
-                        ListTile(
-                          key: ValueKey('library-segment:${s.name}'),
-                          leading: const Icon(Icons.bookmark_outline),
-                          title: Text(s.name),
-                          subtitle: Text(librarySegmentSummary(s)),
-                          trailing: IconButton(
-                            key: ValueKey('remove-library:${s.name}'),
-                            tooltip: 'Remove from library',
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: c.busy || c.corrupt
-                                ? null
-                                : () => removeLibrarySegment(s),
-                          ),
+  Future<void> openSegmentLibrary() => pushAppPage<void>(
+    context,
+    builder: (pageContext) => AnimatedBuilder(
+      animation: c,
+      builder: (pageContext, _) {
+        final library = c.state.segmentLibrary;
+        return Scaffold(
+          appBar: AppBar(title: const Text('Segment library')),
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Text(
+                'Reusable segments, such as Offering or Announcements, with their duration, speaker and notes. In the program editor, open a segment and choose Save to library, then use From library to add it to any program. Up to $segmentLibraryLimit.',
+                style: TextStyle(color: appColors(pageContext).muted),
+              ),
+              const SizedBox(height: 16),
+              if (library.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text('No saved segments yet.'),
+                )
+              else
+                AppMenuList(
+                  key: const ValueKey('segment-library'),
+                  children: [
+                    for (final s in library)
+                      ListTile(
+                        key: ValueKey('library-segment:${s.name}'),
+                        leading: const Icon(Icons.bookmark_outline),
+                        title: Text(s.name),
+                        subtitle: Text(librarySegmentSummary(s)),
+                        trailing: IconButton(
+                          key: ValueKey('remove-library:${s.name}'),
+                          tooltip: 'Remove from library',
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: c.busy || c.corrupt
+                              ? null
+                              : () => removeLibrarySegment(s),
                         ),
-                    ],
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
+                      ),
+                  ],
+                ),
+            ],
+          ),
+        );
+      },
     ),
   );
 

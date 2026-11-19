@@ -927,155 +927,178 @@ extension ReportViews on HomeState {
     );
   }
 
-  Widget reportGraphs(List<ServiceReport> records) {
+  /// [columns] puts the totals and outcomes beside the charts, for a
+  /// large desktop window.
+  Widget reportGraphs(List<ServiceReport> records, {bool columns = false}) {
     final summary = ReportSummary(records);
     final chronological = [...records]
       ..sort((a, b) => a.endedWall.compareTo(b.endedWall));
     final comparable = summary.comparable.length;
+    final glance = panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          label('Timing at a glance'),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 20,
+            runSpacing: 18,
+            children: [
+              reportMetric(context, 'SERVICES', '${records.length}'),
+              reportMetric(
+                context,
+                'RECORDED TIME',
+                summary.timedCount == 0
+                    ? '—'
+                    : durationLabel(summary.recordedMs),
+              ),
+              reportMetric(
+                context,
+                'AVERAGE VARIANCE',
+                summary.averageVarianceMs == null
+                    ? '—'
+                    : outcomeLabel(summary.averageVarianceMs!),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '$comparable complete, reliable ${comparable == 1 ? 'record' : 'records'} used for variance and outcomes. ${records.length - comparable} partial or uncertain.',
+            style: TextStyle(color: appColors(context).muted, fontSize: 12),
+          ),
+          if (records.any((r) => r.rehearsal)) ...[
+            const SizedBox(height: 8),
+            Text(
+              records.any((r) => !r.rehearsal)
+                  ? 'This view combines live and simulated rehearsal durations. Use the filters to compare each separately.'
+                  : 'Rehearsal durations use simulated service time, not real clock time.',
+              style: TextStyle(color: appColors(context).warning, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
+    final outcomes = panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          label('Service outcomes'),
+          const SizedBox(height: 16),
+          if (comparable > 0)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                height: 16,
+                child: Row(
+                  children: [
+                    if (summary.ahead > 0)
+                      Expanded(
+                        flex: summary.ahead,
+                        child: Container(color: appColors(context).info),
+                      ),
+                    if (summary.onTime > 0)
+                      Expanded(
+                        flex: summary.onTime,
+                        child: Container(color: appColors(context).accent),
+                      ),
+                    if (summary.behind > 0)
+                      Expanded(
+                        flex: summary.behind,
+                        child: Container(color: appColors(context).warning),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 20,
+            runSpacing: 8,
+            children: [
+              Text(
+                'Under · ${summary.ahead}',
+                style: TextStyle(color: appColors(context).info),
+              ),
+              Text(
+                'On time · ${summary.onTime}',
+                style: TextStyle(color: appColors(context).accent),
+              ),
+              Text(
+                'Over · ${summary.behind}',
+                style: TextStyle(color: appColors(context).warning),
+              ),
+            ],
+          ),
+          if (comparable == 0)
+            Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Complete a service with recorded timing to see its outcome.',
+                style: TextStyle(color: appColors(context).muted),
+              ),
+            ),
+        ],
+      ),
+    );
+    final planned = panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          label('Planned vs actual · oldest first'),
+          const SizedBox(height: 8),
+          Text(
+            'All filtered records on one scale. Tap a service for its segment breakdown.',
+            style: TextStyle(color: appColors(context).muted),
+          ),
+          const SizedBox(height: 16),
+          DurationChart(
+            entries: chronological
+                .map(
+                  (r) => DurationEntry(
+                    title: r.name,
+                    subtitle: '${reportDate(r.endedWall)} · ${reportMode(r)}',
+                    planned: r.plannedMs,
+                    actual: r.totalMs,
+                    uncertain: !r.comparable,
+                    onTap: () => openReport(r),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+    if (columns) {
+      return Row(
+        key: const ValueKey('report-graph-columns'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [overUnderPanel(chronological), planned],
+            ),
+          ),
+          const SizedBox(width: 20),
+          SizedBox(
+            width: 420,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [glance, const SizedBox(height: 16), outcomes],
+            ),
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         overUnderPanel(chronological),
-        panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              label('Timing at a glance'),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 20,
-                runSpacing: 18,
-                children: [
-                  reportMetric(context, 'SERVICES', '${records.length}'),
-                  reportMetric(
-                    context,
-                    'RECORDED TIME',
-                    summary.timedCount == 0
-                        ? '—'
-                        : durationLabel(summary.recordedMs),
-                  ),
-                  reportMetric(
-                    context,
-                    'AVERAGE VARIANCE',
-                    summary.averageVarianceMs == null
-                        ? '—'
-                        : outcomeLabel(summary.averageVarianceMs!),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '$comparable complete, reliable ${comparable == 1 ? 'record' : 'records'} used for variance and outcomes. ${records.length - comparable} partial or uncertain.',
-                style: TextStyle(color: appColors(context).muted, fontSize: 12),
-              ),
-              if (records.any((r) => r.rehearsal)) ...[
-                const SizedBox(height: 8),
-                Text(
-                  records.any((r) => !r.rehearsal)
-                      ? 'This view combines live and simulated rehearsal durations. Use the filters to compare each separately.'
-                      : 'Rehearsal durations use simulated service time, not real clock time.',
-                  style: TextStyle(
-                    color: appColors(context).warning,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+        glance,
         const SizedBox(height: 16),
-        panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              label('Service outcomes'),
-              const SizedBox(height: 16),
-              if (comparable > 0)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: SizedBox(
-                    height: 16,
-                    child: Row(
-                      children: [
-                        if (summary.ahead > 0)
-                          Expanded(
-                            flex: summary.ahead,
-                            child: Container(color: appColors(context).info),
-                          ),
-                        if (summary.onTime > 0)
-                          Expanded(
-                            flex: summary.onTime,
-                            child: Container(color: appColors(context).accent),
-                          ),
-                        if (summary.behind > 0)
-                          Expanded(
-                            flex: summary.behind,
-                            child: Container(color: appColors(context).warning),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 20,
-                runSpacing: 8,
-                children: [
-                  Text(
-                    'Under · ${summary.ahead}',
-                    style: TextStyle(color: appColors(context).info),
-                  ),
-                  Text(
-                    'On time · ${summary.onTime}',
-                    style: TextStyle(color: appColors(context).accent),
-                  ),
-                  Text(
-                    'Over · ${summary.behind}',
-                    style: TextStyle(color: appColors(context).warning),
-                  ),
-                ],
-              ),
-              if (comparable == 0)
-                Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: Text(
-                    'Complete a service with recorded timing to see its outcome.',
-                    style: TextStyle(color: appColors(context).muted),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        outcomes,
         const SizedBox(height: 16),
-        panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              label('Planned vs actual · oldest first'),
-              const SizedBox(height: 8),
-              Text(
-                'All filtered records on one scale. Tap a service for its segment breakdown.',
-                style: TextStyle(color: appColors(context).muted),
-              ),
-              const SizedBox(height: 16),
-              DurationChart(
-                entries: chronological
-                    .map(
-                      (r) => DurationEntry(
-                        title: r.name,
-                        subtitle:
-                            '${reportDate(r.endedWall)} · ${reportMode(r)}',
-                        planned: r.plannedMs,
-                        actual: r.totalMs,
-                        uncertain: !r.comparable,
-                        onTap: () => openReport(r),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-          ),
-        ),
+        planned,
       ],
     );
   }

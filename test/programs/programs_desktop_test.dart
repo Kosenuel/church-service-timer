@@ -284,7 +284,8 @@ void main() {
       'Easter Sunday',
     );
     // Welcome gives up its speaker in the editor's own segment dialog.
-    await t.tap(find.text('Welcome'));
+    // (The name also shows in the running order beside the form.)
+    await t.tap(find.text('Welcome').first);
     await t.pumpAndSettle();
     await t.enterText(
       find.widgetWithText(TextField, 'Deacon Ruth'),

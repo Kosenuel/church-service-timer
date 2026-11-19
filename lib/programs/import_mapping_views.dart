@@ -4,6 +4,7 @@ import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/programs/program_views.dart'
     show templateSummary;
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
 
 /// Spreadsheet column letters: A, B … Z, AA.
@@ -101,7 +102,11 @@ class _ImportMappingPageState extends State<ImportMappingPage> {
       appBar: AppBar(title: const Text('Match spreadsheet columns')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: widePagePadding(
+            context,
+            const EdgeInsets.all(20),
+            maxWidth: 760,
+          ),
           children: [
             Text(
               remembered

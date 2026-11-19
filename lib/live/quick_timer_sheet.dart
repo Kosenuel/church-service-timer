@@ -3,6 +3,7 @@ import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/time_picker.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
 
 /// What the Quick timer sheet asks for.
@@ -28,14 +29,9 @@ extension QuickTimerViews on HomeState {
 
   /// Opens the Quick timer sheet and starts the chosen timer.
   Future<void> openQuickTimer() async {
-    final request = await showModalBottomSheet<QuickTimerRequest>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+    final request = await showAppSheet<QuickTimerRequest>(
+      context,
       useSafeArea: true,
-      sheetAnimationStyle: reduceAppMotion(context)
-          ? AnimationStyle.noAnimation
-          : null,
       builder: (_) => QuickTimerSheet(recent: c.state.recentQuickTimers),
     );
     if (request == null || !mounted) return;
