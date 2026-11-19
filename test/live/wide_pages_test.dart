@@ -72,7 +72,7 @@ void main() {
   testWidgets('standing by fills a full-HD window', (t) async {
     final (c, _) = await standingBy(t);
     expect(find.byKey(const ValueKey('standing-by-desktop')), findsOneWidget);
-    expect(find.text('Ready when you are'), findsOneWidget);
+    expect(find.byKey(const ValueKey('standing-by-clock')), findsOneWidget);
     // Stage and cues are open on the right, not folded away.
     expect(
       find.byKey(const ValueKey('standing-by-stage-pane')),
@@ -87,8 +87,14 @@ void main() {
       find.byType(TimerApp),
       matchesGoldenFile('../goldens/desktop-standing-by-1080.png'),
     );
-    // A click on a program loads it into Ready.
-    await t.tap(find.byKey(const ValueKey('quick-load:Youth Night')));
+    // A click on a program shows its order of service; the one filled
+    // button loads it into Ready.
+    expect(find.text('Small groups'), findsNothing);
+    await t.tap(find.byKey(const ValueKey('standing-by-program:Youth Night')));
+    await t.pumpAndSettle();
+    expect(find.text('Small groups'), findsOneWidget);
+    expect(c.liveSession.phase, isNot('ready'));
+    await t.tap(find.byKey(const ValueKey('standing-by-load')));
     await t.pumpAndSettle();
     expect(c.liveSession.phase, 'ready');
     expect(c.liveSession.timeline!.name, 'Youth Night');

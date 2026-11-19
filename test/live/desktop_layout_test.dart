@@ -672,7 +672,9 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
-  testWidgets('standing by keeps its centred column', (t) async {
+  testWidgets('standing by offers a program, then Ready shows the panes', (
+    t,
+  ) async {
     setScreen(t, const Size(1366, 768));
     final c = AppController(DesktopFakePort());
     await c.initialize(startTicker: false);
@@ -680,6 +682,7 @@ void main() {
     await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('desktop-tabs')), findsOneWidget);
     expect(find.byKey(const ValueKey('three-pane-live')), findsNothing);
+    expect(find.byKey(const ValueKey('standing-by-desktop')), findsOneWidget);
     expect(find.text('Start service'), findsOneWidget);
     await c.act('load', value: sunday());
     await t.pumpAndSettle();

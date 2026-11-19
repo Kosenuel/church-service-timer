@@ -1321,6 +1321,7 @@ extension LivePage on HomeState {
     if (liveFillsWindow && standingBy) {
       return standingByDesktop(
         notices: liveNotices,
+        header: timerHeader,
         start: timerPanelOf(wide: false),
         display: displayPanel,
         cues: cuePanel,
