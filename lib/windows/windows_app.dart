@@ -62,6 +62,10 @@ String? fileArgument(List<String> arguments) {
   return null;
 }
 
+/// Passed by the runner when it has already opened the window at its saved
+/// place.
+const windowPlacedArgument = '--window-placed';
+
 /// Builds the Windows port, or returns null when another copy of the app
 /// is already running (it has then been asked to come forward and this
 /// copy should close).
@@ -106,12 +110,17 @@ WindowsPort? startWindowsPort(List<String> arguments) {
       port.offerIncomingFile(path);
     }
   });
-  // The runner shows the window at its default place with the first frame;
-  // move it back to where it was straight after, then keep remembering.
+  // The runner opens the window where it was last time, before Flutter
+  // starts, and says so (windows/runner/main.cpp). Only if it could not is
+  // the window moved from here: moving a window that is already drawing,
+  // onto a screen with a different scale, makes Windows resize it again.
+  final placed = arguments.contains(windowPlacedArgument);
   WidgetsBinding.instance.addPostFrameCallback((_) async {
-    try {
-      await memory.restore();
-    } catch (_) {}
+    if (!placed) {
+      try {
+        await memory.restore();
+      } catch (_) {}
+    }
     memory.start();
   });
   return port;

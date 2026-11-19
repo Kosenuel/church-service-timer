@@ -7,6 +7,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 - **Second screen shows the stage properly.** On a PC, **Show** in Settings › Screens & devices › Second screen could leave the projector or second monitor stuck on a black picture with part of an enormous letter at one edge. It happened when the two screens use different scaling in Windows (for example a laptop at 150% and a 4K monitor at 200%): Windows resized the stage window as it moved across, and the window then stopped updating. The stage window is now created on its own screen from the start and keeps to that screen's exact size.
 
 - **The stage countdown holds still.** On a stage screen, a second screen or a web screen's app view, the large time used to shift and change size slightly each second, because some digits are wider than others and the time was refitted to the screen every time it changed. The time now keeps one size and each digit keeps its place.
+- **The window opens properly on a second screen.** On a PC with two screens that use different scaling in Windows, the app could start with its loading page filling the window and the app itself drawn small in the bottom-left corner. The window was being moved back to where it was last time after the app had started drawing, and Windows resized it on the way. It now opens at its last place from the start. A window that had grown larger than its screen because of this is brought back inside it.
 
 ## 0.32.0, 19/November/2026
 

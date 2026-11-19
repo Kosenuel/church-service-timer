@@ -45,6 +45,12 @@ class Win32Window {
                         const RECT& rect,
                         bool topmost);
 
+  // Creates the ordinary app window at |frame|, where it was when the app
+  // was last closed. |frame| is in physical pixels of the virtual desktop,
+  // so nothing is scaled: the window is created on that screen, at that
+  // screen's scale, before Flutter starts. |maximised| shows it maximised.
+  bool CreateAt(const std::wstring& title, const RECT& frame, bool maximised);
+
   // Show the current window. Returns true if the window was successfully shown.
   bool Show();
 
@@ -100,6 +106,9 @@ class Win32Window {
   static void UpdateTheme(HWND const window);
 
   bool quit_on_close_ = false;
+
+  // How Show() shows the window: normally, or maximised.
+  int show_command_ = SW_SHOWNORMAL;
 
   // Set for a window made by CreateFullScreen: the rectangle it keeps.
   bool fixed_ = false;
