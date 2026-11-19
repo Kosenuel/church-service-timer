@@ -597,6 +597,10 @@ extension LiveViewActions on HomeState {
                     child: const Text('Cancel'),
                   ),
                   FilledButton(
+                    // On a computer the key that asked can also answer:
+                    // Space or Enter confirms. Never for End service and
+                    // the other destructive questions.
+                    autofocus: c.port.isDesktop && !destructive,
                     onPressed: stale || c.busy
                         ? null
                         : () => Navigator.pop(ctx, true),

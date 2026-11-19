@@ -769,12 +769,20 @@ void main() {
     testWidgets('the keys still work, with the same guards', (t) async {
       final (c, _, _) = await running(t);
       await openMini(t);
+      // Space asks first, in the small card; Space again confirms.
+      await t.sendKeyEvent(LogicalKeyboardKey.space);
+      await t.pumpAndSettle();
+      expect(key('mini-dialog'), findsOneWidget);
+      expect(c.state.session.paused, isFalse);
       await t.sendKeyEvent(LogicalKeyboardKey.space);
       await t.pumpAndSettle();
       expect(c.state.session.paused, isTrue);
       await t.sendKeyEvent(LogicalKeyboardKey.space);
       await t.pumpAndSettle();
+      await t.sendKeyEvent(LogicalKeyboardKey.enter);
+      await t.pumpAndSettle();
       expect(c.state.session.paused, isFalse);
+      expect(key('mini-dialog'), findsNothing);
 
       // A number sends its cue; the same number goes back to the timer.
       await t.sendKeyEvent(LogicalKeyboardKey.digit1);

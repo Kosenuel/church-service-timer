@@ -2,11 +2,11 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
-## Unreleased
+## 0.31.0, 19/November/2026
 
 - **A Windows version (first build, still to be tried on a real PC).** Church Service Timer can now be built for Windows 10 and 11, so a service can be run from a laptop or PC. It is the same app: the same programs, reports, themes and settings, and a backup made on the phone restores on the PC and the other way round. On a PC:
   - **Wide layout.** The window can be resized, and it reopens where you left it. In a wide window Live uses the new **Three panes** desktop layout, described below.
-  - **Keyboard.** On Live, **Space** pauses and resumes, **Page Down** (pressed twice) starts the next segment, **+** or **−** opens Adjust time and **Ctrl+Z** offers to undo the last segment change. Each still asks before it changes anything, and **Lock controls** blocks them all.
+  - **Keyboard.** On Live, **Space** asks to pause or resume and a second **Space** or **Enter** confirms, **Page Down** (pressed twice) starts the next segment, **+** or **−** opens Adjust time and **Ctrl+Z** offers to undo the last segment change. Each still asks before it changes anything, and **Lock controls** blocks them all.
   - **It stays awake.** While a service runs, or screens are shared, the PC will not go to sleep or turn its screen off. If it does sleep (a closed lid), the timer is still right when it wakes. Closing the window during a service asks first.
   - **Screens and the LED sign.** The PC can host stage screens and web screens, join another device's service as a stage screen, and drive the W2 LED sign. It can be on a network cable and on the sign's Wi-Fi at the same time. Join the sign's Wi-Fi in Windows' own Wi-Fi settings; the app does not switch networks for you.
   - **Second screen.** With a projector or second monitor plugged into the PC, **Settings › Screens & devices › Second screen** shows the stage output on it full screen: the timer, cues, messages and blanking, exactly as a stage screen shows them. It needs no network or pairing and works whichever display you have chosen. Set Windows to **Extend** (Windows + P) first. **Stop**, or Esc on that screen, closes it.
