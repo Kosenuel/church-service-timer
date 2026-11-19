@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -114,152 +115,184 @@ extension MobileDisplayViews on HomeState {
     }
   }
 
+  /// What the chosen display is showing, beside the pages that choose and
+  /// connect it.
+  Widget displayNowPane() => AnimatedBuilder(
+    animation: c.liveClock,
+    builder: (context, _) => SidePane(
+      title: 'On the display now',
+      note:
+          'What ${c.destinationName} is showing. It follows the service as you switch.',
+      children: [
+        DisplayPreviewHeader(connection: c.displayConnection),
+        const SizedBox(height: 12),
+        if (c.destination == 'mobile') mobileStagePreview() else liveMatrix(),
+        const SizedBox(height: 10),
+        Text(
+          c.liveSession.outputBlank
+              ? 'Screen intentionally blanked'
+              : c.hardware.enabled
+              ? c.hardware.acceptedLabel
+              : c.destination == 'mobile'
+              ? c.liveSession.outputMode(c.now)
+              : 'Simulator · ${c.liveSession.intended(c.now)?.text ?? 'No new output'}',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: appColors(context).muted),
+        ),
+      ],
+    ),
+  );
+
   Widget displayChoices() {
     final colors = appColors(context);
     final locked = c.busy || c.reportSavePending;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Where should your stage output appear?',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Choose one destination. Your service timing continues when you switch.',
-          style: TextStyle(color: colors.muted),
-        ),
-        const SizedBox(height: 20),
-        for (final choice in [
-          (
-            'led',
-            Icons.signpost_outlined,
-            'LED sign',
-            'Your Wi-Fi LED controller at the front of the church',
+    return SettingsWide(
+      main: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Where should your stage output appear?',
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
-          (
-            'mobile',
-            Icons.devices_outlined,
-            'Phone, tablet or web screens',
-            'Paired phones and tablets, or any browser on this Wi-Fi',
+          const SizedBox(height: 8),
+          Text(
+            'Choose one destination. Your service timing continues when you switch.',
+            style: TextStyle(color: colors.muted),
           ),
-          (
-            'simulator',
-            Icons.monitor_outlined,
-            'Simulator',
-            'Preview on this device without an external display',
-          ),
-        ]) ...[
-          Builder(
-            builder: (context) {
-              final chosen = c.destination == choice.$1;
-              final status = destinationStatus(choice.$1);
-              return Material(
-                color: chosen
-                    ? colors.accent.withValues(alpha: .12)
-                    : colors.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  side: BorderSide(
-                    color: chosen ? colors.accent : colors.border,
-                    width: chosen ? 2 : 1,
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  key: ValueKey('destination-${choice.$1}'),
-                  onTap: locked ? null : () => chooseDestination(choice.$1),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: chosen
-                                ? colors.accent.withValues(alpha: .2)
-                                : colors.border.withValues(alpha: .35),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Icon(choice.$2, size: 28),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                choice.$3,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                choice.$4,
-                                style: TextStyle(color: colors.muted),
-                              ),
-                              if (status.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.circle,
-                                      size: 8,
-                                      color: chosen
-                                          ? colors.accent
-                                          : colors.muted,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        status,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          chosen ? Icons.check_circle : Icons.chevron_right,
-                          color: chosen ? colors.accent : colors.muted,
-                        ),
-                      ],
+          const SizedBox(height: 20),
+          for (final choice in [
+            (
+              'led',
+              Icons.signpost_outlined,
+              'LED sign',
+              'Your Wi-Fi LED controller at the front of the church',
+            ),
+            (
+              'mobile',
+              Icons.devices_outlined,
+              'Phone, tablet or web screens',
+              'Paired phones and tablets, or any browser on this Wi-Fi',
+            ),
+            (
+              'simulator',
+              Icons.monitor_outlined,
+              'Simulator',
+              'Preview on this device without an external display',
+            ),
+          ]) ...[
+            Builder(
+              builder: (context) {
+                final chosen = c.destination == choice.$1;
+                final status = destinationStatus(choice.$1);
+                return Material(
+                  color: chosen
+                      ? colors.accent.withValues(alpha: .12)
+                      : colors.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    side: BorderSide(
+                      color: chosen ? colors.accent : colors.border,
+                      width: chosen ? 2 : 1,
                     ),
                   ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-        ],
-        if (c.destination == 'led')
-          TextButton.icon(
-            onPressed: () =>
-                openSettingsDetail('LED connection', connectionSettings),
-            icon: const Icon(Icons.info_outline),
-            label: const Text('LED connection details'),
-          ),
-        if (c.destination == 'mobile')
-          TextButton.icon(
-            onPressed: () => openSettingsDetail(
-              'Screens & devices',
-              stageScreenSettings,
-              showLiveShortcut: true,
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: ValueKey('destination-${choice.$1}'),
+                    onTap: locked ? null : () => chooseDestination(choice.$1),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: chosen
+                                  ? colors.accent.withValues(alpha: .2)
+                                  : colors.border.withValues(alpha: .35),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(choice.$2, size: 28),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  choice.$3,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  choice.$4,
+                                  style: TextStyle(color: colors.muted),
+                                ),
+                                if (status.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.circle,
+                                        size: 8,
+                                        color: chosen
+                                            ? colors.accent
+                                            : colors.muted,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          status,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            chosen ? Icons.check_circle : Icons.chevron_right,
+                            color: chosen ? colors.accent : colors.muted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-            icon: const Icon(Icons.devices),
-            label: const Text('Manage screens'),
-          ),
-      ],
+            const SizedBox(height: 12),
+          ],
+          if (c.destination == 'led')
+            TextButton.icon(
+              onPressed: () =>
+                  openSettingsDetail('LED connection', connectionSettings),
+              icon: const Icon(Icons.info_outline),
+              label: const Text('LED connection details'),
+            ),
+          if (c.destination == 'mobile')
+            TextButton.icon(
+              onPressed: () => openSettingsDetail(
+                'Screens & devices',
+                stageScreenSettings,
+                showLiveShortcut: true,
+              ),
+              icon: const Icon(Icons.devices),
+              label: const Text('Manage screens'),
+            ),
+        ],
+      ),
+      side: (context) => displayNowPane(),
     );
   }
 

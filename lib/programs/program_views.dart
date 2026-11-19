@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -317,7 +318,7 @@ extension TemplateViews on HomeState {
         if (c.state.templates.isNotEmpty && !flat)
           listHint(
             'programs-select',
-            'Tap a program to open it · press and hold to select',
+            deviceText('Tap a program to open it · press and hold to select'),
           ),
       ],
       if (items.isEmpty && c.state.templates.isEmpty)

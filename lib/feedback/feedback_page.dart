@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
@@ -89,7 +90,9 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
           setState(() {
             issue = !opened;
             status = opened
-                ? 'Email app opened. Review the message and tap Send there. This app cannot confirm delivery. Your text is still here.'
+                ? deviceText(
+                    'Email app opened. Review the message and tap Send there. This app cannot confirm delivery. Your text is still here.',
+                  )
                 : 'No email app is available. Install or configure one, or use Copy feedback and email it to $feedbackRecipient. Your text is still here.';
           });
       }
@@ -279,7 +282,9 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
       ),
       const SizedBox(height: 16),
       Text(
-        'App version ${widget.controller.appVersion} is included. Nothing is sent until you tap Send in your email app.',
+        deviceText(
+          'App version ${widget.controller.appVersion} is included. Nothing is sent until you tap Send in your email app.',
+        ),
         style: TextStyle(color: appColors(context).muted, fontSize: 13),
       ),
       const SizedBox(height: 12),

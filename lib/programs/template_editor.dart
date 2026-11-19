@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -577,8 +578,10 @@ class TemplateEditorState extends State<TemplateEditor> {
                 ),
                 subtitle: Text(
                   sameLayout(endScreen, widget.defaultEnd)
-                      ? 'Uses the current default · tap to edit'
-                      : 'This program’s own end screen · tap to edit',
+                      ? deviceText('Uses the current default · tap to edit')
+                      : deviceText(
+                          'This program’s own end screen · tap to edit',
+                        ),
                   style: muted,
                 ),
                 trailing: const Icon(Icons.chevron_right),

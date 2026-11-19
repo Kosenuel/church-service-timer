@@ -13,11 +13,14 @@ import '../support/widget_setup.dart';
 class DesktopFakePort extends FakePort {
   @override
   bool get isDesktop => true;
+  bool warningSound = false;
+  @override
+  Future<void> setWarningSound(bool on) async => warningSound = on;
   @override
   Future<Json> notificationStatus() async => {
     'enabled': true,
     'exact': true,
-    'sound': false,
+    'sound': warningSound,
   };
   @override
   Future<bool> setActiveService(bool enabled) async => enabled;

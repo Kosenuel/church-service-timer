@@ -412,4 +412,56 @@ void main() {
     await mouse.removePointer();
     expect(t.takeException(), isNull);
   });
+
+  testWidgets('Quick message presets show each message beside the list', (
+    t,
+  ) async {
+    final c = await settings(t, full);
+    await c.commit(
+      (draft, _) => draft.quickMessages = const [
+        QuickMessage(headline: 'Two minutes', body: 'Please wrap up'),
+        QuickMessage(body: 'Band to the stage', seconds: 0),
+      ],
+    );
+    await open(t, 'Quick message presets');
+    expect(find.text('ON A STAGE SCREEN'), findsOneWidget);
+    expect(find.text('Stays until cleared'), findsOneWidget);
+    await shot(t, 'quick-presets');
+  });
+
+  testWidgets('Choose display shows what the display is showing', (t) async {
+    await settings(t, full);
+    await open(t, 'Display settings');
+    await open(t, 'Connect a display');
+    expect(find.text('Where should your stage output appear?'), findsOneWidget);
+    expect(find.text('ON THE DISPLAY NOW'), findsOneWidget);
+    await shot(t, 'choose-display');
+  });
+
+  testWidgets('the Windows warning sound is a switch, off to begin with', (
+    t,
+  ) async {
+    await settings(t, full);
+    await open(t, 'Warnings & alerts');
+    final toggle = find.byKey(const ValueKey('desktop-warning-sound'));
+    expect(t.widget<SwitchListTile>(toggle).value, isFalse);
+    expect(find.textContaining('Off. Warnings make no sound'), findsOneWidget);
+    await t.ensureVisible(toggle);
+    await t.tap(toggle);
+    await t.pumpAndSettle();
+    expect(t.widget<SwitchListTile>(toggle).value, isTrue);
+    expect(
+      find.textContaining('On. Each warning plays the sound'),
+      findsOneWidget,
+    );
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('a computer says click where a phone says tap', (t) async {
+    await settings(t, full);
+    await t.tap(find.byKey(const ValueKey('desktop-tab-2')));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Click a report to open it'), findsOneWidget);
+    expect(find.textContaining('Tap a report'), findsNothing);
+  });
 }
