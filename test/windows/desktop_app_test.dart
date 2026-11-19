@@ -91,15 +91,50 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Space pauses even when clicker keys are turned off', (t) async {
+  testWidgets('Space asks before it pauses, even with clicker keys off', (
+    t,
+  ) async {
     final (c, _) = await running(t);
     await c.commit((draft, _) => draft.clickerControls = false);
+    // Space opens the Pause button's own question and changes nothing.
+    await t.sendKeyEvent(LogicalKeyboardKey.space);
+    await t.pumpAndSettle();
+    expect(find.text('Pause Praise & Worship?'), findsOneWidget);
+    expect(c.state.session.paused, isFalse);
+    // Esc backs out.
+    await t.sendKeyEvent(LogicalKeyboardKey.escape);
+    await t.pumpAndSettle();
+    expect(find.text('Pause Praise & Worship?'), findsNothing);
+    expect(c.state.session.paused, isFalse);
+    // Space again, then Space or Enter to confirm.
+    await t.sendKeyEvent(LogicalKeyboardKey.space);
+    await t.pumpAndSettle();
     await t.sendKeyEvent(LogicalKeyboardKey.space);
     await t.pumpAndSettle();
     expect(c.state.session.paused, isTrue);
-    await t.sendKeyEvent(LogicalKeyboardKey.space);
+    expect(find.text('Pause Praise & Worship?'), findsNothing);
+    // Resuming asks too; B is the same key as Space.
+    await t.sendKeyEvent(LogicalKeyboardKey.keyB);
+    await t.pumpAndSettle();
+    expect(find.text('Resume Praise & Worship?'), findsOneWidget);
+    expect(c.state.session.paused, isTrue);
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
     await t.pumpAndSettle();
     expect(c.state.session.paused, isFalse);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('End service is never one key press from Space or Enter', (
+    t,
+  ) async {
+    final (c, _) = await running(t);
+    await t.tap(find.byKey(const ValueKey('end-service')));
+    await t.pumpAndSettle();
+    expect(find.text('End Sunday Service?'), findsOneWidget);
+    await t.sendKeyEvent(LogicalKeyboardKey.space);
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
+    await t.pumpAndSettle();
+    expect(c.state.session.active, isTrue);
     await t.pumpWidget(const SizedBox());
   });
 

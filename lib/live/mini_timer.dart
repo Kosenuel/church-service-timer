@@ -614,6 +614,9 @@ extension MiniTimerMode on HomeState {
                 _cancel(ctx, 'Cancel', false),
                 FilledButton(
                   key: const ValueKey('mini-confirm-action'),
+                  // Space or Enter answers what Space asked, as in the
+                  // full window; never for a destructive question.
+                  autofocus: !destructive,
                   onPressed: stale || (revision != null && c.busy)
                       ? null
                       : () => Navigator.pop(ctx, true),

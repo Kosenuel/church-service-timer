@@ -635,7 +635,9 @@ extension WarningSettingsViews on HomeState {
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
-            'Page Down or Right arrow for Next (press twice to confirm). B or Space to pause or resume.',
+            c.port.isDesktop
+                ? 'Page Down or Right arrow for Next (press twice to confirm). B or Space to pause or resume; it asks first, and Space or Enter confirms.'
+                : 'Page Down or Right arrow for Next (press twice to confirm). B or Space to pause or resume.',
             style: TextStyle(fontSize: 13, color: appColors(context).muted),
           ),
           value: c.state.clickerControls,
