@@ -1,3 +1,5 @@
+import 'package:church_service_timer/settings/settings_wide.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -422,324 +424,357 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
         !busy;
     final tone = connected ? colors.accent : colors.muted;
     final muted = TextStyle(fontSize: 12, color: colors.muted);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          key: const ValueKey('led-status-card'),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: tone.withValues(alpha: .14),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(Icons.developer_board, color: tone, size: 26),
+    final wide = isWideWindow(context);
+    final top = <Widget>[
+      Container(
+        key: const ValueKey('led-status-card'),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: .14),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          saved
-                              ? c.hardware.rememberedName
-                              : 'No LED sign saved',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                          ),
+                  child: Icon(Icons.developer_board, color: tone, size: 26),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        saved ? c.hardware.rememberedName : 'No LED sign saved',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          profile == null
-                              ? 'W2 controller · connect to read its details'
-                              : '${profile['width']} × ${profile['height']} · ${profile['firmware']}',
-                          style: muted,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tone.withValues(alpha: .14),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      connected ? 'Connected' : 'Not connected',
-                      style: TextStyle(
-                        color: tone,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
                       ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
+                      const SizedBox(height: 2),
+                      Text(
+                        profile == null
+                            ? 'W2 controller · connect to read its details'
+                            : '${profile['width']} × ${profile['height']} · ${profile['firmware']}',
+                        style: muted,
                       ),
-                      onPressed: busy
-                          ? null
-                          : () => operation(() => c.port.openWifiSettings()),
-                      icon: const Icon(Icons.wifi),
-                      label: const Text(
-                        'Open Wi-Fi',
-                        textAlign: TextAlign.center,
-                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: .14),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    connected ? 'Connected' : 'Not connected',
+                    style: TextStyle(
+                      color: tone,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    // Once connected, Details is no more important than
-                    // Open Wi-Fi, so both are outlined.
-                    child: connected
-                        ? OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(48),
-                            ),
-                            onPressed:
-                                busy || c.hardware.busy || c.hardware.sending
-                                ? null
-                                : connectFromSettings,
-                            icon: const Icon(Icons.connected_tv),
-                            label: const Text('Details'),
-                          )
-                        : FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              minimumSize: const Size.fromHeight(48),
-                            ),
-                            onPressed:
-                                busy || c.hardware.busy || c.hardware.sending
-                                ? null
-                                : connectFromSettings,
-                            icon: const Icon(Icons.connected_tv),
-                            label: Text(
-                              saved
-                                  ? 'Reconnect LED display'
-                                  : 'Connect LED display',
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(
-                    wifiConnected ? Icons.wifi : Icons.wifi_off,
-                    size: 16,
-                    color: colors.muted,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      ssid.isNotEmpty
-                          ? ssid
-                          : wifiConnected
-                          ? deviceText('Android has not shared the Wi-Fi name')
-                          : 'No Wi-Fi connection',
-                      style: muted,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Read Wi-Fi name',
-                    icon: const Icon(Icons.refresh, size: 20),
                     onPressed: busy
                         ? null
-                        : () => readNetwork(requestName: true),
+                        : () => operation(() => c.port.openWifiSettings()),
+                    icon: const Icon(Icons.wifi),
+                    label: const Text(
+                      'Open Wi-Fi',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  // Once connected, Details is no more important than
+                  // Open Wi-Fi, so both are outlined.
+                  child: connected
+                      ? OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                          onPressed:
+                              busy || c.hardware.busy || c.hardware.sending
+                              ? null
+                              : connectFromSettings,
+                          icon: const Icon(Icons.connected_tv),
+                          label: const Text('Details'),
+                        )
+                      : FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                          onPressed:
+                              busy || c.hardware.busy || c.hardware.sending
+                              ? null
+                              : connectFromSettings,
+                          icon: const Icon(Icons.connected_tv),
+                          label: Text(
+                            saved
+                                ? 'Reconnect LED display'
+                                : 'Connect LED display',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(
+                  wifiConnected ? Icons.wifi : Icons.wifi_off,
+                  size: 16,
+                  color: colors.muted,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    ssid.isNotEmpty
+                        ? ssid
+                        : wifiConnected
+                        ? deviceText('Android has not shared the Wi-Fi name')
+                        : 'No Wi-Fi connection',
+                    style: muted,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Read Wi-Fi name',
+                  icon: const Icon(Icons.refresh, size: 20),
+                  onPressed: busy ? null : () => readNetwork(requestName: true),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      sectionLabel(deviceText('Saved on this phone')),
+      card([
+        ListTile(
+          key: const ValueKey('led-saved-wifi'),
+          leading: Icon(Icons.wifi_password, color: colors.muted),
+          title: const Text('Wi-Fi password'),
+          subtitle: revealedWifi != null
+              ? SelectableText(revealedWifi!)
+              : Text(deviceText('Encrypted on this phone'), style: muted),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton(
+                onPressed: busy || !saved
+                    ? null
+                    : () => toggleSecret(wifi: true),
+                child: Text(revealedWifi == null ? 'Show' : 'Hide'),
+              ),
+              PopupMenuButton<void>(
+                key: const ValueKey('led-saved-wifi-menu'),
+                tooltip: 'More',
+                enabled: !busy && saved,
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    onTap: saveKnownWifiPassword,
+                    child: const Text('Change saved password'),
                   ),
                 ],
               ),
             ],
           ),
         ),
-        sectionLabel(deviceText('Saved on this phone')),
-        card([
-          ListTile(
-            key: const ValueKey('led-saved-wifi'),
-            leading: Icon(Icons.wifi_password, color: colors.muted),
-            title: const Text('Wi-Fi password'),
-            subtitle: revealedWifi != null
-                ? SelectableText(revealedWifi!)
-                : Text(deviceText('Encrypted on this phone'), style: muted),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextButton(
-                  onPressed: busy || !saved
-                      ? null
-                      : () => toggleSecret(wifi: true),
-                  child: Text(revealedWifi == null ? 'Show' : 'Hide'),
-                ),
-                PopupMenuButton<void>(
-                  key: const ValueKey('led-saved-wifi-menu'),
-                  tooltip: 'More',
-                  enabled: !busy && saved,
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      onTap: saveKnownWifiPassword,
-                      child: const Text('Change saved password'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          ListTile(
-            key: const ValueKey('led-saved-device'),
-            leading: Icon(Icons.lock_outline, color: colors.muted),
-            title: const Text('Connection password'),
-            subtitle: revealed != null
-                ? SelectableText(revealed!)
-                : Text(
-                    deviceText(
-                      'Encrypted on this phone · the sign never reveals it',
-                    ),
-                    style: muted,
+        ListTile(
+          key: const ValueKey('led-saved-device'),
+          leading: Icon(Icons.lock_outline, color: colors.muted),
+          title: const Text('Connection password'),
+          subtitle: revealed != null
+              ? SelectableText(revealed!)
+              : Text(
+                  deviceText(
+                    'Encrypted on this phone · the sign never reveals it',
                   ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextButton(
-                  onPressed: busy || !saved
-                      ? null
-                      : () => toggleSecret(wifi: false),
-                  child: Text(revealed == null ? 'Show' : 'Hide'),
+                  style: muted,
                 ),
-                PopupMenuButton<void>(
-                  key: const ValueKey('led-saved-device-menu'),
-                  tooltip: 'More',
-                  enabled: !busy && saved,
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      onTap: () => operation(() async {
-                        await c.port.forgetDisplayPassword(
-                          c.hardware.rememberedId,
-                        );
-                        if (mounted)
-                          setState(() {
-                            revealed = null;
-                            status =
-                                'Saved password removed. The sign’s password is unchanged.';
-                          });
-                      }),
-                      child: Text(
-                        'Forget saved password',
-                        style: TextStyle(color: colors.error),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.info_outline, size: 16, color: colors.info),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    desktopWording
-                        ? 'Windows only shares the Wi-Fi name when Location is turned on in Windows settings; it is not used for tracking.'
-                        : 'Android needs location permission to read the Wi-Fi name; it is not used for tracking.',
-                    style: muted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ]),
-        sectionLabel('Sign settings'),
-        card([
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-            child: Row(
-              children: [
-                Icon(
-                  adminReady ? Icons.lock_open : Icons.lock_outline,
-                  size: 18,
-                  color: adminReady ? colors.accent : colors.muted,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    !connected
-                        ? 'Connect the LED display to change these.'
-                        : !wifiConnected
-                        ? 'Join the sign’s Wi-Fi to change these.'
-                        : !adminSupported
-                        ? 'This controller does not report the supported administration capability.'
-                        : c.state.session.active
-                        ? 'End the current service to change these.'
-                        : c.pairing.hosting
-                        ? 'Stop sharing this service to change these.'
-                        : 'Ready to manage this W2 controller.',
-                    style: muted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          for (final item in [
-            ('ssid', 'Wi-Fi name', Icons.wifi),
-            ('wifiPassword', 'Wi-Fi password', Icons.wifi_password),
-            ('devicePassword', 'Connection password', Icons.password),
-          ])
-            UnavailableAction(
-              reason: adminUnavailable,
-              child: ListTile(
-                leading: Icon(item.$3),
-                title: Text(item.$2),
-                trailing: const Icon(Icons.chevron_right),
-                enabled: adminReady,
-                onTap: () => changeSetting(item.$1, item.$2),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton(
+                onPressed: busy || !saved
+                    ? null
+                    : () => toggleSecret(wifi: false),
+                child: Text(revealed == null ? 'Show' : 'Hide'),
               ),
-            ),
-        ]),
-        if (status != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
-            child: Text(status!, style: TextStyle(color: colors.warning)),
+              PopupMenuButton<void>(
+                key: const ValueKey('led-saved-device-menu'),
+                tooltip: 'More',
+                enabled: !busy && saved,
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    onTap: () => operation(() async {
+                      await c.port.forgetDisplayPassword(
+                        c.hardware.rememberedId,
+                      );
+                      if (mounted)
+                        setState(() {
+                          revealed = null;
+                          status =
+                              'Saved password removed. The sign’s password is unchanged.';
+                        });
+                    }),
+                    child: Text(
+                      'Forget saved password',
+                      style: TextStyle(color: colors.error),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        const SizedBox(height: 24),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, size: 16, color: colors.info),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  desktopWording
+                      ? 'Windows only shares the Wi-Fi name when Location is turned on in Windows settings; it is not used for tracking.'
+                      : 'Android needs location permission to read the Wi-Fi name; it is not used for tracking.',
+                  style: muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ]),
+    ];
+    final bottom = <Widget>[
+      card([
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+          child: Row(
+            children: [
+              Icon(
+                adminReady ? Icons.lock_open : Icons.lock_outline,
+                size: 18,
+                color: adminReady ? colors.accent : colors.muted,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  !connected
+                      ? 'Connect the LED display to change these.'
+                      : !wifiConnected
+                      ? 'Join the sign’s Wi-Fi to change these.'
+                      : !adminSupported
+                      ? 'This controller does not report the supported administration capability.'
+                      : c.state.session.active
+                      ? 'End the current service to change these.'
+                      : c.pairing.hosting
+                      ? 'Stop sharing this service to change these.'
+                      : 'Ready to manage this W2 controller.',
+                  style: muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        for (final item in [
+          ('ssid', 'Wi-Fi name', Icons.wifi),
+          ('wifiPassword', 'Wi-Fi password', Icons.wifi_password),
+          ('devicePassword', 'Connection password', Icons.password),
+        ])
+          UnavailableAction(
+            reason: adminUnavailable,
+            child: ListTile(
+              leading: Icon(item.$3),
+              title: Text(item.$2),
+              trailing: const Icon(Icons.chevron_right),
+              enabled: adminReady,
+              onTap: () => changeSetting(item.$1, item.$2),
+            ),
+          ),
+      ]),
+      if (status != null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
+          child: Text(status!, style: TextStyle(color: colors.warning)),
+        ),
+      const SizedBox(height: 24),
+      ordinarySize(
+        context,
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(
             foregroundColor: colors.error,
             side: BorderSide(color: colors.error.withValues(alpha: .5)),
-            minimumSize: const Size.fromHeight(48),
+            minimumSize: wide ? const Size(0, 48) : const Size.fromHeight(48),
           ),
           onPressed: busy || !saved ? null : forgetSign,
           icon: const Icon(Icons.delete_outline),
           label: const Text('Forget this sign'),
         ),
-      ],
+      ),
+    ];
+    // Two columns in a wide window: the sign and what is saved for it on
+    // the left, changing the sign itself on the right.
+    if (wide) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: top,
+            ),
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    'SIGN SETTINGS',
+                    style: sectionLabelStyle(context),
+                  ),
+                ),
+                ...bottom,
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [...top, sectionLabel('Sign settings'), ...bottom],
     );
   }
 }

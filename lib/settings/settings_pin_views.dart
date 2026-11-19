@@ -1,3 +1,4 @@
+import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -260,87 +261,126 @@ extension SettingsPinViews on HomeState {
   Widget settingsPinSettings() {
     final colors = appColors(context);
     final on = c.state.settingsLock != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        panel(
-          child: Row(
-            children: [
-              Icon(
-                on ? Icons.lock_outline : Icons.lock_open,
-                color: on ? colors.accent : colors.muted,
-                size: 28,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      on ? 'PIN is on' : 'PIN is off',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      'Locks Settings, deleting programs and reports, and LED sign administration. Live, Programs and Reports stay open for every operator.',
-                      style: TextStyle(fontSize: 13, color: colors.muted),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (!on)
-          FilledButton.icon(
-            key: const ValueKey('set-settings-pin'),
-            onPressed: c.busy ? null : setSettingsPin,
-            icon: const Icon(Icons.pin_outlined),
-            label: const Text('Set a PIN'),
-          )
-        else ...[
-          OutlinedButton.icon(
-            key: const ValueKey('change-settings-pin'),
-            onPressed: c.busy ? null : setSettingsPin,
-            icon: const Icon(Icons.pin_outlined),
-            label: const Text('Change PIN and recovery code'),
-          ),
-          const SizedBox(height: 16),
-          // Full width and red-outlined, like Forget this sign.
-          OutlinedButton.icon(
-            key: const ValueKey('remove-settings-pin'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: colors.error,
-              side: BorderSide(color: colors.error.withValues(alpha: .5)),
+    return SettingsWide(
+      maxWidth: 600,
+      side: (context) => SidePane(
+        title: 'What the PIN covers',
+        note: on
+            ? 'The PIN is on. These are asked for it, and these are not.'
+            : 'The PIN is off. If you set one, these are asked for it, and these are not.',
+        children: [
+          PaneBlock(
+            heading: 'Asks for the PIN',
+            child: PanePoints(
+              icon: Icons.lock_outline,
+              color: colors.accent,
+              points: const [
+                'Opening Settings',
+                'Deleting programs and reports',
+                'LED sign administration',
+              ],
             ),
-            onPressed: c.busy
-                ? null
-                : () async {
-                    if (await confirm(
-                      'Turn off the PIN?',
-                      deviceText(
-                        'Anyone using this phone will be able to open Settings and delete programs and reports.',
-                      ),
-                      'Turn off PIN',
-                      destructive: true,
-                    ))
-                      await c.removeSettingsPin();
-                  },
-            icon: const Icon(Icons.lock_open),
-            label: const Text('Turn off PIN'),
+          ),
+          const PaneBlock(
+            heading: 'Stays open for every operator',
+            child: PanePoints(
+              icon: Icons.check,
+              points: ['Live', 'Programs', 'Reports'],
+            ),
           ),
         ],
-        const SizedBox(height: 12),
-        Text(
-          deviceText(
-            'The PIN is stored only as a salted hash on this phone and is never included in backups. Settings lock again whenever the app leaves the screen.',
+      ),
+      main: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          panel(
+            child: Row(
+              children: [
+                Icon(
+                  on ? Icons.lock_outline : Icons.lock_open,
+                  color: on ? colors.accent : colors.muted,
+                  size: 28,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        on ? 'PIN is on' : 'PIN is off',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        'Locks Settings, deleting programs and reports, and LED sign administration. Live, Programs and Reports stay open for every operator.',
+                        style: TextStyle(fontSize: 13, color: colors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          style: TextStyle(fontSize: 12, color: colors.muted),
-        ),
-      ],
+          const SizedBox(height: 16),
+          if (!on)
+            ordinarySize(
+              context,
+              FilledButton.icon(
+                key: const ValueKey('set-settings-pin'),
+                onPressed: c.busy ? null : setSettingsPin,
+                icon: const Icon(Icons.pin_outlined),
+                label: const Text('Set a PIN'),
+              ),
+            )
+          else ...[
+            ordinarySize(
+              context,
+              OutlinedButton.icon(
+                key: const ValueKey('change-settings-pin'),
+                onPressed: c.busy ? null : setSettingsPin,
+                icon: const Icon(Icons.pin_outlined),
+                label: const Text('Change PIN and recovery code'),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Full width and red-outlined, like Forget this sign.
+            ordinarySize(
+              context,
+              OutlinedButton.icon(
+                key: const ValueKey('remove-settings-pin'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colors.error,
+                  side: BorderSide(color: colors.error.withValues(alpha: .5)),
+                ),
+                onPressed: c.busy
+                    ? null
+                    : () async {
+                        if (await confirm(
+                          'Turn off the PIN?',
+                          deviceText(
+                            'Anyone using this phone will be able to open Settings and delete programs and reports.',
+                          ),
+                          'Turn off PIN',
+                          destructive: true,
+                        ))
+                          await c.removeSettingsPin();
+                      },
+                icon: const Icon(Icons.lock_open),
+                label: const Text('Turn off PIN'),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            deviceText(
+              'The PIN is stored only as a salted hash on this phone and is never included in backups. Settings lock again whenever the app leaves the screen.',
+            ),
+            style: TextStyle(fontSize: 12, color: colors.muted),
+          ),
+        ],
+      ),
     );
   }
 }

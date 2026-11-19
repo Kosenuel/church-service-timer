@@ -16,6 +16,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/settings/backup_secret_views.dart';
 import 'package:church_service_timer/settings/whats_new_page.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
+import 'package:church_service_timer/settings/settings_wide.dart';
 export 'package:church_service_timer/settings/church_profile_page.dart';
 
 extension SettingsViews on HomeState {
@@ -72,6 +73,9 @@ extension SettingsViews on HomeState {
               final page = content();
               // A page with its own panes for a wide window fills the body.
               if (wide && page is FillsWideWindow) return page;
+              // A page that has an arrangement for a wide window uses it;
+              // every other page, and every narrower window, is one column.
+              if (wide && page is SettingsWide) return page.wideBody(context);
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Center(
@@ -362,73 +366,123 @@ extension SettingsViews on HomeState {
     );
   }
 
-  Widget backupSettings() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      panel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.backup_outlined, size: 36),
-            const SizedBox(height: 12),
-            const Text(
-              'Keep your setup safe.',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Save your programs, cue formatting, display defaults, service reports, church profile and appearance in one JSON file. You choose where it is stored.',
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Backups exclude the current running service and phone permissions. Saved sign passwords are included only if you choose, encrypted with a passphrase. Private operator notes are included in programs.',
-              style: TextStyle(color: appColors(context).muted),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: c.busy ? null : exportSavedSetup,
-              icon: const Icon(Icons.save_alt),
-              label: const Text('Export backup'),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 16),
-      panel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Restore a saved setup',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              deviceText(
-                'Restore replaces the saved data on this phone. Export a backup first if you want to keep the current setup. You will review the file before confirming.',
+  Widget backupSettings() => SettingsWide(
+    side: (context) => backupSummaryPane(),
+    main: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.backup_outlined, size: 36),
+              const SizedBox(height: 12),
+              const Text(
+                'Keep your setup safe.',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
               ),
-            ),
-            const SizedBox(height: 16),
-            if (c.state.session.active || c.state.session.phase == 'ready')
+              const SizedBox(height: 12),
+              const Text(
+                'Save your programs, cue formatting, display defaults, service reports, church profile and appearance in one JSON file. You choose where it is stored.',
+              ),
+              const SizedBox(height: 12),
               Text(
-                'End or cancel the loaded service before restoring.',
-                style: TextStyle(color: appColors(context).warning),
+                'Backups exclude the current running service and phone permissions. Saved sign passwords are included only if you choose, encrypted with a passphrase. Private operator notes are included in programs.',
+                style: TextStyle(color: appColors(context).muted),
               ),
-            OutlinedButton.icon(
-              onPressed:
-                  c.busy ||
-                      c.state.session.active ||
-                      c.state.session.phase == 'ready'
-                  ? null
-                  : restoreSavedSetup,
-              icon: const Icon(Icons.restore),
-              label: const Text('Choose backup to restore'),
-            ),
-          ],
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: c.busy ? null : exportSavedSetup,
+                icon: const Icon(Icons.save_alt),
+                label: const Text('Export backup'),
+              ),
+            ],
+          ),
         ),
-      ),
-    ],
+        const SizedBox(height: 16),
+        panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Restore a saved setup',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                deviceText(
+                  'Restore replaces the saved data on this phone. Export a backup first if you want to keep the current setup. You will review the file before confirming.',
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (c.state.session.active || c.state.session.phase == 'ready')
+                Text(
+                  'End or cancel the loaded service before restoring.',
+                  style: TextStyle(color: appColors(context).warning),
+                ),
+              OutlinedButton.icon(
+                onPressed:
+                    c.busy ||
+                        c.state.session.active ||
+                        c.state.session.phase == 'ready'
+                    ? null
+                    : restoreSavedSetup,
+                icon: const Icon(Icons.restore),
+                label: const Text('Choose backup to restore'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
+
+  /// Beside Backup & restore in a wide window: what a backup made now
+  /// would hold, counted from what is saved.
+  Widget backupSummaryPane() {
+    final s = c.state;
+    return SidePane(
+      title: 'In a backup made now',
+      note: deviceText(
+        'Counted from what is saved on this phone. Export before a big change, and keep the file somewhere you trust.',
+      ),
+      children: [
+        PaneBlock(
+          heading: 'Included',
+          child: Column(
+            children: [
+              PaneFact('Programs', '${s.templates.length}'),
+              PaneFact('Stage cues', '${s.stageCues.length}'),
+              PaneFact('Service reports', '${s.reports.length}'),
+              PaneFact(
+                'Church',
+                s.churchName.isEmpty ? 'Not set' : s.churchName,
+              ),
+              PaneFact('Theme', paletteFor(s.themeId).name),
+            ],
+          ),
+        ),
+        const PaneBlock(
+          heading: 'Only if you choose',
+          child: PanePoints(
+            icon: Icons.key_outlined,
+            points: ['Saved sign passwords, encrypted with a passphrase'],
+          ),
+        ),
+        const PaneBlock(
+          heading: 'Never included',
+          child: PanePoints(
+            icon: Icons.remove_circle_outline,
+            points: [
+              'The service that is running now',
+              'Pairings with stage screens and other devices',
+              'The Settings PIN',
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
   Future<void> exportSavedSetup() async {
     try {
@@ -519,13 +573,21 @@ extension SettingsViews on HomeState {
 
   Widget aboutSettings() {
     final colors = appColors(context);
-    Widget detail(String title, String body, {Widget? action}) => panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(body, style: const TextStyle(fontSize: 15, height: 1.45)),
-          if (action != null) ...[const SizedBox(height: 16), action],
-        ],
+    // The release notes sit beside the page in a wide window, so the row
+    // that opens them is not needed there.
+    final wide = isWideWindow(context);
+    Widget detail(String title, String body, {Widget? action}) => SettingsWide(
+      main: panel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(body, style: const TextStyle(fontSize: 15, height: 1.45)),
+            if (action != null) ...[
+              const SizedBox(height: 16),
+              ordinarySize(context, action),
+            ],
+          ],
+        ),
       ),
     );
     Widget row(
@@ -555,15 +617,16 @@ extension SettingsViews on HomeState {
       onTap: onTap,
     );
     final rows = [
-      row(
-        Icons.auto_awesome_outlined,
-        'What’s new',
-        'Release notes for ${c.appVersion.split(' ').first} and earlier',
-        () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const WhatsNewPage())),
-        key: const ValueKey('about-whats-new'),
-      ),
+      if (!wide)
+        row(
+          Icons.auto_awesome_outlined,
+          'What’s new',
+          'Release notes for ${c.appVersion.split(' ').first} and earlier',
+          () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const WhatsNewPage())),
+          key: const ValueKey('about-whats-new'),
+        ),
       row(
         Icons.storage_outlined,
         'Your data',
@@ -653,87 +716,94 @@ extension SettingsViews on HomeState {
         key: const ValueKey('about-diagnostics'),
       ),
     ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        panel(
-          child: Row(
-            children: [
-              ChurchTimerMark(size: 64, logo: c.state.churchLogo),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      appName,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+    return SettingsWide(
+      side: (context) => const SidePane(
+        title: 'What’s new',
+        note: 'What changed in this version and the ones before it.',
+        children: [ReleaseNotesView(flat: true)],
+      ),
+      main: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          panel(
+            child: Row(
+              children: [
+                ChurchTimerMark(size: 64, logo: c.state.churchLogo),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        appName,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.accent.withValues(alpha: .14),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Version ${c.appVersion}',
-                            style: TextStyle(
-                              color: colors.accent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.accent.withValues(alpha: .14),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Version ${c.appVersion}',
+                              style: TextStyle(
+                                color: colors.accent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                        Text(
-                          'Created by I-Proton',
-                          style: TextStyle(color: colors.muted, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                    if (c.state.churchName.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          c.state.churchName,
-                          style: TextStyle(color: colors.muted, fontSize: 13),
-                        ),
+                          Text(
+                            'Created by I-Proton',
+                            style: TextStyle(color: colors.muted, fontSize: 13),
+                          ),
+                        ],
                       ),
-                  ],
+                      if (c.state.churchName.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            c.state.churchName,
+                            style: TextStyle(color: colors.muted, fontSize: 13),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'A calm workspace for timing services, cueing the stage, warning the operator and learning from every report.',
-          style: TextStyle(fontSize: 15, height: 1.45),
-        ),
-        const SizedBox(height: 16),
-        panel(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              for (var i = 0; i < rows.length; i++) ...[
-                if (i > 0) const AppDivider(),
-                rows[i],
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          const Text(
+            'A calm workspace for timing services, cueing the stage, warning the operator and learning from every report.',
+            style: TextStyle(fontSize: 15, height: 1.45),
+          ),
+          const SizedBox(height: 16),
+          panel(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (var i = 0; i < rows.length; i++) ...[
+                  if (i > 0) const AppDivider(),
+                  rows[i],
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1306,6 +1376,159 @@ class _CustomThemeEditorState extends State<CustomThemeEditor> {
   Widget build(BuildContext context) {
     final error = validation();
     final p = error == null ? paletteFor(id) : base;
+    // In a wide window the sample sits beside the colours, so each change
+    // shows without scrolling.
+    final wide = isWideWindow(context);
+    const intro = Text(
+      'Choose colours or enter hex values. Text and accent contrast are adjusted for readability.',
+    );
+    final colourFields = <Widget>[
+      for (var i = 0; i < fields.length; i++) ...[
+        TextField(
+          controller: fields[i],
+          maxLength: 7,
+          decoration: InputDecoration(
+            labelText: ['Accent', 'Background', 'Panels'][i],
+            prefixText: '# ',
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        Wrap(
+          spacing: 8,
+          children:
+              (i == 0
+                      ? [
+                          0xff165aab,
+                          0xff345d48,
+                          0xff9a47d3,
+                          0xff9e4059,
+                          0xffc9f96c,
+                          0xffd89928,
+                        ]
+                      : [
+                          0xffedf5fc,
+                          0xfff9fcff,
+                          0xfff3f2e9,
+                          0xffe5eee5,
+                          0xff0a1210,
+                          0xff131d1a,
+                          0xff0b1426,
+                          0xff15233b,
+                        ])
+                  .map(
+                    (value) => IconButton(
+                      tooltip: 'Use #${hex(Color(value))}',
+                      onPressed: () =>
+                          setState(() => fields[i].text = hex(Color(value))),
+                      icon: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Color(value),
+                          border: Border.all(color: appColors(context).muted),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const SizedBox(width: 24, height: 24),
+                      ),
+                    ),
+                  )
+                  .toList(),
+        ),
+        const SizedBox(height: 12),
+      ],
+    ];
+    final sample = Theme(
+      data: appTheme(error == null ? id : widget.initial),
+      child: Container(
+        color: p.background,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const ChurchTimerMark(size: 56),
+            const SizedBox(height: 12),
+            Text(
+              'Sunday Service',
+              style: TextStyle(color: p.text, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              color: p.surface,
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                '08:59 remaining',
+                style: TextStyle(color: p.accent, fontSize: 24),
+              ),
+            ),
+            Text('Warning · Overtime', style: TextStyle(color: p.error)),
+          ],
+        ),
+      ),
+    );
+    final problem = error == null
+        ? null
+        : Text(error, style: TextStyle(color: appColors(context).error));
+    final use = FilledButton(
+      onPressed: error == null ? () => Navigator.pop(context, id) : null,
+      child: const Text('Use theme'),
+    );
+    final reset = OutlinedButton(
+      onPressed: () => setState(() {
+        final colors = [base.accent, base.background, base.surface];
+        for (var i = 0; i < 3; i++) {
+          fields[i].text = hex(colors[i]);
+        }
+      }),
+      child: const Text('Reset'),
+    );
+    final cancel = TextButton(
+      onPressed: () => Navigator.pop(context),
+      child: const Text('Cancel'),
+    );
+    if (wide) {
+      return AlertDialog(
+        title: const Text('Create custom theme'),
+        content: SizedBox(
+          width: 820,
+          child: SingleChildScrollView(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      intro,
+                      const SizedBox(height: 16),
+                      ...colourFields,
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 28),
+                SizedBox(
+                  width: 320,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const PaneLabel('How it will look'),
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: sample,
+                      ),
+                      if (problem != null) ...[
+                        const SizedBox(height: 10),
+                        problem,
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [cancel, reset, use],
+      );
+    }
     return AlertDialog(
       title: const Text('Create custom theme'),
       content: SizedBox(
@@ -1314,127 +1537,17 @@ class _CustomThemeEditorState extends State<CustomThemeEditor> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Choose colours or enter hex values. Text and accent contrast are adjusted for readability.',
-              ),
+              intro,
               const SizedBox(height: 16),
-              for (var i = 0; i < fields.length; i++) ...[
-                TextField(
-                  controller: fields[i],
-                  maxLength: 7,
-                  decoration: InputDecoration(
-                    labelText: ['Accent', 'Background', 'Panels'][i],
-                    prefixText: '# ',
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-                Wrap(
-                  spacing: 8,
-                  children:
-                      (i == 0
-                              ? [
-                                  0xff165aab,
-                                  0xff345d48,
-                                  0xff9a47d3,
-                                  0xff9e4059,
-                                  0xffc9f96c,
-                                  0xffd89928,
-                                ]
-                              : [
-                                  0xffedf5fc,
-                                  0xfff9fcff,
-                                  0xfff3f2e9,
-                                  0xffe5eee5,
-                                  0xff0a1210,
-                                  0xff131d1a,
-                                  0xff0b1426,
-                                  0xff15233b,
-                                ])
-                          .map(
-                            (value) => IconButton(
-                              tooltip: 'Use #${hex(Color(value))}',
-                              onPressed: () => setState(
-                                () => fields[i].text = hex(Color(value)),
-                              ),
-                              icon: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: Color(value),
-                                  border: Border.all(
-                                    color: appColors(context).muted,
-                                  ),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const SizedBox(width: 24, height: 24),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Theme(
-                data: appTheme(error == null ? id : widget.initial),
-                child: Container(
-                  color: p.background,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      const ChurchTimerMark(size: 56),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Sunday Service',
-                        style: TextStyle(
-                          color: p.text,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        color: p.surface,
-                        padding: const EdgeInsets.all(12),
-                        child: Text(
-                          '08:59 remaining',
-                          style: TextStyle(color: p.accent, fontSize: 24),
-                        ),
-                      ),
-                      Text(
-                        'Warning · Overtime',
-                        style: TextStyle(color: p.error),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (error != null)
-                Text(error, style: TextStyle(color: appColors(context).error)),
+              ...colourFields,
+              sample,
+              ?problem,
             ],
           ),
         ),
       ),
       actions: [
-        StackedDialogActions(
-          children: [
-            FilledButton(
-              onPressed: error == null
-                  ? () => Navigator.pop(context, id)
-                  : null,
-              child: const Text('Use theme'),
-            ),
-            OutlinedButton(
-              onPressed: () => setState(() {
-                final colors = [base.accent, base.background, base.surface];
-                for (var i = 0; i < 3; i++) {
-                  fields[i].text = hex(colors[i]);
-                }
-              }),
-              child: const Text('Reset'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
+        StackedDialogActions(children: [use, reset, cancel]),
       ],
     );
   }

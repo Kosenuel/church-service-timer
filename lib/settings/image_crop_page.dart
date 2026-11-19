@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -236,31 +237,43 @@ class _ImageCropPageState extends State<ImageCropPage> {
             ),
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white38),
-                      minimumSize: const Size(0, 48),
-                    ),
-                    onPressed: saving ? null : () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+            child: Builder(
+              builder: (context) {
+                final cancel = OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white38),
+                    minimumSize: const Size(0, 48),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    key: const ValueKey('use-cropped-image'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(0, 48),
-                    ),
-                    onPressed: saving ? null : useImage,
-                    child: Text(saving ? 'Preparing…' : widget.action),
-                  ),
-                ),
-              ],
+                  onPressed: saving ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                );
+                final use = FilledButton(
+                  key: const ValueKey('use-cropped-image'),
+                  style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+                  onPressed: saving ? null : useImage,
+                  child: Text(saving ? 'Preparing…' : widget.action),
+                );
+                // Ordinary buttons under the photo in a wide window, not
+                // two that share the width of the window.
+                if (isWideWindow(context)) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(width: 140, child: cancel),
+                      const SizedBox(width: 12),
+                      SizedBox(width: 240, child: use),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: cancel),
+                    const SizedBox(width: 12),
+                    Expanded(child: use),
+                  ],
+                );
+              },
             ),
           ),
         ],

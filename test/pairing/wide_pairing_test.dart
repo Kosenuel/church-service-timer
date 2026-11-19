@@ -134,6 +134,9 @@ void main() {
   }
 
   Future<void> openJoin(WidgetTester t) async {
+    // In a short window the button is further down the middle pane.
+    await t.ensureVisible(find.text('Join a service'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Join a service'));
     await t.pumpAndSettle();
   }

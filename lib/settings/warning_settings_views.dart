@@ -1,3 +1,4 @@
+import 'package:church_service_timer/settings/settings_wide.dart';
 import 'dart:async';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -586,76 +587,111 @@ extension WarningSettingsViews on HomeState {
     ),
   );
 
-  Widget warningsSettings() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      WarningSettingsPanel(
-        settings: c.state.defaults,
-        title: 'Automatic warnings',
-        scope:
-            'All services and rehearsals. Changes apply to future warnings; earlier thresholds are not replayed.',
-        busy: c.busy,
-        onSave: saveWarningsWithUndo,
-      ),
-      const SizedBox(height: 24),
-      phoneWarningSettings(),
-      settingsGroup('During a service', [
-        SwitchListTile(
-          key: const ValueKey('lock-screen-controls'),
-          contentPadding: appLayout(context).tileInsets,
-          secondary: Icon(
-            Icons.screen_lock_portrait_outlined,
-            color: appColors(context).accent,
-          ),
-          title: const Text(
-            'Lock-screen controls',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            'Countdown, Pause and Next in a notification. Next needs a second tap.',
-            style: TextStyle(fontSize: 13, color: appColors(context).muted),
-          ),
-          value: c.state.lockScreenControls,
-          onChanged: c.busy
-              ? null
-              : (v) async {
-                  await c.commit((draft, _) => draft.lockScreenControls = v);
-                  await c.syncActiveService();
-                },
+  Widget warningsSettings() => SettingsWide(
+    maxWidth: 720,
+    side: (context) => warningPreviewPane(),
+    main: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        WarningSettingsPanel(
+          settings: c.state.defaults,
+          title: 'Automatic warnings',
+          scope:
+              'All services and rehearsals. Changes apply to future warnings; earlier thresholds are not replayed.',
+          busy: c.busy,
+          onSave: saveWarningsWithUndo,
         ),
-        SwitchListTile(
-          key: const ValueKey('clicker-controls'),
-          contentPadding: appLayout(context).tileInsets,
-          secondary: Icon(
-            Icons.keyboard_alt_outlined,
-            color: appColors(context).accent,
+        const SizedBox(height: 24),
+        phoneWarningSettings(),
+        settingsGroup('During a service', [
+          SwitchListTile(
+            key: const ValueKey('lock-screen-controls'),
+            contentPadding: appLayout(context).tileInsets,
+            secondary: Icon(
+              Icons.screen_lock_portrait_outlined,
+              color: appColors(context).accent,
+            ),
+            title: const Text(
+              'Lock-screen controls',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              'Countdown, Pause and Next in a notification. Next needs a second tap.',
+              style: TextStyle(fontSize: 13, color: appColors(context).muted),
+            ),
+            value: c.state.lockScreenControls,
+            onChanged: c.busy
+                ? null
+                : (v) async {
+                    await c.commit((draft, _) => draft.lockScreenControls = v);
+                    await c.syncActiveService();
+                  },
           ),
-          title: const Text(
-            'Clicker and foot pedal',
-            style: TextStyle(fontWeight: FontWeight.w600),
+          SwitchListTile(
+            key: const ValueKey('clicker-controls'),
+            contentPadding: appLayout(context).tileInsets,
+            secondary: Icon(
+              Icons.keyboard_alt_outlined,
+              color: appColors(context).accent,
+            ),
+            title: const Text(
+              'Clicker and foot pedal',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              c.port.isDesktop
+                  ? 'Page Down or Right arrow for Next (press twice to confirm). B or Space to pause or resume; it asks first, and Space or Enter confirms.'
+                  : 'Page Down or Right arrow for Next (press twice to confirm). B or Space to pause or resume.',
+              style: TextStyle(fontSize: 13, color: appColors(context).muted),
+            ),
+            value: c.state.clickerControls,
+            onChanged: c.busy
+                ? null
+                : (v) => c.commit((draft, _) => draft.clickerControls = v),
           ),
-          subtitle: Text(
-            c.port.isDesktop
-                ? 'Page Down or Right arrow for Next (press twice to confirm). B or Space to pause or resume; it asks first, and Space or Enter confirms.'
-                : 'Page Down or Right arrow for Next (press twice to confirm). B or Space to pause or resume.',
-            style: TextStyle(fontSize: 13, color: appColors(context).muted),
+          settingsRow(
+            c.backgroundActive ? Icons.sync : Icons.info_outline,
+            c.backgroundActive
+                ? 'Background operation active'
+                : 'Background operation',
+            'Starts with the LED sign or sharing and keeps warnings running while locked. If unavailable, keep the app open; after an interruption, reconnect and review the output.',
+            null,
           ),
-          value: c.state.clickerControls,
-          onChanged: c.busy
-              ? null
-              : (v) => c.commit((draft, _) => draft.clickerControls = v),
-        ),
-        settingsRow(
-          c.backgroundActive ? Icons.sync : Icons.info_outline,
-          c.backgroundActive
-              ? 'Background operation active'
-              : 'Background operation',
-          'Starts with the LED sign or sharing and keeps warnings running while locked. If unavailable, keep the app open; after an interruption, reconnect and review the output.',
-          null,
-        ),
-      ]),
-    ],
+        ]),
+      ],
+    ),
   );
+
+  /// Beside Warnings & alerts in a wide window: what each automatic
+  /// warning puts on the stage display.
+  Widget warningPreviewPane() {
+    final rules = c.state.defaults.warnings;
+    return SidePane(
+      title: 'On the stage display',
+      note: rules.isEmpty
+          ? 'No automatic warnings yet. Add one and it is shown here as the stage will see it.'
+          : 'What each automatic warning shows when its time is reached. A warning that is switched off shows nothing.',
+      children: [
+        if (rules.isNotEmpty)
+          SignPreviewGrid(
+            items: [
+              for (final w in rules)
+                (
+                  '${formatTime(w.seconds * 1000)} left',
+                  !w.enabled
+                      ? 'Switched off'
+                      : w.destination == 'stage'
+                      ? (scrollsOnSign(w.cue)
+                            ? 'Operator and stage · scrolls across'
+                            : 'Operator and stage')
+                      : 'Operator only',
+                  w.enabled && w.destination == 'stage' ? w.cue : null,
+                ),
+            ],
+          ),
+      ],
+    );
+  }
 
   Widget phoneWarningSettings() {
     final colors = appColors(context);
