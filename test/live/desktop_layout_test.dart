@@ -779,6 +779,38 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
+  testWidgets('Desktop layout has its own row in Settings and in search', (
+    t,
+  ) async {
+    final (c, _) = await running(
+      t,
+      layout: 'mission_control',
+      size: const Size(1920, 1080),
+    );
+    await t.tap(find.text('Settings'));
+    await t.pumpAndSettle();
+    // The row names the layout in use and opens straight on its tab.
+    expect(find.text('Mission control · for a wide window'), findsOneWidget);
+    await press(t, find.text('Desktop layout'));
+    expect(
+      find.byKey(const ValueKey('desktop-layout-section')),
+      findsOneWidget,
+    );
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+    // Appearance still opens on Theme, with a pointer to the other tab.
+    await press(t, find.text('Appearance'));
+    expect(find.byKey(const ValueKey('desktop-layout-section')), findsNothing);
+    await press(t, find.byKey(const ValueKey('to-desktop-layout')));
+    expect(
+      find.byKey(const ValueKey('desktop-layout-section')),
+      findsOneWidget,
+    );
+    expect(c.state.appearance.desktopLayout, 'mission_control');
+    expect(t.takeException(), isNull);
+    await t.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Cancel leaves the layout and theme as they were', (t) async {
     final (c, _) = await running(t, theme: 'graphite');
     await openLayoutSettings(t);

@@ -38,6 +38,12 @@ extension SettingsSearchViews on HomeState {
         openAppearance,
       ),
       (
+        'Desktop layout',
+        'layout wide window computer three panes mission control dial keys classic saved looks reset keyboard keys buttons',
+        Icons.dashboard_customize_outlined,
+        () => openAppearance(tab: 1),
+      ),
+      (
         'Church profile',
         'church name image banner',
         Icons.church_outlined,
@@ -137,6 +143,7 @@ extension SettingsSearchViews on HomeState {
       'Display fonts': 'Fonts for the stage display',
       'Warnings & alerts': 'Shared thresholds, phone notifications and sound',
       'Appearance': 'Theme, spacing and motion',
+      'Desktop layout': 'How Live is arranged in a wide window',
       'Church profile': 'Logo, church name and banner',
       'Display settings': 'Connection, profile, end screens, fonts and LEDs',
       'LED preview shape': 'Square or round LEDs in the simulator',

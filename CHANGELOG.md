@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Desktop layout is easier to find.** It was the second tab of Appearance, which was easy to miss. Settings now has its own **Desktop layout** row, which names the layout in use and opens straight on it; searching Settings for "layout" finds it; and the Theme tab has a **Desktop layout and spacing** button that switches to the other tab.
+
 ## 0.31.0, 19/November/2026
 
 - **A Windows version (first build, still to be tried on a real PC).** Church Service Timer can now be built for Windows 10 and 11, so a service can be run from a laptop or PC. It is the same app: the same programs, reports, themes and settings, and a backup made on the phone restores on the PC and the other way round. On a PC:
