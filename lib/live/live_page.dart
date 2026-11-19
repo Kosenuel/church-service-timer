@@ -11,6 +11,7 @@ import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
+import 'package:church_service_timer/live/mission_control_live.dart';
 import 'package:church_service_timer/live/quick_timer_sheet.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
@@ -1338,7 +1339,10 @@ extension LivePage on HomeState {
         ),
     ];
     if (liveFillsWindow) {
-      return threePaneLive(
+      final arrange = desktopLayout == 'mission_control'
+          ? missionControlLive
+          : threePaneLive;
+      return arrange(
         notices: liveNotices,
         header: timerHeader,
         // Ready and a report still saving keep the card's own content.

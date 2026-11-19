@@ -146,11 +146,12 @@ class SegmentGauge extends StatelessWidget {
                               label(labelText),
                               const SizedBox(height: 4),
                             ],
-                            // The figures grow with a larger dial.
+                            // In a desktop layout the figures grow or
+                            // shrink with the dial.
                             SizedBox(
-                              height: width > 306 ? 74 * width / 306 : null,
+                              height: maxWidth != 306 ? 74 * width / 306 : null,
                               child: FittedBox(
-                                fit: width > 306
+                                fit: maxWidth != 306
                                     ? BoxFit.contain
                                     : BoxFit.scaleDown,
                                 child: number,
@@ -661,7 +662,8 @@ extension LiveViewActions on HomeState {
         );
         // On a phone "Next segment" wraps onto two lines beside Pause; the
         // line above the timer already names the next segment.
-        final nextLabel = constraints.maxWidth < 400 && !large
+        final nextLabel =
+            constraints.maxWidth < (showKeyHints ? 480 : 400) && !large
             ? 'Next'
             : 'Next segment';
         final next = practiceSpot(

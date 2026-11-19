@@ -647,15 +647,15 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                           // the header edge to edge.
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(useTopTabs ? 0 : 26),
+                              bottom: Radius.circular(squareHeader ? 0 : 26),
                             ),
-                            side: useTopTabs
+                            side: squareHeader
                                 ? BorderSide(color: appColors(context).border)
                                 : BorderSide.none,
                           ),
                           flexibleSpace: ClipRRect(
                             borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(useTopTabs ? 0 : 26),
+                              bottom: Radius.circular(squareHeader ? 0 : 26),
                             ),
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
