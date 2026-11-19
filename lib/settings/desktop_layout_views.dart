@@ -305,6 +305,52 @@ class LayoutSketchPainter extends CustomPainter {
         bar(w * .76, h * (.56 + i * .14), w * .09);
         bar(w * .87, h * (.56 + i * .14), w * .09);
       }
+    } else if (id == 'dial') {
+      // Three panes, with the service ring and its cross in the middle.
+      canvas
+        ..drawLine(Offset(w * .26, h * .14), Offset(w * .26, h), stroke)
+        ..drawLine(Offset(w * .72, h * .14), Offset(w * .72, h), stroke);
+      for (var i = 0; i < 5; i++) {
+        bar(w * .04, h * (.24 + i * .14), w * .18, i == 2 ? bright : null);
+      }
+      final centre = Offset(w * .49, h * .5), radius = h * .26;
+      final ring = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = radius * .16;
+      canvas
+        ..drawArc(
+          Rect.fromCircle(center: centre, radius: radius),
+          0,
+          4.71,
+          false,
+          ring..color = fill,
+        )
+        ..drawArc(
+          Rect.fromCircle(center: centre, radius: radius),
+          0,
+          2.6,
+          false,
+          ring..color = accent,
+        );
+      final cross = centre + Offset(radius * .71, -radius * .71);
+      final arm = Paint()
+        ..color = accent
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round;
+      canvas
+        ..drawLine(cross - Offset(0, h * .06), cross + Offset(0, h * .06), arm)
+        ..drawLine(
+          cross + Offset(-h * .04, -h * .02),
+          cross + Offset(h * .04, -h * .02),
+          arm,
+        );
+      bar(w * .39, h * .88, w * .09, bright);
+      bar(w * .5, h * .88, w * .09);
+      canvas.drawRect(Rect.fromLTWH(w * .76, h * .22, w * .2, h * .24), block);
+      for (var i = 0; i < 2; i++) {
+        bar(w * .76, h * (.56 + i * .14), w * .09);
+        bar(w * .87, h * (.56 + i * .14), w * .09);
+      }
     } else if (id == 'mission_control') {
       // A rail, three columns, and the rundown timeline along the bottom.
       canvas

@@ -148,6 +148,116 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
+  testWidgets('The dial at laptop size', (t) async {
+    await running(t, layout: 'dial', theme: 'royal_navy');
+    expect(t.takeException(), isNull);
+    expect(find.byKey(const ValueKey('service-dial')), findsOneWidget);
+    // Three panes around it, with the header tabs.
+    expect(find.byKey(const ValueKey('three-pane-live')), findsOneWidget);
+    expect(find.byKey(const ValueKey('desktop-tabs')), findsOneWidget);
+    for (final key in ['pause-resume', 'next-segment', 'end-service', 'undo']) {
+      expect(find.byKey(ValueKey(key)).hitTestable(), findsOneWidget);
+    }
+    expect(find.text('Blank screen').hitTestable(), findsOneWidget);
+    // End service is wholly in view, not cut off by the window.
+    expect(
+      t.getRect(find.byKey(const ValueKey('end-service'))).bottom,
+      lessThanOrEqualTo(768),
+    );
+    expect(find.text('12:38'), findsOneWidget);
+    expect(find.text('of 40:00 allocated'), findsOneWidget);
+    // The private note keeps one line in a short window.
+    expect(
+      find.text(
+        'Private note: Altar call follows. Band back on stage at 5:00 left.',
+      ),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/desktop-dial.png'),
+    );
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('The dial at full HD', (t) async {
+    await running(
+      t,
+      layout: 'dial',
+      theme: 'royal_navy',
+      size: const Size(1920, 1080),
+    );
+    expect(t.takeException(), isNull);
+    expect(
+      find.text('Altar call follows. Band back on stage at 5:00 left.'),
+      findsOneWidget,
+    );
+    expect(
+      t.getRect(find.byKey(const ValueKey('end-service'))).bottom,
+      lessThanOrEqualTo(1080),
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/desktop-dial-1080.png'),
+    );
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('The dial follows the service: ready, warning, overtime', (
+    t,
+  ) async {
+    setScreen(t, const Size(1366, 768));
+    final port = DesktopFakePort();
+    final c = AppController(port);
+    await c.initialize(startTicker: false);
+    await c.commit(
+      (draft, _) =>
+          draft.appearance = draft.appearance.copyWith(desktopLayout: 'dial'),
+    );
+    await c.act('load', value: sunday());
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    // Ready keeps the start controls; the dial waits for the service.
+    expect(find.text('Start first segment'), findsOneWidget);
+    expect(find.byKey(const ValueKey('service-dial')), findsNothing);
+    await c.act('start');
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('service-dial')), findsOneWidget);
+    expect(find.byKey(const ValueKey('dial-ends')), findsOneWidget);
+    expect(find.text('REMAINING'), findsOneWidget);
+    // Six minutes into a five-minute Welcome.
+    port.at = after(360);
+    await c.tick();
+    await t.pumpAndSettle();
+    expect(find.text('OVERTIME'), findsOneWidget);
+    expect(find.text('+01:00'), findsOneWidget);
+    expect(find.text('Allocated time exceeded'), findsOneWidget);
+    // Keys and confirmations are as everywhere else.
+    await t.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await t.pump();
+    await t.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await t.pumpAndSettle();
+    expect(c.state.session.index, 1);
+    await t.tap(find.byKey(const ValueKey('end-service')));
+    await t.pumpAndSettle();
+    expect(find.text('End Sunday Service?'), findsOneWidget);
+    expect(t.takeException(), isNull);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('choosing The dial brings Royal Navy with it', (t) async {
+    final (c, _) = await running(t);
+    await openLayoutSettings(t);
+    await press(t, find.byKey(const ValueKey('desktop-layout-dial')));
+    expect(c.appearanceSelection.value.desktopLayout, 'dial');
+    expect(c.themeSelection.value, 'royal_navy');
+    await t.tap(find.text('Save appearance'));
+    await t.pumpAndSettle();
+    expect(c.state.appearance.desktopLayout, 'dial');
+    expect(c.state.themeId, 'royal_navy');
+    await t.pumpWidget(const SizedBox());
+  });
+
   testWidgets('a tall Mission control window adds screens and activity', (
     t,
   ) async {
