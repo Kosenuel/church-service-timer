@@ -2,7 +2,13 @@
 #define RUNNER_FLUTTER_WINDOW_H_
 
 #include <flutter/dart_project.h>
+#include <flutter/encodable_value.h>
 #include <flutter/flutter_view_controller.h>
+#include <flutter/method_channel.h>
+
+#include <windows.h>
+
+#include <shellapi.h>
 
 #include <memory>
 
@@ -14,6 +20,10 @@ class FlutterWindow : public Win32Window {
   // Creates a new FlutterWindow hosting a Flutter view running |project|.
   explicit FlutterWindow(const flutter::DartProject& project);
   virtual ~FlutterWindow();
+
+  // Lets program files be dropped on this window. Called for the ordinary
+  // app window only, never for the stage window.
+  void AcceptDroppedFiles();
 
  protected:
   // Win32Window:
@@ -28,6 +38,14 @@ class FlutterWindow : public Win32Window {
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
+
+  // Tells the app about its window: "filesDropped" with a list of UTF-8
+  // paths (lib/windows/file_drop.dart).
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
+      window_channel_;
+
+  // Sends the paths in |drop| to the app and releases |drop|.
+  void OnFilesDropped(HDROP drop) noexcept;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

@@ -18,6 +18,7 @@ import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/app/platform.dart';
 import 'package:church_service_timer/windows/stage_output_app.dart';
 import 'package:church_service_timer/windows/windows_app.dart';
+import 'package:church_service_timer/windows/file_drop.dart';
 
 import 'package:church_service_timer/settings/settings_views.dart';
 import 'package:church_service_timer/pairing/pairing_views.dart';
@@ -538,6 +539,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     c.liveNavigation.addListener(returnToLive);
     HardwareKeyboard.instance.addHandler(onClickerKey);
     c.port.setIncomingFileHandler(receiveIncomingFile);
+    c.port.setFileDropHandler(receiveDroppedFiles);
     if (c.port.isDesktop) {
       _windowClose = AppLifecycleListener(onExitRequested: confirmWindowClose);
     }
@@ -598,11 +600,36 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     if (mounted) await importFile(received: file);
   }
 
+  /// A file dropped on the window is opened exactly as "Open with" opens
+  /// it, in the same import review. Nothing else is accepted, and nothing
+  /// at all while a service runs or the controls are locked.
+  void receiveDroppedFiles(List<String> paths) {
+    if (!c.ready || !mounted || paths.isEmpty) return;
+    final path = droppedProgramFile(paths);
+    final refusal = path == null
+        ? dropOneProgramFile
+        : c.liveSession.active
+        ? 'A service is running. End it before you import a program.'
+        : controlsLocked
+        ? 'Controls are locked. Unlock them before you import a program.'
+        : null;
+    if (path != null && refusal == null) return c.port.offerIncomingFile(path);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const ValueKey('drop-refused'),
+          content: Text(refusal ?? dropOneProgramFile),
+        ),
+      );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(onClickerKey);
     c.port.setIncomingFileHandler(null);
+    c.port.setFileDropHandler(null);
     _windowClose?.dispose();
     c.removeListener(_followServiceCompletion);
     c.removeListener(_followMiniTimer);

@@ -8,6 +8,8 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 - **The window opens properly on a second screen.** On a PC with two screens that use different scaling in Windows, the app could start with its loading page filling the window and the app itself drawn small in the bottom-left corner. The window was being moved back to where it was last time after the app had started drawing, and Windows resized it on the way. It now opens at its last place from the start. A window that had grown larger than its screen because of this is brought back inside it.
 - **The stage countdown holds still.** On a stage screen, a second screen or a web screen's app view, the large time used to shift and change size slightly each second, because some digits are wider than others and the time was refitted to the screen every time it changed. The time now keeps one size and each digit keeps its place.
+- **Drop a program file on the window.** On a PC, drag one program file (`.json`) or spreadsheet (`.csv`) from a folder onto the app's window to import it. It opens in the same review as **Import**, and nothing is saved until you confirm. Anything else is refused, and so is a drop while a service is running or controls are locked.
+- **Print from the Live home.** In a wide window, the order of service shown before a service has a small **Print** button beside the program's summary. It opens the same Print order of service choices as elsewhere.
 
 ## 0.32.0, 19/November/2026
 

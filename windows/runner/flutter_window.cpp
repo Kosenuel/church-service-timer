@@ -1,8 +1,13 @@
 #include "flutter_window.h"
 
+#include <flutter/standard_method_codec.h>
+
 #include <optional>
+#include <string>
+#include <utility>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "utils.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -27,6 +32,12 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
+  window_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(),
+          "church_service_timer/window",
+          &flutter::StandardMethodCodec::GetInstance());
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
@@ -39,7 +50,39 @@ bool FlutterWindow::OnCreate() {
   return true;
 }
 
+void FlutterWindow::AcceptDroppedFiles() {
+  HWND window = GetHandle();
+  if (window != nullptr) {
+    DragAcceptFiles(window, TRUE);
+  }
+}
+
+void FlutterWindow::OnFilesDropped(HDROP drop) noexcept {
+  // Called from the message handler, which must not throw.
+  try {
+    flutter::EncodableList paths;
+    const UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
+    for (UINT i = 0; i < count; ++i) {
+      // The length excludes the closing null, which the buffer needs.
+      const UINT length = DragQueryFileW(drop, i, nullptr, 0);
+      std::wstring path(static_cast<size_t>(length) + 1, L'\0');
+      DragQueryFileW(drop, i, path.data(), length + 1);
+      // A path that cannot be read is still counted, as an empty one, so
+      // that the app sees how many things were dropped.
+      paths.push_back(flutter::EncodableValue(Utf8FromUtf16(path.c_str())));
+    }
+    if (window_channel_ && !paths.empty()) {
+      window_channel_->InvokeMethod(
+          "filesDropped",
+          std::make_unique<flutter::EncodableValue>(std::move(paths)));
+    }
+  } catch (...) {
+  }
+  DragFinish(drop);
+}
+
 void FlutterWindow::OnDestroy() {
+  window_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -65,6 +108,9 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
+    case WM_DROPFILES:
+      OnFilesDropped(reinterpret_cast<HDROP>(wparam));
+      return 0;
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

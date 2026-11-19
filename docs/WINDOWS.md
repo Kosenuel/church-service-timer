@@ -26,7 +26,7 @@ Be clear about this when reading the rest of the page.
 | Stage screens and web screens | Same Dart code | Same Dart code. The address shared with other devices avoids virtual adapters and the sign's own network when there is another. |
 | Finding a host on the network | `nsd` plugin | Same plugin, which supports Windows. |
 | Import, export, backup | System document picker | Windows Open and Save dialogs (`file_selector`). "Share" becomes Save: one file gets a Save window, several go into a chosen folder without replacing anything. |
-| Opening a program file | "Open with" and Share | A `.json` or `.csv` passed on the command line; the installer adds the app to "Open with". A second copy hands the file to the one already running. Dragging a file onto the window is not supported yet. |
+| Opening a program file | "Open with" and Share | A `.json` or `.csv` passed on the command line; the installer adds the app to "Open with". A second copy hands the file to the one already running. One `.json` or `.csv` dropped on the main window is offered the same way: the runner accepts drops (`DragAcceptFiles`, `WM_DROPFILES` in `windows/runner/flutter_window.cpp`) and sends the paths on the `church_service_timer/window` channel (`lib/windows/file_drop.dart`). Other files, folders and several files are refused, as is any drop while a service runs or controls are locked. The stage window does not accept drops. |
 | Church logo and banner | Android bitmap code | The same rules in Dart (`desktop_images.dart`). |
 | Tinos on the LED display | Android canvas, no antialiasing | Flutter's text engine (`lib/display/tinos_rasterizer.dart`), a pixel lit at 45% coverage. Close to Android but not identical, especially at 7 rows. |
 | Printing | `printing` plugin | Same plugin (Windows print dialog). |
@@ -109,7 +109,7 @@ Nothing is code-signed. Windows SmartScreen shows "Windows protected your PC" th
 6. **Pairing.** Pair a phone with the PC as host, then join a phone's service from the PC with the six-digit code.
 7. **LED sign.** Join the sign's Wi-Fi in Windows, then scan and connect in the app. Try it with Ethernet also plugged in.
 8. **Files.** Import a program, export one, make a backup and restore it; restore a backup made on the phone.
-9. **Second copy.** Start the app twice: the first window should come forward. Right-click a `.json` program, Open with, Church Service Timer.
+9. **Second copy.** Start the app twice: the first window should come forward. Right-click a `.json` program, Open with, Church Service Timer. Then drag a `.json` program from a folder onto the window: the import review should open. Drop a picture, a folder and two files together: each should be refused in one line. Drop a program during a service and with controls locked: nothing is imported. Drop one on the mini timer, and on the second-screen window, which should not accept it.
 10. **Fonts.** Make a cue in Tinos at 7 and 14 rows and compare it with the phone.
 11. **Second screen.** Plug in a projector or monitor, press Windows + P and choose Extend. In Settings › Screens & devices, press **Show** beside the second screen. It should fill that screen with the timer, with no title bar or taskbar, and follow pause, cues, messages and Blank screen. Try a screen with a different scale setting from the laptop's. Press **Stop**, then show it again and press Esc on it, then close the main app while it is showing.
 12. **Keys.** Space (it should ask; Space or Enter again confirms, Esc cancels), Page Down twice, +, Ctrl+Z on Live; then Lock controls and try again.

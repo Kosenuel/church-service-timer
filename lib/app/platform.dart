@@ -82,6 +82,13 @@ abstract class DevicePort {
   /// The file most recently opened with, or shared to, the app, read once.
   Future<Map<String, dynamic>?> takeIncomingFile() async => null;
 
+  /// Called with the paths of files dropped on the app's window (a PC).
+  void setFileDropHandler(void Function(List<String> paths)? handler) {}
+
+  /// Hands the app a program file by its path, as if it had been opened
+  /// with the app (a PC).
+  void offerIncomingFile(String path) {}
+
   /// Receives Pause/Next taps from the active-service notification.
   void setNotificationActionHandler(
     Future<void> Function(String action)? handler,

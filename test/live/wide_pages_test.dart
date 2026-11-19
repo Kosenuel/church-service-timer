@@ -101,6 +101,30 @@ void main() {
     expect(t.takeException(), isNull);
   });
 
+  testWidgets('Print on the order of service prints the chosen program', (
+    t,
+  ) async {
+    await standingBy(t);
+    await t.tap(find.byKey(const ValueKey('standing-by-program:Youth Night')));
+    await t.pumpAndSettle();
+    final print = find.byKey(const ValueKey('standing-by-print'));
+    expect(t.widget<IconButton>(print).tooltip, 'Print order of service');
+    await t.tap(print);
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('print-sheet')), findsOneWidget);
+    expect(find.text('Print order of service'), findsOneWidget);
+    // The sheet is for the program shown, and nothing was loaded for it.
+    expect(find.textContaining('Youth Night'), findsWidgets);
+    // Locked controls leave nothing to press.
+    await t.tapAt(const Offset(5, 5));
+    await t.pumpAndSettle();
+    t.state<HomeState>(find.byType(Home)).lockControls();
+    await t.pumpAndSettle();
+    expect(t.widget<IconButton>(print).onPressed, isNull);
+    expect(t.takeException(), isNull);
+    await t.pumpWidget(const SizedBox());
+  });
+
   testWidgets('standing by at 1440p and at the smallest desktop size', (
     t,
   ) async {

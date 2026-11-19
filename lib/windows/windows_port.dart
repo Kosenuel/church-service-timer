@@ -249,11 +249,27 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   /// A program file handed to the app: on the command line when Windows
   /// opens a `.json` or `.csv` with it, or passed on by a second copy of
   /// the app that was started the same way.
+  @override
   void offerIncomingFile(String path) {
     _incoming.add(path);
     system.raise();
     unawaited(_incomingHandler?.call());
   }
+
+  void Function(List<String> paths)? _dropHandler;
+
+  @override
+  void setFileDropHandler(void Function(List<String> paths)? handler) =>
+      _dropHandler = handler;
+
+  /// Files dropped on the window. A folder is marked with a closing
+  /// separator, so it is never taken for a program file.
+  void filesDropped(List<String> paths) => _dropHandler?.call([
+    for (final path in paths)
+      FileSystemEntity.isDirectorySync(path)
+          ? '$path${Platform.pathSeparator}'
+          : path,
+  ]);
 
   @override
   void setIncomingFileHandler(Future<void> Function()? handler) =>
