@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Second screen shows the stage properly.** On a PC, **Show** in Settings › Screens & devices › Second screen could leave the projector or second monitor stuck on a black picture with part of an enormous letter at one edge. It happened when the two screens use different scaling in Windows (for example a laptop at 150% and a 4K monitor at 200%): Windows resized the stage window as it moved across, and the window then stopped updating. The stage window is now created on its own screen from the start and keeps to that screen's exact size.
+
 ## 0.32.0, 19/November/2026
 
 - **Pages use the room in a wide window.** On a computer, or a large tablet held sideways, pages no longer sit as a narrow phone column in the middle of the screen. Phones and smaller windows look exactly as before.

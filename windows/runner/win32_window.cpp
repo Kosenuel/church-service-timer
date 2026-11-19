@@ -149,6 +149,32 @@ bool Win32Window::Create(const std::wstring& title,
   return OnCreate();
 }
 
+bool Win32Window::CreateFullScreen(const std::wstring& title,
+                                   const RECT& rect,
+                                   bool topmost) {
+  Destroy();
+
+  const wchar_t* window_class =
+      WindowClassRegistrar::GetInstance()->GetWindowClass();
+
+  fixed_ = true;
+  fixed_rect_ = rect;
+
+  // WS_POPUP: no title bar or borders. Created straight onto its screen, so
+  // it never changes scale on the way there.
+  HWND window = CreateWindowEx(
+      topmost ? WS_EX_TOPMOST : 0, window_class, title.c_str(),
+      WS_POPUP | WS_CLIPCHILDREN, rect.left, rect.top, rect.right - rect.left,
+      rect.bottom - rect.top, nullptr, nullptr, GetModuleHandle(nullptr),
+      this);
+
+  if (!window) {
+    return false;
+  }
+
+  return OnCreate();
+}
+
 bool Win32Window::Show() {
   return ShowWindow(window_handle_, SW_SHOWNORMAL);
 }
@@ -188,6 +214,15 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
 
     case WM_DPICHANGED: {
+      if (fixed_) {
+        // The stage window covers its screen; the size Windows suggests for
+        // the new scale would push most of the picture off it.
+        SetWindowPos(hwnd, nullptr, fixed_rect_.left, fixed_rect_.top,
+                     fixed_rect_.right - fixed_rect_.left,
+                     fixed_rect_.bottom - fixed_rect_.top,
+                     SWP_NOZORDER | SWP_NOACTIVATE);
+        return 0;
+      }
       auto newRectSize = reinterpret_cast<RECT*>(lparam);
       LONG newWidth = newRectSize->right - newRectSize->left;
       LONG newHeight = newRectSize->bottom - newRectSize->top;
