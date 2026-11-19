@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/time_picker.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
@@ -165,8 +166,18 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
   Widget build(BuildContext context) {
     final colors = appColors(context);
     final muted = TextStyle(fontSize: 12, color: colors.muted);
+    // In a wide window the preview has a pane of its own beside the form.
+    final wide = widget.sticky && isWideWindow(context);
+    final preview = ClipRRect(
+      key: const ValueKey('quick-message-preview'),
+      borderRadius: BorderRadius.circular(14),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: RichStageMessage(message: value),
+      ),
+    );
     final content = <Widget>[
-      if (widget.previewLabel != null) ...[
+      if (widget.previewLabel != null && !wide) ...[
         Text(
           widget.previewLabel!.toUpperCase(),
           style: TextStyle(
@@ -178,15 +189,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
         ),
         const SizedBox(height: 6),
       ],
-      ClipRRect(
-        key: const ValueKey('quick-message-preview'),
-        borderRadius: BorderRadius.circular(14),
-        child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: RichStageMessage(message: value),
-        ),
-      ),
-      const SizedBox(height: 14),
+      if (!wide) ...[preview, const SizedBox(height: 14)],
       ...widget.header,
       if (widget.presets.isNotEmpty) ...[
         ChoiceField<int>(
@@ -385,7 +388,9 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
                 'Connect a stage screen and enable operator controls first.'
           : null,
       child: FilledButton.icon(
-        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+        style: FilledButton.styleFrom(
+          minimumSize: wide ? const Size(200, 48) : const Size.fromHeight(52),
+        ),
         onPressed: busy || widget.onSend == null
             ? null
             : () => run(widget.onSend!, 'Message sent.'),
@@ -401,6 +406,105 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
       icon: const Icon(Icons.bookmark_add_outlined),
       label: Text(sendable ? 'Save preset' : widget.saveLabel),
     );
+    final test = OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+      onPressed: busy || widget.onTest == null
+          ? null
+          : () => run(widget.onTest!, 'Test sent for 5 seconds.'),
+      icon: const Icon(Icons.play_arrow_outlined),
+      label: const Text('Test 5 s'),
+    );
+    final save = OutlinedButton.icon(
+      key: const ValueKey('save-quick-preset'),
+      style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+      onPressed: busy || widget.onSavePreset == null
+          ? null
+          : () => run(widget.onSavePreset!, 'Preset saved.'),
+      icon: const Icon(Icons.bookmark_add_outlined),
+      label: const Text('Save preset'),
+    );
+    if (wide) {
+      // The form on the left, the stage preview beside it, and buttons of
+      // their own size at the bottom right: the main one last.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: SplitPage(
+              mainMaxWidth: 640,
+              sideShare: .38,
+              sideMin: 420,
+              sideMax: 760,
+              main: ListView(
+                key: const ValueKey('quick-message-form-pane'),
+                primary: false,
+                padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
+                children: content,
+              ),
+              side: ListView(
+                key: const ValueKey('quick-message-preview-pane'),
+                primary: false,
+                padding: const EdgeInsets.all(24),
+                children: [
+                  PaneLabel(widget.previewLabel ?? 'Preview'),
+                  const SizedBox(height: 12),
+                  preview,
+                  const SizedBox(height: 12),
+                  Text(
+                    'The message as the stage screen shows it. It changes as you type.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: colors.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Material(
+            color: colors.surface,
+            child: SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: colors.border)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: sendable
+                      ? [
+                          if (widget.onTest != null) ...[
+                            test,
+                            const SizedBox(width: 8),
+                          ],
+                          save,
+                          const SizedBox(width: 8),
+                          send,
+                        ]
+                      : [
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size(180, 48),
+                            ),
+                            onPressed: busy || widget.onSavePreset == null
+                                ? null
+                                : () => run(
+                                    widget.onSavePreset!,
+                                    'Preset saved.',
+                                  ),
+                            icon: const Icon(Icons.bookmark_add_outlined),
+                            label: Text(widget.saveLabel),
+                          ),
+                        ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     // Send on its own full-width row; Test and Save preset share the row
     // above, both labelled, instead of an unlabelled bookmark icon.
     final actions = sendable
@@ -410,36 +514,10 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
               Row(
                 children: [
                   if (widget.onTest != null) ...[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 48),
-                        ),
-                        onPressed: busy
-                            ? null
-                            : () => run(
-                                widget.onTest!,
-                                'Test sent for 5 seconds.',
-                              ),
-                        icon: const Icon(Icons.play_arrow_outlined),
-                        label: const Text('Test 5 s'),
-                      ),
-                    ),
+                    Expanded(child: test),
                     const SizedBox(width: 8),
                   ],
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      key: const ValueKey('save-quick-preset'),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                      ),
-                      onPressed: busy || widget.onSavePreset == null
-                          ? null
-                          : () => run(widget.onSavePreset!, 'Preset saved.'),
-                      icon: const Icon(Icons.bookmark_add_outlined),
-                      label: const Text('Save preset'),
-                    ),
-                  ),
+                  Expanded(child: save),
                 ],
               ),
               const SizedBox(height: 8),
