@@ -276,6 +276,39 @@ void main() {
       p.dispose();
     });
 
+    test(
+      'the icon is there from the start, and says when nothing runs',
+      () async {
+        final p = port();
+        // Asking for the status is the first thing the app does.
+        expect((await p.notificationStatus())['trayState'], 'showing');
+        expect(system.trayShown, 'Church Service Timer · no service running');
+        await p.showTrayCountdown('Sermon · 12:34 left');
+        expect(system.trayShown, 'Sermon · 12:34 left');
+        // The service ends: the icon stays, with the idle text.
+        await p.showTrayCountdown(null);
+        expect(system.trayShown, 'Church Service Timer · no service running');
+        await p.setTrayCountdown(false);
+        expect(system.trayShown, isNull);
+        expect((await p.notificationStatus())['trayState'], 'off');
+        p.dispose();
+      },
+    );
+
+    test('a refusal by Windows is reported, not hidden', () async {
+      system.trayRefuses = true;
+      final p = port();
+      expect((await p.notificationStatus())['trayState'], 'refused');
+      expect(system.trayShown, isNull);
+      // It keeps trying as the countdown changes, and says when it works.
+      system.trayRefuses = false;
+      for (var i = 0; i <= TrayCountdown.refusedPause; i++) {
+        await p.showTrayCountdown('Sermon · 12:${59 - i} left');
+      }
+      expect((await p.notificationStatus())['trayState'], 'showing');
+      p.dispose();
+    });
+
     test('the icon is removed when the app closes', () async {
       final p = port();
       await p.showTrayCountdown('Sermon · 12:34 left');

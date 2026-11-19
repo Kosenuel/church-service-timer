@@ -782,10 +782,20 @@ extension WarningSettingsViews on HomeState {
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
-            c.notificationState['tray'] != false
-                ? 'On. While a service runs, an icon beside the Windows clock shows the time left when you point at it. Click the icon to bring this window forward.'
-                : 'Off. No icon is added beside the Windows clock.',
-            style: TextStyle(fontSize: 13, color: colors.muted),
+            switch (c.notificationState['trayState']) {
+              'off' => 'Off. No icon is added beside the Windows clock.',
+              'refused' =>
+                'On, but Windows did not accept the icon just now. It is tried again while a service counts down. If it never appears, please tell the developer.',
+              _ =>
+                'On. The app’s icon is beside the Windows clock. Windows often keeps a new icon behind the small ^ arrow there: open the arrow and drag the icon onto the taskbar to keep it in view. Point at it to read the time left; click it to bring this window forward.',
+            },
+            key: const ValueKey('desktop-tray-state'),
+            style: TextStyle(
+              fontSize: 13,
+              color: c.notificationState['trayState'] == 'refused'
+                  ? colors.warning
+                  : colors.muted,
+            ),
           ),
           value: c.notificationState['tray'] != false,
           onChanged: (on) => run(() async {

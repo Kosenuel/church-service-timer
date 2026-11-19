@@ -128,7 +128,10 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   /// The countdown in the notification area, beside the Windows clock,
   /// while a service or quick timer runs. On unless the operator turns it
   /// off. Kept on this computer, not in backups.
-  late final TrayCountdown _tray = TrayCountdown(system.tray);
+  late final TrayCountdown _tray = TrayCountdown(
+    system.tray,
+    idle: 'Church Service Timer · no service running',
+  );
   bool _trayLoaded = false;
   Future<void> _loadTray() async {
     if (_trayLoaded) return;
@@ -630,6 +633,16 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
       'exact': true,
       'sound': _sound,
       'tray': _tray.enabled,
+      // Whether Windows took the icon: 'showing', 'refused', or 'waiting'
+      // before it has been asked. Shown beside the setting, so a missing
+      // icon can be told from one hidden behind Windows' arrow.
+      'trayState': !_tray.enabled
+          ? 'off'
+          : switch (_tray.accepted) {
+              true => 'showing',
+              false => 'refused',
+              null => 'waiting',
+            },
     };
   }
 

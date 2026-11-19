@@ -602,16 +602,51 @@ bool _notifyIcon(int message, Uint8List data) {
 }
 
 /// The app's icon at the size the notification area uses. It is the copy
-/// Windows shares within the program, so it is never freed here. 0 if it
-/// could not be loaded; the icon is then an empty space with the tooltip.
-int _smallAppIcon() => _loadImage(
-  _getModuleHandle(nullptr), // this program's own resources
-  Pointer.fromAddress(_appIconResource), // MAKEINTRESOURCE(IDI_APP_ICON)
-  1, // IMAGE_ICON
-  _getSystemMetrics(49), // SM_CXSMICON
-  _getSystemMetrics(50), // SM_CYSMICON
-  0x8000, // LR_SHARED
-);
+/// Windows shares within the program, so it is never freed here.
+int _smallAppIcon(int window) {
+  // Each way is tried on its own: one that fails must not stop the next.
+  int attempt(int Function() load) {
+    try {
+      return load();
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  var icon = attempt(
+    () => _loadImage(
+      _getModuleHandle(nullptr), // this program's own resources
+      Pointer.fromAddress(_appIconResource), // MAKEINTRESOURCE(IDI_APP_ICON)
+      1, // IMAGE_ICON
+      _getSystemMetrics(49), // SM_CXSMICON
+      _getSystemMetrics(50), // SM_CYSMICON
+      0x8000, // LR_SHARED
+    ),
+  );
+  // An icon with no picture is an empty space nobody can find, so fall
+  // back to the window's own icon (small, then large), and last to the
+  // plain icon Windows gives any program.
+  if (icon == 0)
+    icon = attempt(() => _getClassLongPtr(window, -34)); // GCLP_HICONSM
+  if (icon == 0)
+    icon = attempt(() => _getClassLongPtr(window, -14)); // GCLP_HICON
+  if (icon == 0) {
+    icon = attempt(
+      () => _loadIcon(0, Pointer.fromAddress(32512)), // IDI_APPLICATION
+    );
+  }
+  return icon;
+}
+
+final _getClassLongPtr = _user32
+    .lookupFunction<IntPtr Function(IntPtr, Int32), int Function(int, int)>(
+      'GetClassLongPtrW',
+    );
+final _loadIcon = _user32
+    .lookupFunction<
+      IntPtr Function(IntPtr, Pointer<Utf16>),
+      int Function(int, Pointer<Utf16>)
+    >('LoadIconW');
 
 /// The window the icon was added for, or 0 while there is no icon.
 int _trayWindow = 0;
@@ -639,7 +674,7 @@ bool showTrayIcon(int window, String tip) {
     notifyIconData(
       window: window,
       flags: _nifMessage | _nifIcon | _nifTip,
-      icon: _smallAppIcon(),
+      icon: _smallAppIcon(window),
       tip: tip,
     ),
   );

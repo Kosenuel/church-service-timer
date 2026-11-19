@@ -350,6 +350,7 @@ void main() {
       'exact': true,
       'sound': false,
       'tray': true,
+      'trayState': 'showing',
     });
     await p.testNotification();
     expect(system.flashes, 1);

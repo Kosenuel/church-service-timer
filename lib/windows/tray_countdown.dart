@@ -2,7 +2,7 @@
 ///
 /// While a service or quick timer runs, the icon's tooltip is the
 /// countdown, for when the lyrics or slides program is in front of the
-/// app. The icon only shows the time and brings the window forward when
+/// app; at other times it says that nothing is running. The icon only shows the time and brings the window forward when
 /// clicked; it cannot change a service.
 ///
 /// [put] is the one call into Windows: it shows the icon with that
@@ -12,7 +12,17 @@
 /// changes once a second costs one call a second and nothing flickers.
 class TrayCountdown {
   final bool Function(String? tip) put;
-  TrayCountdown(this.put);
+
+  /// The tooltip while nothing is running, so the icon is there from the
+  /// moment the app opens and can be found, and dragged out from behind
+  /// Windows' arrow, before a service starts. Null shows no icon then.
+  final String? idle;
+  TrayCountdown(this.put, {this.idle});
+
+  /// Whether Windows accepted the icon the last time it was asked to show
+  /// it; null before it has been asked, or while it is turned off.
+  bool? get accepted => _accepted;
+  bool? _accepted;
 
   /// How many changes of text to let pass after Windows refused, before
   /// asking again: about ten seconds of a running countdown. Windows can
@@ -46,7 +56,7 @@ class TrayCountdown {
   }
 
   void _apply() {
-    final target = _enabled && !_closed ? _wanted : null;
+    final target = _enabled && !_closed ? _wanted ?? idle : null;
     if (target == _shown) return;
     if (target != null && _pause > 0) {
       _pause--;
@@ -58,6 +68,7 @@ class TrayCountdown {
     } catch (_) {
       // The icon is a courtesy; a failure must not disturb the service.
     }
+    _accepted = target == null ? null : accepted;
     if (accepted || target == null) {
       // Taking the icon away is not tried twice: if Windows refused, it
       // has no icon to take.

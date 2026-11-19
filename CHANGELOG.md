@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **The icon beside the Windows clock is easier to find.** It was added only while a service ran, so there was no chance to look for it, or to move it out from behind Windows' ^ arrow, before a service. It is now there whenever the app is open, saying "no service running" until one starts. If its picture cannot be loaded it falls back to another icon instead of an empty space. **Settings › Warnings & alerts** now says whether Windows accepted the icon, so a missing icon can be told from a hidden one.
+
 ## 0.33.0, 19/November/2026
 
 - **Second screen shows the stage properly.** On a PC, **Show** in Settings › Screens & devices › Second screen could leave the projector or second monitor stuck on a black picture with part of an enormous letter at one edge. It happened when the two screens use different scaling in Windows (for example a laptop at 150% and a 4K monitor at 200%): Windows resized the stage window as it moved across, and the window then stopped updating. The stage window is now created on its own screen from the start and keeps to that screen's exact size.
