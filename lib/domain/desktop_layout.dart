@@ -13,7 +13,12 @@ const desktopLayoutIds = {
   'keys',
   'classic',
 };
-const builtDesktopLayouts = ['three_panes', 'mission_control', 'classic'];
+const builtDesktopLayouts = [
+  'three_panes',
+  'mission_control',
+  'dial',
+  'classic',
+];
 const defaultDesktopLayout = 'three_panes';
 
 /// The narrowest window a desktop layout is used in.

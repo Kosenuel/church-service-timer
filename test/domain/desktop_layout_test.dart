@@ -37,9 +37,9 @@ void main() {
 
   test('a layout this version cannot draw falls back to the default', () {
     // Stored and kept, so a later version can use it.
-    final later = AppearancePreferences.fromJson({'desktopLayout': 'dial'});
-    expect(later.desktopLayout, 'dial');
-    expect(effectiveDesktopLayout('dial'), 'three_panes');
+    final later = AppearancePreferences.fromJson({'desktopLayout': 'keys'});
+    expect(later.desktopLayout, 'keys');
+    expect(effectiveDesktopLayout('keys'), 'three_panes');
     expect(effectiveDesktopLayout('classic'), 'classic');
     for (final id in builtDesktopLayouts) {
       expect(desktopLayoutIds, contains(id));

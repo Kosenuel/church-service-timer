@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/service_dial.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 
@@ -25,7 +26,8 @@ extension DesktopLive on HomeState {
   }
 
   /// Tabs in the header replace the side rail.
-  bool get useTopTabs => desktopLayout == 'three_panes';
+  bool get useTopTabs =>
+      desktopLayout == 'three_panes' || desktopLayout == 'dial';
 
   /// Panes meet the header edge to edge, so it loses its rounded corners.
   bool get squareHeader => desktopLayout != null;
@@ -153,6 +155,7 @@ extension DesktopLive on HomeState {
                                 space.maxWidth - side - stage - 120,
                                 space.maxHeight - 470,
                               ),
+                              paneHeight: space.maxHeight,
                             ),
                       ],
                     ),
@@ -249,6 +252,7 @@ extension DesktopLive on HomeState {
     required bool enabled,
     required bool canJump,
     required double gauge,
+    required double paneHeight,
   }) {
     final colors = appColors(context);
     final s = c.liveSession, t = s.timeline!;
@@ -256,6 +260,11 @@ extension DesktopLive on HomeState {
     final next = s.index + 1 < t.segments.length
         ? t.segments[s.index + 1]
         : null;
+    // The Dial layout draws the whole service as a ring. It wants the
+    // height, so in a short window the private note takes one line under
+    // the title instead of its own block.
+    final dial = desktopLayout == 'dial';
+    final noteInline = dial && paneHeight < 820 && segment.notes.isNotEmpty;
     return Column(
       key: const ValueKey('timer-card-content'),
       children: [
@@ -274,19 +283,45 @@ extension DesktopLive on HomeState {
             textAlign: TextAlign.center,
             style: TextStyle(color: colors.muted),
           ),
+        if (noteInline)
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Tooltip(
+              message: segment.notes,
+              child: Text(
+                'Private note: ${segment.notes}',
+                key: const ValueKey('desktop-private-note'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colors.muted, fontSize: 13),
+              ),
+            ),
+          ),
         const SizedBox(height: 4),
-        SegmentGauge(
-          session: s,
-          now: c.now,
-          maxWidth: gauge.clamp(270.0, 460.0),
-        ),
+        if (dial)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: ServiceDial(
+              session: s,
+              now: c.now,
+              size: math
+                  .min(gauge + 120, paneHeight - (noteInline ? 372 : 444))
+                  .clamp(280.0, 640.0),
+            ),
+          )
+        else
+          SegmentGauge(
+            session: s,
+            now: c.now,
+            maxWidth: gauge.clamp(270.0, 460.0),
+          ),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               liveControls(enabled),
-              if (segment.notes.isNotEmpty) ...[
+              if (segment.notes.isNotEmpty && !noteInline) ...[
                 const SizedBox(height: 16),
                 const AppDivider(indent: 0, endIndent: 0),
                 const SizedBox(height: 12),
