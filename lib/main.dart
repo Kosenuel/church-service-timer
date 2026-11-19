@@ -1004,16 +1004,30 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                     // One line beside the display chip; a
                                     // long name ends in "…" and shows in
                                     // full on long-press.
+                                    // On another tab, the running
+                                    // service's name is the way back to
+                                    // Live.
                                     Tooltip(
-                                      message: headerTitle(),
-                                      child: Text(
-                                        headerTitle(),
-                                        key: const ValueKey('header-title'),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
+                                      message: headerReturnsToLive
+                                          ? 'Return to Live'
+                                          : headerTitle(),
+                                      child: InkWell(
+                                        key: const ValueKey(
+                                          'header-return-to-live',
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                        onTap: headerReturnsToLive
+                                            ? () => goToPage(0)
+                                            : null,
+                                        child: Text(
+                                          headerTitle(),
+                                          key: const ValueKey('header-title'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                         ),
                                       ),
                                     ),

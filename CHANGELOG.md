@@ -2,6 +2,12 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Mission control is the layout a new install starts in.** In a wide window, a fresh install and **Reset** now give Mission control with Midnight Lime, and it is listed first in Settings › Desktop layout. If you already use the app, your layout stays as it is; choose Mission control there if you want it.
+- **Click the service name to go back to Live.** On Programs, Reports or Settings, the name of the loaded or running service at the top left returns to Live. With no service loaded it is the app's name and does nothing.
+- **Mission control with large text.** With Windows or Android set to larger text, the names in the rundown timeline were cut off at the bottom. The timeline now grows to fit.
+
 ## 0.33.0, 19/November/2026
 
 - **Second screen shows the stage properly.** On a PC, **Show** in Settings › Screens & devices › Second screen could leave the projector or second monitor stuck on a black picture with part of an enormous letter at one edge. It happened when the two screens use different scaling in Windows (for example a laptop at 150% and a 4K monitor at 200%): Windows resized the stage window as it moved across, and the window then stopped updating. The stage window is now created on its own screen from the start and keeps to that screen's exact size.
