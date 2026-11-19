@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/live/practice_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/wide_detail.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
 import 'package:church_service_timer/feedback/feedback_page.dart';
 import 'package:church_service_timer/app/controller.dart';
@@ -64,15 +66,22 @@ extension SettingsViews on HomeState {
         body: SafeArea(
           child: AnimatedBuilder(
             animation: Listenable.merge([c, settingsRefresh]),
-            builder: (context, _) => SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1000),
-                  child: content(),
+            builder: (context, _) {
+              // Read here so the page is rebuilt when the window is resized.
+              final wide = isWideWindow(context);
+              final page = content();
+              // A page with its own panes for a wide window fills the body.
+              if (wide && page is FillsWideWindow) return page;
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1000),
+                    child: page,
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),

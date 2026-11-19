@@ -7,6 +7,7 @@ import 'package:church_service_timer/app/platform.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/web_stage/web_stage_server.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -304,7 +305,7 @@ bool _plainOk(String v) =>
 
 extension WebStageViews on HomeState {
   /// The Web screens section of Screens & devices, while sharing.
-  Widget webScreensPanel() {
+  Widget webScreensPanel({bool wide = false}) {
     final colors = appColors(context);
     final settings = c.webStageSettings;
     final url = c.webStageUrl;
@@ -317,7 +318,7 @@ extension WebStageViews on HomeState {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                width: 120,
+                width: wide ? 104 : 120,
                 child: Text(label, style: TextStyle(color: colors.muted)),
               ),
               Expanded(
@@ -334,11 +335,285 @@ extension WebStageViews on HomeState {
             ],
           ),
         );
+    Future<void> newTeamCode() async {
+      if (!await confirm(
+        'New team code?',
+        'Stage displays and service overviews using the current team code are asked for the new one.',
+        'New team code',
+      ))
+        return;
+      c.webStage.newCodes();
+    }
+
     Future<void> update(WebStageSettings next) async {
       if (!await c.setWebStageSettings(next) && mounted)
         await showError(c.error ?? 'Could not save.');
     }
 
+    final addresses = url == null
+        ? const <Widget>[]
+        : <Widget>[
+            if (local != null && c.mdns.answered > 0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'Easy name answered ${c.mdns.answered} lookup${c.mdns.answered == 1 ? '' : 's'}',
+                  key: const ValueKey('web-name-lookups'),
+                  style: TextStyle(color: colors.muted, fontSize: 12),
+                ),
+              ),
+            if (local != null)
+              line(
+                'Easy name',
+                local.replaceFirst('http://', ''),
+                key: const ValueKey('web-local-name'),
+              ),
+            line(
+              'Address',
+              url.replaceFirst('http://', ''),
+              key: const ValueKey('web-address'),
+            ),
+            if (local == null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  deviceText(
+                    'The easy name is not available on this phone; use the QR or the address.',
+                  ),
+                  style: TextStyle(color: colors.muted, fontSize: 13),
+                ),
+              ),
+            if (c.joinSlideAddress != null && c.joinSlideAddress != url)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  deviceText(
+                    'This phone’s address changed since you exported the join slide. Export it again.',
+                  ),
+                  key: const ValueKey('web-slide-stale'),
+                  style: TextStyle(
+                    color: colors.warning,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            if (settings.orderAccess == OrderAccess.code)
+              line(
+                'Guest code',
+                settings.orderCode,
+                key: const ValueKey('web-order-code'),
+                big: true,
+              ),
+            line(
+              'Team code',
+              c.webStage.teamCode,
+              key: const ValueKey('web-team-code'),
+              big: true,
+            ),
+          ];
+    final options = <Widget>[
+      ChoiceField<OrderAccess>(
+        key: const ValueKey('web-order-access'),
+        value: settings.orderAccess,
+        decoration: const InputDecoration(labelText: 'Order of service'),
+        options: [
+          for (final a in OrderAccess.values)
+            ChoiceOption(value: a, label: a.label),
+        ],
+        onChanged: (v) =>
+            v == null ? null : update(settings.copyWith(orderAccess: v)),
+      ),
+      if (settings.orderAccess == OrderAccess.open)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Anyone on this Wi-Fi can follow without a code. Up to ${WebStageServer.orderViewerLimit} at once.',
+            style: TextStyle(color: colors.muted, fontSize: 13),
+          ),
+        ),
+      SwitchListTile(
+        key: const ValueKey('web-show-speakers'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Show speakers in the order of service'),
+        value: settings.showSpeakers,
+        onChanged: (v) => update(settings.copyWith(showSpeakers: v)),
+      ),
+      ListTile(
+        key: const ValueKey('web-local-name-edit'),
+        contentPadding: EdgeInsets.zero,
+        // The address list above already shows the easy name; this
+        // row changes it.
+        title: const Text('Change easy name'),
+        subtitle: Text('${settings.localName}.local'),
+        trailing: const Icon(Icons.edit_outlined),
+        onTap: () => changeLocalName(settings),
+      ),
+      Text(
+        deviceText(
+          'Guest Wi-Fi often keeps devices apart; phones on it may not reach this phone. If a printed address stops working, the router gave this phone a new one: ask for it to be reserved, or show the join slide instead.',
+        ),
+        style: TextStyle(color: colors.muted, fontSize: 12, height: 1.4),
+      ),
+    ];
+    final following = <Widget>[
+      if (devices.isNotEmpty) ...[
+        const Divider(height: 28),
+        Text(
+          'Following now · ${devices.length}',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        for (final d in devices.where((d) => d.team))
+          ListTile(
+            key: ValueKey('web-device:${d.token}'),
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              d.role == WebRole.stage ? Icons.tv : Icons.view_list_outlined,
+            ),
+            title: Text(d.label),
+            subtitle: Text(d.role.label),
+            trailing: TextButton(
+              onPressed: () => c.webStage.remove(d.token),
+              child: const Text('Remove'),
+            ),
+          ),
+        if (devices.any((d) => !d.team))
+          Text(
+            '${devices.where((d) => !d.team).length} following the order of service',
+            style: TextStyle(color: colors.muted),
+          ),
+      ],
+    ];
+    if (wide) {
+      final text = Theme.of(context).textTheme;
+      Widget qr(double size) => Container(
+        padding: const EdgeInsets.all(10),
+        color: Colors.white,
+        child: QrImageView(
+          key: const ValueKey('web-qr'),
+          data: url!,
+          size: size,
+          backgroundColor: Colors.white,
+        ),
+      );
+      // Flat in its pane: the heading, the QR beside its addresses and
+      // codes, buttons of their own size, then the options.
+      return KeyedSubtree(
+        key: const ValueKey('web-screens'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const PaneLabel('Browsers, without the app'),
+            const SizedBox(height: 12),
+            Text(
+              'Web screens',
+              style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Text(
+                  'Any browser on this Wi-Fi (a laptop, TV or phone) can follow the service without the app. Nothing private is shown, and browsers cannot control the service.',
+                  style: TextStyle(color: colors.muted, height: 1.4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (url == null)
+              Text(
+                c.webStageError ?? 'Starting…',
+                style: TextStyle(
+                  color: c.webStageError == null ? null : colors.warning,
+                ),
+              )
+            else ...[
+              LayoutBuilder(
+                builder: (context, space) => space.maxWidth >= 500
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          qr(156),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: addresses,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: qr(156),
+                          ),
+                          const SizedBox(height: 16),
+                          ...addresses,
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: Text(
+                    'The guest code opens Order of service and stays the same each week, for slides and bulletins. The team code opens Stage display and Service overview too, and changes each time you share.',
+                    style: TextStyle(
+                      color: colors.muted,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    key: const ValueKey('export-join-slide'),
+                    onPressed: () => exportJoinSlide(),
+                    icon: const Icon(Icons.slideshow_outlined),
+                    label: const Text('Export join slide'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('web-new-codes'),
+                    onPressed: newTeamCode,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('New team code'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('web-change-order-code'),
+                    onPressed: () => changeOrderCode(settings),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Change guest code'),
+                  ),
+                ],
+              ),
+            ],
+            const Divider(height: 40),
+            const PaneLabel('Web screen options'),
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [...options],
+                ),
+              ),
+            ),
+            ...following,
+          ],
+        ),
+      );
+    }
     return KeyedSubtree(
       key: const ValueKey('web-screens'),
       child: panel(
@@ -376,63 +651,7 @@ extension WebStageViews on HomeState {
                 ),
               ),
               const SizedBox(height: 12),
-              if (local != null && c.mdns.answered > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    'Easy name answered ${c.mdns.answered} lookup${c.mdns.answered == 1 ? '' : 's'}',
-                    key: const ValueKey('web-name-lookups'),
-                    style: TextStyle(color: colors.muted, fontSize: 12),
-                  ),
-                ),
-              if (local != null)
-                line(
-                  'Easy name',
-                  local.replaceFirst('http://', ''),
-                  key: const ValueKey('web-local-name'),
-                ),
-              line(
-                'Address',
-                url.replaceFirst('http://', ''),
-                key: const ValueKey('web-address'),
-              ),
-              if (local == null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    deviceText(
-                      'The easy name is not available on this phone; use the QR or the address.',
-                    ),
-                    style: TextStyle(color: colors.muted, fontSize: 13),
-                  ),
-                ),
-              if (c.joinSlideAddress != null && c.joinSlideAddress != url)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    deviceText(
-                      'This phone’s address changed since you exported the join slide. Export it again.',
-                    ),
-                    key: const ValueKey('web-slide-stale'),
-                    style: TextStyle(
-                      color: colors.warning,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              if (settings.orderAccess == OrderAccess.code)
-                line(
-                  'Guest code',
-                  settings.orderCode,
-                  key: const ValueKey('web-order-code'),
-                  big: true,
-                ),
-              line(
-                'Team code',
-                c.webStage.teamCode,
-                key: const ValueKey('web-team-code'),
-                big: true,
-              ),
+              ...addresses,
               Text(
                 'The guest code opens Order of service and stays the same each week, for slides and bulletins. The team code opens Stage display and Service overview too, and changes each time you share.',
                 style: TextStyle(
@@ -459,15 +678,7 @@ extension WebStageViews on HomeState {
                       Expanded(
                         child: OutlinedButton.icon(
                           key: const ValueKey('web-new-codes'),
-                          onPressed: () async {
-                            if (!await confirm(
-                              'New team code?',
-                              'Stage displays and service overviews using the current team code are asked for the new one.',
-                              'New team code',
-                            ))
-                              return;
-                            c.webStage.newCodes();
-                          },
+                          onPressed: newTeamCode,
                           icon: const Icon(Icons.refresh),
                           label: const Text('New team code'),
                         ),
@@ -487,76 +698,8 @@ extension WebStageViews on HomeState {
               ),
             ],
             const Divider(height: 28),
-            ChoiceField<OrderAccess>(
-              key: const ValueKey('web-order-access'),
-              value: settings.orderAccess,
-              decoration: const InputDecoration(labelText: 'Order of service'),
-              options: [
-                for (final a in OrderAccess.values)
-                  ChoiceOption(value: a, label: a.label),
-              ],
-              onChanged: (v) =>
-                  v == null ? null : update(settings.copyWith(orderAccess: v)),
-            ),
-            if (settings.orderAccess == OrderAccess.open)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  'Anyone on this Wi-Fi can follow without a code. Up to ${WebStageServer.orderViewerLimit} at once.',
-                  style: TextStyle(color: colors.muted, fontSize: 13),
-                ),
-              ),
-            SwitchListTile(
-              key: const ValueKey('web-show-speakers'),
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Show speakers in the order of service'),
-              value: settings.showSpeakers,
-              onChanged: (v) => update(settings.copyWith(showSpeakers: v)),
-            ),
-            ListTile(
-              key: const ValueKey('web-local-name-edit'),
-              contentPadding: EdgeInsets.zero,
-              // The address list above already shows the easy name; this
-              // row changes it.
-              title: const Text('Change easy name'),
-              subtitle: Text('${settings.localName}.local'),
-              trailing: const Icon(Icons.edit_outlined),
-              onTap: () => changeLocalName(settings),
-            ),
-            Text(
-              deviceText(
-                'Guest Wi-Fi often keeps devices apart; phones on it may not reach this phone. If a printed address stops working, the router gave this phone a new one: ask for it to be reserved, or show the join slide instead.',
-              ),
-              style: TextStyle(color: colors.muted, fontSize: 12, height: 1.4),
-            ),
-            if (devices.isNotEmpty) ...[
-              const Divider(height: 28),
-              Text(
-                'Following now · ${devices.length}',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              for (final d in devices.where((d) => d.team))
-                ListTile(
-                  key: ValueKey('web-device:${d.token}'),
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    d.role == WebRole.stage
-                        ? Icons.tv
-                        : Icons.view_list_outlined,
-                  ),
-                  title: Text(d.label),
-                  subtitle: Text(d.role.label),
-                  trailing: TextButton(
-                    onPressed: () => c.webStage.remove(d.token),
-                    child: const Text('Remove'),
-                  ),
-                ),
-              if (devices.any((d) => !d.team))
-                Text(
-                  '${devices.where((d) => !d.team).length} following the order of service',
-                  style: TextStyle(color: colors.muted),
-                ),
-            ],
+            ...options,
+            ...following,
           ],
         ),
       ),

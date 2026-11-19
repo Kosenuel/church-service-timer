@@ -5,6 +5,8 @@ import 'package:church_service_timer/web_stage/web_stage_views.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/wide_detail.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
@@ -541,6 +543,234 @@ extension PairingViews on HomeState {
       'On the other device, tap Join a service on Live.',
       'Enter the six-digit code shown here, then approve it.',
     ];
+    final wide = isWideWindow(context);
+    // In a wide window a lone button keeps its own size.
+    Widget action(Widget button) =>
+        wide ? Align(alignment: Alignment.centerLeft, child: button) : button;
+    final sharing = <Widget>[
+      if (!hub.hosting) ...[
+        panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                c.destination == 'mobile'
+                    ? 'Your stage, on another screen'
+                    : 'Share with other phones and screens',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (var i = 0; i < steps.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 26,
+                        height: 26,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: colors.accent.withValues(alpha: .16),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${i + 1}',
+                          style: TextStyle(
+                            color: colors.accent,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Text(
+                            steps[i],
+                            style: const TextStyle(fontSize: 14, height: 1.35),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: colors.info),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Some sign hotspots and church networks keep devices apart. If joining fails, use the host device’s hotspot. Other apps such as LedArt are outside this control system.',
+                      style: muted,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: bigButton(
+                c.destination == 'mobile'
+                    ? 'Share to stage screens'
+                    : 'Share to screens',
+                Icons.cast_connected,
+                shareFromScreens,
+                primary: true,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: bigButton(
+                'Join a service',
+                Icons.smartphone,
+                c.state.session.active
+                    ? null
+                    : () => Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => JoinDevicePage(controller: c),
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+        if (c.state.session.active)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'End this local service before joining a different host.',
+              style: muted,
+            ),
+          ),
+      ] else ...[
+        panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: label('Pair a device')),
+                  Text(
+                    hub.localControl
+                        ? deviceText('Control: this phone')
+                        : 'Control: paired operator',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: hub.localControl ? colors.accent : colors.warning,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Semantics(
+                label: 'Six-digit pairing code',
+                child: SelectableText(
+                  hub.pinAvailable
+                      ? '${hub.pin.substring(0, 3)} ${hub.pin.substring(3)}'
+                      : 'Code unavailable',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: hub.pinAvailable ? 40 : 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 4,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                hub.pinAvailable
+                    ? 'On the other device, choose this host and enter these six digits. Codes expire after 10 minutes.'
+                    : 'The code expired or reached its attempt limit. Create a new code.',
+                textAlign: TextAlign.center,
+                style: muted,
+              ),
+              if (hub.discoveryNotice.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    hub.discoveryNotice,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: colors.warning),
+                  ),
+                ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      animationStyle: reduceAppMotion(context)
+                          ? AnimationStyle.noAnimation
+                          : null,
+                      builder: (_) => PairQrDialog(hub: hub),
+                    ),
+                    icon: const Icon(Icons.qr_code),
+                    label: const Text('Show QR code'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: hub.newCode,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('New code'),
+                  ),
+                ],
+              ),
+              if (!hub.localControl) ...[
+                const SizedBox(height: 8),
+                FilledButton(
+                  onPressed: () async {
+                    if (await confirm(
+                      'Take back control?',
+                      'The paired operator will become a viewer. The running timer is unchanged.',
+                      'Take control',
+                    ))
+                      hub.reclaim();
+                  },
+                  child: const Text('Take back control'),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (c.destination == 'mobile' && !hub.stageSharingEnabled)
+          action(
+            OutlinedButton.icon(
+              onPressed: startStageSharing,
+              icon: const Icon(Icons.cast),
+              label: const Text('Share to stage screens'),
+            ),
+          ),
+        if (c.stageConnected)
+          action(
+            OutlinedButton.icon(
+              onPressed: testStageScreen,
+              icon: const Icon(Icons.connected_tv),
+              label: const Text('Test screen'),
+            ),
+          ),
+      ],
+    ];
+    final stop = FilledButton.icon(
+      style: stopSharingButtonStyle(),
+      onPressed: stopServiceSharing,
+      icon: const Icon(Icons.stop_screen_share_outlined),
+      label: const Text('Stop sharing'),
+    );
+    if (wide) return screensAndDevicesWide(sharing: sharing, stop: stop);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -548,237 +778,160 @@ extension PairingViews on HomeState {
           secondScreenPanel(),
           const SizedBox(height: 16),
         ],
-        if (!hub.hosting) ...[
-          panel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  c.destination == 'mobile'
-                      ? 'Your stage, on another screen'
-                      : 'Share with other phones and screens',
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                for (var i = 0; i < steps.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 26,
-                          height: 26,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: colors.accent.withValues(alpha: .16),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            '${i + 1}',
-                            style: TextStyle(
-                              color: colors.accent,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 3),
-                            child: Text(
-                              steps[i],
-                              style: const TextStyle(
-                                fontSize: 14,
-                                height: 1.35,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.info_outline, size: 16, color: colors.info),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Some sign hotspots and church networks keep devices apart. If joining fails, use the host device’s hotspot. Other apps such as LedArt are outside this control system.',
-                        style: muted,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: bigButton(
-                  c.destination == 'mobile'
-                      ? 'Share to stage screens'
-                      : 'Share to screens',
-                  Icons.cast_connected,
-                  shareFromScreens,
-                  primary: true,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: bigButton(
-                  'Join a service',
-                  Icons.smartphone,
-                  c.state.session.active
-                      ? null
-                      : () => Navigator.of(context).push<void>(
-                          MaterialPageRoute(
-                            builder: (_) => JoinDevicePage(controller: c),
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
-          if (c.state.session.active)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'End this local service before joining a different host.',
-                style: muted,
-              ),
-            ),
-        ] else ...[
-          panel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: label('Pair a device')),
-                    Text(
-                      hub.localControl
-                          ? deviceText('Control: this phone')
-                          : 'Control: paired operator',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: hub.localControl
-                            ? colors.accent
-                            : colors.warning,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Semantics(
-                  label: 'Six-digit pairing code',
-                  child: SelectableText(
-                    hub.pinAvailable
-                        ? '${hub.pin.substring(0, 3)} ${hub.pin.substring(3)}'
-                        : 'Code unavailable',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: hub.pinAvailable ? 40 : 20,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 4,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  hub.pinAvailable
-                      ? 'On the other device, choose this host and enter these six digits. Codes expire after 10 minutes.'
-                      : 'The code expired or reached its attempt limit. Create a new code.',
-                  textAlign: TextAlign.center,
-                  style: muted,
-                ),
-                if (hub.discoveryNotice.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      hub.discoveryNotice,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: colors.warning),
-                    ),
-                  ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        animationStyle: reduceAppMotion(context)
-                            ? AnimationStyle.noAnimation
-                            : null,
-                        builder: (_) => PairQrDialog(hub: hub),
-                      ),
-                      icon: const Icon(Icons.qr_code),
-                      label: const Text('Show QR code'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: hub.newCode,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('New code'),
-                    ),
-                  ],
-                ),
-                if (!hub.localControl) ...[
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: () async {
-                      if (await confirm(
-                        'Take back control?',
-                        'The paired operator will become a viewer. The running timer is unchanged.',
-                        'Take control',
-                      ))
-                        hub.reclaim();
-                    },
-                    child: const Text('Take back control'),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (c.destination == 'mobile' && !hub.stageSharingEnabled)
-            OutlinedButton.icon(
-              onPressed: startStageSharing,
-              icon: const Icon(Icons.cast),
-              label: const Text('Share to stage screens'),
-            ),
-          if (c.stageConnected)
-            OutlinedButton.icon(
-              onPressed: testStageScreen,
-              icon: const Icon(Icons.connected_tv),
-              label: const Text('Test screen'),
-            ),
-        ],
+        ...sharing,
         const SizedBox(height: 20),
         pairedDeviceList(),
         if (hub.hosting) ...[const SizedBox(height: 16), webScreensPanel()],
         const SizedBox(height: 16),
         stageRequestsPanel(),
+        if (hub.hosting) ...[const SizedBox(height: 16), stop],
+      ],
+    );
+  }
+
+  /// Screens & devices in a wide window. Devices with the app and this
+  /// device's own outputs on the left; web screens, which need the most
+  /// room, in a pane of their own on the right.
+  Widget screensAndDevicesWide({
+    required List<Widget> sharing,
+    required Widget stop,
+  }) {
+    final hub = c.pairing;
+    final colors = appColors(context);
+    final text = Theme.of(context).textTheme;
+    final muted = text.bodyMedium?.copyWith(color: colors.muted, height: 1.4);
+    final nothingSaved =
+        !hub.hosting && hub.savedDevices.isEmpty && hub.peers.isEmpty;
+    final devices = Column(
+      key: const ValueKey('screens-devices-column'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const PaneLabel('Phones and tablets with the app'),
+        const SizedBox(height: 12),
+        ...sharing,
+        const SizedBox(height: 20),
+        pairedDeviceList(),
+        if (nothingSaved)
+          Text(
+            'No saved devices yet. A device you pair is remembered here, ready to reconnect next time.',
+            style: muted,
+          ),
         if (hub.hosting) ...[
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            style: stopSharingButtonStyle(),
-            onPressed: stopServiceSharing,
-            icon: const Icon(Icons.stop_screen_share_outlined),
-            label: const Text('Stop sharing'),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              stop,
+              Text(
+                'Disconnects every screen and operator. The timer keeps running.',
+                style: text.bodySmall?.copyWith(color: colors.muted),
+              ),
+            ],
           ),
         ],
       ],
+    );
+    final own = Column(
+      key: const ValueKey('screens-own-column'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PaneLabel(deviceText('This phone')),
+        const SizedBox(height: 12),
+        if (c.port.stageOutput != null) ...[
+          secondScreenPanel(),
+          const SizedBox(height: 16),
+        ],
+        stageRequestsPanel(),
+      ],
+    );
+    final web = hub.hosting
+        ? webScreensPanel(wide: true)
+        : Column(
+            key: const ValueKey('web-screens-idle'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const PaneLabel('Browsers, without the app'),
+              const SizedBox(height: 12),
+              Text(
+                'Web screens',
+                style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Text(
+                  'Any browser on this Wi-Fi (a laptop, TV or phone) can follow the service without the app.',
+                  style: muted,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Text(
+                  'Not sharing yet. Choose ${c.destination == 'mobile' ? 'Share to stage screens' : 'Share to screens'}; the address, QR code and codes then appear here.',
+                  style: muted,
+                ),
+              ),
+            ],
+          );
+    return FillsWideWindow(
+      child: LayoutBuilder(
+        builder: (context, space) {
+          final pane = (space.maxWidth * .4).clamp(480.0, 760.0);
+          final two = space.maxWidth - pane >= 1040;
+          return Row(
+            key: const ValueKey('screens-devices-wide'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  key: const ValueKey('screens-devices-main'),
+                  primary: false,
+                  padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: two ? 1200 : 640),
+                      child: two
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: devices),
+                                const SizedBox(width: 28),
+                                Expanded(child: own),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                devices,
+                                const SizedBox(height: 28),
+                                own,
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+              VerticalDivider(width: 1, thickness: 1, color: colors.border),
+              SizedBox(
+                width: pane,
+                child: Material(
+                  color: colors.surface,
+                  child: SingleChildScrollView(
+                    key: const ValueKey('web-screens-pane'),
+                    primary: false,
+                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+                    child: web,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

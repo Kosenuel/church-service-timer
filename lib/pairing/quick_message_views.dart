@@ -2,6 +2,7 @@ import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
@@ -149,7 +150,10 @@ extension QuickMessageViews on HomeState {
           ),
           body: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
+              // A wide window gives the composer the room for two panes.
+              constraints: BoxConstraints(
+                maxWidth: isWideWindow(ctx) ? double.infinity : 720,
+              ),
               child: QuickMessageComposer(
                 key: ValueKey('live-quick-message-$quickDraftGeneration'),
                 sticky: true,
@@ -295,10 +299,11 @@ extension QuickMessageViews on HomeState {
               index == null ? 'New message preset' : 'Edit message preset',
             ),
           ),
-          body: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              QuickMessageComposer(
+          body: Builder(
+            builder: (ctx) {
+              final wide = isWideWindow(ctx);
+              final composer = QuickMessageComposer(
+                sticky: wide,
                 initial: index == null
                     ? const QuickMessage(body: '')
                     : c.state.quickMessages[index],
@@ -308,8 +313,14 @@ extension QuickMessageViews on HomeState {
                   if (ok && ctx.mounted) Navigator.pop(ctx);
                   return ok;
                 },
-              ),
-            ],
+              );
+              return wide
+                  ? composer
+                  : ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [composer],
+                    );
+            },
           ),
         ),
       ),
