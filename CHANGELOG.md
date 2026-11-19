@@ -8,6 +8,11 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 - **The window opens properly on a second screen.** On a PC with two screens that use different scaling in Windows, the app could start with its loading page filling the window and the app itself drawn small in the bottom-left corner. The window was being moved back to where it was last time after the app had started drawing, and Windows resized it on the way. It now opens at its last place from the start. A window that had grown larger than its screen because of this is brought back inside it.
 - **The stage countdown holds still.** On a stage screen, a second screen or a web screen's app view, the large time used to shift and change size slightly each second, because some digits are wider than others and the time was refitted to the screen every time it changed. The time now keeps one size and each digit keeps its place.
+- **The second screen is on Live.** On a PC, showing the stage on a projector or second monitor no longer means a trip into Settings.
+  - **One button on Live.** Under the stage preview, in every layout, a line says what the second screen is doing ("Second screen: not showing", or "Showing on Screen 2 · 3840 × 2160") beside one button: **Show on second screen** or **Stop**. It is in the command palette (Ctrl+K) too. With more than one extra screen you choose which; with none it only says "No second screen connected". Lock controls disables it.
+  - **It remembers the screen.** The screen you last showed the stage on is kept on that computer and offered first next time.
+  - **Open it when a service starts.** Turn on **Settings › Screens & devices › Second screen › Open the second screen when a service starts** and starting a service or a Quick timer shows the stage on that screen. If the screen is not connected, nothing opens and Live says so; it never opens on your own screen by itself. It is off to begin with. Ending the service leaves the end screen showing.
+  - **Choose what it shows.** Timer only, Timer and segment name, or Timer and next segment, in the same card. Paired stage screens keep their own choice.
 
 ## 0.32.0, 19/November/2026
 

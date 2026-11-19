@@ -117,6 +117,16 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     _soundLoaded = true;
   }
 
+  @override
+  Future<Json> secondScreenSettings() async {
+    final saved = await _prefs.get('secondScreen');
+    return saved is Map ? Map<String, dynamic>.from(saved) : {};
+  }
+
+  @override
+  Future<void> saveSecondScreenSettings(Json settings) =>
+      _prefs.set('secondScreen', settings);
+
   /// A warning reaches the operator two ways: a Windows notification, for
   /// when another window is in front, and the flashing taskbar button,
   /// which still shows when Windows is holding notifications back (it

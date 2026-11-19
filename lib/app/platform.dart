@@ -150,6 +150,12 @@ abstract class DevicePort {
   /// On a PC: whether a warning's notification plays the Windows
   /// notification sound. A phone manages sound in its own settings.
   Future<void> setWarningSound(bool on) async {}
+
+  /// On a PC: the operator's choices for the second screen (which monitor
+  /// was used last, whether it opens with a service, what it shows). Kept
+  /// on that computer only, never in the app's state or its backups.
+  Future<Json> secondScreenSettings() async => {};
+  Future<void> saveSecondScreenSettings(Json settings) async {}
   Future<Stamp> clock();
   Future<String?> load();
   Future<void> save(String state);

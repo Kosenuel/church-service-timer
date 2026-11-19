@@ -1,4 +1,5 @@
 import 'package:church_service_timer/windows/stage_output.dart';
+import 'package:church_service_timer/windows/second_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:church_service_timer/web_stage/web_stage_views.dart';
@@ -423,6 +424,7 @@ extension PairingViews on HomeState {
   /// monitor plugged into this computer.
   Widget secondScreenPanel() {
     final window = c.port.stageOutput!;
+    final second = c.secondScreen!;
     final colors = appColors(context);
     final muted = TextStyle(fontSize: 12, color: colors.muted);
     final screens = window.monitors();
@@ -450,7 +452,7 @@ extension PairingViews on HomeState {
             ],
           ),
           Text(
-            'Show the stage output full screen on a projector or second monitor plugged into this computer. It works with any display choice and needs no network.',
+            'Show the stage full screen on a projector or second monitor plugged into this computer. Live has the same button under the stage preview. It works with any display choice and needs no network.',
             style: muted,
           ),
           const SizedBox(height: 8),
@@ -480,19 +482,62 @@ extension PairingViews on HomeState {
               trailing: window.monitor == screen.index
                   ? OutlinedButton(
                       key: ValueKey('second-screen-stop-${screen.index}'),
-                      onPressed: controlsLocked ? null : window.close,
+                      onPressed: controlsLocked ? null : second.stop,
                       child: const Text('Stop'),
                     )
                   : FilledButton(
                       key: ValueKey('second-screen-show-${screen.index}'),
                       onPressed: controlsLocked
                           ? null
-                          : () => window.show(screen),
+                          : () => second.show(screen),
                       child: const Text('Show'),
                     ),
             ),
           if (window.error != null)
             Text(window.error!, style: TextStyle(color: colors.error)),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            key: const ValueKey('second-screen-open-on-start'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Open the second screen when a service starts'),
+            subtitle: Text(
+              second.note ??
+                  switch (second.remembered) {
+                    final screen? =>
+                      'Uses ${stageMonitorLabel(screen)}, the screen shown on last. It stays open when the service ends.',
+                    null when second.rememberedRect != null =>
+                      'The screen used last time is not connected.',
+                    null =>
+                      'Uses the screen you last showed the stage on. Press Show once to choose it.',
+                  },
+              style: muted,
+            ),
+            value: second.openOnStart,
+            onChanged: controlsLocked ? null : second.setOpenOnStart,
+          ),
+          const SizedBox(height: 8),
+          const Text('What the second screen shows'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final layout in secondScreenLayouts.entries)
+                ChoiceChip(
+                  key: ValueKey('second-screen-layout-${layout.key}'),
+                  label: Text(layout.value),
+                  selected: second.layout == layout.key,
+                  onSelected: controlsLocked
+                      ? null
+                      : (_) => second.setLayout(layout.key),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Only this computer’s second screen. Paired stage screens keep their own choice.',
+            style: muted,
+          ),
         ],
       ),
     );
