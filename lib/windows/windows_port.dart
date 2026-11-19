@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:church_service_timer/app/platform.dart';
+import 'package:church_service_timer/app/update_checker.dart';
 import 'package:church_service_timer/display/tinos_rasterizer.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/w2/w2_transport.dart';
@@ -649,6 +650,9 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   @override
   Future<bool> openWebPage(String url) async =>
       url.startsWith('https://') && system.open(url);
+
+  @override
+  UpdateChecker get updateChecker => const UpdateChecker();
 
   @override
   Future<Json> batteryStatus() async => system.power();
