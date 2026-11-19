@@ -2,7 +2,7 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
-## Unreleased
+## 0.31.0, 19/November/2026
 
 - **A Windows version (first build, still to be tried on a real PC).** Church Service Timer can now be built for Windows 10 and 11, so a service can be run from a laptop or PC. It is the same app: the same programs, reports, themes and settings, and a backup made on the phone restores on the PC and the other way round. On a PC:
   - **Wide layout.** The window can be resized, and it reopens where you left it. In a wide window Live uses the new **Three panes** desktop layout, described below.
