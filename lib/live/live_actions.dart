@@ -298,6 +298,47 @@ extension LiveActions on HomeState {
       await c.act('undo', revision: revision);
   }
 
+  /// End service (or End timer for a quick timer), after asking.
+  Future<void> confirmEndService() async {
+    final s = c.liveSession, t = s.timeline;
+    final rev = s.revision;
+    if (await confirmTimer(
+      revision: rev,
+      title: s.quickTimer ? 'End the timer?' : 'End ${t!.name}?',
+      action: s.quickTimer ? 'End timer' : 'End service',
+      destructive: true,
+      content: () => Text(
+        s.quickTimer
+            ? s.noReport
+                  ? 'Stop the timer and show the end screen. Nothing is saved.'
+                  : 'Stop the timer, show the end screen and save it in Reports as a quick timer.'
+            : c.hardware.enabled
+            ? c.hardware.held || !c.hardware.connected
+                  ? 'Finish this service and save its report. The sign will keep its last program until you reconnect and restore output.'
+                  : 'Finish this service and save its report. The sign will show this service’s end screen, including its scrolling effect. A brief blink is expected.'
+            : 'Finish this service, save its report, clear the active cue and show “${t!.display.end.text}”.',
+      ),
+    ))
+      await c.act('end', revision: rev);
+  }
+
+  /// Blank screen or Unblank screen, after asking.
+  Future<void> confirmBlank() async {
+    final s = c.liveSession;
+    final revision = s.revision;
+    if (await confirmTimer(
+      revision: revision,
+      title: s.outputBlank ? 'Unblank the screen?' : 'Blank the screen?',
+      action: s.outputBlank ? 'Confirm unblank' : 'Confirm blank',
+      content: () => Text(
+        s.outputBlank
+            ? 'Show the current cue, countdown or service end screen again.'
+            : 'Blank the screen. Timing and phone warnings continue; tap Unblank screen to restore the current output.',
+      ),
+    ))
+      await c.act('blank', revision: revision);
+  }
+
   Future<TextLayout?> compose(
     TextLayout initial,
     String title,

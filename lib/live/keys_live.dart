@@ -453,13 +453,13 @@ extension KeysLive on HomeState {
               OutlinedButton.icon(
                 onPressed: enabled ? editUpcoming : null,
                 icon: const Icon(Icons.edit_calendar_outlined, size: 18),
-                label: const Text('Edit upcoming'),
+                label: keyLabel('Edit upcoming', 'E'),
               ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: enabled ? recoverTime : null,
                 icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
-                label: const Text('Recover time'),
+                label: keyLabel('Recover time', 'R'),
               ),
               IconButton(
                 key: const ValueKey('print-rundown'),

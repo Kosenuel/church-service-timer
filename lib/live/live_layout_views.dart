@@ -7,6 +7,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
+import 'package:church_service_timer/live/command_palette.dart';
 
 /// Header status, menus and compact Live helpers shared by the phone and
 /// tablet layouts.
@@ -103,6 +104,7 @@ extension LiveLayout on HomeState {
       if (value == 'ready') {
         openSettingsDetail('Ready for service', readinessSettings);
       }
+      if (value == 'commands') openCommandPalette();
     },
     itemBuilder: (context) => appMenuEntries(context, [
       AppMenuAction(
@@ -111,6 +113,13 @@ extension LiveLayout on HomeState {
       ),
       if (!focused && !controlsLocked)
         const AppMenuAction('ready', 'Ready for service'),
+      // Every action by name, for a mouse as well as Ctrl+K.
+      if (commandPaletteAvailable)
+        AppMenuAction(
+          'commands',
+          'Commands',
+          keys: showKeyHints ? 'Ctrl K' : null,
+        ),
     ]),
   );
 
