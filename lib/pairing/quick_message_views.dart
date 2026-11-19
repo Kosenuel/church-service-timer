@@ -1,3 +1,4 @@
+import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -327,75 +328,121 @@ extension QuickMessageViews on HomeState {
     );
   }
 
-  Widget quickPresetSettings() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(
-        'Saved wording and formatting for your phone or tablet stage screen.',
-        style: TextStyle(color: appColors(context).muted),
-      ),
-      const SizedBox(height: 12),
-      if (c.state.quickMessages.isNotEmpty)
-        panel(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              for (final e in c.state.quickMessages.asMap().entries) ...[
-                if (e.key > 0) const AppDivider(),
-                ListTile(
-                  key: ValueKey('quick-preset-${e.key}'),
-                  contentPadding: appLayout(context).tileInsets,
-                  title: Text(
-                    e.value.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    '${e.value.length}/160 characters · ${e.value.seconds == 0 ? 'Until cleared' : durationLabel(e.value.seconds * 1000)}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: appColors(context).muted,
+  Widget quickPresetSettings() => SettingsWide(
+    main: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Saved wording and formatting for your phone or tablet stage screen.',
+          style: TextStyle(color: appColors(context).muted),
+        ),
+        const SizedBox(height: 12),
+        if (c.state.quickMessages.isNotEmpty)
+          panel(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final e in c.state.quickMessages.asMap().entries) ...[
+                  if (e.key > 0) const AppDivider(),
+                  ListTile(
+                    key: ValueKey('quick-preset-${e.key}'),
+                    contentPadding: appLayout(context).tileInsets,
+                    title: Text(
+                      e.value.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      '${e.value.length}/160 characters · ${e.value.seconds == 0 ? 'Until cleared' : durationLabel(e.value.seconds * 1000)}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: appColors(context).muted,
+                      ),
+                    ),
+                    onTap: () => editQuickPreset(e.key),
+                    trailing: PopupMenuButton<String>(
+                      tooltip: 'More',
+                      onSelected: (action) async {
+                        if (action == 'edit') return editQuickPreset(e.key);
+                        if (await confirm(
+                          'Delete this preset?',
+                          e.value.name,
+                          'Delete preset',
+                          destructive: true,
+                        ))
+                          await c.commit(
+                            (draft, _) => draft.quickMessages.removeAt(e.key),
+                          );
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text(
+                            'Delete preset',
+                            style: TextStyle(color: appColors(context).error),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  onTap: () => editQuickPreset(e.key),
-                  trailing: PopupMenuButton<String>(
-                    tooltip: 'More',
-                    onSelected: (action) async {
-                      if (action == 'edit') return editQuickPreset(e.key);
-                      if (await confirm(
-                        'Delete this preset?',
-                        e.value.name,
-                        'Delete preset',
-                        destructive: true,
-                      ))
-                        await c.commit(
-                          (draft, _) => draft.quickMessages.removeAt(e.key),
-                        );
-                    },
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text(
-                          'Delete preset',
-                          style: TextStyle(color: appColors(context).error),
-                        ),
-                      ),
-                    ],
+                ],
+              ],
+            ),
+          ),
+        const SizedBox(height: 16),
+        ordinarySize(
+          context,
+          OutlinedButton.icon(
+            onPressed: c.state.quickMessages.length < 50
+                ? () => editQuickPreset()
+                : null,
+            icon: const Icon(Icons.add),
+            label: const Text('New preset'),
+          ),
+        ),
+      ],
+    ),
+    side: (context) => SidePane(
+      title: 'On a stage screen',
+      note: c.state.quickMessages.isEmpty
+          ? 'No presets yet. Create one and it is shown here as a stage screen will show it.'
+          : 'How each saved message looks when you send it. Nothing here is sent.',
+      children: [
+        for (final preset in c.state.quickMessages)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: RichStageMessage(message: preset),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  preset.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  preset.seconds == 0
+                      ? 'Stays until cleared'
+                      : 'Shows for ${durationLabel(preset.seconds * 1000)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: appColors(context).muted,
                   ),
                 ),
               ],
-            ],
+            ),
           ),
-        ),
-      const SizedBox(height: 16),
-      OutlinedButton.icon(
-        onPressed: c.state.quickMessages.length < 50
-            ? () => editQuickPreset()
-            : null,
-        icon: const Icon(Icons.add),
-        label: const Text('New preset'),
-      ),
-    ],
+      ],
+    ),
   );
 }

@@ -655,7 +655,7 @@ void main() {
       // A tap explains; only holding unlocks.
       await t.tap(key('mini-unlock'));
       await t.pump();
-      expect(find.text('Press and hold to unlock controls.'), findsOneWidget);
+      expect(find.text('Click and hold to unlock controls.'), findsOneWidget);
       expect(key('mini-locked'), findsOneWidget);
       await t.longPress(key('mini-unlock'));
       await t.pumpAndSettle();

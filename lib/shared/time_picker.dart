@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -252,8 +253,10 @@ class _TimeWheelsState extends State<TimeWheels> {
         const SizedBox(height: 8),
         Text(
           widget.clock
-              ? 'Scroll the wheels or tap a number to type.'
-              : 'Scroll or tap a number to type · ${maximum ~/ 60}:${(maximum % 60).toString().padLeft(2, '0')} maximum.',
+              ? deviceText('Scroll the wheels or tap a number to type.')
+              : deviceText(
+                  'Scroll or tap a number to type · ${maximum ~/ 60}:${(maximum % 60).toString().padLeft(2, '0')} maximum.',
+                ),
           style: TextStyle(fontSize: 12, color: colors.muted),
         ),
       ],

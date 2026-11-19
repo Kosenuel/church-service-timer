@@ -323,68 +323,71 @@ extension RefinedSettings on HomeState {
         : c.simulator.signature.isEmpty
         ? 'No output published yet'
         : 'Latest local frame rendered';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        settingsGroup('Connection', [
-          settingsRow(
-            connectionIcon(c.displayConnection),
-            c.displayConnection.label,
-            c.hardware.enabled
-                ? 'Adapter: W2 over Wi-Fi'
-                : 'Adapter: local 32 × 16 simulator',
-            null,
+    return SettingsWide(
+      main: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          settingsGroup('Connection', [
+            settingsRow(
+              connectionIcon(c.displayConnection),
+              c.displayConnection.label,
+              c.hardware.enabled
+                  ? 'Adapter: W2 over Wi-Fi'
+                  : 'Adapter: local 32 × 16 simulator',
+              null,
+            ),
+            settingsRow(Icons.update, 'Output status', output, null),
+            settingsRow(
+              Icons.verified_outlined,
+              'Physical delivery',
+              c.hardware.enabled
+                  ? c.hardware.acceptedLabel
+                  : 'Available after connecting a supported W2 display',
+              null,
+            ),
+          ]),
+          const Text(
+            'Connection and delivery are separate. “Controller accepted” means the final upload was acknowledged; check the sign to confirm its appearance.',
           ),
-          settingsRow(Icons.update, 'Output status', output, null),
-          settingsRow(
-            Icons.verified_outlined,
-            'Physical delivery',
-            c.hardware.enabled
-                ? c.hardware.acceptedLabel
-                : 'Available after connecting a supported W2 display',
-            null,
-          ),
-        ]),
-        const Text(
-          'Connection and delivery are separate. “Controller accepted” means the final upload was acknowledged; check the sign to confirm its appearance.',
-        ),
-        const SizedBox(height: 16),
-        ordinarySize(
-          context,
-          button(
-            'Connect a display',
-            Icons.wifi,
-            c.busy ? null : chooseDisplay,
-            primary: true,
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (!c.hardware.enabled)
+          const SizedBox(height: 16),
           ordinarySize(
             context,
             button(
-              s.disconnected ? 'Reconnect simulator' : 'Disconnect simulator',
-              s.disconnected ? Icons.link : Icons.link_off,
-              c.busy || c.corrupt
-                  ? null
-                  : () => c.act(s.disconnected ? 'connect' : 'disconnect'),
+              'Connect a display',
+              Icons.wifi,
+              c.busy ? null : chooseDisplay,
+              primary: true,
             ),
           ),
-        if (c.hardware.enabled && c.hardware.connected)
-          ordinarySize(
-            context,
-            button(
-              'Disconnect display',
-              Icons.link_off,
-              c.hardware.sending ? null : () => c.hardware.disconnect(),
+          const SizedBox(height: 12),
+          if (!c.hardware.enabled)
+            ordinarySize(
+              context,
+              button(
+                s.disconnected ? 'Reconnect simulator' : 'Disconnect simulator',
+                s.disconnected ? Icons.link : Icons.link_off,
+                c.busy || c.corrupt
+                    ? null
+                    : () => c.act(s.disconnected ? 'connect' : 'disconnect'),
+              ),
             ),
-          ),
-        if (s.held || (c.hardware.enabled && c.hardware.held))
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text('Return to Live to review and restore held output.'),
-          ),
-      ],
+          if (c.hardware.enabled && c.hardware.connected)
+            ordinarySize(
+              context,
+              button(
+                'Disconnect display',
+                Icons.link_off,
+                c.hardware.sending ? null : () => c.hardware.disconnect(),
+              ),
+            ),
+          if (s.held || (c.hardware.enabled && c.hardware.held))
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text('Return to Live to review and restore held output.'),
+            ),
+        ],
+      ),
+      side: (context) => displayNowPane(),
     );
   }
 
@@ -423,7 +426,9 @@ extension RefinedSettings on HomeState {
             ? 'Warnings on this computer'
             : 'Phone warnings',
         detail: c.port.isDesktop
-            ? 'Windows notifications on · no sound'
+            ? (c.notificationState['sound'] == true
+                  ? 'Windows notifications on · with sound'
+                  : 'Windows notifications on · no sound')
             : warningsOn
             ? (c.notificationState['sound'] == true
                   ? 'Notifications and sound on'

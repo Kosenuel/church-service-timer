@@ -146,6 +146,10 @@ abstract class DevicePort {
   Future<void> requestExactWarnings() async {}
   Future<void> syncWarnings(Json plan) async {}
   Future<void> testNotification() async {}
+
+  /// On a PC: whether a warning's notification plays the Windows
+  /// notification sound. A phone manages sound in its own settings.
+  Future<void> setWarningSound(bool on) async {}
   Future<Stamp> clock();
   Future<String?> load();
   Future<void> save(String state);

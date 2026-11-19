@@ -39,7 +39,12 @@ class WindowsSystem implements DesktopSystem {
   static Timer? _clear;
 
   @override
-  void notify(String title, String body, {int clearSeconds = 30}) {
+  void notify(
+    String title,
+    String body, {
+    int clearSeconds = 30,
+    bool sound = false,
+  }) {
     unawaited(() async {
       try {
         if (!_notifierReady) {
@@ -55,7 +60,7 @@ class WindowsSystem implements DesktopSystem {
         final notification = LocalNotification(
           title: title,
           body: body,
-          silent: true,
+          silent: !sound,
         );
         _shown = notification;
         await notification.show();

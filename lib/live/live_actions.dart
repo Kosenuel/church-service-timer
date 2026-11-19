@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -333,7 +334,9 @@ extension LiveActions on HomeState {
       content: () => Text(
         s.outputBlank
             ? 'Show the current cue, countdown or service end screen again.'
-            : 'Blank the screen. Timing and phone warnings continue; tap Unblank screen to restore the current output.',
+            : deviceText(
+                'Blank the screen. Timing and phone warnings continue; tap Unblank screen to restore the current output.',
+              ),
       ),
     ))
       await c.act('blank', revision: revision);

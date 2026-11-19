@@ -35,9 +35,15 @@ abstract class DesktopSystem {
   /// flashes until the window is brought forward.
   void flash();
 
-  /// Shows a Windows notification, silently, and takes it down again
-  /// after [clearSeconds] (0 leaves it until dismissed).
-  void notify(String title, String body, {int clearSeconds = 30});
+  /// Shows a Windows notification and takes it down again after
+  /// [clearSeconds] (0 leaves it until dismissed). It is silent unless
+  /// [sound] is on.
+  void notify(
+    String title,
+    String body, {
+    int clearSeconds = 30,
+    bool sound = false,
+  });
 
   /// Brings the window to the front.
   void raise();
@@ -93,13 +99,31 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   );
   int _clearSeconds = 30;
 
+  /// Whether a warning's notification plays the Windows notification
+  /// sound. Off unless the operator turns it on: a PC is often plugged
+  /// into the sound system. Kept on this computer, not in backups.
+  bool _sound = false;
+  bool _soundLoaded = false;
+  Future<void> _loadSound() async {
+    if (_soundLoaded) return;
+    _sound = await _prefs.get('warningSound') == true;
+    _soundLoaded = true;
+  }
+
+  @override
+  Future<void> setWarningSound(bool on) async {
+    await _prefs.set('warningSound', on);
+    _sound = on;
+    _soundLoaded = true;
+  }
+
   /// A warning reaches the operator two ways: a Windows notification, for
   /// when another window is in front, and the flashing taskbar button,
   /// which still shows when Windows is holding notifications back (it
   /// does that by itself while a screen is being duplicated or presented).
   void _warn(String title, String body) {
     system.flash();
-    system.notify(title, body, clearSeconds: _clearSeconds);
+    system.notify(title, body, clearSeconds: _clearSeconds, sound: _sound);
   }
 
   WindowsPort._(
@@ -536,14 +560,14 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   }
 
   @override
-  Future<Json> notificationStatus() async => {
-    'enabled': true,
-    'exact': true,
-    'sound': false,
-  };
+  Future<Json> notificationStatus() async {
+    await _loadSound();
+    return {'enabled': true, 'exact': true, 'sound': _sound};
+  }
 
   @override
   Future<void> syncWarnings(Json plan) async {
+    await _loadSound();
     final clear = plan['clearSeconds'];
     if (clear is int && const {0, 15, 30, 60}.contains(clear)) {
       _clearSeconds = clear;
@@ -552,10 +576,13 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   }
 
   @override
-  Future<void> testNotification() async => _warn(
-    'Church Service Timer test warning',
-    'Warnings appear like this, without sound, and the taskbar button flashes.',
-  );
+  Future<void> testNotification() async {
+    await _loadSound();
+    _warn(
+      'Church Service Timer test warning',
+      'Warnings appear like this, without sound, and the taskbar button flashes.',
+    );
+  }
 
   // ---- Fonts --------------------------------------------------------------
 

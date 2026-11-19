@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -867,8 +868,8 @@ extension LiveViewActions on HomeState {
                     adjustGroup,
                     radius: 12,
                     label: c.practice.pointer == 'minus'
-                        ? 'Tap −2 min'
-                        : 'Tap +2 min',
+                        ? deviceText('Tap −2 min')
+                        : deviceText('Tap +2 min'),
                   ),
                 ),
                 const SizedBox(width: 10),
