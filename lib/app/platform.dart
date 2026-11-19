@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'dart:convert';
 
+import 'package:church_service_timer/app/update_checker.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
@@ -130,6 +131,11 @@ abstract class DevicePort {
 
   /// Opens an https web page in the phone's browser; false if none could.
   Future<bool> openWebPage(String url) async => false;
+
+  /// Looks for a newer version when the person asks in Settings › About.
+  /// A device without the internet, and every test, gets one that never
+  /// uses the network.
+  UpdateChecker get updateChecker => const UpdateChecker.offline();
   Future<String> installedVersion() async => appVersion;
   Future<void> setKeepScreenAwake(bool enabled) async {}
   Future<Map<String, dynamic>?> pickBackup() => pickFile();
@@ -432,6 +438,8 @@ class AndroidPort extends DevicePort with LocalNetworkPairing {
   @override
   Future<bool> openWebPage(String url) async =>
       await channel.invokeMethod<bool>('openWebPage', {'url': url}) ?? false;
+  @override
+  UpdateChecker get updateChecker => const UpdateChecker();
   @override
   Future<String> installedVersion() async =>
       await channel.invokeMethod<String>('appVersion') ?? appVersion;

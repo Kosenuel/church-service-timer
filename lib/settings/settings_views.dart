@@ -17,6 +17,7 @@ import 'package:church_service_timer/settings/backup_secret_views.dart';
 import 'package:church_service_timer/settings/whats_new_page.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
+import 'package:church_service_timer/settings/update_notice.dart';
 export 'package:church_service_timer/settings/church_profile_page.dart';
 
 extension SettingsViews on HomeState {
@@ -628,6 +629,24 @@ extension SettingsViews on HomeState {
           key: const ValueKey('about-whats-new'),
         ),
       row(
+        Icons.system_update_alt_outlined,
+        'Check for updates',
+        'Contacts GitHub to look for a newer version',
+        () => openSettingsDetail(
+          'Check for updates',
+          () => SettingsWide(
+            main: panel(
+              child: UpdateNotice(
+                checker: c.port.updateChecker,
+                installed: c.appVersion,
+                openPage: c.port.openWebPage,
+              ),
+            ),
+          ),
+        ),
+        key: const ValueKey('about-check-updates'),
+      ),
+      row(
         Icons.storage_outlined,
         'Your data',
         deviceText('Stored only on this phone · backups you choose'),
@@ -636,7 +655,7 @@ extension SettingsViews on HomeState {
           () => detail(
             'Your data',
             deviceText(
-              'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone. Pairings are never included in backups; saved sign passwords are included only if you choose, encrypted with a passphrase.',
+              'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone. Pairings are never included in backups; saved sign passwords are included only if you choose, encrypted with a passphrase. Check for updates in About contacts GitHub, only when you press it, to read the latest version number. Nothing about you, your church or your services is sent; GitHub sees this device’s internet address, as any website does.',
             ),
           ),
         ),
