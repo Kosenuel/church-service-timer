@@ -26,6 +26,7 @@ import 'package:church_service_timer/live/live_layout_views.dart';
 import 'package:church_service_timer/programs/program_library_views.dart';
 import 'package:church_service_timer/settings/settings_pin_views.dart';
 import 'package:church_service_timer/live/clicker_controls.dart';
+import 'package:church_service_timer/live/command_palette.dart';
 import 'package:church_service_timer/programs/programs_page_state.dart';
 import 'package:church_service_timer/reports/reports_page_state.dart';
 import 'package:church_service_timer/programs/program_edit_actions.dart';
@@ -37,6 +38,9 @@ import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/live/home_notices.dart';
 import 'package:church_service_timer/live/live_actions.dart';
 import 'package:church_service_timer/live/live_timer_views.dart';
+import 'package:church_service_timer/live/planning_views.dart';
+import 'package:church_service_timer/live/time_recovery_views.dart';
+import 'package:church_service_timer/live/timing_overview_views.dart';
 import 'package:church_service_timer/reports/report_library_views.dart';
 
 export 'package:church_service_timer/settings/appearance_views.dart';
@@ -287,11 +291,32 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       unawaited(goToPage(page + direction, slide: direction));
   DateTime? _clickerNextArmed;
 
+  /// Whether the keyboard is typing into a text field just now.
+  bool get typingInField {
+    final focus = FocusManager.instance.primaryFocus?.context;
+    return focus != null &&
+        (focus.widget is EditableText ||
+            focus.findAncestorWidgetOfExactType<EditableText>() != null);
+  }
+
+  /// Lock controls: every button and key is ignored until Hold to unlock.
+  void lockControls() => refreshHome(() => c.uiLocked = controlsLocked = true);
+
   /// Presentation clickers and foot pedals: Next (pressed twice) and Pause.
   /// Ignored while typing, while a dialog or another page is on top, and
   /// whenever touch controls would be unavailable.
   bool onClickerKey(KeyEvent event) {
     if (event is! KeyDownEvent || !mounted || !c.ready) return false;
+    // Ctrl+K opens the command palette from any tab of the home screen.
+    if (c.port.isDesktop &&
+        isCommandPaletteKey(
+          event.logicalKey,
+          control: HardwareKeyboard.instance.isControlPressed,
+        )) {
+      if (!commandPaletteAvailable || typingInField) return false;
+      unawaited(openCommandPalette());
+      return true;
+    }
     // A PC keyboard adds its own keys on top of the clicker's; they open
     // the same confirmations as the buttons on screen.
     final desktopAction = c.port.isDesktop
@@ -311,11 +336,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
         : null;
     if (action == null && desktopAction == null && cueIndex == null)
       return false;
-    final focus = FocusManager.instance.primaryFocus?.context;
-    if (focus != null &&
-        (focus.widget is EditableText ||
-            focus.findAncestorWidgetOfExactType<EditableText>() != null))
-      return false;
+    if (typingInField) return false;
     if (page != 0 || ModalRoute.of(context)?.isCurrent != true) return false;
     final s = c.state.session;
     if (!s.active ||
@@ -349,6 +370,30 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     if (desktopAction == DesktopLiveAction.undo) {
       if (s.undo == null) return false;
       unawaited(undo());
+      return true;
+    }
+    if (desktopAction == DesktopLiveAction.lock) {
+      // Locks only: unlocking stays Hold to unlock, and a locked window
+      // never reaches this line.
+      lockControls();
+      return true;
+    }
+    if (desktopAction == DesktopLiveAction.message) {
+      if (!outputControlsEnabled) return false;
+      unawaited(sendStageMessage());
+      return true;
+    }
+    if (desktopAction == DesktopLiveAction.editUpcoming) {
+      unawaited(editUpcoming());
+      return true;
+    }
+    if (desktopAction == DesktopLiveAction.recoverTime) {
+      unawaited(recoverTime());
+      return true;
+    }
+    if (desktopAction == DesktopLiveAction.jump) {
+      if (s.index + 1 >= s.timeline!.segments.length) return false;
+      unawaited(jumpToSegment());
       return true;
     }
     if (action == ClickerAction.pause) {
@@ -738,12 +783,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                 tooltip: controlsLocked
                                     ? 'Controls locked'
                                     : 'Lock controls',
-                                onPressed: controlsLocked
-                                    ? null
-                                    : () => setState(
-                                        () =>
-                                            c.uiLocked = controlsLocked = true,
-                                      ),
+                                onPressed: controlsLocked ? null : lockControls,
                                 icon: Icon(
                                   controlsLocked ? Icons.lock : Icons.lock_open,
                                 ),

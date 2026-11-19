@@ -92,7 +92,7 @@ extension LiveTimingViews on HomeState {
   }
 
   Future<void> jumpToSegment() async {
-    final s = c.state.session, revision = c.state.session.revision;
+    final s = c.state.session;
     final target = await showAppSelection<int>(
       context,
       title: 'Jump to segment',
@@ -113,6 +113,14 @@ extension LiveTimingViews on HomeState {
       ),
     );
     if (target == null || !mounted) return;
+    await confirmJump(target, session: s);
+  }
+
+  /// Asks before jumping to the later segment at [target]. [session] is
+  /// the service as it was when the segment was picked, so a change made
+  /// meanwhile is caught by the confirmation.
+  Future<void> confirmJump(int target, {Session? session}) async {
+    final s = session ?? c.state.session, revision = s.revision;
     final skipped = s.timeline!.segments
         .sublist(s.index + 1, target)
         .map((e) => e.name)

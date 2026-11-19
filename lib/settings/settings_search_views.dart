@@ -35,17 +35,7 @@ extension SettingsSearchViews on HomeState {
         'Appearance',
         'theme density compact comfortable spacious dividers contrast motion picker feedback sound haptics',
         Icons.palette_outlined,
-        () async {
-          try {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => AppearancePage(controller: c)),
-            );
-          } finally {
-            c.previewTheme(null);
-            c.previewAppearance(null);
-          }
-        },
+        openAppearance,
       ),
       (
         'Church profile',
