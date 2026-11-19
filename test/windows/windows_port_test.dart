@@ -72,6 +72,21 @@ class FakeSystem implements DesktopSystem {
   void flash() => flashes++;
   @override
   void raise() => raises++;
+
+  /// Every call to the notification-area icon: the tooltip, or null for
+  /// "remove". [trayShown] is what Windows would be showing now.
+  final trayCalls = <String?>[];
+  String? trayShown;
+  bool trayRefuses = false, trayThrows = false;
+  @override
+  bool tray(String? tip) {
+    trayCalls.add(tip);
+    if (trayThrows) throw StateError('Shell_NotifyIconW is not there');
+    if (trayRefuses) return false;
+    trayShown = tip;
+    return true;
+  }
+
   @override
   String description() => 'Windows PC · test';
 }
@@ -334,6 +349,7 @@ void main() {
       'enabled': true,
       'exact': true,
       'sound': false,
+      'tray': true,
     });
     await p.testNotification();
     expect(system.flashes, 1);

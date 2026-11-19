@@ -167,6 +167,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
         return EXIT_FAILURE;
       }
     }
+    // A program file can be dropped on the app window to import it.
+    window.AcceptDroppedFiles();
   }
   window.SetQuitOnClose(true);
 

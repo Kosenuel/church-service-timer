@@ -18,6 +18,7 @@ import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/app/platform.dart';
 import 'package:church_service_timer/windows/stage_output_app.dart';
 import 'package:church_service_timer/windows/windows_app.dart';
+import 'package:church_service_timer/windows/file_drop.dart';
 
 import 'package:church_service_timer/settings/settings_views.dart';
 import 'package:church_service_timer/pairing/pairing_views.dart';
@@ -28,6 +29,8 @@ import 'package:church_service_timer/programs/programs_desktop.dart';
 import 'package:church_service_timer/settings/settings_pin_views.dart';
 import 'package:church_service_timer/live/clicker_controls.dart';
 import 'package:church_service_timer/live/command_palette.dart';
+import 'package:church_service_timer/live/shortcuts_sheet.dart';
+import 'package:church_service_timer/settings/clicker_test_page.dart';
 import 'package:church_service_timer/programs/programs_page_state.dart';
 import 'package:church_service_timer/reports/reports_page_state.dart';
 import 'package:church_service_timer/programs/program_edit_actions.dart';
@@ -386,6 +389,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   /// whenever touch controls would be unavailable.
   bool onClickerKey(KeyEvent event) {
     if (event is! KeyDownEvent || !mounted || !c.ready) return false;
+    // The clicker test page only shows what a key would do: nothing
+    // pressed there reaches the service.
+    if (clickerTestOpen) return false;
     // Ctrl+K opens the command palette from any tab of the home screen.
     if (c.port.isDesktop &&
         isCommandPaletteKey(
@@ -405,6 +411,17 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       if (controlsLocked || typingInField) return false;
       if (!miniTimer && !miniTimerAvailable) return false;
       unawaited(setMiniTimer(!miniTimer));
+      return true;
+    }
+    // ? or F1 lists the keys, from any tab of the home screen.
+    if (c.port.isDesktop &&
+        isShortcutsSheetKey(
+          event.logicalKey,
+          shift: HardwareKeyboard.instance.isShiftPressed,
+          character: event.character,
+        )) {
+      if (!shortcutsSheetAvailable || typingInField) return false;
+      unawaited(openShortcutsSheet());
       return true;
     }
     // A PC keyboard adds its own keys on top of the clicker's; they open
@@ -538,6 +555,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     c.liveNavigation.addListener(returnToLive);
     HardwareKeyboard.instance.addHandler(onClickerKey);
     c.port.setIncomingFileHandler(receiveIncomingFile);
+    c.port.setFileDropHandler(receiveDroppedFiles);
     if (c.port.isDesktop) {
       _windowClose = AppLifecycleListener(onExitRequested: confirmWindowClose);
     }
@@ -598,11 +616,36 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     if (mounted) await importFile(received: file);
   }
 
+  /// A file dropped on the window is opened exactly as "Open with" opens
+  /// it, in the same import review. Nothing else is accepted, and nothing
+  /// at all while a service runs or the controls are locked.
+  void receiveDroppedFiles(List<String> paths) {
+    if (!c.ready || !mounted || paths.isEmpty) return;
+    final path = droppedProgramFile(paths);
+    final refusal = path == null
+        ? dropOneProgramFile
+        : c.liveSession.active
+        ? 'A service is running. End it before you import a program.'
+        : controlsLocked
+        ? 'Controls are locked. Unlock them before you import a program.'
+        : null;
+    if (path != null && refusal == null) return c.port.offerIncomingFile(path);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const ValueKey('drop-refused'),
+          content: Text(refusal ?? dropOneProgramFile),
+        ),
+      );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(onClickerKey);
     c.port.setIncomingFileHandler(null);
+    c.port.setFileDropHandler(null);
     _windowClose?.dispose();
     c.removeListener(_followServiceCompletion);
     c.removeListener(_followMiniTimer);
@@ -720,6 +763,17 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   /// Closing the window ends the app on a PC, so a running service asks
   /// first. Called by the system when the window's close button is used.
   Future<AppExitResponse> confirmWindowClose() async {
+    final response = await _confirmWindowClose();
+    // The icon in the notification area goes with the window.
+    if (response == AppExitResponse.exit) {
+      try {
+        await c.port.windowClosing();
+      } catch (_) {}
+    }
+    return response;
+  }
+
+  Future<AppExitResponse> _confirmWindowClose() async {
     if (!c.ready || !c.liveSession.active || !mounted) {
       return AppExitResponse.exit;
     }

@@ -1,5 +1,6 @@
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
+import 'package:church_service_timer/settings/clicker_test_page.dart';
 import 'dart:async';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -653,6 +654,12 @@ extension WarningSettingsViews on HomeState {
                 : (v) => c.commit((draft, _) => draft.clickerControls = v),
           ),
           settingsRow(
+            Icons.ads_click,
+            'Test a clicker or pedal',
+            'Press its buttons to see the key each one sends and what it does on Live. Nothing reaches the service.',
+            openClickerTest,
+          ),
+          settingsRow(
             c.backgroundActive ? Icons.sync : Icons.info_outline,
             c.backgroundActive
                 ? 'Background operation active'
@@ -762,6 +769,27 @@ extension WarningSettingsViews on HomeState {
           value: c.notificationState['sound'] == true,
           onChanged: (on) => run(() async {
             await c.port.setWarningSound(on);
+            await c.phoneWarnings.sync();
+            settingsRefresh.value++;
+          }),
+        ),
+        SwitchListTile.adaptive(
+          key: const ValueKey('desktop-tray-countdown'),
+          contentPadding: appLayout(context).tileInsets,
+          secondary: Icon(Icons.timer_outlined, color: colors.accent),
+          title: const Text(
+            'Show the countdown in the notification area',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            c.notificationState['tray'] != false
+                ? 'On. While a service runs, an icon beside the Windows clock shows the time left when you point at it. Click the icon to bring this window forward.'
+                : 'Off. No icon is added beside the Windows clock.',
+            style: TextStyle(fontSize: 13, color: colors.muted),
+          ),
+          value: c.notificationState['tray'] != false,
+          onChanged: (on) => run(() async {
+            await c.port.setTrayCountdown(on);
             await c.phoneWarnings.sync();
             settingsRefresh.value++;
           }),

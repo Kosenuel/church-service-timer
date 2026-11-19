@@ -38,6 +38,24 @@ class ServiceNotificationController {
     };
   }
 
+  /// What a PC shows beside the Windows clock while a service or quick
+  /// timer runs: "Sermon · 12:34 left", "Sermon · 01:10 over" or
+  /// "Paused · Sermon · 12:34". Null when nothing is running.
+  String? trayText() {
+    final s = app.state.session, t = s.timeline;
+    if (!s.active || t == null) return null;
+    // A name has at most 80 characters, so the whole line fits the 127 a
+    // Windows tooltip holds.
+    final name = t.segments[s.index].name.trim();
+    final balance = s.balance(app.now);
+    final time = balance < 0
+        ? '${formatTime(-balance)} over'
+        : s.paused
+        ? formatTime(balance)
+        : '${formatTime(balance)} left';
+    return '${s.paused ? 'Paused · ' : ''}$name · $time';
+  }
+
   static String _operatorLabel(int balance) =>
       balance < 0 ? '+${formatTime(-balance)} over' : formatTime(balance);
 
@@ -48,6 +66,13 @@ class ServiceNotificationController {
   /// are unchanged.
   Future<void> sync() async {
     if (!app.ready) return;
+    if (app.port.isDesktop) {
+      // Its own setting on the PC decides whether this shows; the port
+      // only passes a change of text on to Windows.
+      try {
+        await app.port.showTrayCountdown(app.corrupt ? null : trayText());
+      } catch (_) {}
+    }
     final card = app.state.lockScreenControls
         ? build()
         : const <String, dynamic>{'active': false};

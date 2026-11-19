@@ -82,6 +82,14 @@ class WindowsSystem implements DesktopSystem {
   @override
   void raise() => _quietly(() => win32.raiseWindow(win32.appWindow()), null);
   @override
+  bool tray(String? tip) => _quietly(() {
+    if (tip == null) {
+      win32.removeTrayIcon();
+      return true;
+    }
+    return win32.showTrayIcon(win32.appWindow(), tip);
+  }, false);
+  @override
   String description() => 'Windows PC · ${Platform.operatingSystemVersion}';
 }
 

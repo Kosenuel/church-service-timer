@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/live/quick_timer_sheet.dart';
+import 'package:church_service_timer/live/shortcuts.dart';
+import 'package:church_service_timer/live/shortcuts_sheet.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/windows/second_screen.dart';
 
 /// One thing the operator can do from the command palette. Running it
 /// calls the same function as its button on screen, so anything that asks
@@ -143,7 +146,7 @@ extension CommandPalette on HomeState {
           label: s.paused ? 'Resume timer' : 'Pause timer',
           icon: s.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
           group: 'Timer',
-          keys: keys ? 'Space' : null,
+          keys: keys ? shortcutHint('pause') : null,
           words: 'pause resume hold continue',
           run: confirmPause,
         ),
@@ -155,7 +158,7 @@ extension CommandPalette on HomeState {
                 '${t!.segments[later.first].name} · ${t.segments[later.first].durationText}',
             icon: Icons.skip_next_rounded,
             group: 'Timer',
-            keys: keys ? 'PgDn' : null,
+            keys: keys ? shortcutHint('next') : null,
             words: 'advance move on',
             run: advance,
           ),
@@ -165,7 +168,7 @@ extension CommandPalette on HomeState {
           detail: 'Add or remove time',
           icon: Icons.more_time,
           group: 'Timer',
-          keys: keys ? '+ −' : null,
+          keys: keys ? shortcutHint('adjust') : null,
           words: 'custom extend shorten minutes',
           run: adjustTime,
         ),
@@ -176,7 +179,7 @@ extension CommandPalette on HomeState {
             detail: 'Back to ${t!.segments[s.undo!.index].name}',
             icon: Icons.undo,
             group: 'Timer',
-            keys: keys ? 'Ctrl Z' : null,
+            keys: keys ? shortcutHint('undo') : null,
             words: 'previous segment restore',
             run: undo,
           ),
@@ -187,7 +190,7 @@ extension CommandPalette on HomeState {
             detail: 'Choose a later segment',
             icon: Icons.low_priority,
             group: 'Timer',
-            keys: keys ? 'J' : null,
+            keys: keys ? shortcutHint('jump') : null,
             words: 'skip',
             run: jumpToSegment,
           ),
@@ -209,7 +212,7 @@ extension CommandPalette on HomeState {
           detail: 'Shorten what is still to come',
           icon: Icons.auto_fix_high_outlined,
           group: 'Timer',
-          keys: keys ? 'R' : null,
+          keys: keys ? shortcutHint('recover') : null,
           words: 'late behind catch up',
           run: recoverTime,
         ),
@@ -219,7 +222,7 @@ extension CommandPalette on HomeState {
           detail: 'Change the segments still to come',
           icon: Icons.edit_calendar_outlined,
           group: 'Timer',
-          keys: keys ? 'E' : null,
+          keys: keys ? shortcutHint('edit-upcoming') : null,
           words: 'segments rundown program',
           run: editUpcoming,
         ),
@@ -294,7 +297,7 @@ extension CommandPalette on HomeState {
           detail: 'Type a message for the stage',
           icon: Icons.edit_note,
           group: 'Stage',
-          keys: keys ? 'M' : null,
+          keys: keys ? shortcutHint('message') : null,
           words: 'write text stage',
           run: sendStageMessage,
         ),
@@ -311,6 +314,23 @@ extension CommandPalette on HomeState {
           words: 'blank unblank black hide display',
           run: confirmBlank,
         ),
+      if (c.secondScreen case final second?
+          when second.host.open || second.target != null)
+        PaletteCommand(
+          id: 'second-screen',
+          label: second.host.open
+              ? 'Stop the second screen'
+              : 'Show on second screen',
+          detail: switch (second.showingOn ?? second.target) {
+            final screen? => stageMonitorLabel(screen),
+            null => '',
+          },
+          icon: second.host.open ? Icons.tv_off_outlined : Icons.connected_tv,
+          group: 'Stage',
+          words: 'projector monitor hdmi output full screen second stop show',
+          run: () =>
+              second.host.open ? second.stop() : second.show(second.target!),
+        ),
       // This window.
       if (c.liveSession.active)
         PaletteCommand(
@@ -319,7 +339,7 @@ extension CommandPalette on HomeState {
           detail: 'Hold to unlock afterwards',
           icon: Icons.lock_outline,
           group: 'This window',
-          keys: keys ? 'Ctrl L' : null,
+          keys: keys ? shortcutHint('lock') : null,
           words: 'block keyboard touch',
           run: lockControls,
         ),
@@ -330,9 +350,20 @@ extension CommandPalette on HomeState {
           detail: 'A small window that stays on top',
           icon: Icons.picture_in_picture_alt_outlined,
           group: 'This window',
-          keys: keys ? 'Ctrl M' : null,
+          keys: keys ? shortcutHint('mini') : null,
           words: 'small always on top lyrics slides shrink',
           run: () => setMiniTimer(true),
+        ),
+      if (keys)
+        PaletteCommand(
+          id: 'shortcuts',
+          label: 'Keyboard shortcuts',
+          detail: 'Every key and what it does',
+          icon: Icons.keyboard_outlined,
+          group: 'This window',
+          keys: shortcutHint('shortcuts'),
+          words: 'keys help clicker pedal',
+          run: openShortcutsSheet,
         ),
       PaletteCommand(
         id: 'focus',

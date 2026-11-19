@@ -337,6 +337,16 @@ extension TemplateViews on HomeState {
                 'Create one, or import a program file (JSON) or spreadsheet (CSV).',
                 style: TextStyle(color: appColors(context).muted),
               ),
+              if (c.port.isDesktop) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Or drop a file on the window.',
+                  key: const ValueKey('programs-drop-hint'),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: appColors(context).muted,
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,

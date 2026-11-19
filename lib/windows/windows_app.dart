@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:church_service_timer/windows/atomic_store.dart';
 import 'package:church_service_timer/windows/desktop_files.dart';
+import 'package:church_service_timer/windows/file_drop.dart';
 import 'package:church_service_timer/windows/single_instance.dart';
 import 'package:church_service_timer/windows/win32_api.dart' as win32;
 import 'package:church_service_timer/windows/window_memory.dart';
@@ -110,6 +111,8 @@ WindowsPort? startWindowsPort(List<String> arguments) {
       port.offerIncomingFile(path);
     }
   });
+  // A file dropped on the window (windows/runner/flutter_window.cpp).
+  listenForDroppedFiles(port.filesDropped);
   // The runner opens the window where it was last time, before Flutter
   // starts, and says so (windows/runner/main.cpp). Only if it could not is
   // the window moved from here: moving a window that is already drawing,

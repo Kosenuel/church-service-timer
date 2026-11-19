@@ -26,12 +26,13 @@ Be clear about this when reading the rest of the page.
 | Stage screens and web screens | Same Dart code | Same Dart code. The address shared with other devices avoids virtual adapters and the sign's own network when there is another. |
 | Finding a host on the network | `nsd` plugin | Same plugin, which supports Windows. |
 | Import, export, backup | System document picker | Windows Open and Save dialogs (`file_selector`). "Share" becomes Save: one file gets a Save window, several go into a chosen folder without replacing anything. |
-| Opening a program file | "Open with" and Share | A `.json` or `.csv` passed on the command line; the installer adds the app to "Open with". A second copy hands the file to the one already running. Dragging a file onto the window is not supported yet. |
+| Opening a program file | "Open with" and Share | A `.json` or `.csv` passed on the command line; the installer adds the app to "Open with". A second copy hands the file to the one already running. One `.json` or `.csv` dropped on the main window is offered the same way: the runner accepts drops (`DragAcceptFiles`, `WM_DROPFILES` in `windows/runner/flutter_window.cpp`) and sends the paths on the `church_service_timer/window` channel (`lib/windows/file_drop.dart`). Other files, folders and several files are refused, as is any drop while a service runs or controls are locked. The stage window does not accept drops. |
 | Church logo and banner | Android bitmap code | The same rules in Dart (`desktop_images.dart`). |
 | Tinos on the LED display | Android canvas, no antialiasing | Flutter's text engine (`lib/display/tinos_rasterizer.dart`), a pixel lit at 45% coverage. Close to Android but not identical, especially at 7 rows. |
 | Printing | `printing` plugin | Same plugin (Windows print dialog). |
 | Staying alive | Foreground service, lock-screen card | A desktop app is not suspended. While a service runs or screens are shared, Windows is asked not to sleep or turn the screen off. Closing the window during a service asks first. |
 | Operator warnings | Notifications with sound | A Windows notification (a corrected copy of `local_notifier` in `third_party/`) and a flashing taskbar button. No sound unless **Settings › Warnings & alerts › Play the Windows notification sound** is turned on; it is off to begin with, because a PC is often plugged into the sound system. The choice is kept on that computer and is not part of a backup. Windows holds notifications back under Do not disturb, which it turns on when a screen is duplicated; the flash still shows. The first notification adds a Start-menu shortcut if there is none, because Windows requires one. |
+| Countdown when another program is in front | Ongoing notification | An icon in the notification area while a service or quick timer runs (`Shell_NotifyIconW` through `dart:ffi`; `lib/windows/tray_countdown.dart` decides when, `win32_api.dart` makes the calls). Its tooltip is the countdown, changed only when the text changes, about once a second. A click brings the window forward: Windows sends the click to the app window as `WM_APP + 0x3C7`, answered by one case in `win32_window.cpp`. It has no menu and cannot change a service. It is removed when the service ends, when the setting **Show the countdown in the notification area** is turned off, and when the window closes; after a crash Windows removes it the first time the mouse passes over it. If Explorer restarts, the icon comes back within about ten seconds while the countdown runs (when paused, at the next change of text); `TaskbarCreated` is not listened for. Windows 11 puts a new icon in the overflow behind the arrow until it is dragged out. |
 | Camera QR scanning | `mobile_scanner` | Not available; the button is hidden. Join with the six-digit code. The PC can still show a QR for phones to scan. |
 | Battery optimisation | Settings screen | Does not apply; hidden. |
 | Feedback email | Email app | The PC's email program through a `mailto:` link. A long message is put on the clipboard with a note to paste it. |
@@ -53,7 +54,16 @@ A layout arrives with a theme (Three panes with Midnight Lime); any theme can be
 The layouts only arrange the same timer, cues, stage preview and rundown that the phone uses (`lib/live/desktop_live.dart`), so a change to one of those shows everywhere. Smaller windows, and the focused operator view, use the phone and tablet layout.
 ## Second screen
 
-**Settings › Screens & devices › Second screen** lists every screen except the main one and shows the stage output on the chosen one, full screen and borderless. Windows must be set to Extend; with Duplicate there is only one screen to Windows.
+The stage output, full screen and borderless, on a projector or second monitor plugged into the PC. Windows must be set to Extend; with Duplicate there is only one screen to Windows.
+
+**On Live**, under the stage preview in every layout (and in the command palette, Ctrl+K), one line says what the second screen is doing and one button changes it: "Second screen: not showing" with **Show on second screen**, or "Showing on Screen 2 · 3840 × 2160" with **Stop**. With more than one extra screen, a list beside the button chooses which. With none, the line reads "No second screen connected" and there is no button. Lock controls disables the button like every other control.
+
+**Settings › Screens & devices › Second screen** has the same Show and Stop for each screen, plus:
+
+- **Open the second screen when a service starts** (off to begin with). Starting a service or a Quick timer shows the stage on the screen it was last shown on, if that screen is connected and nothing is showing yet. If it is not connected, nothing opens and the status line says so. It never opens on the main screen by itself, and a practice run does not open it. Ending the service leaves it open for the end screen; it closes with Stop, Esc on that screen, or closing the app.
+- **What the second screen shows**: Timer only, Timer and segment name, or Timer and next segment. This is the second screen's own choice; paired stage screens keep theirs.
+
+These choices, the screen last used (its place on the desktop and its number) and whether it was showing are kept in `settings.json` on that computer (`SecondScreen` in `lib/windows/second_screen.dart`, through `DevicePort.secondScreenSettings`), not in the app's state or backups. A screen is recognised by its place and size, so it is still found if Windows renumbers the screens; after a change of resolution or arrangement, press Show once to choose it again.
 
 Flutter draws one window per running app, so the stage window is a second copy of the app started with `--stage-output` (`lib/windows/stage_output_app.dart`). It does not run a service or touch saved data. The main app (`StageOutputHost` in `lib/windows/stage_output.dart`) sends it the same picture a paired stage screen gets, over a connection bound to this computer only and opened with a one-time token. It is sent whatever the display is set to. If the main app closes, the stage window closes; if the main app stops sending for a few seconds, the stage marks its timer as out of date. Esc on the stage window closes it.
 
@@ -79,7 +89,41 @@ Known limits: a window that was snapped to a screen edge comes back at the size 
 
 ## Keyboard on Live
 
-The clicker keys work without turning on the clicker setting: **Space** or **B** asks to pause or resume, exactly as the Pause button does, and a second **Space** or **Enter** confirms (**Esc** cancels); **Page Down** or **→** moves to the next segment (press twice). On a phone or tablet a clicker's Space or B still pauses at once, because there is no screen in the hand to confirm on. A PC adds **+** and **−**, which open Adjust time, **Ctrl+Z**, which offers to undo the last segment change, and **1** to **9**, which send the first nine prepared cues as a click on them would (the number of the cue that is showing goes back to the timer). **M** opens Send message, **E** Edit upcoming, **R** Recover time and **J** Jump to segment; **Ctrl+L** locks the controls and cannot unlock them. Each opens the same confirmation as its button, and in a confirmation Space or Enter presses the confirming button, except for End service and the other destructive questions, which must be clicked. Nothing happens while typing, on another tab, under a dialog or when **Lock controls** is on. On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
+Every key is listed once, in `lib/live/shortcuts.dart`. The shortcuts sheet, the key shown beside each command in Commands, the clicker test page and the table below all follow that list, and `test/live/shortcuts_sheet_test.dart` holds the list to what `HomeState.onClickerKey` really does: a key that is added without being listed, or listed without doing anything, fails the test.
+
+| Keys | What it does | How it confirms |
+|---|---|---|
+| **Space** or **B** | Pause or resume | Asks first |
+| **Page Down** or **→** | Next segment | Press twice to confirm |
+| **+** or **−** | Adjust time | You choose, then confirm |
+| **Ctrl+Z** | Undo the last segment change | Asks first |
+| **J** | Jump to a later segment | You choose, then confirm |
+| **R** | Recover time | You choose, then confirm |
+| **E** | Edit upcoming | You edit, then save |
+| **Ctrl+L** | Lock controls | At once; hold to unlock |
+| **1** to **9** | Show a prepared cue | At once; again to go back to the timer |
+| **M** | Send message | You type, then send |
+| **Ctrl+K** | Commands | A list of everything you can do now |
+| **Ctrl+M** | Mini timer | A small window on top; again to leave it |
+| **?** or **F1** | Keyboard shortcuts | This list |
+| **Enter** or **Space** | Confirm the question on screen | Not End service, which must be clicked |
+| **Esc** | Cancel or close | Nothing is changed |
+
+Two rules hold for all of them: every timer action asks to confirm before anything changes, and **Lock controls** blocks every key until it is held to unlock (Ctrl+L locks and cannot unlock).
+
+- **When they work.** The keys from Space down to M work on Live while a service is running, with no question or other page on top; the cue numbers and M also need a display connected. Ctrl+Z needs a segment change to undo and J a later segment to jump to. Ctrl+K and ? or F1 work on any tab of the home screen, but not under a dialog or another page. Ctrl+M works whenever a service is running, whatever page is showing. None of them does anything while typing in a field, so ? typed into a field is a question mark.
+- **Clicker keys.** Space, B, Page Down and → are the keys a clicker or pedal sends. On a computer they work without turning on **Clicker and foot pedal**, and holding Ctrl makes no difference to them. On a phone or tablet they need that setting, and a clicker's Space or B pauses at once, because there is no screen in the hand to confirm on; the other keys in the table need a computer.
+- **Other spellings.** The + key works without Shift (the = key), the number pad's + and − open Adjust time, and its 1 to 9 send cues. The number of the cue that is showing goes back to the timer.
+- **In a question.** Space or Enter presses the confirming button and Esc cancels, except for End service and the other destructive questions, which must be clicked.
+- **Key labels.** On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
+
+### Shortcuts sheet
+
+**?** (Shift and /) or **F1** opens the list above as a dialog (`lib/live/shortcuts_sheet.dart`); so do **Keyboard shortcuts** in Commands, in the Live ⋮ menu and in Settings search. Esc closes it. It does not open while the controls are locked, in the mini timer, or under another dialog.
+
+### Testing a clicker or pedal
+
+**Settings › Warnings & alerts › Test a clicker or pedal** (`lib/settings/clicker_test_page.dart`) names each key as it is pressed ("Page Down", "Right arrow", "F5") and says what it does on Live, or that the app does not use it, and keeps the last few presses. While the page is open nothing pressed reaches the service: `onClickerKey` returns at once, so there is no timer action, no question and no mini timer. Tab, Enter and Esc still do their ordinary job there, so the page can be left from the keyboard. It works on Android too, where a Bluetooth clicker sends keys.
 
 ## Commands
 
@@ -109,9 +153,9 @@ Nothing is code-signed. Windows SmartScreen shows "Windows protected your PC" th
 6. **Pairing.** Pair a phone with the PC as host, then join a phone's service from the PC with the six-digit code.
 7. **LED sign.** Join the sign's Wi-Fi in Windows, then scan and connect in the app. Try it with Ethernet also plugged in.
 8. **Files.** Import a program, export one, make a backup and restore it; restore a backup made on the phone.
-9. **Second copy.** Start the app twice: the first window should come forward. Right-click a `.json` program, Open with, Church Service Timer.
+9. **Second copy.** Start the app twice: the first window should come forward. Right-click a `.json` program, Open with, Church Service Timer. Then drag a `.json` program from a folder onto the window: the import review should open. Drop a picture, a folder and two files together: each should be refused in one line. Drop a program during a service and with controls locked: nothing is imported. Drop one on the mini timer, and on the second-screen window, which should not accept it.
 10. **Fonts.** Make a cue in Tinos at 7 and 14 rows and compare it with the phone.
-11. **Second screen.** Plug in a projector or monitor, press Windows + P and choose Extend. In Settings › Screens & devices, press **Show** beside the second screen. It should fill that screen with the timer, with no title bar or taskbar, and follow pause, cues, messages and Blank screen. Try a screen with a different scale setting from the laptop's. Press **Stop**, then show it again and press Esc on it, then close the main app while it is showing.
+11. **Second screen.** Plug in a projector or monitor, press Windows + P and choose Extend. On Live, the line under the stage preview should read "Second screen: not showing"; press **Show on second screen**. It should fill that screen with the timer, with no title bar or taskbar, and follow pause, cues, messages and Blank screen, and Live should read "Showing on Screen 2" with that screen's size. Try a screen with a different scale setting from the laptop's. Press **Stop**, then show it again and press Esc on it (Live should go back to "not showing" within a moment), then close the main app while it is showing. Unplug the screen: Live should read "No second screen connected". In Settings › Screens & devices › Second screen, choose **Timer and next segment** while it is showing and check the stage changes at once; turn on **Open the second screen when a service starts**, close and reopen the app, and start a service: the stage should open on the same screen. Start another with the screen unplugged: nothing should open, and Live should say the screen used last time is not connected. With three screens, check the list beside the button chooses between the two that are not the main one.
 12. **Keys.** Space (it should ask; Space or Enter again confirms, Esc cancels), Page Down twice, +, Ctrl+Z on Live; then Lock controls and try again.
 13. **Mini timer.** None of its window calls have run on a real PC, so check each of these:
     1. *Enter.* Start a service, note where the window is, then Live › ⋮ › Mini timer. The window should become about 380 × 150 inside, at the top right of where it was, with a greyed-out maximise button, and stay above a full-screen PowerPoint or lyrics program when you click into that program. If it stays large or snaps back to a phone-sized window, the runner's minimum size is still applying (`WM_GETMINMAXINFO` in `win32_window.cpp`).
@@ -123,3 +167,4 @@ Nothing is code-signed. Windows SmartScreen shows "Windows protected your PC" th
     7. *Service ends.* With a phone paired as a second operator and the mini timer open, end the service from the phone: the full window should return by itself.
     8. *With the stage window.* Show the second screen (step 11), then open and leave the mini timer. The stage window must stay full screen on its own monitor and keep following the timer; the mini timer must stay on top of other programs on the laptop screen.
     9. *Snapped.* Snap the app to half the screen (Windows + ←), open Mini timer, Expand, and note what size it comes back at (expected: the size before snapping).
+14. **Notification-area icon.** None of its Windows calls have run on a real PC. Start a service and look beside the clock (on Windows 11, behind the small arrow): the ring-and-cross icon should be there. Point at it: "Sermon · 12:34 left", and a second look shows a later time. Pause, let a segment run over, and check the wording. Put PowerPoint in front and click the icon, then minimise the app and click it again: the window should come forward both times. End the service: the icon goes. Start another and close the app (confirming): the icon should go at once, not when the mouse passes over it. Restart Explorer from Task Manager during a service: the icon should return within about ten seconds. Turn the setting off in Settings › Warnings & alerts and restart the app: no icon.

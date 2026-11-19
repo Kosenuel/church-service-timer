@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'dart:convert';
 
+import 'package:church_service_timer/app/update_checker.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
@@ -82,6 +83,13 @@ abstract class DevicePort {
   /// The file most recently opened with, or shared to, the app, read once.
   Future<Map<String, dynamic>?> takeIncomingFile() async => null;
 
+  /// Called with the paths of files dropped on the app's window (a PC).
+  void setFileDropHandler(void Function(List<String> paths)? handler) {}
+
+  /// Hands the app a program file by its path, as if it had been opened
+  /// with the app (a PC).
+  void offerIncomingFile(String path) {}
+
   /// Receives Pause/Next taps from the active-service notification.
   void setNotificationActionHandler(
     Future<void> Function(String action)? handler,
@@ -130,6 +138,11 @@ abstract class DevicePort {
 
   /// Opens an https web page in the phone's browser; false if none could.
   Future<bool> openWebPage(String url) async => false;
+
+  /// Looks for a newer version when the person asks in Settings › About.
+  /// A device without the internet, and every test, gets one that never
+  /// uses the network.
+  UpdateChecker get updateChecker => const UpdateChecker.offline();
   Future<String> installedVersion() async => appVersion;
   Future<void> setKeepScreenAwake(bool enabled) async {}
   Future<Map<String, dynamic>?> pickBackup() => pickFile();
@@ -150,6 +163,24 @@ abstract class DevicePort {
   /// On a PC: whether a warning's notification plays the Windows
   /// notification sound. A phone manages sound in its own settings.
   Future<void> setWarningSound(bool on) async {}
+
+  /// On a PC: the countdown as the tooltip of an icon in the notification
+  /// area, beside the Windows clock, for when another program is in front
+  /// of the app. [text] is null when nothing is running. A phone has its
+  /// ongoing notification instead.
+  Future<void> showTrayCountdown(String? text) async {}
+
+  /// On a PC: whether that icon is shown at all.
+  Future<void> setTrayCountdown(bool on) async {}
+
+  /// On a PC: the window is about to close and the app with it.
+  Future<void> windowClosing() async {}
+
+  /// On a PC: the operator's choices for the second screen (which monitor
+  /// was used last, whether it opens with a service, what it shows). Kept
+  /// on that computer only, never in the app's state or its backups.
+  Future<Json> secondScreenSettings() async => {};
+  Future<void> saveSecondScreenSettings(Json settings) async {}
   Future<Stamp> clock();
   Future<String?> load();
   Future<void> save(String state);
@@ -432,6 +463,8 @@ class AndroidPort extends DevicePort with LocalNetworkPairing {
   @override
   Future<bool> openWebPage(String url) async =>
       await channel.invokeMethod<bool>('openWebPage', {'url': url}) ?? false;
+  @override
+  UpdateChecker get updateChecker => const UpdateChecker();
   @override
   Future<String> installedVersion() async =>
       await channel.invokeMethod<String>('appVersion') ?? appVersion;

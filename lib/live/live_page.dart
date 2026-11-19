@@ -16,6 +16,7 @@ import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/live/keys_live.dart';
 import 'package:church_service_timer/live/mission_control_live.dart';
 import 'package:church_service_timer/live/quick_timer_sheet.dart';
+import 'package:church_service_timer/live/second_screen_control.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
 extension LivePage on HomeState {
@@ -810,6 +811,7 @@ extension LivePage on HomeState {
                 mobileStagePreview(),
                 const SizedBox(height: 12),
                 stageSharingControls(),
+                ...secondScreenControl(),
               ],
             ),
           )
@@ -896,6 +898,7 @@ extension LivePage on HomeState {
                     c.busy || c.corrupt ? null : chooseDisplay,
                   ),
                 ],
+                ...secondScreenControl(),
               ],
             ),
           );

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:church_service_timer/app/platform.dart';
+import 'package:church_service_timer/app/update_checker.dart';
 import 'package:church_service_timer/display/tinos_rasterizer.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/w2/w2_transport.dart';
@@ -15,6 +16,7 @@ import 'package:church_service_timer/windows/desktop_warnings.dart';
 import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/secret_vault.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
+import 'package:church_service_timer/windows/tray_countdown.dart';
 import 'package:flutter/services.dart';
 
 /// The handful of things only the operating system can do. The real one
@@ -47,6 +49,12 @@ abstract class DesktopSystem {
 
   /// Brings the window to the front.
   void raise();
+
+  /// Shows the icon in the notification area with [tip] as its tooltip
+  /// (adding it, or changing only its text), or removes the icon when
+  /// [tip] is null. Clicking the icon brings the window forward. False
+  /// when Windows refused.
+  bool tray(String? tip);
 
   String description();
 }
@@ -116,6 +124,44 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     _sound = on;
     _soundLoaded = true;
   }
+
+  /// The countdown in the notification area, beside the Windows clock,
+  /// while a service or quick timer runs. On unless the operator turns it
+  /// off. Kept on this computer, not in backups.
+  late final TrayCountdown _tray = TrayCountdown(system.tray);
+  bool _trayLoaded = false;
+  Future<void> _loadTray() async {
+    if (_trayLoaded) return;
+    final on = await _prefs.get('trayCountdown') != false;
+    if (_trayLoaded) return;
+    _trayLoaded = true;
+    _tray.enabled = on;
+  }
+
+  @override
+  Future<void> setTrayCountdown(bool on) async {
+    await _prefs.set('trayCountdown', on);
+    _trayLoaded = true;
+    _tray.enabled = on;
+  }
+
+  @override
+  Future<void> showTrayCountdown(String? text) async {
+    await _loadTray();
+    _tray.show(text);
+  }
+
+  @override
+  Future<void> windowClosing() async => _tray.close();
+  @override
+  Future<Json> secondScreenSettings() async {
+    final saved = await _prefs.get('secondScreen');
+    return saved is Map ? Map<String, dynamic>.from(saved) : {};
+  }
+
+  @override
+  Future<void> saveSecondScreenSettings(Json settings) =>
+      _prefs.set('secondScreen', settings);
 
   /// A warning reaches the operator two ways: a Windows notification, for
   /// when another window is in front, and the flashing taskbar button,
@@ -249,11 +295,27 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   /// A program file handed to the app: on the command line when Windows
   /// opens a `.json` or `.csv` with it, or passed on by a second copy of
   /// the app that was started the same way.
+  @override
   void offerIncomingFile(String path) {
     _incoming.add(path);
     system.raise();
     unawaited(_incomingHandler?.call());
   }
+
+  void Function(List<String> paths)? _dropHandler;
+
+  @override
+  void setFileDropHandler(void Function(List<String> paths)? handler) =>
+      _dropHandler = handler;
+
+  /// Files dropped on the window. A folder is marked with a closing
+  /// separator, so it is never taken for a program file.
+  void filesDropped(List<String> paths) => _dropHandler?.call([
+    for (final path in paths)
+      FileSystemEntity.isDirectorySync(path)
+          ? '$path${Platform.pathSeparator}'
+          : path,
+  ]);
 
   @override
   void setIncomingFileHandler(Future<void> Function()? handler) =>
@@ -562,7 +624,13 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   @override
   Future<Json> notificationStatus() async {
     await _loadSound();
-    return {'enabled': true, 'exact': true, 'sound': _sound};
+    await _loadTray();
+    return {
+      'enabled': true,
+      'exact': true,
+      'sound': _sound,
+      'tray': _tray.enabled,
+    };
   }
 
   @override
@@ -635,11 +703,15 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
       url.startsWith('https://') && system.open(url);
 
   @override
+  UpdateChecker get updateChecker => const UpdateChecker();
+
+  @override
   Future<Json> batteryStatus() async => system.power();
   @override
   Future<String> deviceDescription() async => system.description();
 
   void dispose() {
+    _tray.close();
     _warnings.dispose();
     stageOutput?.dispose();
   }
