@@ -100,6 +100,7 @@ extension LiveLayout on HomeState {
     icon: const Icon(Icons.more_vert),
     onSelected: (value) {
       if (value == 'focus') setFocused(!focused);
+      if (value == 'mini') unawaited(setMiniTimer(true));
       if (value == 'ready') {
         openSettingsDetail('Ready for service', readinessSettings);
       }
@@ -109,6 +110,7 @@ extension LiveLayout on HomeState {
         'focus',
         focused ? 'Exit focused view' : 'Focused operator view',
       ),
+      if (miniTimerAvailable) const AppMenuAction('mini', 'Mini timer'),
       if (!focused && !controlsLocked)
         const AppMenuAction('ready', 'Ready for service'),
     ]),

@@ -18,7 +18,7 @@ Directory windowsDataDirectory() {
   return Directory('$base\\I-Proton\\Church Service Timer');
 }
 
-class _Win32Window implements WindowHandle {
+class _Win32Window implements PinnableWindow {
   @override
   WindowPlace? read() {
     try {
@@ -36,6 +36,15 @@ class _Win32Window implements WindowHandle {
         place.frame,
         maximised: place.maximised,
       );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  bool pin(bool onTop) {
+    try {
+      return win32.pinWindow(win32.appWindow(), onTop: onTop);
     } catch (_) {
       return false;
     }
@@ -65,6 +74,18 @@ WindowsPort? startWindowsPort(List<String> arguments) {
     return null;
   }
   const system = WindowsSystem();
+  final memory = WindowMemory(
+    JsonPrefs(File('${dataDir.path}\\window.json')),
+    _Win32Window(),
+    metrics: () {
+      final view = WidgetsBinding.instance.platformDispatcher.views.first;
+      return (
+        scale: view.devicePixelRatio,
+        width: view.physicalSize.width,
+        height: view.physicalSize.height,
+      );
+    },
+  );
   final fonts =
       '${File(Platform.resolvedExecutable).parent.path}\\data\\display_fonts\\tinos';
   final port = WindowsPort(
@@ -75,6 +96,7 @@ WindowsPort? startWindowsPort(List<String> arguments) {
     system: system,
     loadTinosFace: (style) => File('$fonts\\Tinos-$style.ttf').readAsBytes(),
     stageLauncher: const WindowsStageLauncher(),
+    miniWindow: memory,
   );
   if (file != null) port.offerIncomingFile(file);
   instance.listen((path) {
@@ -84,10 +106,6 @@ WindowsPort? startWindowsPort(List<String> arguments) {
       port.offerIncomingFile(path);
     }
   });
-  final memory = WindowMemory(
-    JsonPrefs(File('${dataDir.path}\\window.json')),
-    _Win32Window(),
-  );
   // The runner shows the window at its default place with the first frame;
   // move it back to where it was straight after, then keep remembering.
   WidgetsBinding.instance.addPostFrameCallback((_) async {

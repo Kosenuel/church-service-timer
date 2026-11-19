@@ -12,6 +12,7 @@ import 'package:church_service_timer/windows/desktop_files.dart';
 import 'package:church_service_timer/windows/desktop_images.dart';
 import 'package:church_service_timer/windows/desktop_network.dart';
 import 'package:church_service_timer/windows/desktop_warnings.dart';
+import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/secret_vault.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:flutter/services.dart';
@@ -79,6 +80,8 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   final TinosRasterizer _tinos;
   @override
   final StageOutputHost? stageOutput;
+  @override
+  final MiniWindow? miniWindow;
   late final AtomicTextFile _state = AtomicTextFile.json(
     File(_path('service-state.json')),
   );
@@ -109,6 +112,7 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     this._vault,
     this._pairingVault,
     this.stageOutput,
+    this.miniWindow,
   );
 
   factory WindowsPort({
@@ -121,6 +125,7 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     int Function()? wallMs,
     W2Transport? sign,
     StageOutputLauncher? stageLauncher,
+    MiniWindow? miniWindow,
   }) {
     String path(String name) => '${dataDir.path}${Platform.pathSeparator}$name';
     final prefs = JsonPrefs(File(path('sign.json')));
@@ -142,6 +147,7 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
         maxLength: 65536,
       ),
       stageLauncher == null ? null : StageOutputHost(stageLauncher),
+      miniWindow,
     );
   }
 

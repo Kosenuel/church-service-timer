@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
@@ -25,6 +26,10 @@ abstract class DevicePort {
   /// A full-screen stage window on a second monitor or projector, where
   /// the device can open one (a PC); null elsewhere.
   StageOutputHost? get stageOutput => null;
+
+  /// The app window made small and kept above other programs, for the
+  /// mini timer, where the device can do that (a PC); null elsewhere.
+  MiniWindow? get miniWindow => null;
 
   Future<Json> signWifiProfile(String id) async => {
     'ssid': '',

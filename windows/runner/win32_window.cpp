@@ -213,8 +213,12 @@ Win32Window::MessageHandler(HWND hwnd,
       auto info = reinterpret_cast<MINMAXINFO*>(lparam);
       HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
       double scale = FlutterDesktopGetDpiForMonitor(monitor) / 96.0;
-      info->ptMinTrackSize.x = static_cast<LONG>(420 * scale);
-      info->ptMinTrackSize.y = static_cast<LONG>(640 * scale);
+      // The mini timer keeps the window above other programs (set from
+      // Dart: pinWindow in lib/windows/win32_api.dart); only then may the
+      // window be made much smaller.
+      bool mini = (GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+      info->ptMinTrackSize.x = static_cast<LONG>((mini ? 180 : 420) * scale);
+      info->ptMinTrackSize.y = static_cast<LONG>((mini ? 90 : 640) * scale);
       return 0;
     }
 
