@@ -1,3 +1,4 @@
+import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
 
@@ -11,7 +12,11 @@ extension SelectionViews on HomeState {
     final available = programs
         ? c.state.templates.isNotEmpty
         : c.state.reports.isNotEmpty;
-    final narrow = MediaQuery.sizeOf(context).width < 480;
+    // An icon on a phone, and in the narrow list column of the desktop
+    // Programs page.
+    final narrow =
+        MediaQuery.sizeOf(context).width < 480 ||
+        (programs && programsFillWindow);
     void start() => refreshHome(() {
       if (programs) {
         programsPage.selecting = true;

@@ -56,6 +56,14 @@ The layouts only arrange the same timer, cues, stage preview and rundown that th
 
 Flutter draws one window per running app, so the stage window is a second copy of the app started with `--stage-output` (`lib/windows/stage_output_app.dart`). It does not run a service or touch saved data. The main app (`StageOutputHost` in `lib/windows/stage_output.dart`) sends it the same picture a paired stage screen gets, over a connection bound to this computer only and opened with a one-time token. It is sent whatever the display is set to. If the main app closes, the stage window closes; if the main app stops sending for a few seconds, the stage marks its timer as out of date. Esc on the stage window closes it.
 
+### Programs in a desktop layout
+
+Programs fills the window in three columns (`lib/programs/programs_desktop.dart`): the program list, the chosen program as a table of its segments, and a summary with Load into Live. Editing still goes through the one program editor (Edit program, or a double-click on a row), so validation, drafts and program history keep a single path. While Live, Programs or Reports fills the window the page behind it does not scroll; each column scrolls on its own.
+
+### Reports in a desktop layout
+
+Reports also fills the window (`lib/reports/reports_desktop.dart`): the report list on the left and the chosen report beside it, with a planned-against-actual picture (a twin timeline, or a ring in The dial) above a table of every segment. The picture shares its drawing code with Live's timeline and dial. Printing, export and the saved report format are unchanged, and narrow windows and Classic keep the list-and-detail page.
+
 ## Keyboard on Live
 
 The clicker keys work without turning on the clicker setting: **Space** or **B** pauses and resumes, **Page Down** or **→** moves to the next segment (press twice). A PC adds **+** and **−**, which open Adjust time, **Ctrl+Z**, which offers to undo the last segment change, and **1** to **9**, which send the first nine prepared cues as a click on them would (the number of the cue that is showing goes back to the timer). **M** opens Send message, **E** Edit upcoming, **R** Recover time and **J** Jump to segment; **Ctrl+L** locks the controls and cannot unlock them. Each opens the same confirmation as its button. Nothing happens while typing, on another tab, under a dialog or when **Lock controls** is on. On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.

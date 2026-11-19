@@ -15,12 +15,16 @@ class ReportListRow extends StatelessWidget {
     this.onMenu,
     this.menu,
     this.selected = false,
+    this.compact = false,
     this.checked,
     this.onChecked,
   });
   final VoidCallback? onMenu;
   final Widget? menu;
   final bool selected;
+
+  /// For a narrow side column: the outcome goes under the name.
+  final bool compact;
   final bool? checked;
   final ValueChanged<bool?>? onChecked;
   @override
@@ -51,6 +55,26 @@ class ReportListRow extends StatelessWidget {
       if (started != null) 'started $started',
       if (r.rehearsal || r.quickTimer) reportMode(r),
     ].join(' · ');
+    final pill = Container(
+      key: ValueKey('report-outcome-${r.id}'),
+      padding: compact
+          ? const EdgeInsets.only(top: 2)
+          : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: compact
+          ? null
+          : BoxDecoration(
+              color: tone.withValues(alpha: .16),
+              borderRadius: BorderRadius.circular(999),
+            ),
+      child: Text(
+        outcome,
+        style: TextStyle(
+          color: tone,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
     return InkWell(
       key: ValueKey('open-report-${r.id}'),
       onTap: onTap,
@@ -63,7 +87,9 @@ class ReportListRow extends StatelessWidget {
             ? colors.accent.withValues(alpha: .12)
             : null,
         constraints: const BoxConstraints(minHeight: 72),
-        padding: appLayout(context).rowInsets,
+        padding: compact
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+            : appLayout(context).rowInsets,
         child: Row(
           children: [
             if (checked != null) Checkbox(value: checked, onChanged: onChecked),
@@ -136,28 +162,13 @@ class ReportListRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: colors.muted, fontSize: 13),
                   ),
+                  if (compact) pill,
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Container(
-              key: ValueKey('report-outcome-${r.id}'),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: tone.withValues(alpha: .16),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                outcome,
-                style: TextStyle(
-                  color: tone,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+            if (!compact) ...[const SizedBox(width: 8), pill],
             if (menu != null && checked == null) menu!,
-            if (checked == null && menu == null && !selected)
+            if (checked == null && menu == null && !selected && !compact)
               Icon(Icons.chevron_right, color: colors.muted),
           ],
         ),

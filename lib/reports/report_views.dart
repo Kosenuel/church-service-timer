@@ -185,6 +185,14 @@ extension ReportViews on HomeState {
   }
 
   Future<void> openReport(ServiceReport r) async {
+    // A desktop layout shows the report beside the list.
+    if (reportsFillWindow) {
+      refreshHome(() {
+        reportsPage.view = 'list';
+        reportsPage.open = r.id;
+      });
+      return;
+    }
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => ReportDetailPage(
@@ -235,7 +243,8 @@ extension ReportViews on HomeState {
   }
 
   /// Three quick facts about the most recent comparable live services.
-  Widget reportSummary() {
+  /// With [compact], one fact to a line for a narrow side column.
+  Widget reportSummary({bool compact = false}) {
     final colors = appColors(context);
     final recent =
         c.state.reports
@@ -297,38 +306,80 @@ extension ReportViews on HomeState {
         ),
       ),
     );
+    final facts = [
+      (
+        // Rehearsals are left out, so say "live": the graph below can
+        // include a later rehearsal.
+        last.length == 1
+            ? 'Last live service'
+            : 'Last ${last.length} live services',
+        minutes(avg),
+        avg.abs() < 60000
+            ? colors.accent
+            : avg > 0
+            ? colors.warning
+            : colors.info,
+      ),
+      ('On time', '$onTime of ${last.length}', colors.text),
+      (
+        'Most over',
+        worst.isEmpty ? 'None' : worst.first.key,
+        worst.isEmpty ? colors.accent : colors.warning,
+      ),
+    ];
+    if (compact)
+      return Padding(
+        key: const ValueKey('report-summary'),
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          children: [
+            for (final (label, value, tone) in facts)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(fontSize: 13, color: colors.muted),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: tone,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
     return Padding(
       key: const ValueKey('report-summary'),
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         children: [
-          tile(
-            // Rehearsals are left out, so say "live": the graph below can
-            // include a later rehearsal.
-            last.length == 1
-                ? 'Last live service'
-                : 'Last ${last.length} live services',
-            minutes(avg),
-            avg.abs() < 60000
-                ? colors.accent
-                : avg > 0
-                ? colors.warning
-                : colors.info,
-          ),
-          const SizedBox(width: 8),
-          tile('On time', '$onTime of ${last.length}', colors.text),
-          const SizedBox(width: 8),
-          tile(
-            'Most over',
-            worst.isEmpty ? 'None' : worst.first.key,
-            worst.isEmpty ? colors.accent : colors.warning,
-          ),
+          for (final (i, (label, value, tone)) in facts.indexed) ...[
+            if (i > 0) const SizedBox(width: 8),
+            tile(label, value, tone),
+          ],
         ],
       ),
     );
   }
 
-  Widget reports() {
+  /// The report list with its search, filters and tabs. With [desktop] it
+  /// is drawn flat for the side column of a desktop layout, where [openId]
+  /// is the report shown beside it and the graphs take the main area.
+  Widget reports({bool desktop = false, String? openId}) {
     final history = c.state.reports.where((r) => reportMatches(r)).toList()
       ..sort((a, b) => b.endedWall.compareTo(a.endedWall));
     final colors = appColors(context);
@@ -444,7 +495,7 @@ extension ReportViews on HomeState {
             ],
           ),
         const SizedBox(height: 14),
-        if (!reportsPage.selecting) reportSummary(),
+        if (!reportsPage.selecting) reportSummary(compact: desktop),
         // The Dates button takes the search field's height, whatever the
         // density and text size.
         IntrinsicHeight(
@@ -468,17 +519,39 @@ extension ReportViews on HomeState {
                 ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
-                key: const ValueKey('report-date-filter'),
-                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
-                onPressed: pickReportDates,
-                icon: const Icon(Icons.date_range, size: 20),
-                label: Text(
-                  reportsPage.dates == null
-                      ? 'Dates'
-                      : '${reportsPage.dates!.start.day}/${reportsPage.dates!.start.month} – ${reportsPage.dates!.end.day}/${reportsPage.dates!.end.month}',
+              // In a side column the search field needs the room, so the
+              // button is its icon until dates are chosen.
+              if (desktop && reportsPage.dates == null)
+                Tooltip(
+                  message: 'Filter by date',
+                  child: OutlinedButton(
+                    key: const ValueKey('report-date-filter'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                      padding: EdgeInsets.zero,
+                    ),
+                    onPressed: pickReportDates,
+                    child: const Icon(
+                      Icons.date_range,
+                      size: 20,
+                      semanticLabel: 'Dates',
+                    ),
+                  ),
+                )
+              else
+                OutlinedButton.icon(
+                  key: const ValueKey('report-date-filter'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                  ),
+                  onPressed: pickReportDates,
+                  icon: const Icon(Icons.date_range, size: 20),
+                  label: Text(
+                    reportsPage.dates == null
+                        ? 'Dates'
+                        : '${reportsPage.dates!.start.day}/${reportsPage.dates!.start.month} – ${reportsPage.dates!.end.day}/${reportsPage.dates!.end.month}',
+                  ),
                 ),
-              ),
               if (reportsPage.dates != null)
                 IconButton(
                   tooltip: 'Clear date filter',
@@ -516,12 +589,22 @@ extension ReportViews on HomeState {
                 ),
               ),
             ),
-            Text(
+            if (!desktop)
+              Text(
+                plural(history.length, 'record'),
+                style: TextStyle(color: colors.muted, fontSize: 13),
+              ),
+          ],
+        ),
+        // Under the chips, where a side column has the room.
+        if (desktop)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
               plural(history.length, 'record'),
               style: TextStyle(color: colors.muted, fontSize: 13),
             ),
-          ],
-        ),
+          ),
         const SizedBox(height: 8),
         if (!reportsPage.selecting)
           Container(
@@ -584,17 +667,22 @@ extension ReportViews on HomeState {
                   : 'No reports match this filter.',
             ),
           )
-        else if (reportsPage.view == 'graph')
+        else if (reportsPage.view == 'graph' && !desktop)
           reportGraphs(history)
         else
-          reportSurface(
-            context,
-            child: Column(
+          (desktop
+              ? (Widget child) => child
+              : (Widget child) => reportSurface(context, child: child))(
+            Column(
               children: [
                 for (var i = 0; i < history.length; i++) ...[
-                  if (i > 0) const AppDivider(),
+                  if (i > 0)
+                    desktop
+                        ? const AppDivider(indent: 0, endIndent: 0)
+                        : const AppDivider(),
                   ReportListRow(
                     report: history[i],
+                    compact: desktop,
                     checked: reportsPage.selecting
                         ? reportsPage.selected.contains(history[i].id)
                         : null,
@@ -606,8 +694,9 @@ extension ReportViews on HomeState {
                             ),
                           )
                         : null,
-                    selected:
-                        useMasterDetail && reportsPage.open == history[i].id,
+                    selected: desktop
+                        ? openId == history[i].id
+                        : useMasterDetail && reportsPage.open == history[i].id,
                     onTap: () {
                       if (reportsPage.selecting) {
                         refreshHome(
@@ -618,7 +707,7 @@ extension ReportViews on HomeState {
                         );
                         return;
                       }
-                      if (useMasterDetail)
+                      if (useMasterDetail || desktop)
                         refreshHome(() => reportsPage.open = history[i].id);
                       else
                         openReport(history[i]);

@@ -294,43 +294,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               ],
             ),
           ),
-          block(
-            ExpansionTile(
-              key: const ValueKey('report-activity'),
-              tilePadding: EdgeInsets.zero,
-              // No lines above and below when opened inside the card.
-              shape: const Border(),
-              collapsedShape: const Border(),
-              title: const Text('Activity timeline'),
-              subtitle: Text('${r.events.length} recorded events'),
-              children: [
-                const Text('Controller acceptance is not visual confirmation.'),
-                if (r.events.isEmpty)
-                  const Text(
-                    'No activity events were recorded for this service.',
-                  ),
-                AppMenuList(
-                  children: [
-                    for (final event in r.events)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          event.kind == 'failed' || event.kind == 'hold'
-                              ? Icons.warning_amber
-                              : event.kind == 'accepted'
-                              ? Icons.check_circle_outline
-                              : Icons.history,
-                        ),
-                        title: Text(event.message),
-                        subtitle: Text(
-                          '${clockLabel(event.wall)}:${DateTime.fromMillisecondsSinceEpoch(event.wall).second.toString().padLeft(2, '0')}',
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          block(ReportActivityTile(report: r)),
         ],
       ),
     );
@@ -463,26 +427,77 @@ class ReportSegmentRow extends StatelessWidget {
   }
 }
 
+/// What was recorded during the service, folded away until asked for.
+class ReportActivityTile extends StatelessWidget {
+  final ServiceReport report;
+  const ReportActivityTile({super.key, required this.report});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = report;
+    return ExpansionTile(
+      key: const ValueKey('report-activity'),
+      tilePadding: EdgeInsets.zero,
+      // No lines above and below when opened inside the card.
+      shape: const Border(),
+      collapsedShape: const Border(),
+      title: const Text('Activity timeline'),
+      subtitle: Text('${r.events.length} recorded events'),
+      children: [
+        const Text('Controller acceptance is not visual confirmation.'),
+        if (r.events.isEmpty)
+          const Text('No activity events were recorded for this service.'),
+        AppMenuList(
+          children: [
+            for (final event in r.events)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  event.kind == 'failed' || event.kind == 'hold'
+                      ? Icons.warning_amber
+                      : event.kind == 'accepted'
+                      ? Icons.check_circle_outline
+                      : Icons.history,
+                ),
+                title: Text(event.message),
+                subtitle: Text(
+                  '${clockLabel(event.wall)}:${DateTime.fromMillisecondsSinceEpoch(event.wall).second.toString().padLeft(2, '0')}',
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 /// After-service reflection, shown apart from the recorded timings.
 class ReviewNoteSection extends StatelessWidget {
   final ReviewNote? review;
   final bool busy;
   final VoidCallback onEdit;
+
+  /// Without the card around it, for a flat desktop page.
+  final bool flat;
   const ReviewNoteSection({
     super.key,
     required this.review,
     required this.busy,
     required this.onEdit,
+    this.flat = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context);
-    return reportSurface(
-      context,
-      child: Padding(
+    return (flat
+        ? (Widget child) => child
+        : (Widget child) => reportSurface(context, child: child))(
+      Padding(
         key: const ValueKey('review-note-section'),
-        padding: EdgeInsets.all(appLayout(context).panelPadding),
+        padding: flat
+            ? EdgeInsets.zero
+            : EdgeInsets.all(appLayout(context).panelPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

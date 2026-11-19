@@ -24,6 +24,7 @@ import 'package:church_service_timer/pairing/pairing_views.dart';
 import 'package:church_service_timer/pairing/stage_screen_views.dart';
 import 'package:church_service_timer/live/live_layout_views.dart';
 import 'package:church_service_timer/programs/program_library_views.dart';
+import 'package:church_service_timer/programs/programs_desktop.dart';
 import 'package:church_service_timer/settings/settings_pin_views.dart';
 import 'package:church_service_timer/live/clicker_controls.dart';
 import 'package:church_service_timer/live/command_palette.dart';
@@ -42,6 +43,7 @@ import 'package:church_service_timer/live/planning_views.dart';
 import 'package:church_service_timer/live/time_recovery_views.dart';
 import 'package:church_service_timer/live/timing_overview_views.dart';
 import 'package:church_service_timer/reports/report_library_views.dart';
+import 'package:church_service_timer/reports/reports_desktop.dart';
 
 export 'package:church_service_timer/settings/appearance_views.dart';
 export 'package:church_service_timer/reports/report_views.dart';
@@ -64,8 +66,10 @@ export 'package:church_service_timer/live/timing_overview_views.dart';
 export 'package:church_service_timer/programs/program_editor_insights.dart';
 export 'package:church_service_timer/programs/program_import_export_views.dart';
 export 'package:church_service_timer/programs/program_library_views.dart';
+export 'package:church_service_timer/programs/programs_desktop.dart';
 export 'package:church_service_timer/reports/report_actions.dart';
 export 'package:church_service_timer/reports/report_library_views.dart';
+export 'package:church_service_timer/reports/reports_desktop.dart';
 export 'package:church_service_timer/reports/timing_insights_views.dart';
 export 'package:church_service_timer/settings/clock_settings_views.dart';
 export 'package:church_service_timer/settings/settings_search_views.dart';
@@ -226,6 +230,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   final settingsRefresh = ValueNotifier<int>(0);
 
   final programsPage = ProgramsPageState();
+
+  /// Keeps New program over the list column of the desktop Programs page.
+  final programsButtonLocation = ListColumnButtonLocation();
   final reportsPage = ReportsPageState();
   bool practiceSummaryQueued = false;
   String settingsQuery = '';
@@ -260,7 +267,10 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       tabSlide = slide;
     });
     if (!changed) return;
-    final offset = tabScrollOffsets[value] ?? 0;
+    // A page that fills the window always sits right under the header.
+    final offset = liveFillsWindow || programsFillWindow || reportsFillWindow
+        ? 0.0
+        : tabScrollOffsets[value] ?? 0;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !homeScroll.hasClients || page != value) return;
       final position = homeScroll.position;
@@ -700,6 +710,14 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                     onPointerDown: (e) => menuAnchor = e.position,
                     child: CustomScrollView(
                       controller: homeScroll,
+                      // A page that fills the window scrolls in its own
+                      // panes, never under the header.
+                      physics:
+                          liveFillsWindow ||
+                              programsFillWindow ||
+                              reportsFillWindow
+                          ? const NeverScrollableScrollPhysics()
+                          : null,
                       slivers: [
                         SliverAppBar(
                           bottom: c.ready && page != 0 && c.liveSession.active
@@ -899,7 +917,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                               ),
                             ),
                           )
-                        else if (liveFillsWindow)
+                        else if (liveFillsWindow ||
+                            programsFillWindow ||
+                            reportsFillWindow)
                           SliverFillRemaining(
                             child: SafeArea(
                               top: false,
@@ -924,7 +944,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                     child: AbsorbPointer(
                                       absorbing:
                                           c.corrupt || !c.pairing.localControl,
-                                      child: live(),
+                                      child: page == 1
+                                          ? programsDesktop()
+                                          : page == 2
+                                          ? reportsDesktop()
+                                          : live(),
                                     ),
                                   ),
                                 ],
@@ -1006,6 +1030,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       icon: const Icon(Icons.add),
                       label: const Text('New program'),
                     )
+                  : null,
+              // The desktop Programs page keeps it over the list column,
+              // clear of the table and the summary.
+              floatingActionButtonLocation: programsFillWindow
+                  ? programsButtonLocation
                   : null,
               bottomNavigationBar:
                   !focused &&

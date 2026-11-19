@@ -1,3 +1,4 @@
+import 'package:church_service_timer/live/desktop_live.dart';
 import 'dart:async';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -161,21 +162,28 @@ extension ProgramLibraryViews on HomeState {
         ),
       ),
       const SizedBox(height: 8),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ProgramFilters(
-                value: programsPage.filter,
-                onChanged: (v) => refreshHome(() => programsPage.filter = v),
+      if (programsFillWindow)
+        // A narrow column: the filters wrap instead of scrolling sideways.
+        ProgramFilters(
+          value: programsPage.filter,
+          onChanged: (v) => refreshHome(() => programsPage.filter = v),
+        )
+      else
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ProgramFilters(
+                  value: programsPage.filter,
+                  onChanged: (v) => refreshHome(() => programsPage.filter = v),
+                ),
               ),
             ),
-          ),
-          ...trailing,
-        ],
-      ),
+            ...trailing,
+          ],
+        ),
       const SizedBox(height: 12),
     ],
   );

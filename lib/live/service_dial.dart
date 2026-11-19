@@ -207,6 +207,58 @@ class DialGeometry {
   /// Service time as an angle: three quarters of a turn, clockwise from
   /// three o'clock.
   static double angle(int ms, int total) => ms / total * math.pi * 1.5;
+
+  /// The arc for a piece of the service on a ring of [radius]: where it
+  /// starts and how far it sweeps, with a hair of space between pieces
+  /// kept small enough that a short piece still shows.
+  (double, double) arc(int startMs, int lengthMs, int total, {double? radius}) {
+    final gap = 2.4 / (radius ?? outer);
+    final from = angle(startMs, total);
+    final to = angle(startMs + lengthMs, total);
+    return (from + gap / 2, math.max(.004, to - from - gap));
+  }
+
+  static Paint line(Color color, double width, {bool round = false}) => Paint()
+    ..color = color
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = width
+    ..strokeCap = round ? StrokeCap.round : StrokeCap.butt;
+
+  /// A segment's number outside the service ring at angle [at], on a
+  /// filled disc when [disc] is given.
+  void paintNumber(
+    Canvas canvas,
+    double at,
+    String text,
+    TextStyle style, {
+    Color? disc,
+  }) {
+    final where =
+        centre + Offset(math.cos(at), math.sin(at)) * (outer + stroke / 2 + 13);
+    if (disc != null) canvas.drawCircle(where, 9, Paint()..color = disc);
+    final number = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    number.paint(canvas, where - Offset(number.width / 2, number.height / 2));
+  }
+
+  /// The cross the ring ends at.
+  void paintCross(Canvas canvas, Color color) {
+    final arm = size * .036;
+    final paint = line(color, math.max(4, size * .011), round: true);
+    canvas
+      ..drawLine(
+        cross - Offset(0, arm * 1.25),
+        cross + Offset(0, arm * 1.25),
+        paint,
+      )
+      ..drawLine(
+        cross + Offset(-arm * .8, -arm * .45),
+        cross + Offset(arm * .8, -arm * .45),
+        paint,
+      );
+  }
 }
 
 class ServiceDialPainter extends CustomPainter {
@@ -245,19 +297,9 @@ class ServiceDialPainter extends CustomPainter {
     final g = DialGeometry(size.width);
     final c = g.centre;
     final outer = Rect.fromCircle(center: c, radius: g.outer);
-    Paint stroke(Color color, double width, {bool round = false}) => Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width
-      ..strokeCap = round ? StrokeCap.round : StrokeCap.butt;
-    // A hair of space between segments, kept small enough that a short
-    // segment still shows.
-    final gap = 2.4 / g.outer;
+    const stroke = DialGeometry.line;
     for (final p in pieces) {
-      final from = DialGeometry.angle(p.startMs, total);
-      final to = DialGeometry.angle(p.startMs + p.lengthMs, total);
-      final a0 = from + gap / 2;
-      final sweep = math.max(.004, to - from - gap);
+      final (a0, sweep) = g.arc(p.startMs, p.lengthMs, total);
       final done = started && p.index < index;
       final current = active && p.index == index;
       canvas.drawArc(
@@ -292,24 +334,17 @@ class ServiceDialPainter extends CustomPainter {
       }
       // The segment's number, outside the ring, where there is room.
       if (sweep * g.outer >= 15) {
-        final mid = a0 + sweep / 2;
-        final at =
-            c +
-            Offset(math.cos(mid), math.sin(mid)) *
-                (g.outer + g.stroke / 2 + 13);
-        if (current) canvas.drawCircle(at, 9, Paint()..color = ring);
-        final number = TextPainter(
-          text: TextSpan(
-            text: '${p.index + 1}',
-            style: label.copyWith(
-              fontSize: 11,
-              fontWeight: current ? FontWeight.w700 : FontWeight.w500,
-              color: current ? surface : muted,
-            ),
+        g.paintNumber(
+          canvas,
+          a0 + sweep / 2,
+          '${p.index + 1}',
+          label.copyWith(
+            fontSize: 11,
+            fontWeight: current ? FontWeight.w700 : FontWeight.w500,
+            color: current ? surface : muted,
           ),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        number.paint(canvas, at - Offset(number.width / 2, number.height / 2));
+          disc: current ? ring : null,
+        );
       }
     }
     // Where the service is now.
@@ -322,24 +357,7 @@ class ServiceDialPainter extends CustomPainter {
         stroke(text, 2.5, round: true),
       );
     }
-    // The cross the ring ends at.
-    final cross = g.cross, arm = size.width * .036;
-    final crossPaint = stroke(
-      mark,
-      math.max(4, size.width * .011),
-      round: true,
-    );
-    canvas
-      ..drawLine(
-        cross - Offset(0, arm * 1.25),
-        cross + Offset(0, arm * 1.25),
-        crossPaint,
-      )
-      ..drawLine(
-        cross + Offset(-arm * .8, -arm * .45),
-        cross + Offset(arm * .8, -arm * .45),
-        crossPaint,
-      );
+    g.paintCross(canvas, mark);
     // The running segment: what is left of it leads up to the cross.
     final inner = Rect.fromCircle(center: c, radius: g.inner);
     final width = math.max(5.0, size.width * .014);

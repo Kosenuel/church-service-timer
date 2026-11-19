@@ -616,16 +616,6 @@ class RundownTimeline extends StatelessWidget {
       builder: (context, space) {
         final w = space.maxWidth;
         double x(int ms) => ms / total * w;
-        // Clock times every 5, 10, 15, 30 or 60 minutes, whichever keeps
-        // them about 110 px apart.
-        final minutes = total / s.rate / 60000;
-        final step = const [
-          5,
-          10,
-          15,
-          30,
-          60,
-        ].firstWhere((m) => minutes / m * 110 <= w, orElse: () => 120);
         final plannedEnd = x(s.plannedMs);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -666,38 +656,14 @@ class RundownTimeline extends StatelessWidget {
                         style: small,
                       ),
                     )
-                  : Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        for (
-                          var m = 0;
-                          x(m * 60000 * s.rate) < w - 150;
-                          m += step
-                        )
-                          Positioned(
-                            left: x(m * 60000 * s.rate),
-                            child: Container(
-                              padding: const EdgeInsets.only(left: 4),
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  left: BorderSide(color: colors.border),
-                                ),
-                              ),
-                              child: Text(
-                                clockLabel(run.startedWall + m * 60000),
-                                style: small,
-                              ),
-                            ),
-                          ),
-                        Positioned(
-                          right: 0,
-                          child: Text(
-                            'plan ${clockLabel(run.startedWall + (s.plannedMs / s.rate).round())}${plannedEnd < w - 1 ? ' · ends ${clockLabel(run.startedWall + (total / s.rate).round())}' : ''}',
-                            key: const ValueKey('timeline-ends'),
-                            style: small,
-                          ),
-                        ),
-                      ],
+                  : TimelineClockScale(
+                      startedWall: run.startedWall,
+                      totalMs: total,
+                      rate: s.rate,
+                      width: w,
+                      trailing:
+                          'plan ${clockLabel(run.startedWall + (s.plannedMs / s.rate).round())}${plannedEnd < w - 1 ? ' · ends ${clockLabel(run.startedWall + (total / s.rate).round())}' : ''}',
+                      trailingKey: const ValueKey('timeline-ends'),
                     ),
             ),
           ],
@@ -712,10 +678,7 @@ class RundownTimeline extends StatelessWidget {
     final current = p.index == s.index && s.active;
     final done = p.index < s.index && s.phase != 'ready';
     final over = done ? p.lengthMs - p.plannedMs : 0;
-    final doneFill = Color.alphaBlend(
-      colors.accent.withValues(alpha: .16),
-      colors.surface,
-    );
+    final doneFill = timelineDoneFill(colors);
     final String detail;
     if (current) {
       final balance = s.balance(now);
@@ -726,54 +689,157 @@ class RundownTimeline extends StatelessWidget {
     } else {
       detail = segment.durationText;
     }
+    return TimelineBlock(
+      inkKey: ValueKey('timeline-${p.index}'),
+      name: segment.name,
+      detail: detail,
+      fill: done ? doneFill : null,
+      border: current
+          ? colors.accent
+          : done
+          ? Colors.transparent
+          : colors.border,
+      strong: current,
+      // How far the running segment has got.
+      progress: current
+          ? (s.currentElapsed(now) / math.max(1, p.lengthMs)).clamp(0.0, 1.0)
+          : null,
+      over: over > 0 ? (over / math.max(1, p.lengthMs)).clamp(0.0, 1.0) : 0,
+      onTap: () => onSegment(p.index),
+    );
+  }
+}
+
+/// Clock times every 5, 10, 15, 30 or 60 minutes, whichever keeps them
+/// about 110 px apart on a timeline [width] wide.
+int timelineClockStep(double minutes, double width) => const [
+  5,
+  10,
+  15,
+  30,
+  60,
+].firstWhere((m) => minutes / m * 110 <= width, orElse: () => 120);
+
+/// The fill of a finished block on a timeline.
+Color timelineDoneFill(AppPalette colors) =>
+    Color.alphaBlend(colors.accent.withValues(alpha: .16), colors.surface);
+
+/// Clock times under a timeline that started at [startedWall] and covers
+/// [totalMs] of service time, with a note at the right-hand end.
+class TimelineClockScale extends StatelessWidget {
+  final int startedWall, totalMs, rate;
+  final double width;
+  final String trailing;
+  final Key? trailingKey;
+  const TimelineClockScale({
+    super.key,
+    required this.startedWall,
+    required this.totalMs,
+    required this.rate,
+    required this.width,
+    required this.trailing,
+    this.trailingKey,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
+    final small = TextStyle(
+      fontSize: 11,
+      color: colors.muted,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    double x(int ms) => ms / totalMs * width;
+    final step = timelineClockStep(totalMs / rate / 60000, width);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        for (var m = 0; x(m * 60000 * rate) < width - 150; m += step)
+          Positioned(
+            left: x(m * 60000 * rate),
+            child: Container(
+              padding: const EdgeInsets.only(left: 4),
+              decoration: BoxDecoration(
+                border: Border(left: BorderSide(color: colors.border)),
+              ),
+              child: Text(clockLabel(startedWall + m * 60000), style: small),
+            ),
+          ),
+        Positioned(
+          right: 0,
+          child: Text(trailing, key: trailingKey, style: small),
+        ),
+      ],
+    );
+  }
+}
+
+/// One block of a timeline: a name over a line of figures, optionally
+/// part-filled to show progress and marked where it ran over.
+class TimelineBlock extends StatelessWidget {
+  final String name, detail;
+  final Color? fill;
+  final Color border;
+
+  /// The running segment: a heavier outline and name.
+  final bool strong;
+
+  /// How much of the block is filled from the left, 0 to 1.
+  final double? progress;
+
+  /// The share at the right-hand end that is past the planned time.
+  final double over;
+  final VoidCallback? onTap;
+  final Key? inkKey;
+  const TimelineBlock({
+    super.key,
+    required this.name,
+    required this.detail,
+    required this.border,
+    this.fill,
+    this.strong = false,
+    this.progress,
+    this.over = 0,
+    this.onTap,
+    this.inkKey,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = appColors(context);
     return Semantics(
-      button: true,
-      label: '${segment.name}, $detail',
+      button: onTap != null,
+      label: '$name, $detail',
       excludeSemantics: true,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          key: ValueKey('timeline-${p.index}'),
+          key: inkKey,
           borderRadius: BorderRadius.circular(4),
-          onTap: () => onSegment(p.index),
+          onTap: onTap,
           child: Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: done ? doneFill : null,
+              color: fill,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: current
-                    ? colors.accent
-                    : done
-                    ? Colors.transparent
-                    : colors.border,
-                width: current ? 1.5 : 1,
-              ),
+              border: Border.all(color: border, width: strong ? 1.5 : 1),
             ),
             child: Stack(
               children: [
-                // How far the running segment has got.
-                if (current)
+                if (progress != null)
                   FractionallySizedBox(
-                    widthFactor:
-                        (s.currentElapsed(now) / math.max(1, p.lengthMs)).clamp(
-                          0.0,
-                          1.0,
-                        ),
+                    widthFactor: progress,
                     heightFactor: 1,
                     child: ColoredBox(
                       color: colors.accent.withValues(alpha: .22),
                     ),
                   ),
-                // The part of a finished segment past its planned time.
+                // The part past the planned time.
                 if (over > 0)
                   Align(
                     alignment: Alignment.centerRight,
                     child: FractionallySizedBox(
-                      widthFactor: (over / math.max(1, p.lengthMs)).clamp(
-                        0.0,
-                        1.0,
-                      ),
+                      widthFactor: over,
                       heightFactor: 1,
                       child: ColoredBox(
                         color: colors.warning.withValues(alpha: .45),
@@ -789,13 +855,13 @@ class RundownTimeline extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        segment.name,
+                        name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         softWrap: false,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: current
+                          fontWeight: strong
                               ? FontWeight.w700
                               : FontWeight.w600,
                         ),
