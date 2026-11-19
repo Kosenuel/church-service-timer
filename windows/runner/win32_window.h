@@ -36,6 +36,15 @@ class Win32Window {
   // |Show| is called. Returns true if the window was created successfully.
   bool Create(const std::wstring& title, const Point& origin, const Size& size);
 
+  // Creates a borderless window that covers |rect| exactly: the stage window
+  // on a projector or second monitor. |rect| is in physical pixels of the
+  // virtual desktop, as EnumDisplayMonitors reports it, so nothing is scaled.
+  // The window is created on that screen, at that screen's scale, and keeps
+  // this rectangle whatever Windows suggests afterwards.
+  bool CreateFullScreen(const std::wstring& title,
+                        const RECT& rect,
+                        bool topmost);
+
   // Show the current window. Returns true if the window was successfully shown.
   bool Show();
 
@@ -91,6 +100,10 @@ class Win32Window {
   static void UpdateTheme(HWND const window);
 
   bool quit_on_close_ = false;
+
+  // Set for a window made by CreateFullScreen: the rectangle it keeps.
+  bool fixed_ = false;
+  RECT fixed_rect_ = {0, 0, 0, 0};
 
   // window handle for top level window.
   HWND window_handle_ = nullptr;

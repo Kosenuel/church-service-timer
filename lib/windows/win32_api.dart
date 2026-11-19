@@ -421,9 +421,15 @@ List<List<int>> displayMonitors() {
 /// Makes the window a borderless one covering [rect] exactly.
 void fillScreen(int window, List<int> rect, {required bool topmost}) {
   if (window == 0 || rect.length != 4) return;
-  // GWL_STYLE = WS_POPUP: no title bar or borders. The runner shows the
-  // window itself with the first frame.
-  _setWindowLongPtr(window, -16, 0x80000000);
+  // GWL_STYLE (-16) becomes WS_POPUP (no title bar or borders) with
+  // WS_CLIPCHILDREN. WS_VISIBLE (0x10000000) is kept as it is: taking it
+  // off a window that is already showing leaves a picture on the screen
+  // that never changes again.
+  final style = _getWindowLongPtr(window, -16);
+  final wanted = 0x80000000 | 0x02000000 | (style & 0x10000000);
+  // Windows adds WS_CLIPSIBLINGS (0x04000000) to every top-level window.
+  final restyle = (style & 0xFFFFFFFF & ~0x04000000) != wanted;
+  if (restyle) _setWindowLongPtr(window, -16, wanted);
   _setWindowPos(
     window,
     topmost ? -1 : 0, // HWND_TOPMOST : HWND_TOP
@@ -431,7 +437,8 @@ void fillScreen(int window, List<int> rect, {required bool topmost}) {
     rect[1],
     rect[2] - rect[0],
     rect[3] - rect[1],
-    0x0020, // SWP_FRAMECHANGED
+    // SWP_NOACTIVATE, and SWP_FRAMECHANGED only when the style changed.
+    0x0010 | (restyle ? 0x0020 : 0),
   );
 }
 
