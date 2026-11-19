@@ -485,7 +485,14 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     }
     if (action == ClickerAction.pause) {
       _clickerNextArmed = null;
-      unawaited(c.act('pause', revision: s.revision));
+      // On a computer Space asks first, like the Pause button; a second
+      // Space or Enter confirms. A clicker or pedal on a phone has no
+      // screen in the hand to confirm on, so it pauses at once.
+      unawaited(
+        c.port.isDesktop
+            ? confirmPause()
+            : c.act('pause', revision: s.revision),
+      );
       return true;
     }
     final t = s.timeline!;
