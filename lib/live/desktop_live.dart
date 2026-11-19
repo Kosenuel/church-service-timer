@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/mission_control_live.dart';
 import 'package:church_service_timer/live/service_dial.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -118,6 +119,10 @@ extension DesktopLive on HomeState {
       builder: (context, space) {
         final side = (space.maxWidth * .25).clamp(320.0, 460.0);
         final stage = (space.maxWidth * .28).clamp(372.0, 540.0);
+        // A tall window has room under the cues for who is connected and
+        // what has happened, as in Mission control. A laptop does not:
+        // there the stage preview and cues fill the pane.
+        final tall = space.maxHeight >= 900;
         return Row(
           key: const ValueKey('three-pane-live'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -126,7 +131,12 @@ extension DesktopLive on HomeState {
               width: side,
               child: ColoredBox(
                 color: colors.surface,
-                child: rundownPane(enabled),
+                child: rundownPane(
+                  enabled,
+                  upNext: desktopLayout == 'dial' && s.active
+                      ? upNextBlock()
+                      : null,
+                ),
               ),
             ),
             line,
@@ -187,6 +197,12 @@ extension DesktopLive on HomeState {
                         if (c.destination == 'mobile') ...[
                           const AppDivider(),
                           quickMessagePanel(),
+                        ],
+                        if (tall) ...[
+                          const AppDivider(),
+                          screensSection(),
+                          const AppDivider(),
+                          activitySection(),
                         ],
                         if (s.phase == 'ended') const SizedBox(height: 8),
                       ],
@@ -307,6 +323,7 @@ extension DesktopLive on HomeState {
               size: math
                   .min(gauge + 120, paneHeight - (noteInline ? 372 : 444))
                   .clamp(280.0, 640.0),
+              onSegment: showSegmentDetails,
             ),
           )
         else
@@ -348,9 +365,54 @@ extension DesktopLive on HomeState {
     );
   }
 
+  /// What follows the running segment, above the Dial layout's rundown.
+  Widget upNextBlock() {
+    final colors = appColors(context);
+    final s = c.liveSession, t = s.timeline!;
+    final next = s.index + 1 < t.segments.length
+        ? t.segments[s.index + 1]
+        : null;
+    final muted = TextStyle(color: colors.muted, fontSize: 12);
+    // If the running segment ends on time.
+    final start = c.now.wall + (s.remaining(c.now) / s.rate).round();
+    return Padding(
+      key: const ValueKey('up-next'),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Up next', style: muted.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(
+            next == null ? 'Final segment' : next.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          if (next != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              [
+                next.durationText,
+                if (next.speaker.isNotEmpty) next.speaker,
+                'starts about ${clockLabel(start)}',
+              ].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: muted.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   /// The whole service at the left: how it is running against the plan,
-  /// then every segment with its planned and actual time.
-  Widget rundownPane(bool enabled) {
+  /// then every segment with its planned and actual time. [upNext] sits
+  /// above the list.
+  Widget rundownPane(bool enabled, {Widget? upNext}) {
     final colors = appColors(context);
     final s = c.liveSession, t = s.timeline!, run = s.run;
     final muted = TextStyle(color: colors.muted, fontSize: 12);
@@ -514,6 +576,10 @@ extension DesktopLive on HomeState {
             ),
           ),
         Divider(height: 1, color: colors.border),
+        if (upNext != null) ...[
+          upNext,
+          Divider(height: 1, color: colors.border),
+        ],
         Expanded(
           child: ListView.separated(
             primary: false,
@@ -618,6 +684,16 @@ extension DesktopLive on HomeState {
     );
   }
 }
+
+/// A cue on its button as it will read on stage: the bold LED text face
+/// (Tinos, registered in pubspec.yaml), a little larger than a label.
+const stageCueStyle = TextStyle(
+  fontFamily: 'Tinos',
+  fontWeight: FontWeight.w700,
+  fontSize: 17,
+  height: 1.1,
+  letterSpacing: .2,
+);
 
 /// "+0:40" or "−1:15": how far a finished segment ran over or under.
 String signedTime(int ms) {

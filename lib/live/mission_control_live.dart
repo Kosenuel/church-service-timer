@@ -4,8 +4,10 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/web_stage/web_stage_server.dart';
 
 /// The Mission control desktop layout: a status strip, the timer, stage
 /// and cues side by side, and the whole rundown as a timeline along the
@@ -144,6 +146,32 @@ extension MissionControlLive on HomeState {
     ],
   );
 
+  /// The state of the output's connection, in a few words.
+  String get displayStatusText => displayReconnecting
+      ? 'Reconnecting…'
+      : c.displayConnection == DisplayConnection.simulator
+      ? 'no physical display'
+      : c.displayConnection.label;
+
+  /// The colour that goes with [displayStatusText].
+  Color get displayStatusColour {
+    final colors = appColors(context);
+    if (displayReconnecting) return colors.warning;
+    return switch (c.displayConnection) {
+      DisplayConnection.disconnected ||
+      DisplayConnection.stageDisconnected => colors.error,
+      DisplayConnection.stageWaiting => colors.warning,
+      DisplayConnection.simulator => colors.info,
+      _ => colors.success,
+    };
+  }
+
+  Widget _statusDot(Color colour) => Container(
+    width: 8,
+    height: 8,
+    decoration: BoxDecoration(color: colour, shape: BoxShape.circle),
+  );
+
   /// Where the output is going and which screens have joined.
   Widget screensSection() {
     final colors = appColors(context);
@@ -152,11 +180,7 @@ extension MissionControlLive on HomeState {
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-          ),
+          _statusDot(dot),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -171,9 +195,40 @@ extension MissionControlLive on HomeState {
         ],
       ),
     );
-    final peers = c.pairing.peers.where((p) => p.approved).toList();
+    // Every device paired with this one while it is sharing, so a screen
+    // that has dropped off stays listed instead of vanishing.
+    final hub = c.pairing;
+    final paired = hub.hosting ? hub.savedDevices : const <SavedPairDevice>[];
+    Widget pairedRow(SavedPairDevice d) {
+      final connected = hub.connectedDevice(d.id);
+      final role = switch (d.role) {
+        'stage' => 'Stage screen',
+        'operator' => 'Operator',
+        _ => 'Viewer',
+      };
+      // "Disconnected" is this device's own choice in Screens & devices;
+      // "not answering" is a device that should be there and is not.
+      final state = connected
+          ? (hub.owner == d.id ? 'controls the service' : 'connected')
+          : d.suspended
+          ? 'disconnected'
+          : 'not answering';
+      return row(
+        d.name,
+        '$role · $state',
+        connected
+            ? colors.success
+            : d.suspended
+            ? colors.muted
+            : colors.warning,
+      );
+    }
+
+    // Screens the team opened in a browser. People following the order of
+    // service on their phones are counted, not listed.
     final web = c.webStage.activeDevices;
-    final connection = c.displayConnection;
+    final team = web.where((d) => d.team).toList();
+    final following = web.length - team.length;
     return Padding(
       key: const ValueKey('screens-section'),
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -194,34 +249,23 @@ extension MissionControlLive on HomeState {
           ),
           row(
             'Showing on ${c.destinationName}',
-            displayReconnecting
-                ? 'Reconnecting…'
-                : connection == DisplayConnection.simulator
-                ? 'no physical display'
-                : connection.label,
-            displayReconnecting
-                ? colors.warning
-                : switch (connection) {
-                    DisplayConnection.disconnected ||
-                    DisplayConnection.stageDisconnected => colors.error,
-                    DisplayConnection.stageWaiting => colors.warning,
-                    DisplayConnection.simulator => colors.info,
-                    _ => colors.success,
-                  },
+            displayStatusText,
+            displayStatusColour,
           ),
-          for (final p in peers)
-            row(
-              p.name,
-              '${p.role == 'stage' ? 'Stage screen' : 'Operator'} · ${p.connected ? 'connected' : 'not answering'}',
-              p.connected ? colors.success : colors.warning,
-            ),
-          for (final d in web)
+          for (final d in paired) pairedRow(d),
+          for (final d in team)
             row(
               d.label.isEmpty ? 'Web screen' : d.label,
-              'Web screen',
+              'Web · ${d.role.label.toLowerCase()}',
               colors.success,
             ),
-          if (peers.isEmpty && web.isEmpty)
+          if (following > 0)
+            row(
+              'Order of service on the web',
+              following == 1 ? '1 person following' : '$following following',
+              colors.success,
+            ),
+          if (paired.isEmpty && web.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text('No stage screens have joined.', style: muted),
@@ -229,6 +273,22 @@ extension MissionControlLive on HomeState {
         ],
       ),
     );
+  }
+
+  /// Stage screens showing the output now: paired ones and web ones.
+  int get stageScreensConnected =>
+      c.pairing.stagePeers.length +
+      c.webStage.activeDevices.where((d) => d.role == WebRole.stage).length;
+
+  /// Where the output is going, how many stage screens have joined and
+  /// whether the controls are locked, in one line for the Keys layout.
+  String get liveStatusText {
+    final screens = stageScreensConnected;
+    return [
+      '${c.destinationName} · $displayStatusText',
+      if (screens > 0) plural(screens, 'stage screen'),
+      if (controlsLocked) 'Controls locked',
+    ].join('   ·   ');
   }
 
   /// The latest entries of the service's activity, newest first; the
@@ -825,9 +885,27 @@ class RundownTimeline extends StatelessWidget {
 
 /// The keys that work on Live, along the bottom of the window.
 class KeyLegend extends StatelessWidget {
+  /// Whether to list the keys at all. Off, only [status] shows.
+  final bool keys;
+
   /// Also lists the number keys that send cues.
   final bool cues;
-  const KeyLegend({super.key, this.cues = true});
+
+  /// A status line at the right, after a dot in [statusColour]. It keeps
+  /// to one line, and when the two do not both fit it takes the place of
+  /// the reminder about confirming.
+  final String? status;
+  final Color? statusColour;
+  const KeyLegend({
+    super.key,
+    this.keys = true,
+    this.cues = true,
+    this.status,
+    this.statusColour,
+  });
+
+  static const _reminder = 'Every action asks to confirm';
+
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context);
@@ -848,9 +926,26 @@ class KeyLegend extends StatelessWidget {
             TextSpan(text: '  $action'),
           ],
         ),
+        maxLines: 1,
+        softWrap: false,
         style: style,
       ),
     );
+    double width(String text) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: DefaultTextStyle.of(context).style.merge(style),
+        ),
+        textDirection: TextDirection.ltr,
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 1,
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      return width;
+    }
+
     return Container(
       key: const ValueKey('key-legend'),
       color: colors.surface,
@@ -858,13 +953,64 @@ class KeyLegend extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          item('Space', 'Pause'),
-          item('PgDn PgDn', 'Next segment'),
-          item('+ −', 'Adjust time'),
-          item('Ctrl Z', 'Undo'),
-          if (cues) item('1 – 9', 'Cues'),
-          const Spacer(),
-          Text('Every action asks to confirm', style: style),
+          if (keys) ...[
+            item('Space', 'Pause'),
+            item('PgDn PgDn', 'Next segment'),
+            item('+ −', 'Adjust time'),
+            item('Ctrl Z', 'Undo'),
+            if (cues) item('1 – 9', 'Cues'),
+          ],
+          if (status == null) ...[
+            const Spacer(),
+            Text(_reminder, style: style),
+          ] else
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, space) {
+                  // The dot and its gap, the status, then the reminder.
+                  final both =
+                      16 + width(status!) + 24 + width(_reminder) + 2 <=
+                      space.maxWidth;
+                  return Row(
+                    mainAxisAlignment: keys
+                        ? MainAxisAlignment.end
+                        : MainAxisAlignment.start,
+                    children: [
+                      Flexible(
+                        child: Row(
+                          key: const ValueKey('live-status-line'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: statusColour ?? colors.muted,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                status!,
+                                maxLines: 1,
+                                softWrap: false,
+                                overflow: TextOverflow.ellipsis,
+                                style: style,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (keys && both) ...[
+                        const SizedBox(width: 24),
+                        Text(_reminder, style: style),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );

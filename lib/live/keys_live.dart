@@ -119,7 +119,12 @@ extension KeysLive on HomeState {
             },
           ),
         ),
-        if (showKeyHints) ...[rule, const KeyLegend(cues: true)],
+        rule,
+        KeyLegend(
+          keys: showKeyHints,
+          status: liveStatusText,
+          statusColour: displayStatusColour,
+        ),
       ],
     );
   }
