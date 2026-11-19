@@ -1,5 +1,6 @@
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
+import 'package:church_service_timer/settings/clicker_test_page.dart';
 import 'dart:async';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -651,6 +652,12 @@ extension WarningSettingsViews on HomeState {
             onChanged: c.busy
                 ? null
                 : (v) => c.commit((draft, _) => draft.clickerControls = v),
+          ),
+          settingsRow(
+            Icons.ads_click,
+            'Test a clicker or pedal',
+            'Press its buttons to see the key each one sends and what it does on Live. Nothing reaches the service.',
+            openClickerTest,
           ),
           settingsRow(
             c.backgroundActive ? Icons.sync : Icons.info_outline,

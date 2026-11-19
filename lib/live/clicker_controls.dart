@@ -22,6 +22,18 @@ bool isCommandPaletteKey(LogicalKeyboardKey key, {required bool control}) =>
 bool isMiniTimerKey(LogicalKeyboardKey key, {required bool control}) =>
     control && key == LogicalKeyboardKey.keyM;
 
+/// ? (Shift and /) or F1 opens the shortcuts sheet on a PC. A keyboard
+/// whose question mark is on another key sends the character itself.
+bool isShortcutsSheetKey(
+  LogicalKeyboardKey key, {
+  required bool shift,
+  String? character,
+}) =>
+    key == LogicalKeyboardKey.f1 ||
+    key == LogicalKeyboardKey.question ||
+    (key == LogicalKeyboardKey.slash && shift) ||
+    character == '?';
+
 /// Next needs a second press within this window, like the lock-screen card.
 const clickerConfirmWindow = Duration(seconds: 4);
 
