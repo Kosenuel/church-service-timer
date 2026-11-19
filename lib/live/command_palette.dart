@@ -323,6 +323,17 @@ extension CommandPalette on HomeState {
           words: 'block keyboard touch',
           run: lockControls,
         ),
+      if (miniTimerAvailable)
+        PaletteCommand(
+          id: 'mini',
+          label: 'Mini timer',
+          detail: 'A small window that stays on top',
+          icon: Icons.picture_in_picture_alt_outlined,
+          group: 'This window',
+          keys: keys ? 'Ctrl M' : null,
+          words: 'small always on top lyrics slides shrink',
+          run: () => setMiniTimer(true),
+        ),
       PaletteCommand(
         id: 'focus',
         label: focused ? 'Exit focused view' : 'Focused operator view',

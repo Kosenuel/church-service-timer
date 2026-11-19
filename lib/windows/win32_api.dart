@@ -434,3 +434,48 @@ void fillScreen(int window, List<int> rect, {required bool topmost}) {
     0x0020, // SWP_FRAMECHANGED
   );
 }
+
+// ---- The mini timer's window ----------------------------------------------
+
+final _getWindowLongPtr = _user32
+    .lookupFunction<IntPtr Function(IntPtr, Int32), int Function(int, int)>(
+      'GetWindowLongPtrW',
+    );
+
+/// The window's style before [pinWindow] changed it, to put back exactly.
+int? _styleBeforePin;
+
+/// Keeps the window above every other window ([onTop]) and greys out its
+/// maximise button, or undoes both. It is not moved, resized or brought
+/// forward. False when Windows refused.
+bool pinWindow(int window, {required bool onTop}) {
+  if (window == 0) return false;
+  if (onTop) {
+    // GWL_STYLE (-16): the window's style bits as they are now.
+    final style = _styleBeforePin ??= _getWindowLongPtr(window, -16);
+    // The same style without WS_MAXIMIZEBOX (0x00010000), so the small
+    // window cannot be maximised from its title bar. A style of 0 means
+    // the read failed, and the style is then left alone.
+    if (style != 0) _setWindowLongPtr(window, -16, style & ~0x00010000);
+  } else {
+    final style = _styleBeforePin;
+    _styleBeforePin = null;
+    // Put the style back as it was found.
+    if (style != null && style != 0) _setWindowLongPtr(window, -16, style);
+  }
+  // HWND_TOPMOST (-1) puts the window in the always-on-top band and
+  // HWND_NOTOPMOST (-2) takes it out again. SWP_NOSIZE (0x1), SWP_NOMOVE
+  // (0x2) and SWP_NOACTIVATE (0x10) leave size, place and focus alone;
+  // SWP_FRAMECHANGED (0x20) makes Windows redraw the title bar for the
+  // changed style.
+  return _setWindowPos(
+        window,
+        onTop ? -1 : -2,
+        0,
+        0,
+        0,
+        0,
+        0x0001 | 0x0002 | 0x0010 | 0x0020,
+      ) !=
+      0;
+}

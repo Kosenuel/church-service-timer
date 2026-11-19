@@ -18,6 +18,10 @@ ClickerAction? clickerActionFor(LogicalKeyboardKey key) {
 bool isCommandPaletteKey(LogicalKeyboardKey key, {required bool control}) =>
     control && key == LogicalKeyboardKey.keyK;
 
+/// Ctrl+M switches between the mini timer and the full window.
+bool isMiniTimerKey(LogicalKeyboardKey key, {required bool control}) =>
+    control && key == LogicalKeyboardKey.keyM;
+
 /// Next needs a second press within this window, like the lock-screen card.
 const clickerConfirmWindow = Duration(seconds: 4);
 
