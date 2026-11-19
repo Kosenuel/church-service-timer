@@ -18,11 +18,15 @@ export 'package:church_service_timer/settings/church_profile_page.dart';
 
 extension SettingsViews on HomeState {
   /// Settings › Appearance. A look being tried out is dropped on leaving.
-  Future<void> openAppearance() async {
+  /// Opens Appearance; [tab] 1 goes straight to Layout & accessibility,
+  /// where the desktop layouts are.
+  Future<void> openAppearance({int tab = 0}) async {
     try {
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => AppearancePage(controller: c)));
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AppearancePage(controller: c, initialTab: tab),
+        ),
+      );
     } finally {
       if (mounted) {
         c.previewTheme(null);
@@ -172,6 +176,14 @@ extension SettingsViews on HomeState {
               'Appearance',
               paletteFor(c.state.themeId).name,
               openAppearance,
+            ),
+            // Its own row, because it was easy to miss as the second tab
+            // of Appearance.
+            entry(
+              Icons.dashboard_customize_outlined,
+              'Desktop layout',
+              '${desktopLayoutName(effectiveDesktopLayout(c.state.appearance.desktopLayout))} · for a wide window',
+              () => openAppearance(tab: 1),
             ),
           ]),
           group('Service & display', [
@@ -683,7 +695,14 @@ extension SettingsViews on HomeState {
 
 class AppearancePage extends StatefulWidget {
   final AppController controller;
-  const AppearancePage({super.key, required this.controller});
+
+  /// 0 opens on Theme, 1 on Layout & accessibility.
+  final int initialTab;
+  const AppearancePage({
+    super.key,
+    required this.controller,
+    this.initialTab = 0,
+  });
   @override
   State<AppearancePage> createState() => _AppearancePageState();
 }
@@ -881,6 +900,7 @@ class _AppearancePageState extends State<AppearancePage> {
     final palette = paletteFor(selected);
     return DefaultTabController(
       length: 2,
+      initialIndex: widget.initialTab,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Appearance'),
@@ -986,6 +1006,26 @@ class _AppearancePageState extends State<AppearancePage> {
                               style: TextStyle(
                                 color: colors.muted,
                                 fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // The second tab is easy to miss.
+                            Builder(
+                              builder: (context) => Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton.icon(
+                                  key: const ValueKey('to-desktop-layout'),
+                                  onPressed: () => DefaultTabController.of(
+                                    context,
+                                  ).animateTo(1),
+                                  icon: const Icon(
+                                    Icons.dashboard_customize_outlined,
+                                    size: 18,
+                                  ),
+                                  label: const Text(
+                                    'Desktop layout and spacing',
+                                  ),
+                                ),
                               ),
                             ),
                           ],
