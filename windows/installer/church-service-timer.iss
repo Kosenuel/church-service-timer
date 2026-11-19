@@ -1,7 +1,7 @@
 ; Inno Setup script for the Church Service Timer installer.
 ; Built by scripts/Package-Windows.ps1, which passes the version and the
 ; folder that `flutter build windows --release` produced:
-;   iscc /DAppVersion=0.32.0 /DSourceDir=C:\...\Release church-service-timer.iss
+;   iscc /DAppVersion=0.33.0 /DSourceDir=C:\...\Release church-service-timer.iss
 ;
 ; Installs for the current user by default, so no administrator password
 ; is needed in a church office; the person can choose "all users" instead.
