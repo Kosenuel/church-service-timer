@@ -2,6 +2,12 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **A button for the mini timer.** The mini timer is the small window that stays above your lyrics or slides program, with the countdown, Pause, Next and a cue. It could only be opened from the ⋮ menu or with Ctrl+M, so it was easy never to find. On a PC, while a service runs, Live now has a button for it at the top right, beside Lock controls.
+
+- **A clearer example for review notes.** The example under Review notes on a report now reads “Reduce the Announcements time from next week”.
+
 ## 0.33.0, 19/November/2026
 
 - **Second screen shows the stage properly.** On a PC, **Show** in Settings › Screens & devices › Second screen could leave the projector or second monitor stuck on a black picture with part of an enormous letter at one edge. It happened when the two screens use different scaling in Windows (for example a laptop at 150% and a 4K monitor at 200%): Windows resized the stage window as it moved across, and the window then stopped updating. The stage window is now created on its own screen from the start and keeps to that screen's exact size.

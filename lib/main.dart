@@ -954,6 +954,21 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                       : chooseDisplay,
                                 ),
                               ),
+                            // The mini timer was only in the menu and by
+                            // Ctrl+M, where it was easy never to find.
+                            if (page == 0 && miniTimerAvailable && !miniTimer)
+                              IconButton(
+                                key: const ValueKey('mini-timer-button'),
+                                tooltip: showKeyHints
+                                    ? 'Mini timer: a small window that stays on top (Ctrl+M)'
+                                    : 'Mini timer: a small window that stays on top',
+                                onPressed: controlsLocked
+                                    ? null
+                                    : () => unawaited(setMiniTimer(true)),
+                                icon: const Icon(
+                                  Icons.picture_in_picture_alt_outlined,
+                                ),
+                              ),
                             if (c.ready && page == 0 && c.liveSession.active)
                               IconButton(
                                 key: const ValueKey('control-lock'),
