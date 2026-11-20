@@ -7,6 +7,7 @@ import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/simulator_choice.dart';
 
 export 'package:church_service_timer/pairing/quick_message_views.dart';
 export 'package:church_service_timer/pairing/stage_surface.dart';
@@ -124,9 +125,12 @@ extension MobileDisplayViews on HomeState {
       note:
           'What ${c.destinationName} is showing. It follows the service as you switch.',
       children: [
-        DisplayPreviewHeader(connection: c.displayConnection),
+        displayPreviewHeader(),
         const SizedBox(height: 12),
-        if (c.destination == 'mobile') mobileStagePreview() else liveMatrix(),
+        if (c.destination == 'mobile')
+          mobileStagePreview()
+        else
+          displayPreview(),
         const SizedBox(height: 10),
         Text(
           c.liveSession.outputBlank
@@ -272,6 +276,9 @@ extension MobileDisplayViews on HomeState {
               },
             ),
             const SizedBox(height: 12),
+            // What the Simulator stands in for, while it is the display.
+            if (choice.$1 == 'simulator' && c.destination == 'simulator')
+              simulatorKindChoice(),
           ],
           if (c.destination == 'led')
             TextButton.icon(

@@ -159,7 +159,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('header-connection')),
-          matching: find.text('Simulator'),
+          matching: find.text('LED simulator'),
         ),
         findsOneWidget,
       );
@@ -190,7 +190,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('header-connection')),
-          matching: find.text('Simulator'),
+          matching: find.text('LED simulator'),
         ),
         findsOneWidget,
       );
