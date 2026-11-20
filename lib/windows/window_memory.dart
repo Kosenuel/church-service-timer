@@ -21,6 +21,16 @@ abstract class PinnableWindow implements WindowHandle {
   bool pin(bool onTop);
 }
 
+/// A window that can also cover its whole monitor, with no frame.
+abstract class FillableWindow implements WindowHandle {
+  /// Covers the monitor the window is on. False when Windows refused;
+  /// nothing has changed then.
+  bool fill();
+
+  /// Gives the window its frame back and puts it at [place].
+  void unfill(WindowPlace place);
+}
+
 /// Reopens the window where it was last closed, and at the same size.
 ///
 /// The place is saved a moment after it stops changing rather than only on
@@ -32,7 +42,10 @@ abstract class PinnableWindow implements WindowHandle {
 /// small, the saved place stays that of the normal window, so closing the
 /// app then opens it normally next time; only the small window's corner is
 /// remembered, under its own name.
-class WindowMemory implements MiniWindow {
+///
+/// And it is the window made full screen ([FullScreenWindow]), with the
+/// same care: the saved place stays that of the normal window.
+class WindowMemory implements MiniWindow, FullScreenWindow {
   final JsonPrefs prefs;
   final WindowHandle window;
 
@@ -65,6 +78,8 @@ class WindowMemory implements MiniWindow {
   Future<void> save() async {
     final place = window.read();
     if (place == null) return;
+    // Full screen, the window reports the screen as its place.
+    if (full) return;
     if (mini) return _saveMiniCorner(place.frame);
     if (_decode({'frame': place.frame}) == null) return;
     final key = _key(place);
@@ -133,7 +148,7 @@ class WindowMemory implements MiniWindow {
   Future<bool> enter({required double width, required double height}) async {
     final window = this.window;
     if (mini) return true;
-    if (window is! PinnableWindow || _changing) return false;
+    if (window is! PinnableWindow || _changing || full) return false;
     _changing = true;
     try {
       final corner = _decodeCorner(await prefs.get('mini'));
@@ -203,6 +218,46 @@ class WindowMemory implements MiniWindow {
     } finally {
       _changing = false;
     }
+  }
+
+  // ---- Full screen ---------------------------------------------------------
+
+  /// Where the normal window was when it was made full screen.
+  WindowPlace? _beforeFull;
+
+  /// Whether the window is full screen now.
+  bool get full => _beforeFull != null;
+
+  @override
+  Future<bool> enterFullScreen() async {
+    final window = this.window;
+    if (full) return true;
+    if (window is! FillableWindow || mini || _changing) return false;
+    _changing = true;
+    try {
+      final normal = window.read();
+      if (normal == null || !window.fill()) return false;
+      _beforeFull = normal;
+      // What the next start opens, should the app be closed full screen.
+      if (_decode({'frame': normal.frame}) != null) {
+        _saved = _key(normal);
+        await prefs.set('window', {
+          'frame': normal.frame,
+          'maximised': normal.maximised,
+        });
+      }
+      return true;
+    } finally {
+      _changing = false;
+    }
+  }
+
+  @override
+  Future<void> leaveFullScreen() async {
+    final window = this.window, normal = _beforeFull;
+    if (normal == null || window is! FillableWindow) return;
+    _beforeFull = null;
+    window.unfill(normal);
   }
 
   void start() => _timer ??= Timer.periodic(

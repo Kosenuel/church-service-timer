@@ -285,6 +285,18 @@ final List<Shortcut> shortcuts = List.unmodifiable([
     presses: [KeyPress(LogicalKeyboardKey.keyM, control: true)],
   ),
   Shortcut(
+    id: 'fullscreen',
+    group: ShortcutGroup.moving,
+    caps: const [
+      ['F11'],
+    ],
+    hint: 'F11',
+    action: 'Full screen',
+    confirm: 'the stage on this screen; again or Esc to leave it',
+    condition: 'While a service is running.',
+    presses: [KeyPress(LogicalKeyboardKey.f11, control: null)],
+  ),
+  Shortcut(
     id: 'shortcuts',
     group: ShortcutGroup.moving,
     caps: const [
