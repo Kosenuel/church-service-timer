@@ -86,7 +86,7 @@ class AppearanceControls extends StatelessWidget {
         contentPadding: EdgeInsets.zero,
         title: const Text('Reduced motion'),
         subtitle: const Text(
-          'Quieter navigation and interface effects. Stage cue effects and the clock colon keep their own settings.',
+          'Quieter navigation and interface effects. Cues that slide in or flash the screen simply appear; other stage cue effects and the clock colon keep their own settings.',
         ),
         value: value.reducedMotion,
         onChanged: onChanged == null

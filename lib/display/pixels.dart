@@ -81,6 +81,11 @@ List<bool> renderPixels(TextLayout? layout, int elapsedMs) {
   final pixels = List<bool>.filled(512, false);
   if (layout == null) return pixels;
   if (layout.effect == 'flash' && (elapsedMs ~/ 500).isOdd) return pixels;
+  // Three flashes, then steady, as the controller's loop plays it.
+  if (layout.effect == 'flashHold') {
+    final cycle = elapsedMs % flashHoldCycleMs;
+    if (cycle < flashHoldMs && (cycle ~/ 500).isOdd) return pixels;
+  }
   final width = textWidth(layout);
   if (layout.font == 'tinos') {
     final raster = NativeDisplayFonts.cached(layout)!;
