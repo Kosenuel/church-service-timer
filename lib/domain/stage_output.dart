@@ -94,6 +94,7 @@ Json stageUnderBanner(Json data) {
       'underText',
       'underMode',
       'screenSpeed',
+      'screenWrap',
     }.contains(key),
   );
 }
@@ -104,3 +105,23 @@ Json stageBannerText(Json data) => {
   'displayIsTimer': false,
   'outputMode': 'Cue',
 }..removeWhere((key, _) => const {'cuePosition', 'underText'}.contains(key));
+
+/// The most lines a cue wraps onto on screens: three filling the screen,
+/// two in a banner.
+const stageWrapLines = 3, stageBannerWrapLines = 2;
+
+/// The smallest wrapped text may be, as a share of the height of its box
+/// for each line it may use: on a 1080-line screen, 130 px for three lines
+/// and, in a banner, 31 px for two. Text that would need to be smaller
+/// scrolls instead, so it is never cut off or too small to read.
+const stageWrapMinimum = .36;
+
+/// Whether a snapshot's cue is wrapped onto lines on screens: a cue (not
+/// the countdown or clock) that is static, scrolling or flashing, with
+/// "Wrap long text" chosen. Wrapped text does not scroll on screens; the
+/// LED sign still does.
+bool stageWrapsText(Json data) =>
+    data['screenWrap'] == true &&
+    data['displayIsTimer'] != true &&
+    data['outputMode'] != 'Clock' &&
+    const {'static', 'scroll', 'flash', null}.contains(data['effect']);

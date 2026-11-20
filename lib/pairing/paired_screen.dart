@@ -683,11 +683,15 @@ Color stageCueColor(Json data) {
 class StageMessage extends StatefulWidget {
   final Json data;
   final bool stale, fullscreen;
+
+  /// The most lines a cue with "Wrap long text" may use here.
+  final int wrapLines;
   const StageMessage({
     super.key,
     required this.data,
     required this.stale,
     this.fullscreen = false,
+    this.wrapLines = stageWrapLines,
   });
   @override
   State<StageMessage> createState() => _StageMessageState();
@@ -698,9 +702,19 @@ class _StageMessageState extends State<StageMessage>
   late final AnimationController ticker;
   double elapsed = 0;
   int previousTick = 0;
-  bool get animates =>
-      !widget.stale &&
-      (widget.data['effect'] == 'scroll' || widget.data['effect'] == 'flash');
+  // Wrapped text: the box and style it was last fitted to, the size found
+  // (null when it does not fit, and then scrolls), and whether it scrolls.
+  Object? wrapKey;
+  double? wrapSize;
+  bool wrapScrolls = false;
+  bool get animates {
+    if (widget.stale) return false;
+    final effect = widget.data['effect'];
+    // Wrapped text holds still unless it flashes or is too long to wrap.
+    if (stageWrapsText(widget.data)) return effect == 'flash' || wrapScrolls;
+    return effect == 'scroll' || effect == 'flash';
+  }
+
   void syncTicker() {
     if (animates && !ticker.isAnimating) {
       previousTick = 0;
@@ -739,11 +753,50 @@ class _StageMessageState extends State<StageMessage>
     super.dispose();
   }
 
+  /// The size [text] is wrapped at in a box [width] × [height], worked out
+  /// once for each text, box and style; null when it scrolls instead.
+  double? wrappedSize(
+    String text,
+    TextStyle style,
+    double width,
+    double height,
+  ) {
+    final key = (
+      text,
+      width,
+      height,
+      style.fontSize,
+      style.fontWeight,
+      style.fontStyle,
+      widget.wrapLines,
+    );
+    if (key != wrapKey) {
+      wrapKey = key;
+      wrapSize = stageWrapSize(
+        text,
+        style,
+        width: width * .94,
+        height: height,
+        lines: widget.wrapLines,
+        min: height * stageWrapMinimum / widget.wrapLines,
+        max: style.fontSize!,
+      );
+    }
+    final scrolls = wrapSize == null;
+    if (scrolls != wrapScrolls) {
+      wrapScrolls = scrolls;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) syncTicker();
+      });
+    }
+    return wrapSize;
+  }
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, space) {
       final text = widget.data['displayText'] as String? ?? '';
-      final effect = widget.data['effect'];
+      var effect = widget.data['effect'];
       final fullHeight = widget.fullscreen && space.maxHeight.isFinite;
       final previewSize = (space.maxWidth / 7).clamp(
         42.0,
@@ -768,6 +821,24 @@ class _StageMessageState extends State<StageMessage>
         fontFamily: 'Roboto',
         fontFeatures: const [FontFeature.tabularFigures()],
       );
+      final box = fullHeight ? space.maxHeight : 170.0;
+      double? wrapped;
+      if (stageWrapsText(widget.data) && text.trim().isNotEmpty) {
+        wrapped = wrappedSize(
+          text,
+          // Measured in the font it is drawn in.
+          DefaultTextStyle.of(context).style.merge(style),
+          space.maxWidth,
+          box,
+        );
+        // Wrapped text holds still on screens; text too long to wrap at a
+        // readable size scrolls instead.
+        if (wrapped == null) {
+          effect = 'scroll';
+        } else if (effect == 'scroll') {
+          effect = 'static';
+        }
+      }
       if (effect == 'scroll') {
         final painter = TextPainter(
           text: TextSpan(text: text, style: style),
@@ -797,6 +868,25 @@ class _StageMessageState extends State<StageMessage>
                   ),
                 ),
               ],
+            ),
+          ),
+        );
+      }
+      if (wrapped != null) {
+        return Opacity(
+          opacity: effect == 'flash' && (elapsed * 2).floor() % 2 == 1 ? 0 : 1,
+          child: SizedBox(
+            height: box,
+            width: space.maxWidth,
+            child: Center(
+              child: Text(
+                text,
+                key: const ValueKey('stage-wrapped'),
+                style: style.copyWith(fontSize: wrapped, height: 1.1),
+                maxLines: widget.wrapLines,
+                textAlign: TextAlign.center,
+                textScaler: TextScaler.noScaling,
+              ),
             ),
           ),
         );
@@ -855,4 +945,64 @@ class _StageMessageState extends State<StageMessage>
       );
     },
   );
+}
+
+/// The largest font size from [min] to [max] at which [text] wraps onto at
+/// most [lines] centred lines inside [width] × [height], 1.1 lines apart,
+/// with no word split across lines; null when it does not fit at [min].
+double? stageWrapSize(
+  String text,
+  TextStyle style, {
+  required double width,
+  required double height,
+  required int lines,
+  required double min,
+  required double max,
+}) {
+  TextPainter painter(String value, double size, [double? maxWidth]) =>
+      TextPainter(
+        text: TextSpan(
+          text: value,
+          style: style.copyWith(fontSize: size, height: 1.1),
+        ),
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
+        textScaler: TextScaler.noScaling,
+      )..layout(maxWidth: maxWidth ?? double.infinity);
+  double measure(String value, double size) {
+    final p = painter(value, size);
+    final w = p.width;
+    p.dispose();
+    return w;
+  }
+
+  // The widest word, which must fit on a line of its own.
+  final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+  if (words.isEmpty) return null;
+  var widest = words.first;
+  var widestWidth = 0.0;
+  for (final word in words) {
+    final w = measure(word, max);
+    if (w > widestWidth) (widest, widestWidth) = (word, w);
+  }
+  bool fits(double size) {
+    if (measure(widest, size) > width) return false;
+    final p = painter(text, size, width);
+    final ok = p.height <= height && p.computeLineMetrics().length <= lines;
+    p.dispose();
+    return ok;
+  }
+
+  if (max < min || !fits(min)) return null;
+  if (fits(max)) return max;
+  var lo = min, hi = max;
+  for (var i = 0; i < 14; i++) {
+    final mid = (lo + hi) / 2;
+    if (fits(mid)) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo.floorToDouble();
 }

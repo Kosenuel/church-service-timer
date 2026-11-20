@@ -440,6 +440,8 @@ class AppController extends ChangeNotifier {
         'cueColor': stageColorHex(
           screenCueColors[display.screenColor] ?? stageAccentRgb(state.themeId),
         ),
+      // Wrapped onto lines on screens; older paired screens ignore it.
+      if (display != null && display.screenWrap) 'screenWrap': true,
       if (banner) ...{
         'cuePosition': display.screenPosition,
         'underText': s.showClock

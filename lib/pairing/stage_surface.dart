@@ -232,10 +232,17 @@ class StageBanner extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.symmetric(
             // Scrolling text runs from edge to edge of the screen.
-            horizontal: data['effect'] == 'scroll' ? 0 : space.maxHeight * .3,
+            horizontal: data['effect'] == 'scroll' && !stageWrapsText(data)
+                ? 0
+                : space.maxHeight * .3,
             vertical: space.maxHeight * .1,
           ),
-          child: StageMessage(data: data, stale: stale, fullscreen: true),
+          child: StageMessage(
+            data: data,
+            stale: stale,
+            fullscreen: true,
+            wrapLines: stageBannerWrapLines,
+          ),
         ),
       );
     },

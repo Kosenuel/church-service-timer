@@ -642,6 +642,8 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         'speed': stageScrollSpeed(s),
         // Only a checked "#rrggbb" reaches the page.
         if (color != null && position == null) 'color': stageColorHex(color),
+        // "Wrap long text": up to 3 lines, as large as fits, not scrolling.
+        if (position == null && stageWrapsText(s)) 'wrap': true,
         if (position != null)
           'banner': {
             'text': s['displayText'] ?? '',
@@ -650,6 +652,7 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
             'bold': s['bold'] == true,
             'italic': s['italic'] == true,
             'effect': effectOf(s),
+            if (stageWrapsText(s)) 'wrap': true,
           },
         'overtime': s['overtime'] == true,
         'paused': s['paused'] == true,

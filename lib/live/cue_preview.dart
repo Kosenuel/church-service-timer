@@ -15,11 +15,19 @@ class CuePreviewSwitch extends StatefulWidget {
 
   /// Whether the switch starts on the stage screen.
   final bool stageFirst;
+
+  /// Told whether the switch now shows the stage screen.
+  final ValueChanged<bool>? onChanged;
+
+  /// A line under the switch, if any.
+  final String? note;
   const CuePreviewSwitch({
     super.key,
     required this.cue,
     required this.led,
     required this.stageFirst,
+    this.onChanged,
+    this.note,
   });
   @override
   State<CuePreviewSwitch> createState() => _CuePreviewSwitchState();
@@ -45,9 +53,21 @@ class _CuePreviewSwitchState extends State<CuePreviewSwitch> {
               ButtonSegment(value: true, label: Text(simulatorKinds['stage']!)),
             ],
             selected: {stage},
-            onSelectionChanged: (kinds) => setState(() => stage = kinds.single),
+            onSelectionChanged: (kinds) {
+              setState(() => stage = kinds.single);
+              widget.onChanged?.call(stage);
+            },
           ),
         ),
+        if (widget.note case final note?) ...[
+          const SizedBox(height: 6),
+          Text(
+            note,
+            key: const ValueKey('cue-preview-note'),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: appColors(context).muted, fontSize: 12),
+          ),
+        ],
         const SizedBox(height: 12),
         if (!stage)
           widget.led
@@ -97,6 +117,7 @@ class CueStagePreview extends StatelessWidget {
                     screenCueColors[cue.screenColor] ??
                         stageAccentRgbOf(appColors(context).accent),
                   ),
+                if (cue != null && cue.screenWrap) 'screenWrap': true,
                 if (cue != null && cue.screenPosition != 'full') ...{
                   'cuePosition': cue.screenPosition,
                   'underText': '12:34',

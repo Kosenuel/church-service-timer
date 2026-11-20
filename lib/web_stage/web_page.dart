@@ -41,12 +41,14 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .text { color:#fff; font-weight:500; white-space:pre-wrap; word-break:break-word; line-height:1; margin:0 auto; font-variant-numeric: tabular-nums; }
 #stage .lane { position:absolute; inset:0; overflow:hidden; }
 #stage .run { position:absolute; left:0; top:50%; white-space:pre; line-height:1.1; will-change:transform; }
+#stage .text.wrapped { white-space:normal; word-break:normal; overflow-wrap:normal; line-height:1.1; width:92vw; }
 #stage .colon { transition: opacity .1s; }
 #stage .colon.dim { opacity: .2; }
 #stage .band { position:absolute; left:0; right:0; height:20vh; display:none; align-items:center; justify-content:center; overflow:hidden; padding:0 6vh; white-space:nowrap; line-height:1; font-size:14vh; z-index:2; }
 #stage .band.top { top:0; border-bottom:.7vh solid currentColor; }
 #stage .band.bottom { bottom:0; border-top:.7vh solid currentColor; }
 #stage .band .run { top:50%; }
+#stage .band.wrapped { white-space:normal; line-height:1.1; text-align:center; }
 #stage.stale .band { opacity:.35; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
@@ -275,6 +277,23 @@ function fit(node, text, room) {
   node.style.fontSize = Math.max(16, Math.min(byWidth, byHeight)) + 'px';
 }
 
+// "Wrap long text": sets [node], already holding the text and its style,
+// to the largest size from [least] to [most] px at which it fits on at most
+// [lines] lines and [height] px with no word split, and returns that size.
+// 0 when it would have to be smaller: it then scrolls instead, so nothing
+// is cut off or too small to read. Measured on the node itself, so the
+// size is exactly what is drawn.
+function wrapSize(node, lines, height, least, most) {
+  const fits = (size) => { node.style.fontSize = size + 'px'; return node.scrollWidth <= node.clientWidth + 1 && node.offsetHeight <= Math.min(height, lines * size * 1.1) + 1; };
+  let best = 0;
+  if (most >= least && fits(least)) {
+    if (fits(most)) best = most;
+    else { let lo = least, hi = most; for (let i = 0; i < 14; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; } best = Math.floor(lo); }
+  }
+  if (best) node.style.fontSize = best + 'px';
+  return best;
+}
+
 function render(s) {
   lastState = s;
   showRequests(s);
@@ -349,7 +368,8 @@ function startMotion(text, value, s, key) {
       run.style.transform = 'translate(' + (w - (m.elapsed * speed) % travel) + 'px, -50%)';
     };
   } else {
-    text.textContent = value; fit(text, value || ' ');
+    text.textContent = value;
+    if (s.wrapAt) text.style.fontSize = s.wrapAt + 'px'; else fit(text, value || ' ');
     m.step = () => { text.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
   }
   const frame = (now) => {
@@ -368,21 +388,30 @@ function renderBand(s) {
   const stop = () => { if (bandMotion) cancelAnimationFrame(bandMotion.raf); bandMotion = null; };
   if (!b) { stop(); band.style.display = 'none'; band.dataset.key = ''; clear(band); return; }
   const h = window.innerHeight, w = window.innerWidth;
-  const key = [b.text, b.position, b.color, b.bold, b.italic, b.effect, s.speed, w, h].join('|');
+  const key = [b.text, b.position, b.color, b.bold, b.italic, b.effect, b.wrap, s.speed, w, h].join('|');
   // The same banner as the last poll: leave it running.
   if (band.dataset.key === key) return;
   stop(); clear(band); band.dataset.key = key;
+  const value = (b.text || '').replace(/\n/g, ' ');
+  const size = h * 0.14;
+  const room = w - h * 0.12;
   band.className = 'band ' + (b.position === 'top' ? 'top' : 'bottom');
   band.style.display = 'flex';
   // The cue's colour, on a dark tint of the same colour.
   band.style.color = b.color; band.style.background = b.color + '29';
   band.style.fontWeight = b.bold ? '800' : '500';
   band.style.fontStyle = b.italic ? 'italic' : 'normal';
-  const value = (b.text || '').replace(/\n/g, ' ');
-  const size = h * 0.14;
   band.style.fontSize = size + 'px';
+  // Wrapped, on up to 2 lines in the band; too long for that, it scrolls.
+  let effect = b.effect, label = null;
+  if (b.wrap) {
+    band.classList.add('wrapped');
+    label = el('div', '', value); label.style.width = room + 'px'; band.append(label);
+    if (wrapSize(label, 2, h * 0.168, h * 0.03, size)) effect = effect === 'flash' ? 'flash' : 'static';
+    else { band.classList.remove('wrapped'); clear(band); label = null; effect = 'scroll'; }
+  }
   const m = { elapsed: 0, last: performance.now(), raf: 0, step: null };
-  if (b.effect === 'scroll') {
+  if (effect === 'scroll') {
     const run = el('span', 'run', value); band.append(run);
     const speed = (Number(s.speed) || 12) * 6 * (size / Math.min(260, Math.max(42, w / 7)));
     m.step = () => {
@@ -391,11 +420,11 @@ function renderBand(s) {
     };
     run.style.left = '0';
   } else {
-    const label = el('span', '', value); band.append(label);
+    const wrapped = !!label;
+    if (!label) { label = el('span', '', value); band.append(label); }
     // A long cue is made smaller until it fits the band's width.
-    const room = w - h * 0.12;
-    if (label.offsetWidth > room) band.style.fontSize = Math.max(12, size * room / label.offsetWidth) + 'px';
-    if (b.effect === 'flash') m.step = () => { label.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
+    if (!wrapped && label.offsetWidth > room) band.style.fontSize = Math.max(12, size * room / label.offsetWidth) + 'px';
+    if (effect === 'flash') m.step = () => { label.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
   }
   if (!m.step) return;
   const frame = (now) => {
@@ -424,12 +453,16 @@ function renderStage(s) {
   const room = s.banner ? 0.88 : 1;
   note.style.bottom = s.banner && s.banner.position !== 'top' ? '23vh' : '';
   const value = s.displayText || '';
-  const moving = s.sharing && !s.message && !s.blank && value && (s.effect === 'scroll' || s.effect === 'flash');
-  const key = moving ? [s.effect, value, s.speed, s.bold, s.italic, s.overtime, s.color, window.innerWidth, window.innerHeight].join('|') : '';
+  const h = window.innerHeight, w = window.innerWidth;
+  // "Wrap long text": wrapped onto up to 3 lines, as large as fits.
+  const wrap = s.wrap === true && value.trim() !== '';
+  // Wrapped text too long for 3 lines scrolls, so it may be moving too.
+  const moving = s.sharing && !s.message && !s.blank && value && (s.effect === 'scroll' || s.effect === 'flash' || wrap);
+  const key = moving ? [s.effect, wrap, value, s.speed, s.bold, s.italic, s.overtime, s.color, w, h].join('|') : '';
   // The same moving text as the last poll: leave it running.
   if (moving && motion && motion.key === key) { note.textContent = s.paused ? 'PAUSED' : ''; return; }
   stopMotion(); text.style.visibility = 'visible';
-  clear(text); note.textContent = ''; stage.style.background = '#000'; stage.style.textAlign = 'center'; text.style.width = '';
+  clear(text); note.textContent = ''; stage.style.background = '#000'; stage.style.textAlign = 'center'; text.style.width = ''; text.classList.remove('wrapped');
   if (!s.sharing) { text.textContent = 'Waiting for the host. On the host, tap Show on stage screens on Live.'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {
     renderMessage(stage, text, s.message); return;
@@ -440,7 +473,14 @@ function renderStage(s) {
   text.style.fontWeight = s.bold ? '800' : '500';
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
   if (s.paused) note.textContent = 'PAUSED';
-  if (moving) { startMotion(text, value, s, key); return; }
+  let effect = s.effect, wrapAt = 0;
+  if (wrap) {
+    text.textContent = value; text.classList.add('wrapped');
+    wrapAt = wrapSize(text, 3, Math.min(h * 0.9, h - w * 0.08), h * 0.12, h * 0.9);
+    // Wrapped text holds still (or flashes); too long for that, it scrolls.
+    if (wrapAt) { if (effect !== 'flash') return; } else { text.classList.remove('wrapped'); clear(text); effect = 'scroll'; }
+  }
+  if (moving && (effect === 'scroll' || effect === 'flash')) { startMotion(text, value, Object.assign({}, s, { effect, wrapAt }), key); return; }
   if (s.ticking && value.includes(':')) {
     // Each colon is its own span, so only its brightness changes.
     for (const part of value.split(/(:)/)) text.append(part === ':' ? el('span', 'colon', ':') : document.createTextNode(part));

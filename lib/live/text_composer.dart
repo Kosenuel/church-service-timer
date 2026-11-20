@@ -46,6 +46,10 @@ class _TextComposerState extends State<TextComposer> {
   late int height, speed;
   int? screenSpeed;
   late String screenColor, screenPosition;
+  late bool screenWrap;
+
+  /// Whether the preview switch shows the stage screen.
+  late bool previewStage = widget.stagePreviewFirst ?? false;
   final watch = Stopwatch()..start();
   final previewTick = ValueNotifier<int>(0);
   Timer? ticker;
@@ -63,6 +67,7 @@ class _TextComposerState extends State<TextComposer> {
     screenSpeed = l.screenSpeed;
     screenColor = l.screenColor;
     screenPosition = l.screenPosition;
+    screenWrap = l.screenWrap;
     font = l.font;
     ticker = Timer.periodic(const Duration(milliseconds: 80), (_) {
       if (mounted) previewTick.value++;
@@ -89,6 +94,7 @@ class _TextComposerState extends State<TextComposer> {
     screenSpeed: effect == 'scroll' ? screenSpeed : null,
     screenColor: screenColor,
     screenPosition: screenPosition,
+    screenWrap: screenWrap,
     font: font,
   );
   @override
@@ -136,6 +142,96 @@ class _TextComposerState extends State<TextComposer> {
         ),
       ],
     );
+    // With the preview switch (stage cues and warnings), the settings only
+    // the LED sign uses are grouped, and only the group for the display
+    // the preview shows is in view.
+    final grouped = widget.stagePreviewFirst != null;
+    final tall = FilterChip(
+      label: const Text('Tall · 14 px'),
+      selected: height == 2,
+      onSelected: (v) => setState(() => height = v ? 2 : 1),
+    );
+    final fontFields = [
+      ChoiceField<String>(
+        value: font,
+        decoration: const InputDecoration(labelText: 'Display font'),
+        options: displayFontNames.entries
+            .map((e) => ChoiceOption(value: e.key, label: e.value))
+            .toList(),
+        onChanged: (v) => setState(() {
+          font = v!;
+          fontRequest = null;
+          if (font == 'tinos') height = 2;
+          watch.reset();
+        }),
+      ),
+      if (font == 'tinos')
+        Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(
+            'Bundled Tinos font · 14 px recommended. Compact text has fewer serif details.',
+            style: TextStyle(color: appColors(context).muted),
+          ),
+        ),
+    ];
+    final effectField = ChoiceField<String>(
+      value: effect,
+      decoration: const InputDecoration(labelText: 'Effect'),
+      options: const [
+        ChoiceOption(value: 'static', label: 'Static · must fit'),
+        ChoiceOption(value: 'scroll', label: 'Scroll long text'),
+        ChoiceOption(value: 'flash', label: 'Flash · must fit'),
+      ],
+      onChanged: (v) => setState(() {
+        effect = v!;
+        watch.reset();
+      }),
+    );
+    final alignField = ChoiceField<String>(
+      value: align,
+      decoration: const InputDecoration(
+        labelText: 'Alignment (text that fits)',
+      ),
+      options: const [
+        ChoiceOption(value: 'left', label: 'Left'),
+        ChoiceOption(value: 'center', label: 'Centre'),
+        ChoiceOption(value: 'right', label: 'Right'),
+      ],
+      onChanged: (v) => setState(() => align = v!),
+    );
+    final ledSpeed = [
+      if (effect == 'scroll') ...[
+        const SizedBox(height: 12),
+        Text('Speed on the LED sign: $speed pixels / second'),
+        Slider(
+          key: const ValueKey('led-speed'),
+          value: speed.toDouble(),
+          min: 4,
+          max: 24,
+          divisions: 20,
+          onChanged: (v) => setState(() => speed = v.round()),
+        ),
+        if (error == null)
+          Text(
+            'One complete message pass: approximately ${(math.max(0, textWidth(layout)) / speed).toStringAsFixed(1)} seconds.',
+            style: TextStyle(color: appColors(context).muted, fontSize: 12),
+          ),
+      ],
+    ];
+    final screenControls = ScreenCueControls(
+      color: screenColor,
+      position: screenPosition,
+      scrolls: effect == 'scroll',
+      ledSpeed: speed,
+      screenSpeed: screenSpeed,
+      wrap: screenWrap,
+      longText:
+          text.text.trim().runes.length > ScreenCueControls.longWrapLength,
+      onColor: (v) => setState(() => screenColor = v),
+      onPosition: (v) => setState(() => screenPosition = v),
+      onSpeed: (v) => setState(() => screenSpeed = v),
+      onWrap: (v) => setState(() => screenWrap = v),
+    );
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
@@ -150,6 +246,10 @@ class _TextComposerState extends State<TextComposer> {
                   cue: error == null ? layout : null,
                   stageFirst: stageFirst,
                   led: ledPreview,
+                  onChanged: (stage) => setState(() => previewStage = stage),
+                  note: previewStage
+                      ? 'Showing settings for the stage screen. Switch to LED sign to change how the sign shows it.'
+                      : 'Showing settings for the LED sign. Switch to Stage screen to change how screens show it.',
                 )
               else
                 ledPreview,
@@ -179,93 +279,42 @@ class _TextComposerState extends State<TextComposer> {
                     selected: italic,
                     onSelected: (v) => setState(() => italic = v),
                   ),
-                  FilterChip(
-                    label: const Text('Tall · 14 px'),
-                    selected: height == 2,
-                    onSelected: (v) => setState(() => height = v ? 2 : 1),
+                  if (!grouped) tall,
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (grouped) ...[
+                // Text, bold, italic and the effect change both the sign
+                // and the screens; the rest is shown only for the one the
+                // preview is showing.
+                effectField,
+                const SizedBox(height: 16),
+                if (previewStage)
+                  screenControls
+                else
+                  LedSignControls(
+                    children: [
+                      ...fontFields,
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: tall,
+                      ),
+                      const SizedBox(height: 12),
+                      alignField,
+                      ...ledSpeed,
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ChoiceField<String>(
-                value: font,
-                decoration: const InputDecoration(labelText: 'Display font'),
-                options: displayFontNames.entries
-                    .map((e) => ChoiceOption(value: e.key, label: e.value))
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  font = v!;
-                  fontRequest = null;
-                  if (font == 'tinos') height = 2;
-                  watch.reset();
-                }),
-              ),
-              if (font == 'tinos')
-                Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: Text(
-                    'Bundled Tinos font · 14 px recommended. Compact text has fewer serif details.',
-                    style: TextStyle(color: appColors(context).muted),
-                  ),
-                ),
-              const SizedBox(height: 12),
-              ChoiceField<String>(
-                value: effect,
-                decoration: const InputDecoration(labelText: 'Effect'),
-                options: const [
-                  ChoiceOption(value: 'static', label: 'Static · must fit'),
-                  ChoiceOption(value: 'scroll', label: 'Scroll long text'),
-                  ChoiceOption(value: 'flash', label: 'Flash · must fit'),
-                ],
-                onChanged: (v) => setState(() {
-                  effect = v!;
-                  watch.reset();
-                }),
-              ),
-              const SizedBox(height: 12),
-              ChoiceField<String>(
-                value: align,
-                decoration: const InputDecoration(
-                  labelText: 'Alignment (text that fits)',
-                ),
-                options: const [
-                  ChoiceOption(value: 'left', label: 'Left'),
-                  ChoiceOption(value: 'center', label: 'Centre'),
-                  ChoiceOption(value: 'right', label: 'Right'),
-                ],
-                onChanged: (v) => setState(() => align = v!),
-              ),
-              if (effect == 'scroll') ...[
+              ] else ...[
+                ...fontFields,
                 const SizedBox(height: 12),
-                Text('Speed on the LED sign: $speed pixels / second'),
-                Slider(
-                  key: const ValueKey('led-speed'),
-                  value: speed.toDouble(),
-                  min: 4,
-                  max: 24,
-                  divisions: 20,
-                  onChanged: (v) => setState(() => speed = v.round()),
-                ),
-                if (error == null)
-                  Text(
-                    'One complete message pass: approximately ${(math.max(0, textWidth(layout)) / speed).toStringAsFixed(1)} seconds.',
-                    style: TextStyle(
-                      color: appColors(context).muted,
-                      fontSize: 12,
-                    ),
-                  ),
+                effectField,
+                const SizedBox(height: 12),
+                alignField,
+                ...ledSpeed,
+                const SizedBox(height: 16),
+                screenControls,
               ],
-              const SizedBox(height: 16),
-              ScreenCueControls(
-                color: screenColor,
-                position: screenPosition,
-                scrolls: effect == 'scroll',
-                ledSpeed: speed,
-                screenSpeed: screenSpeed,
-                onColor: (v) => setState(() => screenColor = v),
-                onPosition: (v) => setState(() => screenPosition = v),
-                onSpeed: (v) => setState(() => screenSpeed = v),
-              ),
               if (error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),

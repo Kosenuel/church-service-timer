@@ -62,18 +62,58 @@ class ScreenSpeedControl extends StatelessWidget {
   }
 }
 
+/// The cue editor's settings that only the LED sign uses, under their
+/// own heading in the same style as [ScreenCueControls].
+class LedSignControls extends StatelessWidget {
+  final List<Widget> children;
+  const LedSignControls({super.key, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = appColors(context);
+    return Container(
+      key: const ValueKey('on-led-sign'),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        border: Border.all(color: p.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const PaneLabel('On the LED sign'),
+          const SizedBox(height: 4),
+          Text(
+            'For the LED sign. Stage, web and second screens stay as they are.',
+            style: TextStyle(color: p.muted, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
 /// The cue editor's choices for stage, web and second screens: a colour
-/// from a short list, full screen or a banner over the countdown, and the
-/// scrolling speed. None of them changes the LED sign.
+/// from a short list, full screen or a banner over the countdown, wrapping
+/// long text onto lines, and the scrolling speed. None of them changes the
+/// LED sign.
 class ScreenCueControls extends StatelessWidget {
   final String color, position;
 
   /// Whether the cue scrolls, which is when it has a speed.
   final bool scrolls;
+
+  /// Whether long text wraps onto lines, and whether the text is long
+  /// enough to be hard to read when it does.
+  final bool wrap, longText;
   final int ledSpeed;
   final int? screenSpeed;
   final ValueChanged<String> onColor, onPosition;
   final ValueChanged<int?> onSpeed;
+  final ValueChanged<bool> onWrap;
   const ScreenCueControls({
     super.key,
     required this.color,
@@ -84,7 +124,13 @@ class ScreenCueControls extends StatelessWidget {
     required this.onColor,
     required this.onPosition,
     required this.onSpeed,
+    this.wrap = false,
+    this.longText = false,
+    required this.onWrap,
   });
+
+  /// Wrapped text longer than this many characters gets a gentle warning.
+  static const longWrapLength = 60;
 
   static const colorLabels = {
     'white': 'White',
@@ -103,6 +149,7 @@ class ScreenCueControls extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = appColors(context);
     final muted = TextStyle(color: p.muted, fontSize: 12);
+    final lines = position == 'full' ? '3 lines' : '2 lines in the banner';
     Color swatch(String name) =>
         Color(0xff000000 | (screenCueColors[name] ?? stageAccentRgb(p.id)));
     return Container(
@@ -183,6 +230,35 @@ class ScreenCueControls extends StatelessWidget {
             key: const ValueKey('screen-position-note'),
             style: muted,
           ),
+          const SizedBox(height: 4),
+          SwitchListTile(
+            key: const ValueKey('screen-wrap'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Wrap long text'),
+            subtitle: Text(
+              !wrap
+                  ? 'Show the text on up to $lines, as large as fits, instead of scrolling or shrinking it onto one line.'
+                  : 'Up to $lines, as large as fits, without scrolling. Text too long for that still scrolls. The LED sign is not changed.',
+              style: muted,
+            ),
+            value: wrap,
+            onChanged: onWrap,
+          ),
+          if (wrap && longText)
+            Row(
+              key: const ValueKey('screen-wrap-warning'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, size: 18, color: p.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Long text is hard to read from a distance. Keep it shorter, or let it scroll instead.',
+                    style: TextStyle(color: p.warning, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
           if (scrolls) ...[
             const SizedBox(height: 12),
             ScreenSpeedControl(
