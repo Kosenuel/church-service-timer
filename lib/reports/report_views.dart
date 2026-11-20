@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:church_service_timer/shared/date_range_dialog.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/reports/report_outcome.dart';
 import 'package:church_service_timer/shared/list_views.dart';
@@ -223,22 +225,36 @@ extension ReportViews on HomeState {
         ? DateTime(2020)
         : DateTime(dates.first.year, 1, 1);
     final last = dates.isNotEmpty && dates.last.isAfter(now) ? dates.last : now;
-    final result = await showDateRangePicker(
-      context: context,
-      firstDate: first,
-      lastDate: DateTime(last.year + 1, 12, 31),
-      initialDateRange: reportsPage.dates,
-      helpText: 'Filter service dates',
-      // Sentence case, like the rest of the app.
-      fieldStartLabelText: 'Start date',
-      fieldEndLabelText: 'End date',
-      fieldStartHintText: 'Start date',
-      fieldEndHintText: 'End date',
-      saveText: 'Apply',
-    );
+    final lastDate = DateTime(last.year + 1, 12, 31);
+    // A calendar grid in a wide window; a phone keeps the full-screen
+    // picker it is used to.
+    final result = isWideWindow(context)
+        ? await showDateRangeDialog(
+            context,
+            title: 'Filter service dates',
+            firstDate: first,
+            lastDate: lastDate,
+            today: now,
+            initial: reportsPage.dates,
+            marked: dates.toSet(),
+            markedHint: 'A day with a saved report',
+          )
+        : await showDateRangePicker(
+            context: context,
+            firstDate: first,
+            lastDate: lastDate,
+            initialDateRange: reportsPage.dates,
+            helpText: 'Filter service dates',
+            // Sentence case, like the rest of the app.
+            fieldStartLabelText: 'Start date',
+            fieldEndLabelText: 'End date',
+            fieldStartHintText: 'Start date',
+            fieldEndHintText: 'End date',
+            saveText: 'Apply',
+          );
     if (result != null && mounted)
       refreshHome(() {
-        reportsPage.dates = result;
+        reportsPage.dates = identical(result, allDates) ? null : result;
         reportsPage.open = null;
       });
   }

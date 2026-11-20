@@ -14,6 +14,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 - **Mission control with large text.** With Windows or Android set to larger text, the names in the rundown timeline were cut off at the bottom. The timeline now grows to fit.
 - **A button for the mini timer.** The mini timer is the small window that stays above your lyrics or slides program, with the countdown, Pause, Next and a cue. It could only be opened from the ⋮ menu or with Ctrl+M, so it was easy never to find. On a PC, while a service runs, Live now has a button for it at the top right, beside Lock controls.
 - **A clearer example for review notes.** The example under Review notes on a report now reads “Reduce the Announcements time from next week”.
+- **A calendar for the reports date filter.** On a PC, **Dates** on Reports used to open a full-screen list of months scrolling down the middle of the window. In a wide window it is now a small calendar: two months side by side, with arrows to move between months. Click the first day, then the last; the days between are filled in, and the range is written out in words above **Apply**. Beside the calendar are ready-made ranges: Last 4 weeks, This month, Last month, This year, and All dates, which clears the filter. A dot marks each day that has a saved report. The arrow keys move between days, Enter chooses, Page Up and Page Down change the month, and Esc cancels. A phone or a narrow window keeps the picker it had.
 
 ## 0.33.0, 19/November/2026
 
