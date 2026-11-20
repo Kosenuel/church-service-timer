@@ -46,58 +46,73 @@ extension SecondScreenControl on HomeState {
       );
 
   /// The display preview's main picture: [usual], or the copy of the
-  /// second screen where that stands in for the Simulator.
+  /// second screen where that stands in for the Simulator. The chip in
+  /// the preview's header names it there.
   Widget previewOrSecondScreen(Widget usual) =>
       secondScreenPreviewNow == SecondScreenPreviewPlace.replaces
       ? secondScreenPreview()
       : usual;
 
-  /// The copy of the second screen to add under the preview; nothing
-  /// unless it belongs there.
-  List<Widget> secondScreenPreviewBeneath() =>
+  /// The copy of the second screen to add under the preview, with its
+  /// own heading and no wider than [maxWidth]; nothing unless it belongs
+  /// there. Under an LED sign it
+  /// takes the sign preview's width and shape, so the two sit as a pair.
+  List<Widget> secondScreenPreviewBeneath({double? maxWidth}) =>
       secondScreenPreviewNow == SecondScreenPreviewPlace.beneath
       ? [
-          const SizedBox(height: 14),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
-            child: secondScreenPreview(),
+          const SizedBox(height: 18),
+          Text(
+            'SECOND SCREEN',
+            style: TextStyle(
+              color: appColors(context).muted,
+              letterSpacing: 1.6,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: maxWidth ?? double.infinity,
+              ),
+              child: secondScreenPreview(frame: c.hardware.enabled ? 2 : null),
+            ),
           ),
         ]
       : const [];
 
   /// A small live copy of what the second screen shows, in that screen's
-  /// shape, with its name under it.
-  Widget secondScreenPreview() {
+  /// shape. With [frame], a width-to-height ratio, the copy is centred
+  /// in a black box of that shape.
+  Widget secondScreenPreview({double? frame}) {
     final rect = c.secondScreen?.showingOn?.rect;
     final width = rect == null ? 16 : rect[2] - rect[0];
     final height = rect == null ? 9 : rect[3] - rect[1];
-    return Column(
+    final shape = width > 0 && height > 0 ? width / height : 16 / 9;
+    final copy = AspectRatio(
+      aspectRatio: shape,
+      child: ExcludeSemantics(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([c, c.liveClock]),
+          builder: (context, _) =>
+              StageSurface(data: c.stageWindowSnapshot(), stale: false),
+        ),
+      ),
+    );
+    return Semantics(
       key: const ValueKey('second-screen-preview'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AspectRatio(
-          aspectRatio: width > 0 && height > 0 ? width / height : 16 / 9,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: ColoredBox(
-              color: Colors.black,
-              child: ExcludeSemantics(
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([c, c.liveClock]),
-                  builder: (context, _) =>
-                      StageSurface(data: c.stageWindowSnapshot(), stale: false),
-                ),
-              ),
-            ),
+      label: 'Second screen preview',
+      child: AspectRatio(
+        aspectRatio: frame ?? shape,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: ColoredBox(
+            color: Colors.black,
+            child: Center(child: copy),
           ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Second screen',
-          style: TextStyle(fontSize: 12, color: appColors(context).muted),
-        ),
-      ],
+      ),
     );
   }
 

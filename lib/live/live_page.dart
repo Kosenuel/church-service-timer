@@ -849,7 +849,12 @@ extension LivePage on HomeState {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DisplayPreviewHeader(connection: c.displayConnection),
+                DisplayPreviewHeader(
+                  connection: c.displayConnection,
+                  secondScreen:
+                      secondScreenPreviewNow ==
+                      SecondScreenPreviewPlace.replaces,
+                ),
                 const SizedBox(height: 14),
                 previewOrSecondScreen(liveMatrix()),
                 ...secondScreenPreviewBeneath(),
@@ -1414,7 +1419,12 @@ extension LivePage on HomeState {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    DisplayPreviewHeader(connection: c.displayConnection),
+                    DisplayPreviewHeader(
+                      connection: c.displayConnection,
+                      secondScreen:
+                          secondScreenPreviewNow ==
+                          SecondScreenPreviewPlace.replaces,
+                    ),
                     const SizedBox(height: 12),
                     Center(
                       child: ConstrainedBox(
@@ -1424,7 +1434,7 @@ extension LivePage on HomeState {
                             : previewOrSecondScreen(liveMatrix()),
                       ),
                     ),
-                    ...secondScreenPreviewBeneath(),
+                    ...secondScreenPreviewBeneath(maxWidth: 320),
                     const SizedBox(height: 8),
                     if (c.destination == 'mobile')
                       stageSharingControls()

@@ -419,7 +419,16 @@ void main() {
       final feed = await window(t, port);
       expect(matrix, findsNothing);
       expect(find.byKey(preview), findsOneWidget);
-      expect(find.text('Second screen'), findsOneWidget);
+      // The preview's chip names the second screen, not the Simulator.
+      final header = find.byKey(const ValueKey('display-preview-header'));
+      expect(
+        find.descendant(of: header, matching: find.text('Second screen')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: header, matching: find.text('Simulator')),
+        findsNothing,
+      );
       // The same picture the second screen is sent, in its layout.
       final surface = t.widget<StageSurface>(
         find.descendant(
@@ -430,12 +439,7 @@ void main() {
       expect(surface.data['remaining'], c.stageWindowSnapshot()['remaining']);
       expect(surface.data['stageLayout'], c.secondScreen!.layout);
       // In the screen's own shape: 3840 × 2160.
-      final box = t.getSize(
-        find.descendant(
-          of: find.byKey(preview),
-          matching: find.byType(AspectRatio),
-        ),
-      );
+      final box = t.getSize(find.byKey(preview));
       expect(box.width / box.height, closeTo(16 / 9, .01));
       expect(t.takeException(), isNull);
 
@@ -485,6 +489,13 @@ void main() {
         t.getRect(find.byKey(preview)).top,
         greaterThanOrEqualTo(t.getRect(matrix).bottom),
       );
+      // The same size as the sign's preview, under its own heading.
+      expect(t.getSize(find.byKey(preview)).width, t.getSize(matrix).width);
+      expect(
+        t.getSize(find.byKey(preview)).height,
+        closeTo(t.getSize(matrix).height, 1),
+      );
+      expect(find.text('SECOND SCREEN'), findsOneWidget);
       expect(t.takeException(), isNull);
       await expectLater(
         find.byType(MaterialApp),
