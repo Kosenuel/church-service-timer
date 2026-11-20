@@ -48,6 +48,8 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .band.bottom { bottom:0; border-top:.7vh solid currentColor; }
 #stage .band .run { top:50%; }
 #stage.stale .band { opacity:.35; }
+#stage .line { position:absolute; left:4vw; right:4vw; bottom:6vh; display:none; color:#bbb; font-size:6vh; font-weight:600; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#stage.stale .line { opacity:.35; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
@@ -71,7 +73,7 @@ body.stale #app { opacity:.6; }
 </head>
 <body>
 <div id="app" class="wrap"></div>
-<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="note" id="stageNote"></div></div>
+<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="line" id="stageLine"></div><div class="note" id="stageNote"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
 <div id="req"><span id="reqNote"></span><button class="chip" id="reqBtn">Request</button></div>
@@ -421,8 +423,19 @@ function renderStage(s) {
   renderBand(s);
   // With a banner, the countdown keeps to the middle of the screen and is
   // a little smaller at most, so its digits stay clear of the band.
-  const room = s.banner ? 0.88 : 1;
-  note.style.bottom = s.banner && s.banner.position !== 'top' ? '23vh' : '';
+  // The segment name or up next line under the time, on one line that
+  // ends in an ellipsis; above a bottom banner while one shows.
+  const lineText = s.sharing && !s.message && !s.blank ? (s.line || '') : '';
+  const line = $('stageLine'); line.textContent = lineText;
+  line.style.display = lineText ? 'block' : 'none';
+  const low = s.banner && s.banner.position !== 'top', high = s.banner && s.banner.position === 'top';
+  line.style.bottom = low ? '22vh' : '';
+  // With the line, the time keeps to the space between it and any band.
+  const above = lineText && high ? 20 : 0, below = lineText ? (low ? 30 : 14) : 0;
+  stage.style.paddingTop = above ? above + 'vh' : '';
+  stage.style.paddingBottom = below ? below + 'vh' : '';
+  const room = lineText ? 1 - (above + below) / 100 : s.banner ? 0.88 : 1;
+  note.style.bottom = low ? (lineText ? '30vh' : '23vh') : '';
   const value = s.displayText || '';
   const moving = s.sharing && !s.message && !s.blank && value && (s.effect === 'scroll' || s.effect === 'flash');
   const key = moving ? [s.effect, value, s.speed, s.bold, s.italic, s.overtime, s.color, window.innerWidth, window.innerHeight].join('|') : '';

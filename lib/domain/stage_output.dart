@@ -104,3 +104,47 @@ Json stageBannerText(Json data) => {
   'displayIsTimer': false,
   'outputMode': 'Cue',
 }..removeWhere((key, _) => const {'cuePosition', 'underText'}.contains(key));
+
+/// What a stage screen shows while it counts down, by the name the stage
+/// snapshot carries, with the words every chooser uses: paired stage
+/// screens, web stage displays, the second screen, full screen and the
+/// stage simulator.
+const stageLayouts = {
+  'timer': 'Timer only',
+  'current': 'Timer and segment name',
+  'next': 'Timer and up next',
+};
+
+/// A stage layout from saved settings; anything unknown is 'timer'.
+String stageLayoutValue(dynamic value) =>
+    stageLayouts.containsKey(value) ? value as String : 'timer';
+
+/// The "up next" line for the segment after [index] in [timeline]:
+/// `Next: Response · Worship team · 5 min`. Empty on the last segment,
+/// during a Quick timer and with no program, so nothing shows then.
+String stageUpNextLine(Timeline? timeline, int index, {bool quick = false}) {
+  if (timeline == null || quick || index + 1 >= timeline.segments.length) {
+    return '';
+  }
+  final next = timeline.segments[index + 1];
+  return [
+    'Next: ${next.name}',
+    if (next.speaker.trim().isNotEmpty) next.speaker.trim(),
+    next.durationText,
+  ].join(' · ');
+}
+
+/// The line under the countdown in a stage snapshot for its layout: the
+/// segment name, the up next line, or empty for nothing. A snapshot from
+/// a host from before the up next line has only the next segment's name.
+String stageLayoutLine(Json data, String layout) => switch (layout) {
+  'timer' => '',
+  'next' => switch (data['upNext']) {
+    final String line => line,
+    _ => switch (data['nextSegment']) {
+      final String name when name.isNotEmpty => 'Next: $name',
+      _ => '',
+    },
+  },
+  _ => '${data['segment'] ?? ''}',
+};

@@ -119,10 +119,17 @@ class AppController extends ChangeNotifier {
     return commit((draft, _) => draft.simulatorKind = kind);
   }
 
+  /// Remembers what the stage simulator shows under the time.
+  Future<bool> setSimulatorLayout(String layout) async {
+    if (!stageLayouts.containsKey(layout)) return false;
+    if (state.simulatorLayout == layout) return true;
+    return commit((draft, _) => draft.simulatorLayout = layout);
+  }
+
   /// What a stage screen would show now, for the Simulator standing in
-  /// for one: the timer only, as a new stage screen starts.
+  /// for one, with what it is set to show under the time.
   Json stageSimulatorSnapshot() =>
-      stageWindowSnapshot()..['stageLayout'] = 'timer';
+      stageWindowSnapshot()..['stageLayout'] = state.simulatorLayout;
   late final quickMessages = QuickMessageController(this);
   late final practice = PracticeController(this);
   late final stageRequests = StageRequestController(this);
@@ -412,6 +419,8 @@ class AppController extends ChangeNotifier {
       'nextSegment': t != null && s.index + 1 < t.segments.length
           ? t.segments[s.index + 1].name
           : '',
+      // Who and what comes next, for stage screens set to show it.
+      'upNext': stageUpNextLine(t, s.index, quick: s.quickTimer),
       'displayIsTimer':
           s.active &&
           !s.showClock &&
