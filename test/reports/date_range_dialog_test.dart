@@ -292,21 +292,28 @@ void main() {
     expect(summary(t), '14 September to 2 December 2026');
   });
 
-  testWidgets('weeks start on the day Flutter\'s picker uses', (t) async {
+  testWidgets('weeks start on Monday', (t) async {
     await open(t);
-    final words = MaterialLocalizations.of(t.element(find.byKey(dialog)));
-    // 1 November 2026 is a Sunday.
+    // 1 November 2026 is a Sunday: the last day of its row.
     final sunday = t.getCenter(day(2026, 11, 1)).dx;
     final monday = t.getCenter(day(2026, 11, 2)).dx;
-    final saturday = t.getCenter(day(2026, 11, 7)).dx;
-    if (words.firstDayOfWeekIndex == 0) {
-      expect(sunday, lessThan(monday));
-      expect(saturday - sunday, 6 * 40);
-    } else {
-      expect(monday, lessThan(sunday));
-    }
-    // One row for a week, and cells big enough to click.
-    expect(t.getCenter(day(2026, 11, 1)).dy, t.getCenter(day(2026, 11, 7)).dy);
+    final nextSunday = t.getCenter(day(2026, 11, 8)).dx;
+    expect(monday, lessThan(sunday));
+    expect(sunday, nextSunday);
+    expect(nextSunday - monday, 6 * 40);
+    expect(t.getCenter(day(2026, 11, 2)).dy, t.getCenter(day(2026, 11, 8)).dy);
+    // The headings read M T W T F S S.
+    final headings = find.descendant(
+      of: find.byKey(dialog),
+      matching: find.byWidgetPredicate(
+        (w) => w is Text && RegExp(r'^[MTWFS]$').hasMatch(w.data ?? ''),
+      ),
+    );
+    expect(
+      headings.evaluate().take(7).map((e) => (e.widget as Text).data).join(),
+      'MTWTFSS',
+    );
+    // Cells big enough to click.
     expect(t.getSize(day(2026, 11, 1)).shortestSide, greaterThanOrEqualTo(36));
   });
 

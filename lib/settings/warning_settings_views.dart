@@ -655,7 +655,9 @@ extension WarningSettingsViews on HomeState {
             ),
             subtitle: Text(
               c.port.isDesktop
-                  ? 'Page Down or Right arrow for Next (press twice to confirm). B or Space to pause or resume; it asks first, and Space or Enter confirms. A computer cannot tell a clicker from its keyboard, so switching this off turns these keys off on the keyboard too. The other keyboard shortcuts still work.'
+                  // A PC cannot tell a clicker from its keyboard; the
+                  // shortcuts list and Test a clicker or pedal say more.
+                  ? 'Page Down or Right arrow twice for Next, B or Space to pause or resume. Off, these keys do nothing from the keyboard either.'
                   : 'Page Down or Right arrow for Next (press twice to confirm). B or Space to pause or resume.',
               style: TextStyle(fontSize: 13, color: appColors(context).muted),
             ),

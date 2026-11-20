@@ -268,7 +268,6 @@ extension LivePage on HomeState {
     final picked = await showAppTimePicker(
       context,
       initialTime: initial,
-      use24Hour: c.state.clockFormat != '12h',
       typed: c.port.isDesktop,
       helpText: 'Service starts at',
     );
