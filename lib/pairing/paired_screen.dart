@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/reconnect_banner.dart';
+import 'package:church_service_timer/shared/screen_orientation.dart';
 import 'package:church_service_timer/display/clock_text.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -44,14 +45,7 @@ class _PairedScreenState extends State<PairedScreen> {
     if (_stage == next) return;
     _stage = next;
     unawaited(
-      SystemChrome.setPreferredOrientations(
-        next
-            ? [
-                DeviceOrientation.landscapeLeft,
-                DeviceOrientation.landscapeRight,
-              ]
-            : [],
-      ),
+      ScreenOrientation.setApp(next ? ScreenOrientation.landscape : const []),
     );
     unawaited(
       SystemChrome.setEnabledSystemUIMode(
@@ -74,7 +68,7 @@ class _PairedScreenState extends State<PairedScreen> {
     controller.pairing.removeListener(updateMode);
     _hideTools?.cancel();
     if (_stage) {
-      unawaited(SystemChrome.setPreferredOrientations([]));
+      unawaited(ScreenOrientation.setApp(const []));
       unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     }
     super.dispose();
