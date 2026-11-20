@@ -313,7 +313,14 @@ class TimerArcPainter extends CustomPainter {
 
 class DisplayPreviewHeader extends StatelessWidget {
   final DisplayConnection connection;
-  const DisplayPreviewHeader({super.key, required this.connection});
+
+  /// The preview is a copy of the second screen, not the display.
+  final bool secondScreen;
+  const DisplayPreviewHeader({
+    super.key,
+    required this.connection,
+    this.secondScreen = false,
+  });
   @override
   Widget build(BuildContext context) => Row(
     key: const ValueKey('display-preview-header'),
@@ -340,7 +347,10 @@ class DisplayPreviewHeader extends StatelessWidget {
         flex: 3,
         child: Align(
           alignment: Alignment.centerRight,
-          child: DisplayConnectionBadge(connection: connection),
+          child: DisplayConnectionBadge(
+            connection: connection,
+            secondScreen: secondScreen,
+          ),
         ),
       ),
     ],
@@ -349,12 +359,20 @@ class DisplayPreviewHeader extends StatelessWidget {
 
 class DisplayConnectionBadge extends StatelessWidget {
   final DisplayConnection connection;
-  const DisplayConnectionBadge({super.key, required this.connection});
+
+  /// Names the second screen in place of the display.
+  final bool secondScreen;
+  const DisplayConnectionBadge({
+    super.key,
+    required this.connection,
+    this.secondScreen = false,
+  });
   @override
   Widget build(BuildContext context) {
-    final color =
-        connection == DisplayConnection.disconnected ||
-            connection == DisplayConnection.stageDisconnected
+    final color = secondScreen
+        ? appColors(context).accent
+        : connection == DisplayConnection.disconnected ||
+              connection == DisplayConnection.stageDisconnected
         ? appColors(context).error
         : connection == DisplayConnection.connected ||
               connection == DisplayConnection.stageConnected
@@ -369,11 +387,15 @@ class DisplayConnectionBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(connectionIcon(connection), size: 16, color: color),
+          Icon(
+            secondScreen ? Icons.tv_outlined : connectionIcon(connection),
+            size: 16,
+            color: color,
+          ),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              connection.label,
+              secondScreen ? 'Second screen' : connection.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: color, fontSize: 12),
