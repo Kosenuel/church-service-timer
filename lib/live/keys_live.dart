@@ -122,6 +122,7 @@ extension KeysLive on HomeState {
         rule,
         KeyLegend(
           keys: showKeyHints,
+          clicker: clickerKeysOn,
           status: liveStatusText,
           statusColour: displayStatusColour,
         ),
@@ -455,24 +456,45 @@ extension KeysLive on HomeState {
           padding: const EdgeInsets.fromLTRB(20, 10, 16, 10),
           child: Row(
             children: [
-              OutlinedButton.icon(
-                onPressed: enabled ? editUpcoming : null,
-                icon: const Icon(Icons.edit_calendar_outlined, size: 18),
-                label: keyLabel('Edit upcoming', 'E'),
+              // One line when there is room. In a narrow window, such as
+              // 1200 wide, the rundown is too narrow for all of them beside
+              // End service, so Recover time and Print go under Edit
+              // upcoming.
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: enabled ? editUpcoming : null,
+                      icon: const Icon(Icons.edit_calendar_outlined, size: 18),
+                      label: keyLabel('Edit upcoming', 'E'),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: enabled ? recoverTime : null,
+                          icon: const Icon(
+                            Icons.auto_fix_high_outlined,
+                            size: 18,
+                          ),
+                          label: keyLabel('Recover time', 'R'),
+                        ),
+                        IconButton(
+                          key: const ValueKey('print-rundown'),
+                          tooltip: 'Print order of service',
+                          onPressed: controlsLocked
+                              ? null
+                              : () => printServiceSheet(t),
+                          icon: const Icon(Icons.print_outlined, size: 20),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: enabled ? recoverTime : null,
-                icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
-                label: keyLabel('Recover time', 'R'),
-              ),
-              IconButton(
-                key: const ValueKey('print-rundown'),
-                tooltip: 'Print order of service',
-                onPressed: controlsLocked ? null : () => printServiceSheet(t),
-                icon: const Icon(Icons.print_outlined, size: 20),
-              ),
-              const Spacer(),
               endService,
             ],
           ),

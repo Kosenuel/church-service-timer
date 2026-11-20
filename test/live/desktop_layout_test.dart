@@ -285,6 +285,7 @@ void main() {
     'dial',
     'mission_control',
     'classic',
+    'keys',
   ]) {
     testWidgets('$layout fits every window with its controls in reach', (
       t,
@@ -316,6 +317,44 @@ void main() {
       }
     });
   }
+
+  testWidgets('Keys fits every window just after a service starts', (t) async {
+    // The first seconds of a service, with nothing done yet: at 1200 × 600
+    // the buttons under the rundown overflowed beside End service.
+    for (final (size, scale) in const [
+      (Size(1200, 600), 1.0),
+      (Size(1366, 768), 1.0),
+      (Size(1920, 1080), 1.0),
+      (Size(2560, 1440), 1.0),
+      (Size(2560, 1440), 1.3),
+    ]) {
+      await running(
+        t,
+        size: size,
+        layout: 'keys',
+        textScale: scale,
+        advanceAfter: const [],
+        then: 2,
+      );
+      final where = 'Keys at $size ×$scale';
+      expect(t.takeException(), isNull, reason: where);
+      for (final key in [
+        'pause-resume',
+        'next-segment',
+        'end-service',
+        'print-rundown',
+      ]) {
+        final button = find.byKey(ValueKey(key));
+        expect(button.hitTestable(), findsOneWidget, reason: '$key, $where');
+        expect(
+          t.getRect(button).right,
+          lessThanOrEqualTo(size.width),
+          reason: '$key, $where',
+        );
+      }
+      await t.pumpWidget(const SizedBox());
+    }
+  });
 
   testWidgets('the ring grows from a 1920 × 1080 window, not a laptop one', (
     t,
@@ -1182,7 +1221,8 @@ void main() {
       );
       await t.pumpWidget(const SizedBox());
     }
-    // With no service loaded the title is the app's name, and not a link.
+    // With no service loaded the title is the app's name, and it still
+    // returns to Live, standing by.
     setScreen(t, const Size(1366, 768));
     final c = AppController(DesktopFakePort());
     await c.initialize(startTicker: false);
@@ -1190,12 +1230,9 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Reports'));
     await t.pumpAndSettle();
-    expect(
-      t
-          .widget<InkWell>(find.byKey(const ValueKey('header-return-to-live')))
-          .onTap,
-      isNull,
-    );
+    await t.tap(find.byKey(const ValueKey('header-title')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('standing-by-desktop')), findsOneWidget);
     await t.pumpWidget(const SizedBox());
   });
 

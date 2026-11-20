@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/shared/app_pickers.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -97,11 +98,16 @@ extension PlanningViews on HomeState {
                         onTap: actualDate != null
                             ? null
                             : () async {
-                                final date = await showDatePicker(
-                                  context: ctx,
+                                final date = await showAppDatePicker(
+                                  ctx,
                                   initialDate: selectedDate,
                                   firstDate: DateTime(2000),
                                   lastDate: DateTime(2100),
+                                  currentDate:
+                                      DateTime.fromMillisecondsSinceEpoch(
+                                        c.now.wall,
+                                      ),
+                                  helpText: 'Service date',
                                 );
                                 if (date != null && ctx.mounted)
                                   update(() => selectedDate = date);

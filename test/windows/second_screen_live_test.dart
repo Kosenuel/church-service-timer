@@ -764,7 +764,7 @@ void main() {
       for (final name in [
         'Timer only',
         'Timer and segment name',
-        'Timer and next segment',
+        'Timer and up next',
       ]) {
         expect(find.text(name), findsOneWidget);
       }
