@@ -80,12 +80,12 @@ class SegmentGauge extends StatelessWidget {
         : warning
         ? 'Warning · ${formatTime(balance)} left'
         : '';
-    Widget label(String value) => Text(
+    Widget label(String value, [double grow = 1]) => Text(
       value.toUpperCase(),
       textAlign: TextAlign.center,
       style: TextStyle(
-        fontSize: 11,
-        letterSpacing: 1.1,
+        fontSize: 11 * grow,
+        letterSpacing: 1.1 * grow,
         color: value == 'Overtime'
             ? appColors(context).error
             : appColors(context).muted,
@@ -111,6 +111,9 @@ class SegmentGauge extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = math.min(maxWidth, constraints.maxWidth);
+        // Past the largest dial the layouts drew before, the lettering
+        // and the ring's stroke grow with it.
+        final grow = (width / 460).clamp(1.0, 1.8);
         final outsideLabels =
             MediaQuery.textScalerOf(context).scale(14) > 21 || width < 230;
         return SizedBox(
@@ -131,6 +134,7 @@ class SegmentGauge extends StatelessWidget {
                           painter: TimerArcPainter(
                             progress: progress,
                             color: color,
+                            stroke: 14 * grow,
                             track: appColors(context).track,
                             ticks: appColors(context).muted,
                           ),
@@ -144,8 +148,8 @@ class SegmentGauge extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (!outsideLabels) ...[
-                              label(labelText),
-                              const SizedBox(height: 4),
+                              label(labelText, grow),
+                              SizedBox(height: 4 * grow),
                             ],
                             // In a desktop layout the figures grow or
                             // shrink with the dial.
@@ -159,13 +163,13 @@ class SegmentGauge extends StatelessWidget {
                               ),
                             ),
                             if (!outsideLabels) ...[
-                              const SizedBox(height: 6),
+                              SizedBox(height: 6 * grow),
                               Text(
                                 'of ${formatTime(session.allocatedMs)} allocated',
                                 key: const ValueKey('allocated-time'),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 14 * grow,
                                   color: appColors(context).muted,
                                   fontFeatures: const [
                                     FontFeature.tabularFigures(),
@@ -227,9 +231,13 @@ class SegmentGauge extends StatelessWidget {
 class TimerArcPainter extends CustomPainter {
   final double progress;
   final Color color, track, ticks;
+
+  /// Width of the ring.
+  final double stroke;
   const TimerArcPainter({
     required this.progress,
     required this.color,
+    this.stroke = 14,
     this.track = const Color(0xff2b3a30),
     this.ticks = const Color(0xff829080),
   });
@@ -241,7 +249,7 @@ class TimerArcPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..strokeWidth = 14;
+      ..strokeWidth = stroke;
     canvas.drawArc(
       bounds,
       math.pi * .75,
@@ -267,7 +275,7 @@ class TimerArcPainter extends CustomPainter {
         point(98),
         Paint()
           ..color = major ? ticks : ticks.withValues(alpha: .65)
-          ..strokeWidth = major ? 1.6 : 1.3,
+          ..strokeWidth = (major ? 1.6 : 1.3) * stroke / 14,
       );
     }
   }
@@ -276,6 +284,7 @@ class TimerArcPainter extends CustomPainter {
   bool shouldRepaint(TimerArcPainter oldDelegate) =>
       progress != oldDelegate.progress ||
       color != oldDelegate.color ||
+      stroke != oldDelegate.stroke ||
       track != oldDelegate.track ||
       ticks != oldDelegate.ticks;
 }

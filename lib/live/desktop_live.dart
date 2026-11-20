@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/live/large_screen_live.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/live/mission_control_live.dart';
 import 'package:church_service_timer/live/service_dial.dart';
@@ -126,6 +127,11 @@ extension DesktopLive on HomeState {
         // what has happened, as in Mission control. A laptop does not:
         // there the stage preview and cues fill the pane.
         final tall = space.maxHeight >= 900;
+        // PROTOTYPE: a large window can give the ring more of the pane.
+        final paneWidth = space.maxWidth - side - stage - 2;
+        final large = timer == null
+            ? largePaneMode(paneWidth, space.maxHeight)
+            : 'off';
         return Row(
           key: const ValueKey('three-pane-live'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -144,37 +150,48 @@ extension DesktopLive on HomeState {
             ),
             line,
             Expanded(
-              child: SingleChildScrollView(
-                key: const ValueKey('live-timer-pane'),
-                // Page Down is Next segment here, not a scroll key.
-                primary: false,
-                padding: const EdgeInsets.fromLTRB(28, 10, 28, 12),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 620),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ...notices,
-                        timer ??
-                            desktopTimer(
-                              header: header,
-                              endService: endService,
-                              enabled: enabled,
-                              canJump: canJump,
-                              // What is left of the window once the title,
-                              // controls and End service have their room.
-                              gauge: math.min(
-                                space.maxWidth - side - stage - 120,
-                                space.maxHeight - 470,
-                              ),
-                              paneHeight: space.maxHeight,
-                            ),
-                      ],
+              child: large != 'off'
+                  ? largeTimerPane(
+                      mode: large,
+                      notices: notices,
+                      header: header,
+                      endService: endService,
+                      enabled: enabled,
+                      canJump: canJump,
+                      width: paneWidth,
+                      height: space.maxHeight,
+                    )
+                  : SingleChildScrollView(
+                      key: const ValueKey('live-timer-pane'),
+                      // Page Down is Next segment here, not a scroll key.
+                      primary: false,
+                      padding: const EdgeInsets.fromLTRB(28, 10, 28, 12),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 620),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ...notices,
+                              timer ??
+                                  desktopTimer(
+                                    header: header,
+                                    endService: endService,
+                                    enabled: enabled,
+                                    canJump: canJump,
+                                    // What is left of the window once the title,
+                                    // controls and End service have their room.
+                                    gauge: math.min(
+                                      space.maxWidth - side - stage - 120,
+                                      space.maxHeight - 470,
+                                    ),
+                                    paneHeight: space.maxHeight,
+                                  ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
             line,
             SizedBox(

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/live/large_screen_variants.dart';
 import 'package:church_service_timer/live/standing_by_desktop.dart';
 import 'package:church_service_timer/live/practice_views.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
@@ -508,7 +509,7 @@ extension LivePage on HomeState {
       ),
       radius: 12,
     );
-    Widget timerPanelOf({required bool wide}) => panel(
+    Widget timerPanelOf({required bool wide, double gauge = 306}) => panel(
       child: Column(
         key: const ValueKey('timer-card-content'),
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,7 +585,7 @@ extension LivePage on HomeState {
                 key: ValueKey('${s.id}-${s.index}'),
                 notes: t.segments[s.index].notes,
               ),
-            SegmentGauge(session: s, now: c.now),
+            SegmentGauge(session: s, now: c.now, maxWidth: gauge),
           ] else
             const SizedBox(height: 18),
           if (!s.active && s.phase != 'ready' && !c.reportSavePending)
@@ -1365,6 +1366,8 @@ extension LivePage on HomeState {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 760;
+        final threeColumns =
+            LargeScreenLive.classic == 'three' && constraints.maxWidth >= 1700;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1494,7 +1497,14 @@ extension LivePage on HomeState {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 5, child: timerPanelOf(wide: true)),
+                  Expanded(
+                    flex: 5,
+                    child: timerPanelOf(
+                      wide: true,
+                      // PROTOTYPE: a wider card has room for a larger dial.
+                      gauge: constraints.maxWidth >= 1500 ? 420 : 306,
+                    ),
+                  ),
                   const SizedBox(width: 20),
                   Expanded(
                     flex: 5,
@@ -1508,13 +1518,18 @@ extension LivePage on HomeState {
                           const SizedBox(height: 16),
                           quickMessagePanel(),
                         ],
-                        if (showRundown) ...[
+                        if (showRundown && !threeColumns) ...[
                           const SizedBox(height: 16),
                           rundownPanel(),
                         ],
                       ],
                     ),
                   ),
+                  // PROTOTYPE: the rundown in a column of its own.
+                  if (showRundown && threeColumns) ...[
+                    const SizedBox(width: 20),
+                    Expanded(flex: 4, child: rundownPanel()),
+                  ],
                 ],
               ),
             ] else ...[
