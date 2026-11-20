@@ -56,17 +56,20 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 @keyframes fx-up { from { transform:translateY(100vh); } to { transform:none; } }
 @keyframes fx-down { from { transform:translateY(-100vh); } to { transform:none; } }
 @keyframes fx-screen { from, to { background:var(--fx-tint); } }
+@keyframes fx-ink { from, to { color:#fff4dc; } }
 #stage .fx-pulse { animation:fx-pulse 2s ease-in-out infinite; }
 #stage .fx-flashHold { animation:fx-flash3 3s step-end 1; }
 #stage .fx-slideIn { animation:fx-up .3s ease-out 1; }
 #stage .band.top .fx-slideIn { animation-name:fx-down; }
 #stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:fx-screen .6s step-end 1; }
+/* Words in the cue's colour are warm white while the flash lights it. */
+#stage.fx-screenFlash.coloured .text { animation:fx-ink .6s step-end 1; }
 #stage .cuebar { position:absolute; left:10vw; right:10vw; bottom:7vh; height:1.4vh; border-radius:1vh; display:none; overflow:hidden; background:rgba(255,255,255,.14); }
 #stage .cuebar i { display:block; height:100%; width:100%; background:currentColor; border-radius:inherit; }
 #stage .band .cuebar { left:6vh; right:6vh; bottom:1.4vh; height:.8vh; display:block; }
 @media (prefers-reduced-motion: reduce) {
   #stage .fx-slideIn { animation:none; }
-  #stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:none; }
+  #stage.fx-screenFlash, #stage .band.fx-screenFlash, #stage.fx-screenFlash.coloured .text { animation:none; }
   #stage.fx-screenFlash, #stage .band.fx-screenFlash { box-shadow:inset 0 0 0 1.2vh var(--fx); }
 }
 #stage .rule { position:absolute; left:0; right:0; bottom:0; height:max(4px, 1.667vh); display:none; }
@@ -438,6 +441,9 @@ function setFx(node, fx, key) {
   for (const f of FX) node.classList.remove('fx-' + f);
   if (fx) { void node.offsetWidth; node.classList.add('fx-' + fx); }
 }
+// A coloured full-screen cue's words: warm white for amber, otherwise the
+// cue's own colour (the host lightens a dark theme colour before sending).
+const cardInk = (c) => c.toLowerCase() === '#ffa833' ? '#fff4dc' : c;
 // A screen flash is in the cue's colour, or red for a white cue.
 const flashColour = (c) => !c || c.toLowerCase() === '#ffffff' ? '#ff4d4d' : c;
 // The flash's background: a deep tint of its colour, so the cue stays
@@ -562,9 +568,11 @@ function renderStage(s) {
   setFx(stage, fx === 'screenFlash' ? fx : null, fxKey);
   const bar = $('stageBar'); bar.style.color = s.color || '#fff';
   setBar(bar, fx === 'bar' ? s.cueTime : null);
-  // A full-screen cue in a colour: warm white on warm charcoal, with a
-  // rule in its colour along the bottom edge. White cues stay as they are.
+  // A full-screen cue in a colour: its words in that colour (warm white
+  // for amber) on warm charcoal, with a rule in its colour along the
+  // bottom edge. White cues stay as they are.
   const card = s.sharing && !s.message && !s.blank && !s.banner && value.trim() !== '' && !!s.color && s.color.toLowerCase() !== '#ffffff';
+  stage.classList.toggle('coloured', card);
   const rule = $('stageRule'); rule.style.display = card ? 'block' : 'none'; rule.style.background = card ? s.color : '';
   clear(text); note.textContent = ''; stage.style.background = card ? '#1a1712' : '#000'; stage.style.textAlign = 'center'; text.style.width = ''; text.classList.remove('wrapped');
   if (!s.sharing) { text.textContent = 'Waiting for the host. On the host, tap Show on stage screens on Live.'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
@@ -572,9 +580,9 @@ function renderStage(s) {
     renderMessage(stage, text, s.message); return;
   }
   if (s.blank) return;
-  // A coloured full-screen cue in warm white, its colour in the rule;
-  // otherwise white, or red in overtime.
-  text.style.color = card ? '#fff4dc' : s.color || (s.overtime ? '#ff4d4d' : '#fff');
+  // A coloured full-screen cue in its colour, amber's in warm white, with
+  // its colour in the rule too; otherwise white, or red in overtime.
+  text.style.color = card ? cardInk(s.color) : s.color || (s.overtime ? '#ff4d4d' : '#fff');
   text.style.fontWeight = s.bold ? '800' : '500';
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
   if (s.paused) note.textContent = 'PAUSED';

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:church_service_timer/domain/domain.dart'
     show
         AppearancePreferences,
+        stageCardBackground,
         desktopLayoutMinHeight,
         desktopLayoutMinWidth,
         effectiveDesktopLayout;
@@ -350,14 +351,20 @@ AppPalette paletteFor(String id) {
 }
 
 /// A theme's accent as a cue colour on screens, as RGB: the accent itself,
-/// lightened where needed until it reads clearly on the black background.
+/// lightened where needed until it reads clearly on the stage background.
 int stageAccentRgb(String themeId) =>
     stageAccentRgbOf(paletteFor(themeId).accent);
 
-/// [accent] lightened until it reads on a stage screen's black.
+/// [accent] lightened, a little at a time and only as far as needed, until
+/// it reads at 7:1 or better on a coloured cue's charcoal (and so on a
+/// stage screen's black too): a full-screen cue in the theme's colour has
+/// its words in that colour (see [stageCardInkFor]).
 int stageAccentRgbOf(Color accent) {
-  for (var i = 0; i < 24 && contrast(accent, Colors.black) < 7; i++) {
-    accent = Color.lerp(accent, Colors.white, .12)!;
+  const card = Color(0xff000000 | stageCardBackground);
+  // Each step is rounded to the colour as it is sent, "#rrggbb".
+  accent = Color(accent.toARGB32());
+  for (var i = 0; i < 80 && contrast(accent, card) < 7; i++) {
+    accent = Color(Color.lerp(accent, Colors.white, .03)!.toARGB32());
   }
   return accent.toARGB32() & 0xffffff;
 }

@@ -168,11 +168,20 @@ bool stageWrapsText(Json data) =>
     data['outputMode'] != 'Clock' &&
     const {'static', 'scroll', 'flash', null}.contains(data['effect']);
 
-/// A full-screen cue in a colour other than white is shown as warm white
-/// text on a warm charcoal screen, with a rule in its colour along the
-/// bottom edge: the colour marks the cue without tinting every letter.
-/// White cues, banners, the countdown and the clock are as they were.
+/// A full-screen cue in a colour other than white is shown on a warm
+/// charcoal screen, with a rule in its colour along the bottom edge. Its
+/// words are in the cue's colour too, except amber, whose words are warm
+/// white (see [stageCardInkFor]). White cues, banners, the countdown and
+/// the clock are as they were.
 const stageCardBackground = 0x1a1712, stageCardInk = 0xfff4dc;
+
+/// The colour of a coloured full-screen cue's words, as RGB, for a cue in
+/// [rgb]: warm white for amber, otherwise the cue's own colour. Each reads
+/// on the charcoal: amber's words would be no clearer than warm white, so
+/// they stay warm white; the theme's colour is lightened until it reads at
+/// 7:1 or better before it is sent (see `stageAccentRgbOf`).
+int stageCardInkFor(int rgb) =>
+    rgb == screenCueColors['amber'] ? stageCardInk : rgb;
 
 /// Whether [data] shows its cue full screen in a colour (see
 /// [stageCardBackground]).

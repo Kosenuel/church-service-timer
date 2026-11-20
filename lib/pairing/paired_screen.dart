@@ -675,8 +675,9 @@ Color stageCueColor(Json data) {
   return rgb == null ? Colors.white : Color(0xff000000 | rgb);
 }
 
-/// Over a cue on screens while its screen flash is lit: the cue is then
-/// drawn in black on the flash colour, so it stays readable.
+/// Over a cue on screens while its screen flash is lit: a coloured
+/// full-screen cue's words are then warm white, so they stay readable on
+/// the flash in their own colour.
 class StageFlashScope extends InheritedWidget {
   final bool lit;
   const StageFlashScope({super.key, required this.lit, required super.child});
@@ -709,7 +710,9 @@ class StageMessage extends StatefulWidget {
 
   /// The text's colour in place of the cue's own, as on a coloured
   /// full-screen cue (see [stageColouredCard]); a countdown bar keeps the
-  /// cue's colour.
+  /// cue's colour. While a screen flash lights the screen in the cue's
+  /// colour, words in that colour would not read on it, so they are warm
+  /// white until it settles.
   final Color? ink;
   const StageMessage({
     super.key,
@@ -869,7 +872,11 @@ class _StageMessageState extends State<StageMessage>
         // This keeps short cues large without cropping a long countdown.
         fontSize: fullHeight ? space.maxHeight * .9 : previewSize,
         height: fullHeight ? 1.1 : null,
-        color: widget.ink ?? color,
+        color: widget.ink == null
+            ? color
+            : StageFlashScope.of(context)
+            ? const Color(0xff000000 | stageCardInk)
+            : widget.ink,
         fontWeight: widget.data['bold'] == true
             ? FontWeight.bold
             : FontWeight.w500,

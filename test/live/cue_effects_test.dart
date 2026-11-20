@@ -415,16 +415,17 @@ void main() {
     testWidgets('screen flash lights the screen once', (t) async {
       await stage(t, cue('screenFlash', color: '#4ade80'));
       await t.pump(const Duration(milliseconds: 100));
-      // A deep tint of the cue's colour behind the cue's warm white text.
+      // A deep tint of the cue's colour; the words are warm white over it,
+      // as green on green would not read.
       expect(
         flashOf(t).color,
         Color.lerp(Colors.black, const Color(0xff4ade80), .32),
       );
       expect(textColor(t), const Color(0xfffff4dc));
-      // Then it settles to the coloured cue's charcoal.
+      // Then it settles to the coloured cue's charcoal, with green words.
       await t.pump(const Duration(milliseconds: 600));
       expect(flashOf(t).color, const Color(0xff1a1712));
-      expect(textColor(t), const Color(0xfffff4dc));
+      expect(textColor(t), const Color(0xff4ade80));
       expect(t.binding.hasScheduledFrame, isFalse);
       // The next snapshot of the same cue does not flash again.
       await next(t, cue('screenFlash', color: '#4ade80'));
