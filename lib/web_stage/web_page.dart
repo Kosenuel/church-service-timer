@@ -332,7 +332,38 @@ function render(s) {
 // screen height moving right to left at the cue's speed, or blinking twice
 // a second. It keeps running across polls and pauses while the host is lost.
 let motion = null;
-function stopMotion() { if (motion) cancelAnimationFrame(motion.raf); motion = null; }
+// With [keep], scrolling text started again carries on where it was.
+function stopMotion(keep) { if (motion) cancelAnimationFrame(motion.raf); motion = null; stopScroll('stage', !keep); }
+
+// One line of text moving right to left across the screen, over and over.
+// It moves on every frame by the time since the last frame, at [speed]
+// pixels a second, so polls and slow frames never change its pace, and
+// only its transform changes, so the browser just moves it. The same text
+// carries on from where it was when the lane is started again (a new
+// size, speed, colour or style); different text starts at the right-hand
+// edge. It holds still while the host is lost.
+const lanes = {};
+function startScroll(name, run, text, w, speed) {
+  const old = lanes[name];
+  if (old) cancelAnimationFrame(old.raf);
+  const travel = w + run.offsetWidth;
+  const lane = { text, w, travel, travelled: 0, last: null, raf: 0 };
+  // The same text stays where it is on the screen, and on time.
+  if (old && old.text === text && old.w > 0) {
+    const x = (old.w - old.travelled) * w / old.w;
+    lane.travelled = (((w - x) % travel) + travel) % travel; lane.last = old.last;
+  }
+  const place = () => { run.style.transform = 'translate3d(' + (w - lane.travelled) + 'px, -50%, 0)'; };
+  const frame = (now) => {
+    if (lane.last !== null && now > lane.last && !$('stage').classList.contains('stale')) {
+      lane.travelled = (lane.travelled + (now - lane.last) / 1000 * speed) % travel;
+    }
+    lane.last = now; place(); lane.raf = requestAnimationFrame(frame);
+  };
+  lanes[name] = lane; place(); lane.raf = requestAnimationFrame(frame);
+}
+// Stops the lane; with [forget], the next text starts at the edge again.
+function stopScroll(name, forget) { const l = lanes[name]; if (l) cancelAnimationFrame(l.raf); if (forget) delete lanes[name]; }
 function startMotion(text, value, s, key) {
   const stage = $('stage');
   const h = window.innerHeight, w = window.innerWidth;
@@ -344,10 +375,8 @@ function startMotion(text, value, s, key) {
     lane.append(run); text.append(lane);
     // The preview's speed: the cue's speed scaled by text size.
     const speed = (Number(s.speed) || 12) * 6 * (size / Math.min(260, Math.max(42, w / 7)));
-    m.step = () => {
-      const travel = w + run.offsetWidth;
-      run.style.transform = 'translate(' + (w - (m.elapsed * speed) % travel) + 'px, -50%)';
-    };
+    motion = m; startScroll('stage', run, value.replace(/\n/g, ' '), w, speed);
+    return;
   } else {
     text.textContent = value; fit(text, value || ' ');
     m.step = () => { text.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
@@ -365,8 +394,8 @@ let bandMotion = null;
 function renderBand(s) {
   const band = $('stageBand');
   const b = s && s.sharing && !s.message && !s.blank ? s.banner : null;
-  const stop = () => { if (bandMotion) cancelAnimationFrame(bandMotion.raf); bandMotion = null; };
-  if (!b) { stop(); band.style.display = 'none'; band.dataset.key = ''; clear(band); return; }
+  const stop = () => { if (bandMotion) cancelAnimationFrame(bandMotion.raf); bandMotion = null; stopScroll('band'); };
+  if (!b) { stop(); stopScroll('band', true); band.style.display = 'none'; band.dataset.key = ''; clear(band); return; }
   const h = window.innerHeight, w = window.innerWidth;
   const key = [b.text, b.position, b.color, b.bold, b.italic, b.effect, s.speed, w, h].join('|');
   // The same banner as the last poll: leave it running.
@@ -385,11 +414,9 @@ function renderBand(s) {
   if (b.effect === 'scroll') {
     const run = el('span', 'run', value); band.append(run);
     const speed = (Number(s.speed) || 12) * 6 * (size / Math.min(260, Math.max(42, w / 7)));
-    m.step = () => {
-      const travel = w + run.offsetWidth;
-      run.style.transform = 'translate(' + (w - (m.elapsed * speed) % travel) + 'px, -50%)';
-    };
     run.style.left = '0';
+    startScroll('band', run, value, w, speed);
+    return;
   } else {
     const label = el('span', '', value); band.append(label);
     // A long cue is made smaller until it fits the band's width.
@@ -428,7 +455,7 @@ function renderStage(s) {
   const key = moving ? [s.effect, value, s.speed, s.bold, s.italic, s.overtime, s.color, window.innerWidth, window.innerHeight].join('|') : '';
   // The same moving text as the last poll: leave it running.
   if (moving && motion && motion.key === key) { note.textContent = s.paused ? 'PAUSED' : ''; return; }
-  stopMotion(); text.style.visibility = 'visible';
+  stopMotion(moving && s.effect === 'scroll'); text.style.visibility = 'visible';
   clear(text); note.textContent = ''; stage.style.background = '#000'; stage.style.textAlign = 'center'; text.style.width = '';
   if (!s.sharing) { text.textContent = 'Waiting for the host. On the host, tap Show on stage screens on Live.'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {

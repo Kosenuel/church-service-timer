@@ -86,6 +86,29 @@ void main() {
     expect(body['html'], isNot(contains('http')), reason: 'Works offline');
   });
 
+  test('The page moves scrolling cues on every frame, by the time', () async {
+    final (_, body) = await call('/');
+    final html = body['html'] as String;
+    // One place moves scrolling text: the stage's cue and a banner's.
+    final from = html.indexOf('function startScroll(');
+    expect(from, greaterThan(0));
+    final scroll = html.substring(from, html.indexOf('\n}\n', from));
+    expect(scroll, contains('requestAnimationFrame(frame)'));
+    // Moved by its transform alone, by the time since the last frame.
+    expect(scroll, contains("run.style.transform = 'translate3d("));
+    expect(scroll, contains('(now - lane.last) / 1000 * speed'));
+    expect(scroll, isNot(contains('setInterval')));
+    expect(scroll, isNot(contains('.left')));
+    // Measured once, not on every frame.
+    expect('offsetWidth'.allMatches(scroll).length, 1);
+    // The same text carries on from where it was.
+    expect(scroll, contains('old.text === text'));
+    expect(html, contains("startScroll('stage', run,"));
+    expect(html, contains("startScroll('band', run,"));
+    expect(html, contains('will-change:transform'));
+    expect(html, isNot(contains('m.elapsed * speed')));
+  });
+
   test(
     'The order code opens Order of service, with no times or notes',
     () async {

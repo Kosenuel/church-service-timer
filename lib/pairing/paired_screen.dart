@@ -12,6 +12,7 @@ import 'package:church_service_timer/display/clock_text.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
+import 'package:church_service_timer/pairing/scrolling_text.dart';
 import 'package:church_service_timer/main.dart';
 
 class PairedScreen extends StatefulWidget {
@@ -692,9 +693,8 @@ class _StageMessageState extends State<StageMessage>
   late final AnimationController ticker;
   double elapsed = 0;
   int previousTick = 0;
-  bool get animates =>
-      !widget.stale &&
-      (widget.data['effect'] == 'scroll' || widget.data['effect'] == 'flash');
+  // Scrolling text moves itself, frame by frame: see [ScrollingText].
+  bool get animates => !widget.stale && widget.data['effect'] == 'flash';
   void syncTicker() {
     if (animates && !ticker.isAnimating) {
       previousTick = 0;
@@ -763,36 +763,15 @@ class _StageMessageState extends State<StageMessage>
         fontFeatures: const [FontFeature.tabularFigures()],
       );
       if (effect == 'scroll') {
-        final painter = TextPainter(
-          text: TextSpan(text: text, style: style),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        final travel = space.maxWidth + painter.width;
-        final speed =
-            stageScrollSpeed(widget.data) * 6 * (style.fontSize! / previewSize);
-        final x = space.maxWidth - (elapsed * speed) % travel;
-        final height = fullHeight ? space.maxHeight : painter.height + 24;
-        final top = (height - painter.height) / 2;
-        painter.dispose();
-        return SizedBox(
-          height: height,
-          width: space.maxWidth,
-          child: ClipRect(
-            child: Stack(
-              children: [
-                Positioned(
-                  left: x,
-                  top: top,
-                  child: Text(
-                    text,
-                    style: style,
-                    softWrap: false,
-                    textScaler: TextScaler.noScaling,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        return ScrollingText(
+          text: text,
+          style: style,
+          speed:
+              stageScrollSpeed(widget.data) *
+              6 *
+              (style.fontSize! / previewSize),
+          height: fullHeight ? space.maxHeight : null,
+          paused: widget.stale,
         );
       }
       return Opacity(
