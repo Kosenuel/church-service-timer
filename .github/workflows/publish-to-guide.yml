@@ -1,7 +1,8 @@
 name: Publish to the guide site
 
-# Copies a published app release (its signed APK, checksum and notes) to the
-# public guide repository's Releases, which the guide site's Download button
+# Copies a published app release (its signed APK, the Windows installer when
+# the release has one, their checksums and the notes) to the public guide
+# repository's Releases, which the guide site's Download button
 # opens. The app repository is private, so this is where people download it.
 #
 # Runs after every tagged release (called from release.yml), or by hand from
@@ -42,7 +43,7 @@ jobs:
           GUIDE_TOKEN: ${{ secrets.GUIDE_RELEASE_TOKEN }}
         run: |
           if [ -z "$GUIDE_TOKEN" ]; then
-            echo "::warning::GUIDE_RELEASE_TOKEN is not set, so the APK was not published to the guide site."
+            echo "::warning::GUIDE_RELEASE_TOKEN is not set, so the release was not published to the guide site."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
@@ -55,8 +56,11 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           mkdir dist
+          # The Windows zip stays on the app repository; the app's Check for
+          # updates installs from the setup file.
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
-            --pattern '*.apk' --pattern '*.sha256'
+            --pattern '*.apk' --pattern '*.apk.sha256' \
+            --pattern '*-windows-setup.exe' --pattern '*-windows-setup.exe.sha256'
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,body \
             --jq '.name' > "$RUNNER_TEMP/title.txt"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body \

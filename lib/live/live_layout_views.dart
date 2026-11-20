@@ -33,15 +33,55 @@ extension LiveLayout on HomeState {
 
   String headerSubtitle() => headerChurchName;
 
-  /// Whether clicking the header's title goes back to Live: on another
-  /// tab, while the title is a loaded or running service's name. Locked
-  /// controls block it, as they block the tabs.
-  bool get headerReturnsToLive =>
-      c.ready &&
-      page != 0 &&
-      !controlsLocked &&
-      !liveStandingBy &&
-      c.liveSession.timeline != null;
+  /// Whether clicking the header's title (the service or app name, and
+  /// the church's name under it) goes back to Live: from any other tab,
+  /// with or without a service. Locked controls block it, as they block
+  /// the tabs.
+  bool get headerReturnsToLive => c.ready && page != 0 && !controlsLocked;
+
+  /// The header's name: the service or app name, with the church's name
+  /// under it when one is set. Away from Live the two are one target that
+  /// returns there. Each is one line beside the display chip; a long name
+  /// ends in "…" and shows in full on long-press.
+  Widget headerName() {
+    final returns = headerReturnsToLive;
+    final title = headerTitle(), church = headerSubtitle();
+    Widget line(Widget text, String full) =>
+        returns ? text : Tooltip(message: full, child: text);
+    final name = InkWell(
+      key: const ValueKey('header-return-to-live'),
+      borderRadius: BorderRadius.circular(6),
+      onTap: returns ? () => goToPage(0) : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          line(
+            Text(
+              title,
+              key: const ValueKey('header-title'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            title,
+          ),
+          if (church.isNotEmpty)
+            line(
+              Text(
+                church,
+                key: const ValueKey('header-church-name'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: appColors(context).muted),
+              ),
+              church,
+            ),
+        ],
+      ),
+    );
+    return returns ? Tooltip(message: 'Return to Live', child: name) : name;
+  }
 
   /// Wide screens use a side rail so Live keeps its full height.
   bool get useNavigationRail =>

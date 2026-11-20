@@ -1221,7 +1221,8 @@ void main() {
       );
       await t.pumpWidget(const SizedBox());
     }
-    // With no service loaded the title is the app's name, and not a link.
+    // With no service loaded the title is the app's name, and it still
+    // returns to Live, standing by.
     setScreen(t, const Size(1366, 768));
     final c = AppController(DesktopFakePort());
     await c.initialize(startTicker: false);
@@ -1229,12 +1230,9 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Reports'));
     await t.pumpAndSettle();
-    expect(
-      t
-          .widget<InkWell>(find.byKey(const ValueKey('header-return-to-live')))
-          .onTap,
-      isNull,
-    );
+    await t.tap(find.byKey(const ValueKey('header-title')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('standing-by-desktop')), findsOneWidget);
     await t.pumpWidget(const SizedBox());
   });
 
