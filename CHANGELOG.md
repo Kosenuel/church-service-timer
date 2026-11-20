@@ -4,6 +4,9 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Mission control is the layout a new install starts in.** In a wide window, a fresh install and **Reset** now give Mission control with Midnight Lime, and it is listed first in Settings › Desktop layout. If you already use the app, your layout stays as it is; choose Mission control there if you want it.
+- **Click the service name to go back to Live.** On Programs, Reports or Settings, the name of the loaded or running service at the top left returns to Live. With no service loaded it is the app's name and does nothing.
+- **Mission control with large text.** With Windows or Android set to larger text, the names in the rundown timeline were cut off at the bottom. The timeline now grows to fit.
 - **The icon beside the Windows clock is easier to find.** It was added only while a service ran, so there was no chance to look for it, or to move it out from behind Windows' ^ arrow, before a service. It is now there whenever the app is open, saying "no service running" until one starts. If its picture cannot be loaded it falls back to another icon instead of an empty space. **Settings › Warnings & alerts** now says whether Windows accepted the icon, so a missing icon can be told from a hidden one.
 
 ## 0.33.0, 19/November/2026

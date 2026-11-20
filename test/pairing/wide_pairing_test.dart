@@ -119,6 +119,13 @@ void main() {
     setScreen(t, size);
     final c = AppController(WidePairingPort());
     await c.initialize(startTicker: false);
+    // These pages were laid out and photographed under Three panes; the
+    // default is covered in test/live/desktop_layout_test.dart.
+    await c.commit(
+      (draft, _) => draft.appearance = draft.appearance.copyWith(
+        desktopLayout: 'three_panes',
+      ),
+    );
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
     return c;
@@ -418,6 +425,13 @@ void main() {
     setScreen(t, size);
     final c = AppController(WidePairingPort());
     await c.initialize(startTicker: false);
+    // These pages were laid out and photographed under Three panes; the
+    // default is covered in test/live/desktop_layout_test.dart.
+    await c.commit(
+      (draft, _) => draft.appearance = draft.appearance.copyWith(
+        desktopLayout: 'three_panes',
+      ),
+    );
     await c.commit((draft, _) {
       draft.templates.clear();
       draft.saveTemplate(sunday());
