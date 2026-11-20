@@ -31,26 +31,33 @@ class StageSurface extends StatelessWidget {
           Map<String, dynamic>.from(data['quickMessage']),
         ),
       );
-    final layout = data['stageLayout'] ?? 'timer';
+    final layout = '${data['stageLayout'] ?? 'timer'}';
     // A banner cue leaves the countdown or clock in view, so the screen is
     // laid out for that and the cue is drawn in a band over it.
     final position = stageBannerPosition(data);
     final under = position == null ? data : stageUnderBanner(data);
-    final showSegment = under['displayIsTimer'] == true && layout != 'timer';
-    final text = layout == 'next'
-        ? (data['nextSegment'] == ''
-              ? 'Final segment'
-              : 'Next: ${data['nextSegment'] ?? ''}')
-        : '${data['segment'] ?? ''}';
-    Widget label() => SizedBox(
-      height: 36,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
+    // The segment name or the up next line, on one line under the time.
+    final text = under['displayIsTimer'] == true
+        ? stageLayoutLine(data, layout)
+        : '';
+    final showSegment = text.isNotEmpty;
+    // A seventeenth of the screen’s height: readable from the stage, and
+    // never more than one line; a long one ends in an ellipsis.
+    Widget label(double height) => SizedBox(
+      height: height,
+      child: Center(
         child: Text(
           text,
-          style: const TextStyle(
+          key: const ValueKey('stage-line'),
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          textScaler: TextScaler.noScaling,
+          style: TextStyle(
             color: Colors.white70,
-            fontSize: 28,
+            fontSize: height * .72,
+            height: 1.15,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -66,6 +73,8 @@ class StageSurface extends StatelessWidget {
       ink: card ? const Color(0xff000000 | stageCardInk) : null,
     );
     Widget surface(double rule) => StageBannerFrame(
+    final timer = StageMessage(data: under, stale: stale, fullscreen: true);
+    return StageBannerFrame(
       banner: position == null ? null : stageBannerText(data),
       top: position == 'top',
       stale: stale,
@@ -73,12 +82,14 @@ class StageSurface extends StatelessWidget {
         // Clear of the rule, above and below alike, so the cue stays
         // centred.
         padding: EdgeInsets.fromLTRB(12, 12 + rule, 12, 12 + rule),
+        padding: const EdgeInsets.all(12),
         child: LayoutBuilder(
           builder: (context, space) {
             if (!space.maxHeight.isFinite) {
               return showSegment
                   ? Column(
                       children: [timer, const SizedBox(height: 8), label()],
+                      children: [timer, const SizedBox(height: 8), label(36)],
                     )
                   : timer;
             }
@@ -86,6 +97,8 @@ class StageSurface extends StatelessWidget {
             // the same space above and below, so it stays centred. Under a
             // bottom band the segment name moves up to sit above the band.
             final below = showSegment ? 44.0 : 0.0;
+            final line = (space.maxHeight * .06).clamp(28.0, 84.0);
+            final below = showSegment ? line + 8 : 0.0;
             final lift = top ? 0.0 : band;
             final clear = StageBannerFrame.clearance(
               space.maxHeight - below,
@@ -109,6 +122,15 @@ class StageSurface extends StatelessWidget {
         ),
       ),
     );
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: lift,
+                    child: label(line),
+                  ),
+              ],
+            );
+          },
     // A full-screen cue's screen flash lights the whole screen; a banner's
     // lights only its band (see [StageBanner]).
     return LayoutBuilder(

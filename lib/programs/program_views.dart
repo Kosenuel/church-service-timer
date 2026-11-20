@@ -6,6 +6,7 @@ import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
+import 'package:church_service_timer/live/service_check.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/programs/program_history_views.dart';
@@ -481,6 +482,8 @@ extension TemplateViews on HomeState {
         enabled: !disabled,
         onSelected: (action) async {
           switch (action) {
+            case 'check':
+              await checkService(t);
             case 'duplicate':
               await duplicate();
             case 'json':
@@ -498,6 +501,8 @@ extension TemplateViews on HomeState {
           }
         },
         itemBuilder: (ctx) => appMenuEntries(ctx, [
+          // Not beside a running service; it says why when chosen.
+          const AppMenuAction('check', 'Check this service'),
           const AppMenuAction('duplicate', 'Duplicate'),
           const AppMenuAction('json', 'Export JSON'),
           const AppMenuAction('csv', 'Export CSV'),

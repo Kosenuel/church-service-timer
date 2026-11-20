@@ -51,28 +51,55 @@ extension SimulatorChoice on HomeState {
     ),
   );
 
-  /// The two-way choice under the Simulator in Choose display.
+  /// The two-way choice under the Simulator in Choose display, and, for a
+  /// stage screen, what it shows under the time, in the words every
+  /// stage screen's choice uses.
   Widget simulatorKindChoice() => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: Wrap(
-      spacing: 12,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Simulate', style: Theme.of(context).textTheme.titleSmall),
-        SegmentedButton<String>(
-          key: const ValueKey('simulator-kind'),
-          showSelectedIcon: false,
-          segments: [
-            for (final kind in simulatorKinds.entries)
-              ButtonSegment(value: kind.key, label: Text(kind.value)),
-          ],
-          selected: {c.state.simulatorKind},
-          onSelectionChanged: canChooseSimulatorKind && !c.busy
-              ? (kinds) => c.setSimulatorKind(kinds.single)
-              : null,
-        ),
+        simulatorKindButtons(),
+        if (c.state.simulatorKind == 'stage') ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final layout in stageLayouts.entries)
+                ChoiceChip(
+                  key: ValueKey('simulator-layout-${layout.key}'),
+                  label: Text(layout.value),
+                  selected: c.state.simulatorLayout == layout.key,
+                  onSelected: canChooseSimulatorKind && !c.busy
+                      ? (_) => c.setSimulatorLayout(layout.key)
+                      : null,
+                ),
+            ],
+          ),
+        ],
       ],
     ),
+  );
+
+  Widget simulatorKindButtons() => Wrap(
+    spacing: 12,
+    runSpacing: 8,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [
+      Text('Simulate', style: Theme.of(context).textTheme.titleSmall),
+      SegmentedButton<String>(
+        key: const ValueKey('simulator-kind'),
+        showSelectedIcon: false,
+        segments: [
+          for (final kind in simulatorKinds.entries)
+            ButtonSegment(value: kind.key, label: Text(kind.value)),
+        ],
+        selected: {c.state.simulatorKind},
+        onSelectionChanged: canChooseSimulatorKind && !c.busy
+            ? (kinds) => c.setSimulatorKind(kinds.single)
+            : null,
+      ),
+    ],
   );
 }

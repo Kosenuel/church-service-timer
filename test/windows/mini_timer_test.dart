@@ -372,13 +372,178 @@ void main() {
       await t.tap(key('control-lock'));
       await t.pumpAndSettle();
       expect(t.widget<IconButton>(key('mini-timer-button')).onPressed, isNull);
-      // No service, no button.
+      // After the service it is still there, for the clock.
       await t.longPress(key('unlock-controls'));
       await t.pumpAndSettle();
       await c.act('end');
       await t.pumpAndSettle();
-      expect(key('mini-timer-button'), findsNothing);
+      expect(key('mini-timer-button'), findsOneWidget);
       expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('on a PC the button is on every page, service or not', (
+      t,
+    ) async {
+      for (final start in [false, true]) {
+        final (c, _, window) = await running(t, start: start);
+        for (final page in [0, 1, 2, 3, 0]) {
+          await home(t).goToPage(page);
+          await t.pumpAndSettle();
+          expect(
+            key('mini-timer-button'),
+            findsOneWidget,
+            reason: 'page $page, ${start ? 'running' : 'no service'}',
+          );
+          expect(
+            t.widget<IconButton>(key('mini-timer-button')).onPressed,
+            isNotNull,
+          );
+        }
+        // From Settings it opens, and expanding comes back to Live.
+        await home(t).goToPage(3);
+        await t.pumpAndSettle();
+        await t.tap(key('mini-timer-button'));
+        await t.pumpAndSettle();
+        expect(key('mini-timer'), findsOneWidget);
+        expect(key(start ? 'mini-pause' : 'mini-standing-by'), findsOneWidget);
+        await t.tap(key('mini-expand'));
+        await t.pumpAndSettle();
+        expect(window.calls, ['enter 380x150', 'leave']);
+        expect(key('mini-timer'), findsNothing);
+        expect(c.state.session.active, start);
+        expect(t.takeException(), isNull);
+        await t.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('Ctrl+M works from another page with nothing running', (
+      t,
+    ) async {
+      await running(t, start: false);
+      await home(t).goToPage(2);
+      await t.pumpAndSettle();
+      await t.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await t.sendKeyEvent(LogicalKeyboardKey.keyM);
+      await t.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await t.pumpAndSettle();
+      expect(home(t).miniTimer, isTrue);
+      expect(key('mini-standing-by'), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('locked, the button is there but does nothing', (t) async {
+      final (c, _, window) = await running(t);
+      await t.tap(key('control-lock'));
+      await t.pumpAndSettle();
+      // However it got there, a locked app stays as it is.
+      home(t).navigatePage(1);
+      await t.pumpAndSettle();
+      expect(t.widget<IconButton>(key('mini-timer-button')).onPressed, isNull);
+      await t.tap(key('mini-timer-button'), warnIfMissed: false);
+      await t.pumpAndSettle();
+      expect(window.calls, isEmpty);
+      expect(c.state.session.active, isTrue);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('not on a phone or tablet, on any page', (t) async {
+      desktopWording = false;
+      setScreen(t, const Size(430, 1000));
+      final phone = AppController(FakePort());
+      await phone.initialize(startTicker: false);
+      await t.pumpWidget(TimerApp(controller: phone));
+      await t.pumpAndSettle();
+      for (final page in [0, 1, 2, 3]) {
+        await home(t).goToPage(page);
+        await t.pumpAndSettle();
+        expect(key('mini-timer-button'), findsNothing, reason: 'page $page');
+      }
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('with nothing running it shows the clock', (t) async {
+      final (c, port, window) = await running(t, start: false);
+      await t.tap(key('mini-timer-button'));
+      await t.pumpAndSettle();
+      expect(window.calls, ['enter 380x150']);
+      expect(key('mini-standing-by'), findsOneWidget);
+      expect(find.text(clockLabel(port.at.wall)), findsOneWidget);
+      expect(find.text('No service running'), findsOneWidget);
+      expect(find.text('Load a service in the full window.'), findsOneWidget);
+      expect(key('mini-pause'), findsNothing);
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/mini-timer-standing-by.png'),
+      );
+
+      // A loaded service: its name, then its start time, then the
+      // pre-service countdown.
+      await c.act('load', value: sunday());
+      await t.pumpAndSettle();
+      expect(key('mini-timer'), findsOneWidget);
+      expect(find.text('Sunday Service'), findsOneWidget);
+      expect(find.text('No start time set'), findsOneWidget);
+      expect(
+        find.text('Start the service in the full window.'),
+        findsOneWidget,
+      );
+      final at = port.at.wall + 90 * 60000;
+      await c.act('schedule', value: at);
+      await t.pumpAndSettle();
+      expect(find.text('Starts at ${clockLabel(at)}'), findsOneWidget);
+      port.at = after(60 * 60);
+      await c.tick();
+      await t.pumpAndSettle();
+      expect(
+        find.text('Starts in 30:00 · at ${clockLabel(at)}'),
+        findsOneWidget,
+      );
+      expect(find.text(clockLabel(port.at.wall)), findsOneWidget);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/mini-timer-pre-service.png'),
+      );
+      port.at = after(91 * 60);
+      await c.tick();
+      await t.pumpAndSettle();
+      expect(
+        find.text('Start time reached · ${clockLabel(at)}'),
+        findsOneWidget,
+      );
+      // Small windows keep to the name and the clock.
+      await resize(t, const Size(240, 100));
+      expect(key('mini-compact'), findsOneWidget);
+      await resize(t, const Size(110, 50));
+      expect(find.text(clockLabel(port.at.wall)), findsOneWidget);
+      expect(t.takeException(), isNull);
+
+      // Started from elsewhere, it becomes the running timer; ending
+      // brings the full window back.
+      await resize(t, const Size(380, 150));
+      await c.act('start');
+      await t.pumpAndSettle();
+      expect(key('mini-pause'), findsOneWidget);
+      await c.act('end');
+      await t.pumpAndSettle();
+      expect(key('mini-timer'), findsNothing);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('with nothing running, locked shows Hold to unlock', (t) async {
+      await running(t, start: false);
+      home(t).lockControls();
+      await t.pumpAndSettle();
+      // The header button is disabled; other code may still open it.
+      expect(await home(t).setMiniTimer(true), isTrue);
+      await t.pumpAndSettle();
+      expect(key('mini-standing-by'), findsOneWidget);
+      expect(key('mini-locked'), findsOneWidget);
+      expect(key('mini-expand'), findsNothing);
+      await t.longPress(key('mini-unlock'));
+      await t.pumpAndSettle();
+      expect(key('mini-expand'), findsOneWidget);
       await t.pumpWidget(const SizedBox());
     });
 
@@ -469,7 +634,7 @@ void main() {
       await t.pumpWidget(const SizedBox());
     });
 
-    testWidgets('the menu entry is only there on a computer in a service', (
+    testWidgets('the menu entry is there on a computer, service or not', (
       t,
     ) async {
       Future<bool> offered() async {
@@ -484,12 +649,11 @@ void main() {
 
       // A computer with no service running.
       var (c, port, window) = await running(t, start: false);
-      expect(await offered(), isFalse);
-      expect(await home(t).setMiniTimer(true), isFalse);
+      expect(await offered(), isTrue);
       // Loaded but not started.
       await c.act('load', value: sunday());
       await t.pumpAndSettle();
-      expect(await offered(), isFalse);
+      expect(await offered(), isTrue);
       await c.act('start');
       await t.pumpAndSettle();
       expect(await offered(), isTrue);

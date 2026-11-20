@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/shared/app_pickers.dart';
 import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,7 @@ import 'package:church_service_timer/live/keys_live.dart';
 import 'package:church_service_timer/live/mission_control_live.dart';
 import 'package:church_service_timer/live/quick_timer_sheet.dart';
 import 'package:church_service_timer/live/second_screen_control.dart';
+import 'package:church_service_timer/live/service_check.dart';
 import 'package:church_service_timer/live/simulator_choice.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
@@ -264,9 +266,11 @@ extension LivePage on HomeState {
             DateTime(now.year, now.month, now.day, now.hour + 1),
           )
         : TimeOfDay.fromDateTime(DateTime.fromMillisecondsSinceEpoch(current));
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await showAppTimePicker(
+      context,
       initialTime: initial,
+      use24Hour: c.state.clockFormat != '12h',
+      typed: c.port.isDesktop,
       helpText: 'Service starts at',
     );
     if (picked == null || !mounted) return;
@@ -816,6 +820,8 @@ extension LivePage on HomeState {
                   Icons.close,
                   c.busy ? null : () => c.act('cancelReady'),
                 ),
+                // A quick run-through on the Simulator before the day.
+                if (t != null) checkServiceButton(t),
               ],
             ),
           ],

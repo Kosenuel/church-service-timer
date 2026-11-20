@@ -1,16 +1,13 @@
 import 'dart:async';
 
 import 'package:church_service_timer/app/platform.dart';
+import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:flutter/foundation.dart';
 
 /// What the second screen can show, by the name [StageSurface] knows it
 /// by, with the words the operator chooses from.
-const secondScreenLayouts = {
-  'timer': 'Timer only',
-  'current': 'Timer and segment name',
-  'next': 'Timer and next segment',
-};
+const secondScreenLayouts = stageLayouts;
 
 /// `Screen 2 · 3840 × 2160`: a screen as the operator is told about it.
 String stageMonitorLabel(StageMonitor screen) =>
