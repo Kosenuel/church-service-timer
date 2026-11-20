@@ -683,14 +683,16 @@ void main() {
     await c.initialize(startTicker: false);
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
-    expect(find.byKey(const ValueKey('desktop-tabs')), findsOneWidget);
-    expect(find.byKey(const ValueKey('three-pane-live')), findsNothing);
+    // A new install is in Mission control: a rail, not tabs in the header.
+    expect(find.byKey(const ValueKey('navigation-rail')), findsOneWidget);
+    expect(find.byKey(const ValueKey('desktop-tabs')), findsNothing);
+    expect(find.byKey(const ValueKey('mission-control-live')), findsNothing);
     expect(find.byKey(const ValueKey('standing-by-desktop')), findsOneWidget);
     expect(find.text('Start service'), findsOneWidget);
     await c.act('load', value: sunday());
     await t.pumpAndSettle();
-    // Ready: the panes appear, with the start controls in the middle.
-    expect(find.byKey(const ValueKey('three-pane-live')), findsOneWidget);
+    // Ready: the layout appears, with the start controls in it.
+    expect(find.byKey(const ValueKey('mission-control-live')), findsOneWidget);
     expect(find.text('Start first segment'), findsOneWidget);
     expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox());
@@ -747,7 +749,7 @@ void main() {
     await c.act('start');
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
-    expect(find.byKey(const ValueKey('three-pane-live')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mission-control-live')), findsOneWidget);
     expect(find.text('Space'), findsNothing);
     await c.commit(
       (draft, _) =>
@@ -755,6 +757,50 @@ void main() {
     );
     await t.pumpAndSettle();
     expect(find.text('Space'), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the running service name in the header returns to Live', (
+    t,
+  ) async {
+    for (final layout in const ['mission_control', 'three_panes']) {
+      await running(t, layout: layout);
+      final name = find.byKey(const ValueKey('header-return-to-live'));
+      // On Live it is only the title.
+      expect(t.widget<InkWell>(name).onTap, isNull, reason: layout);
+      await t.tap(find.text('Reports'));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('rundown-pane')), findsNothing);
+      expect(find.byTooltip('Return to Live'), findsWidgets, reason: layout);
+      await t.tap(find.byKey(const ValueKey('header-title')));
+      await t.pumpAndSettle();
+      expect(
+        find.byKey(
+          ValueKey(
+            layout == 'mission_control'
+                ? 'mission-control-live'
+                : 'three-pane-live',
+          ),
+        ),
+        findsOneWidget,
+        reason: layout,
+      );
+      await t.pumpWidget(const SizedBox());
+    }
+    // With no service loaded the title is the app's name, and not a link.
+    setScreen(t, const Size(1366, 768));
+    final c = AppController(DesktopFakePort());
+    await c.initialize(startTicker: false);
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Reports'));
+    await t.pumpAndSettle();
+    expect(
+      t
+          .widget<InkWell>(find.byKey(const ValueKey('header-return-to-live')))
+          .onTap,
+      isNull,
+    );
     await t.pumpWidget(const SizedBox());
   });
 
@@ -853,7 +899,7 @@ void main() {
 
     // Back to the default, then the saved look brings both back.
     await press(t, find.byKey(const ValueKey('reset-look')));
-    expect(c.appearanceSelection.value.desktopLayout, 'three_panes');
+    expect(c.appearanceSelection.value.desktopLayout, 'mission_control');
     expect(c.themeSelection.value, 'midnight_lime');
     await press(t, find.byKey(const ValueKey('saved-look-Midweek')));
     expect(c.appearanceSelection.value.desktopLayout, 'classic');
@@ -871,7 +917,7 @@ void main() {
     await t.tap(find.byKey(const ValueKey('look-name-save')));
     await t.pumpAndSettle();
     expect(c.state.savedLooks.single.name, 'midweek');
-    expect(c.state.savedLooks.single.layout, 'three_panes');
+    expect(c.state.savedLooks.single.layout, 'mission_control');
 
     await press(t, find.byTooltip('Delete midweek'));
     await t.tap(find.text('Delete look'));
@@ -880,7 +926,7 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Reset returns to Three panes with Midnight Lime', (t) async {
+  testWidgets('Reset returns to Mission control with Midnight Lime', (t) async {
     final (c, _) = await running(t, layout: 'classic', theme: 'paper_ink');
     await c.commit(
       (draft, _) => draft.appearance = draft.appearance.copyWith(
@@ -901,7 +947,7 @@ void main() {
     await t.tap(find.text('Save appearance'));
     await t.pumpAndSettle();
     expect(c.state.themeId, 'midnight_lime');
-    expect(c.state.appearance.desktopLayout, 'three_panes');
+    expect(c.state.appearance.desktopLayout, 'mission_control');
     expect(c.state.appearance.density, 'automatic');
     expect(c.state.appearance.highContrast, isFalse);
     expect(c.state.appearance.keyHints, 'automatic');

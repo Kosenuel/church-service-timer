@@ -15,14 +15,14 @@ void main() {
     highContrast: true,
   );
 
-  test('a new or updated install starts in Three panes', () {
-    expect(const AppearancePreferences().desktopLayout, 'three_panes');
+  test('a new or updated install starts in Mission control', () {
+    expect(const AppearancePreferences().desktopLayout, 'mission_control');
     // Preferences saved before desktop layouts existed.
     final old = AppearancePreferences.fromJson({
       'density': 'spacious',
       'dividers': 'strong',
     });
-    expect(old.desktopLayout, 'three_panes');
+    expect(old.desktopLayout, 'mission_control');
     expect(old.keyHints, 'automatic');
     expect(old.density, 'spacious');
     expect(
@@ -40,7 +40,7 @@ void main() {
     expect(builtDesktopLayouts.first, defaultDesktopLayout);
     expect(effectiveDesktopLayout('classic'), 'classic');
     // Not a stored value, but the app must still draw something.
-    expect(effectiveDesktopLayout('sideways'), 'three_panes');
+    expect(effectiveDesktopLayout('sideways'), 'mission_control');
   });
 
   test('a saved look round-trips and applies only what it covers', () {
@@ -114,7 +114,7 @@ void main() {
     expect(jsonDecode(raw)['schemaVersion'], 11);
     final restored = importBackup(raw, after(2));
     expect(restored.savedLooks.single.toJson(), look.toJson());
-    expect(restored.appearance.desktopLayout, 'three_panes');
+    expect(restored.appearance.desktopLayout, 'mission_control');
     // The saved state itself keeps both.
     final reloaded = AppState.fromJson(
       Map<String, dynamic>.from(jsonDecode(jsonEncode(state.toJson()))),
