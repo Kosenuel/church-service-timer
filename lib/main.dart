@@ -5,7 +5,6 @@ import 'dart:ui' show AppExitResponse, ImageFilter;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:church_service_timer/live/large_screen_variants.dart';
 import 'package:church_service_timer/shared/list_views.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -1160,10 +1159,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                 child: Center(
                                   child: ConstrainedBox(
                                     constraints: BoxConstraints(
-                                      // PROTOTYPE: Classic's Live page can
-                                      // use more of a very wide window.
                                       maxWidth: page == 0
-                                          ? LargeScreenLive.classicCap
+                                          ? classicLiveWidth
                                           : 1200,
                                     ),
                                     child: Column(

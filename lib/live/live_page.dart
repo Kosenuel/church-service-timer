@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
-import 'package:church_service_timer/live/large_screen_variants.dart';
 import 'package:church_service_timer/live/standing_by_desktop.dart';
 import 'package:church_service_timer/live/practice_views.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
@@ -20,7 +19,34 @@ import 'package:church_service_timer/live/quick_timer_sheet.dart';
 import 'package:church_service_timer/live/second_screen_control.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
+/// The widest Classic's Live page is usually laid out.
+const classicUsualWidth = 1200.0;
+
+/// The width it may use in a very wide window, where the rundown has a
+/// column of its own.
+const classicThreeColumnWidth = 2280.0;
+
+/// The window width from which it does.
+const classicThreeColumnsFromWindow = 1840.0;
+
 extension LivePage on HomeState {
+  /// The widest Classic's Live page is laid out. A very wide window gives
+  /// it more while there is a rundown for the third column; everything
+  /// else keeps the usual width, so nothing is stretched.
+  double get classicLiveWidth {
+    final s = c.liveSession;
+    final rundown =
+        s.timeline != null &&
+        s.phase != 'idle' &&
+        s.phase != 'ended' &&
+        !c.reportSavePending &&
+        !focused;
+    return rundown &&
+            MediaQuery.sizeOf(context).width >= classicThreeColumnsFromWindow
+        ? classicThreeColumnWidth
+        : classicUsualWidth;
+  }
+
   Widget live() => AnimatedBuilder(
     animation: c.liveClock,
     builder: (context, _) => liveContent(),
@@ -509,7 +535,7 @@ extension LivePage on HomeState {
       ),
       radius: 12,
     );
-    Widget timerPanelOf({required bool wide, double gauge = 306}) => panel(
+    Widget timerPanelOf({required bool wide}) => panel(
       child: Column(
         key: const ValueKey('timer-card-content'),
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -585,7 +611,7 @@ extension LivePage on HomeState {
                 key: ValueKey('${s.id}-${s.index}'),
                 notes: t.segments[s.index].notes,
               ),
-            SegmentGauge(session: s, now: c.now, maxWidth: gauge),
+            SegmentGauge(session: s, now: c.now),
           ] else
             const SizedBox(height: 18),
           if (!s.active && s.phase != 'ready' && !c.reportSavePending)
@@ -1366,8 +1392,8 @@ extension LivePage on HomeState {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 760;
-        final threeColumns =
-            LargeScreenLive.classic == 'three' && constraints.maxWidth >= 1700;
+        // A very wide window has a column for the rundown.
+        final threeColumns = constraints.maxWidth > classicUsualWidth;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1497,14 +1523,7 @@ extension LivePage on HomeState {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    flex: 5,
-                    child: timerPanelOf(
-                      wide: true,
-                      // PROTOTYPE: a wider card has room for a larger dial.
-                      gauge: constraints.maxWidth >= 1500 ? 420 : 306,
-                    ),
-                  ),
+                  Expanded(flex: 5, child: timerPanelOf(wide: true)),
                   const SizedBox(width: 20),
                   Expanded(
                     flex: 5,
@@ -1525,7 +1544,6 @@ extension LivePage on HomeState {
                       ],
                     ),
                   ),
-                  // PROTOTYPE: the rundown in a column of its own.
                   if (showRundown && threeColumns) ...[
                     const SizedBox(width: 20),
                     Expanded(flex: 4, child: rundownPanel()),

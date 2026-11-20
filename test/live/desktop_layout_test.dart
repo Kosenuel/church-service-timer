@@ -40,6 +40,28 @@ Timeline sunday() => Timeline('Sunday Service', const [
   Segment('Closing', 5),
 ], DisplaySettings());
 
+/// A service of many short segments, part-way through one with a long
+/// title.
+Timeline manyShort() => Timeline('Youth Sunday', [
+  const Segment(
+    'Call to worship and opening prayer',
+    2,
+    speaker: 'Elder Bartholomew Achterberg',
+  ),
+  const Segment('Welcome', 1, speaker: 'Deacon Ruth'),
+  const Segment('Praise & Worship', 20, speaker: 'Worship team'),
+  for (var i = 1; i <= 8; i++) Segment('Testimony $i', 1, speaker: 'Member $i'),
+  const Segment(
+    'A very long segment title for the combined thanksgiving sermon and '
+    'communion',
+    30,
+    speaker: 'Pastor Samuel',
+  ),
+  const Segment('Offering', 2),
+  const Segment('Notices', 1, speaker: 'Secretary'),
+  const Segment('Closing', 2),
+], DisplaySettings());
+
 void main() {
   setUpAll(loadAppFonts);
   setUp(() => desktopWording = true);
@@ -53,8 +75,14 @@ void main() {
     DesktopFakePort? on,
     List<int> advanceAfter = const [340, 1330],
     int then = 1642,
+    double textScale = 1,
+    Timeline Function() timeline = sunday,
   }) async {
     setScreen(t, size);
+    if (textScale != 1) {
+      t.platformDispatcher.textScaleFactorTestValue = textScale;
+      addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
+    }
     final port = on ?? DesktopFakePort();
     final c = AppController(port);
     await c.initialize(startTicker: false);
@@ -62,7 +90,7 @@ void main() {
       draft.appearance = draft.appearance.copyWith(desktopLayout: layout);
       draft.themeId = theme;
     });
-    await c.act('load', value: sunday());
+    await c.act('load', value: timeline());
     await c.act('start');
     var at = 0;
     for (final seconds in advanceAfter) {
@@ -86,6 +114,18 @@ void main() {
     await t.tap(find.text('Layout & accessibility'));
     await t.pumpAndSettle();
   }
+
+  /// The width the ring of the running segment is drawn at.
+  double ringWidth(WidgetTester t) => t
+      .getSize(
+        find
+            .descendant(
+              of: find.byType(SegmentGauge),
+              matching: find.byType(CustomPaint),
+            )
+            .first,
+      )
+      .width;
 
   Future<void> press(WidgetTester t, Finder target) async {
     await t.ensureVisible(target);
@@ -203,6 +243,361 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('../goldens/desktop-dial-1080.png'),
+    );
+    await t.pumpWidget(const SizedBox());
+  });
+
+  // A large window: the ring grows, Mission control fills its height and
+  // Classic has a column for the rundown.
+  for (final (name, layout, theme) in const [
+    ('three-panes', 'three_panes', 'midnight_lime'),
+    ('dial', 'dial', 'royal_navy'),
+    ('mission-control', 'mission_control', 'midnight_lime'),
+    ('classic', 'classic', 'midnight_lime'),
+  ]) {
+    testWidgets('$name in a 2560 × 1440 window', (t) async {
+      await running(
+        t,
+        layout: layout,
+        theme: theme,
+        size: const Size(2560, 1440),
+      );
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/desktop-$name-1440.png'),
+      );
+      await t.pumpWidget(const SizedBox());
+    });
+  }
+
+  const windows = [
+    (Size(1200, 600), 1.0),
+    (Size(1366, 768), 1.0),
+    (Size(1366, 900), 1.0),
+    (Size(1920, 1080), 1.0),
+    (Size(2560, 1440), 1.0),
+    (Size(2560, 1440), 1.3),
+    (Size(3840, 2160), 1.0),
+  ];
+  for (final layout in const [
+    'three_panes',
+    'dial',
+    'mission_control',
+    'classic',
+  ]) {
+    testWidgets('$layout fits every window with its controls in reach', (
+      t,
+    ) async {
+      for (final (size, scale) in windows) {
+        await running(t, size: size, layout: layout, textScale: scale);
+        final where = '$layout at $size ×$scale';
+        expect(t.takeException(), isNull, reason: where);
+        for (final key in ['pause-resume', 'next-segment', 'end-service']) {
+          final button = find.byKey(ValueKey(key));
+          expect(button, findsOneWidget, reason: '$key, $where');
+          // The desktop layouts fill the window: no scrolling to reach a
+          // timer control at the usual text size. Classic is a page that
+          // scrolls.
+          if (layout != 'classic' && scale == 1 && size.height >= 768) {
+            expect(
+              button.hitTestable(),
+              findsOneWidget,
+              reason: '$key, $where',
+            );
+            expect(
+              t.getRect(button).bottom,
+              lessThanOrEqualTo(size.height),
+              reason: '$key, $where',
+            );
+          }
+        }
+        await t.pumpWidget(const SizedBox());
+      }
+    });
+  }
+
+  testWidgets('the ring grows from a 1920 × 1080 window, not a laptop one', (
+    t,
+  ) async {
+    double ring() => ringWidth(t);
+    await running(t);
+    final laptop = ring();
+    await t.pumpWidget(const SizedBox());
+    await running(t, size: const Size(1920, 1080));
+    final fullHd = ring();
+    // Too narrow for the controls beside the ring: they stay under it.
+    expect(
+      t.getRect(find.byKey(const ValueKey('pause-resume'))).top,
+      greaterThan(t.getRect(find.byType(SegmentGauge)).bottom - 1),
+    );
+    await t.pumpWidget(const SizedBox());
+    await running(t, size: const Size(2560, 1440));
+    final large = ring();
+    // Wide enough: the controls sit at the ring's right.
+    expect(
+      t.getRect(find.byKey(const ValueKey('pause-resume'))).left,
+      greaterThan(t.getRect(find.byType(SegmentGauge)).right - 1),
+    );
+    expect(laptop, lessThanOrEqualTo(460));
+    expect(fullHd, greaterThan(500));
+    expect(large, greaterThan(fullHd));
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+    'a large window keeps warning, overtime and a long title in view',
+    (t) async {
+      for (final layout in ['three_panes', 'dial', 'mission_control']) {
+        for (final size in const [Size(1920, 1080), Size(2560, 1440)]) {
+          // 45 seconds left of the Sermon, then three minutes over.
+          await running(t, layout: layout, size: size, then: 2355);
+          expect(t.takeException(), isNull);
+          expect(
+            find.textContaining('00:45 left'),
+            findsWidgets,
+            reason: '$layout $size',
+          );
+          await t.pumpWidget(const SizedBox());
+          await running(t, layout: layout, size: size, then: 2585);
+          expect(t.takeException(), isNull);
+          expect(
+            find.text('Allocated time exceeded'),
+            findsOneWidget,
+            reason: '$layout $size',
+          );
+          expect(find.text('+03:05'), findsOneWidget);
+          await t.pumpWidget(const SizedBox());
+          // A title that wraps, in a service of many short segments.
+          await running(
+            t,
+            layout: layout,
+            size: size,
+            timeline: manyShort,
+            advanceAfter: const [130, 70, 1250, 60, 60, 60, 60, 60, 60, 60, 60],
+            then: 400,
+          );
+          expect(t.takeException(), isNull);
+          for (final key in ['pause-resume', 'next-segment', 'end-service']) {
+            expect(
+              t.getRect(find.byKey(ValueKey(key))).bottom,
+              lessThanOrEqualTo(size.height),
+              reason: '$key, $layout $size',
+            );
+          }
+          await t.pumpWidget(const SizedBox());
+        }
+      }
+    },
+  );
+
+  testWidgets('the last segment, a quick timer and a pause in a large window', (
+    t,
+  ) async {
+    for (final layout in ['three_panes', 'dial', 'mission_control']) {
+      for (final size in const [Size(1920, 1080), Size(2560, 1440)]) {
+        // Closing: the last segment, with no private note.
+        final (c, _) = await running(
+          t,
+          layout: layout,
+          size: size,
+          advanceAfter: const [340, 1330, 2500, 600],
+          then: 100,
+        );
+        expect(t.takeException(), isNull);
+        expect(
+          find.byKey(const ValueKey('desktop-private-note')),
+          findsNothing,
+        );
+        expect(find.textContaining('Final segment'), findsWidgets);
+        expect(
+          t.getRect(find.byKey(const ValueKey('end-service'))).bottom,
+          lessThanOrEqualTo(size.height),
+          reason: '$layout $size',
+        );
+        await c.act('pause');
+        await t.pumpAndSettle();
+        expect(t.takeException(), isNull);
+        expect(find.text('Resume'), findsOneWidget);
+        await t.pumpWidget(const SizedBox());
+
+        setScreen(t, size);
+        final quick = AppController(DesktopFakePort());
+        await quick.initialize(startTicker: false);
+        await quick.commit(
+          (draft, _) => draft.appearance = draft.appearance.copyWith(
+            desktopLayout: layout,
+          ),
+        );
+        await quick.startQuickTimer(
+          const QuickTimerChoice('Prayer meeting', 900),
+        );
+        await t.pumpWidget(TimerApp(controller: quick));
+        await t.pumpAndSettle();
+        expect(t.takeException(), isNull);
+        expect(find.text('End timer').hitTestable(), findsOneWidget);
+        // Pause is alone, and is not stretched across the pane.
+        expect(
+          t.getSize(find.byKey(const ValueKey('pause-resume'))).width,
+          lessThanOrEqualTo(600),
+          reason: '$layout $size',
+        );
+        await t.pumpWidget(const SizedBox());
+      }
+    }
+  });
+
+  testWidgets('Mission control in a large window: buttons keep a sensible '
+      'width and short segments keep readable blocks', (t) async {
+    await running(
+      t,
+      layout: 'mission_control',
+      size: const Size(2560, 1440),
+      timeline: manyShort,
+      advanceAfter: const [130, 70, 1250, 60, 60, 60, 60, 60, 60, 60, 60],
+      then: 400,
+    );
+    expect(t.takeException(), isNull);
+    for (final key in ['pause-resume', 'next-segment']) {
+      expect(
+        t.getSize(find.byKey(ValueKey(key))).width,
+        lessThanOrEqualTo(360),
+      );
+    }
+    // A wide block has the speaker and planned against actual time.
+    final worship = find.byKey(const ValueKey('timeline-2'));
+    expect(
+      find.descendant(of: worship, matching: find.text('Worship team')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: worship, matching: find.text('Planned 20:00')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: worship, matching: find.text('Took 20:50 · +0:50')),
+      findsOneWidget,
+    );
+    // A one-minute block is too narrow for them: it keeps its name only,
+    // and still opens the segment's details.
+    final testimony = find.byKey(const ValueKey('timeline-5'));
+    expect(t.getSize(testimony).width, lessThan(64));
+    expect(
+      find.descendant(of: testimony, matching: find.textContaining('Planned')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: testimony, matching: find.text('Member 3')),
+      findsNothing,
+    );
+    // A laptop window keeps the short timeline.
+    await t.pumpWidget(const SizedBox());
+    await running(t, layout: 'mission_control');
+    expect(find.text('Planned 20:00'), findsNothing);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('timer actions still ask first in a large window, and Lock '
+      'controls blocks them', (t) async {
+    for (final layout in [
+      'three_panes',
+      'dial',
+      'mission_control',
+      'classic',
+    ]) {
+      final (c, _) = await running(
+        t,
+        layout: layout,
+        size: const Size(2560, 1440),
+      );
+      await press(t, find.byKey(const ValueKey('pause-resume')));
+      expect(c.state.session.paused, isFalse, reason: layout);
+      await t.tap(find.text('Cancel'));
+      await t.pumpAndSettle();
+      await press(t, find.byKey(const ValueKey('end-service')));
+      expect(find.text('End Sunday Service?'), findsOneWidget, reason: layout);
+      expect(c.state.session.active, isTrue);
+      await t.tap(find.text('Cancel'));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('control-lock')));
+      await t.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('controls-locked-banner')),
+        findsOneWidget,
+        reason: layout,
+      );
+      for (final key in ['pause-resume', 'next-segment', 'end-service']) {
+        await t.tap(find.byKey(ValueKey(key)), warnIfMissed: false);
+        await t.pumpAndSettle();
+      }
+      expect(find.byType(AlertDialog), findsNothing, reason: layout);
+      expect(c.state.session.paused, isFalse);
+      expect(c.state.session.index, 2);
+      await t.pumpWidget(const SizedBox());
+    }
+  });
+
+  testWidgets('Classic has a rundown column only in a very wide window', (
+    t,
+  ) async {
+    Future<void> at(Size size) => running(t, layout: 'classic', size: size);
+    await at(const Size(2560, 1440));
+    expect(t.takeException(), isNull);
+    // Timer, then display and cues, then the rundown, side by side.
+    expect(
+      t.getRect(find.text('SERVICE RUNDOWN')).left,
+      greaterThan(t.getRect(find.text('DISPLAY PREVIEW')).right),
+    );
+    expect(
+      t.getRect(find.text('SERVICE RUNDOWN')).top,
+      lessThan(t.getRect(find.text('STAGE CUES')).top),
+    );
+    // The ring keeps its usual size.
+    expect(ringWidth(t), lessThanOrEqualTo(306));
+    await t.pumpWidget(const SizedBox());
+    // A narrower window keeps two columns at the usual width, with the
+    // rundown under the cues.
+    await at(const Size(1800, 1000));
+    expect(
+      t.getRect(find.text('SERVICE RUNDOWN')).top,
+      greaterThan(t.getRect(find.text('STAGE CUES')).top),
+    );
+    expect(
+      t.getRect(find.text('DISPLAY PREVIEW')).right -
+          t.getRect(find.text('SEGMENT 3 OF 5')).left,
+      lessThan(1200),
+    );
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Classic before a service keeps its usual width when wide', (
+    t,
+  ) async {
+    setScreen(t, const Size(2560, 1440));
+    final c = AppController(DesktopFakePort());
+    await c.initialize(startTicker: false);
+    await c.commit(
+      (draft, _) => draft.appearance = draft.appearance.copyWith(
+        desktopLayout: 'classic',
+      ),
+    );
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    // Standing by: one centred column.
+    expect(find.text('Ready when you are'), findsOneWidget);
+    expect(
+      t.getSize(find.text('Start service').hitTestable()).width,
+      lessThan(760),
+    );
+    // Ready: the rundown has its column, and Start is in view.
+    await c.act('load', value: sunday());
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    expect(find.text('Start first segment').hitTestable(), findsOneWidget);
+    expect(
+      t.getRect(find.text('SERVICE RUNDOWN')).left,
+      greaterThan(t.getRect(find.text('DISPLAY PREVIEW')).right),
     );
     await t.pumpWidget(const SizedBox());
   });

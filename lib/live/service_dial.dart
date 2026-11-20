@@ -59,7 +59,7 @@ class ServiceDial extends StatelessWidget {
     final cross = geometry.cross;
     // Past the largest dial the layout drew before, the lettering grows
     // with it.
-    final grow = (size / 640).clamp(1.0, 1.5);
+    final grow = (size / 640).clamp(1.0, 2.2);
     return Semantics(
       label:
           '${operatorTimeDescription(balance)}, ${formatTime(s.allocatedMs)} allocated',
@@ -256,8 +256,9 @@ class DialGeometry {
   }) {
     final where =
         centre + Offset(math.cos(at), math.sin(at)) * (outer + stroke / 2 + 13);
-    if (disc != null)
+    if (disc != null) {
       canvas.drawCircle(where, discRadius, Paint()..color = disc);
+    }
     final number = TextPainter(
       text: TextSpan(text: text, style: style),
       textDirection: TextDirection.ltr,

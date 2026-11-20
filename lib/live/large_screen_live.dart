@@ -1,30 +1,46 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
-import 'package:church_service_timer/live/large_screen_variants.dart';
 import 'package:church_service_timer/live/service_dial.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 
-/// PROTOTYPE: the middle pane of Three panes and The dial in a window with
-/// room to spare. See [LargeScreenLive].
+/// How the middle pane of Three panes and The dial is arranged.
+enum LargePane {
+  /// The window is not tall enough: the usual arrangement.
+  off,
+
+  /// The ring takes the spare height, with the controls under it.
+  grow,
+
+  /// The ring at the left of a wide pane, the controls in a column at its
+  /// right.
+  beside,
+}
+
+/// The middle pane height from which the ring grows. A 1366 × 768 window
+/// is below it; a 1920 × 1080 one and a tall laptop window are above.
+const largePaneFromHeight = 800.0;
+
+/// The middle pane width from which the controls sit beside the ring.
+const largePaneBesideFromWidth = 1240.0;
+
+/// The middle pane of Three panes and The dial in a window with room to
+/// spare.
 extension LargeScreenPanes on HomeState {
-  /// Which arrangement a middle pane [width] by [height] gets: 'off' for
-  /// today's, 'grow' or 'beside'.
-  String largePaneMode(double width, double height) {
-    final variant = LargeScreenLive.panes;
-    if (variant == 'off' || height < LargeScreenLive.panesFromHeight) {
-      return 'off';
-    }
+  /// Which arrangement a middle pane [width] by [height] gets.
+  LargePane largePaneMode(double width, double height) {
+    if (height < largePaneFromHeight) return LargePane.off;
     // Beside needs room for the ring and a column of controls; a narrower
     // pane grows the ring over the controls instead.
-    if (variant == 'beside' && width >= 1240) return 'beside';
-    return 'grow';
+    return width >= largePaneBesideFromWidth
+        ? LargePane.beside
+        : LargePane.grow;
   }
 
   /// The running segment in a large middle pane.
   Widget largeTimerPane({
-    required String mode,
+    required LargePane mode,
     required List<Widget> notices,
     required Widget header,
     required Widget endService,
@@ -48,7 +64,7 @@ extension LargeScreenPanes on HomeState {
 
     // The gauge is a little wider than tall, with a line under it for the
     // warning; the dial is square.
-    double gaugeWidthFor(double room) => (room - 32) * 300 / 260;
+    double gaugeWidthFor(double room) => room * 300 / 250;
     Widget ring(double size) => dial
         ? ServiceDial(
             session: s,
@@ -58,7 +74,12 @@ extension LargeScreenPanes on HomeState {
           )
         : SizedBox(
             width: size,
-            child: SegmentGauge(session: s, now: c.now, maxWidth: size),
+            child: SegmentGauge(
+              session: s,
+              now: c.now,
+              maxWidth: size,
+              noticeInside: true,
+            ),
           );
     final speakerLine = segment.speaker.isEmpty
         ? null
@@ -88,16 +109,24 @@ extension LargeScreenPanes on HomeState {
     );
 
     final List<Widget> children;
-    if (mode == 'beside') {
+    if (mode == LargePane.beside) {
       // The gauge has a margin of its own around the arc.
       const column = 500.0;
       final gap = dial ? 64.0 : 16.0;
       final size = math
           .min(
             innerWidth - column - gap,
-            dial ? innerHeight - 32 : gaugeWidthFor(innerHeight - 32),
+            dial ? innerHeight - 32 : gaugeWidthFor(innerHeight),
           )
-          .clamp(280.0, dial ? 900.0 : 820.0);
+          .clamp(
+            280.0,
+            // The size chosen for a 2560 × 1440 window, and in proportion
+            // on a taller one.
+            dial
+                ? math.max(900.0, innerHeight * .66)
+                : math.max(820.0, innerHeight * .6),
+          )
+          .toDouble();
       children = [
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -149,7 +178,25 @@ extension LargeScreenPanes on HomeState {
     } else {
       // The title above and the controls below keep their room; the ring
       // has the rest, up to a size the figures still look right at.
-      final room = innerHeight - (hasNote ? 400 : 330) * scale;
+      // A long title wraps; the ring gives up the height of its extra
+      // lines, so End service stays in view.
+      final title = TextPainter(
+        text: TextSpan(
+          text: segment.name,
+          style: (Theme.of(context).textTheme.bodyMedium ?? const TextStyle())
+              .copyWith(
+                fontSize: 40,
+                fontWeight: FontWeight.w700,
+                height: 1.15,
+              ),
+        ),
+        textDirection: TextDirection.ltr,
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout(maxWidth: math.max(120, innerWidth - 48));
+      final extraTitle = title.height - title.preferredLineHeight;
+      title.dispose();
+      final room =
+          innerHeight - (hasNote ? 440 : 372) * scale - math.max(0, extraTitle);
       final size = math
           .min(innerWidth - 40, dial ? room : gaugeWidthFor(room))
           .clamp(dial ? 280.0 : 270.0, dial ? 880.0 : 800.0);
@@ -167,30 +214,39 @@ extension LargeScreenPanes on HomeState {
             ),
             const SizedBox(height: 6),
             Center(child: segmentTitle(canJump, size: size > 560 ? 40 : 34)),
-            const SizedBox(height: 6),
-            Text(
-              [?speakerLine, ?nextLine].join('   ·   '),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colors.muted),
+            if (speakerLine != null || nextLine != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                [?speakerLine, ?nextLine].join('   ·   '),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.muted),
+              ),
+            ],
+          ],
+        ),
+        // The ring with its controls straight under it, in the middle of
+        // the height that is left.
+        Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.only(top: 8, bottom: dial ? 16 : 8),
+              child: ring(size),
+            ),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: controls),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  liveControls(enabled),
+                  if (hasNote) note(),
+                  const SizedBox(height: 12),
+                  Align(alignment: Alignment.centerRight, child: endService),
+                ],
+              ),
             ),
           ],
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: ring(size),
-        ),
-        ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: controls),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              liveControls(enabled),
-              if (hasNote) note(),
-              const SizedBox(height: 12),
-              Align(alignment: Alignment.centerRight, child: endService),
-            ],
-          ),
-        ),
+        const SizedBox(),
       ];
     }
     return SingleChildScrollView(
@@ -204,7 +260,9 @@ extension LargeScreenPanes on HomeState {
           minWidth: innerWidth,
         ),
         child: Column(
-          key: mode == 'beside' ? null : const ValueKey('timer-card-content'),
+          key: mode == LargePane.beside
+              ? null
+              : const ValueKey('timer-card-content'),
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: children,
         ),

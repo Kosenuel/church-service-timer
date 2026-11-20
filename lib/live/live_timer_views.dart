@@ -48,11 +48,16 @@ class SegmentGauge extends StatelessWidget {
 
   /// The widest the dial is drawn; the desktop layouts make it larger.
   final double maxWidth;
+
+  /// Puts the warning line in the opening at the foot of the ring, not in
+  /// a band under it, so a large ring sits close to what follows.
+  final bool noticeInside;
   const SegmentGauge({
     super.key,
     required this.session,
     required this.now,
     this.maxWidth = 306,
+    this.noticeInside = false,
   });
   @override
   Widget build(BuildContext context) {
@@ -113,9 +118,29 @@ class SegmentGauge extends StatelessWidget {
         final width = math.min(maxWidth, constraints.maxWidth);
         // Past the largest dial the layouts drew before, the lettering
         // and the ring's stroke grow with it.
-        final grow = (width / 460).clamp(1.0, 1.8);
+        final grow = (width / 460).clamp(1.0, 2.6);
         final outsideLabels =
             MediaQuery.textScalerOf(context).scale(14) > 21 || width < 230;
+        final noticeLine = notice.isEmpty
+            ? const SizedBox()
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 17 * grow,
+                    color: color,
+                  ),
+                  SizedBox(width: 6 * grow),
+                  Flexible(
+                    child: Text(
+                      notice,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: color, fontSize: 12 * grow),
+                    ),
+                  ),
+                ],
+              );
         return SizedBox(
           width: constraints.maxWidth,
           child: Semantics(
@@ -126,9 +151,18 @@ class SegmentGauge extends StatelessWidget {
                 if (outsideLabels) label(labelText),
                 SizedBox(
                   width: width,
-                  height: width * 260 / 300,
+                  height: width * (noticeInside ? 250 : 260) / 300,
                   child: Stack(
                     children: [
+                      if (noticeInside)
+                        Positioned(
+                          left: width * .2,
+                          right: width * .2,
+                          // Under the ends of the ring.
+                          top: width * 224 / 300,
+                          bottom: 0,
+                          child: Center(child: noticeLine),
+                        ),
                       Positioned.fill(
                         child: CustomPaint(
                           painter: TimerArcPainter(
@@ -153,8 +187,13 @@ class SegmentGauge extends StatelessWidget {
                             ],
                             // In a desktop layout the figures grow or
                             // shrink with the dial.
-                            SizedBox(
+                            Container(
                               height: maxWidth != 306 ? 74 * width / 306 : null,
+                              // A long overtime figure in a large ring
+                              // stays inside the tick marks.
+                              padding: EdgeInsets.symmetric(
+                                horizontal: noticeInside ? width * .06 : 0,
+                              ),
                               child: FittedBox(
                                 fit: maxWidth != 306
                                     ? BoxFit.contain
@@ -193,32 +232,14 @@ class SegmentGauge extends StatelessWidget {
                       fontSize: 14,
                     ),
                   ),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 32),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: notice.isEmpty
-                        ? const SizedBox()
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.warning_amber_rounded,
-                                size: 17,
-                                color: color,
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  notice,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: color, fontSize: 12),
-                                ),
-                              ),
-                            ],
-                          ),
+                if (!noticeInside)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 32),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: noticeLine,
+                    ),
                   ),
-                ),
               ],
             ),
           ),

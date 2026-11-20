@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
-import 'package:church_service_timer/live/large_screen_variants.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
@@ -13,6 +12,17 @@ import 'package:church_service_timer/web_stage/web_stage_server.dart';
 /// The Mission control desktop layout: a status strip, the timer, stage
 /// and cues side by side, and the whole rundown as a timeline along the
 /// bottom. Nothing scrolls during a normal service.
+/// The height above the timeline from which Mission control's sections
+/// grow to fill it.
+const missionFillFromHeight = 900.0;
+
+/// The window height from which the timeline's blocks are taller, with
+/// the speaker and planned against actual time.
+const missionRichTimelineFromHeight = 1200.0;
+
+/// The widest Pause and Next segment are drawn beside a large dial.
+const missionPrimaryButtonWidth = 360.0;
+
 extension MissionControlLive on HomeState {
   Widget missionControlLive({
     required List<Widget> notices,
@@ -28,12 +38,10 @@ extension MissionControlLive on HomeState {
     final s = c.liveSession;
     final line = VerticalDivider(width: 1, thickness: 1, color: colors.border);
     final rule = Divider(height: 1, thickness: 1, color: colors.border);
-    // PROTOTYPE: what a large window does with its spare height.
-    final variant = LargeScreenLive.mission;
+    // A large window has height to spare for a fuller timeline.
     final richTimeline =
-        (variant == 'rundown' || variant == 'both') &&
         s.active &&
-        MediaQuery.sizeOf(context).height >= 1200;
+        MediaQuery.sizeOf(context).height >= missionRichTimelineFromHeight;
     return Column(
       key: const ValueKey('mission-control-live'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -45,16 +53,14 @@ extension MissionControlLive on HomeState {
               // The sections grow into a large window instead of leaving
               // a band above the timeline.
               final fill =
-                  (variant == 'fill' || variant == 'both') &&
-                  timer == null &&
-                  space.maxHeight >= LargeScreenLive.missionFromHeight;
+                  timer == null && space.maxHeight >= missionFillFromHeight;
               final timerWidth = (space.maxWidth * (fill ? .4 : .37)).clamp(
                 440.0,
-                fill ? 1000.0 : 640.0,
+                fill ? 1500.0 : 640.0,
               );
               final stageWidth = (space.maxWidth * (fill ? .29 : .3)).clamp(
                 340.0,
-                fill ? 720.0 : 520.0,
+                fill ? 1100.0 : 520.0,
               );
               // A tall window has room under the stage preview and the
               // cues for who is connected and what has happened.
@@ -451,12 +457,16 @@ extension MissionControlLive on HomeState {
     final next = later(1), then = later(2);
     // The dial takes the height the title and controls leave.
     final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
+    // With large text the controls stack and need more of the height.
+    final stacked = MediaQuery.textScalerOf(context).scale(14) > 18
+        ? 190.0
+        : 0.0;
     final gauge = fill
         // A large window: the dial has the height the title, the controls
         // and the note leave, and the facts keep a column beside it.
         ? math
-              .min(width - 290, (height - 350 * scale - 32) * 300 / 260)
-              .clamp(232.0, 680.0)
+              .min(width - 290, (height - 350 * scale - stacked) * 300 / 250)
+              .clamp(232.0, 1000.0)
         : math.min(width - 196, height - 250).clamp(232.0, 400.0);
     // In a short window the private note sits beside the dial.
     final noteBelow = height - (gauge * 260 / 300) > 360;
@@ -469,7 +479,7 @@ extension MissionControlLive on HomeState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: big ? 84 : 68,
+            width: (big ? 84 : 68) * scale,
             child: Text(label, style: muted),
           ),
           Expanded(
@@ -514,7 +524,12 @@ extension MissionControlLive on HomeState {
       children: [
         SizedBox(
           width: gauge,
-          child: SegmentGauge(session: s, now: c.now, maxWidth: gauge),
+          child: SegmentGauge(
+            session: s,
+            now: c.now,
+            maxWidth: gauge,
+            noticeInside: fill,
+          ),
         ),
         SizedBox(width: big ? 28 : 16),
         Expanded(
@@ -555,7 +570,9 @@ extension MissionControlLive on HomeState {
       ],
     ];
     if (fill) {
-      // Title at the top, controls at the bottom, the dial between them.
+      // Title at the top; the dial with its controls straight under it in
+      // the middle of what is left. Pause and Next segment keep to a width
+      // that still reads as a button.
       return ConstrainedBox(
         constraints: BoxConstraints(minHeight: math.max(0, height)),
         child: Column(
@@ -567,11 +584,27 @@ extension MissionControlLive on HomeState {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [header, title],
             ),
-            dial,
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [liveControls(enabled), ...noteUnder],
+              children: [
+                dial,
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      // A quick timer has Pause alone.
+                      maxWidth: s.quickTimer
+                          ? missionPrimaryButtonWidth + 120
+                          : missionPrimaryButtonWidth * 2 + 8,
+                    ),
+                    child: liveControls(enabled),
+                  ),
+                ),
+                ...noteUnder,
+              ],
             ),
+            const SizedBox(),
           ],
         ),
       );
@@ -965,7 +998,7 @@ class TimelineBlock extends StatelessWidget {
     Widget line(String text, {Color? colour, bool strong = false}) => Text(
       text,
       maxLines: 1,
-      overflow: TextOverflow.clip,
+      overflow: TextOverflow.ellipsis,
       softWrap: false,
       style: TextStyle(
         fontSize: 12,
@@ -1013,50 +1046,76 @@ class TimelineBlock extends StatelessWidget {
                       ),
                     ),
                   ),
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: more == null ? 7 : 10,
-                    vertical: more == null ? 6 : 9,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        softWrap: false,
-                        style: TextStyle(
-                          fontSize: more == null ? 12 : 15,
-                          fontWeight: strong
-                              ? FontWeight.w700
-                              : FontWeight.w600,
-                        ),
+                LayoutBuilder(
+                  builder: (context, box) {
+                    // A short segment's block is narrow. It keeps what
+                    // can be read in it: the full lines, then the name
+                    // with the short detail, then the name alone.
+                    final scale =
+                        MediaQuery.textScalerOf(context).scale(100) / 100;
+                    final roomy = box.maxWidth >= 128 * scale;
+                    final tight = box.maxWidth < 64 * scale;
+                    final rich = more != null && !tight;
+                    return Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: rich && roomy ? 10 : 7,
+                        vertical: more == null ? 6 : 9,
                       ),
-                      if (more != null) ...[
-                        line(more[0]),
-                        const Spacer(),
-                        line(more[1]),
-                        line(
-                          more[2],
-                          colour:
-                              outcomeColour ?? (strong ? colors.text : null),
-                          strong: strong || outcomeColour != null,
-                        ),
-                      ] else
-                        Text(
-                          detail,
-                          maxLines: 1,
-                          overflow: TextOverflow.clip,
-                          softWrap: false,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colors.muted,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            style: TextStyle(
+                              fontSize: rich && roomy ? 15 : 12,
+                              fontWeight: strong
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
+                          if (more != null && tight)
+                            const SizedBox()
+                          else if (more != null && !roomy) ...[
+                            const Spacer(),
+                            line(
+                              detail,
+                              colour:
+                                  outcomeColour ??
+                                  (strong ? colors.text : null),
+                              strong: strong || outcomeColour != null,
+                            ),
+                          ] else if (more != null) ...[
+                            line(more[0]),
+                            const Spacer(),
+                            line(more[1]),
+                            line(
+                              more[2],
+                              colour:
+                                  outcomeColour ??
+                                  (strong ? colors.text : null),
+                              strong: strong || outcomeColour != null,
+                            ),
+                          ] else
+                            Text(
+                              detail,
+                              maxLines: 1,
+                              overflow: TextOverflow.clip,
+                              softWrap: false,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colors.muted,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

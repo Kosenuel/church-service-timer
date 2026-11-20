@@ -127,11 +127,11 @@ extension DesktopLive on HomeState {
         // what has happened, as in Mission control. A laptop does not:
         // there the stage preview and cues fill the pane.
         final tall = space.maxHeight >= 900;
-        // PROTOTYPE: a large window can give the ring more of the pane.
+        // A large window gives the ring more of the pane.
         final paneWidth = space.maxWidth - side - stage - 2;
         final large = timer == null
             ? largePaneMode(paneWidth, space.maxHeight)
-            : 'off';
+            : LargePane.off;
         return Row(
           key: const ValueKey('three-pane-live'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -150,7 +150,7 @@ extension DesktopLive on HomeState {
             ),
             line,
             Expanded(
-              child: large != 'off'
+              child: large != LargePane.off
                   ? largeTimerPane(
                       mode: large,
                       notices: notices,
