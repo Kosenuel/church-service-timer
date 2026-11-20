@@ -32,3 +32,75 @@ class StageOutputMessage {
   final int seconds;
   const StageOutputMessage(this.layout, {this.seconds = 0});
 }
+
+/// How fast a scrolling cue moves on a screen, on the LED sign's scale: the
+/// cue's speed on screens when the host sent one, otherwise the sign's.
+double stageScrollSpeed(Json data) {
+  final speed = data['screenSpeed'] ?? data['speed'];
+  return (speed is num ? speed.toDouble() : 12.0).clamp(1.0, 60.0);
+}
+
+/// The fixed colours a cue can have on screens, as RGB. Each is bright
+/// enough to read on the black stage background and they are far apart
+/// from one another. The theme's accent is worked out by the host.
+const screenCueColors = <String, int>{
+  'white': 0xffffff,
+  'amber': 0xffc247,
+  'red': 0xff4d4d,
+  'green': 0x4ade80,
+};
+
+/// A colour as the stage snapshot carries it: "#rrggbb".
+String stageColorHex(int rgb) =>
+    '#${(rgb & 0xffffff).toRadixString(16).padLeft(6, '0')}';
+
+/// The cue colour in a stage snapshot as RGB, or null when the snapshot
+/// has none or it is not a colour; the cue is then white, as always.
+int? stageCueRgb(Json data) {
+  final value = data['cueColor'];
+  if (value is! String || !RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)) {
+    return null;
+  }
+  return int.parse(value.substring(1), radix: 16);
+}
+
+/// 'top' or 'bottom' when the snapshot shows its cue as a banner over the
+/// countdown or clock, otherwise null: the cue fills the screen.
+String? stageBannerPosition(Json data) {
+  final position = data['cuePosition'];
+  return (position == 'top' || position == 'bottom') &&
+          data['underText'] is String &&
+          data['blank'] != true
+      ? position as String
+      : null;
+}
+
+/// The snapshot of what stays in view under a banner: the countdown or
+/// the clock, plain and white, as if no cue were showing.
+Json stageUnderBanner(Json data) {
+  final clock = data['underMode'] == 'Clock';
+  return {
+    ...data,
+    'displayText': data['underText'],
+    'effect': 'static',
+    'bold': false,
+    'italic': false,
+    'outputMode': clock ? 'Clock' : 'Countdown',
+    'displayIsTimer': !clock,
+  }..removeWhere(
+    (key, _) => const {
+      'cueColor',
+      'cuePosition',
+      'underText',
+      'underMode',
+      'screenSpeed',
+    }.contains(key),
+  );
+}
+
+/// The snapshot of the banner's own text: the cue in its colour.
+Json stageBannerText(Json data) => {
+  ...data,
+  'displayIsTimer': false,
+  'outputMode': 'Cue',
+}..removeWhere((key, _) => const {'cuePosition', 'underText'}.contains(key));

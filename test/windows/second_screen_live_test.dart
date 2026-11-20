@@ -426,7 +426,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(of: header, matching: find.text('Simulator')),
+        find.descendant(of: header, matching: find.text('LED simulator')),
         findsNothing,
       );
       // The same picture the second screen is sent, in its layout.

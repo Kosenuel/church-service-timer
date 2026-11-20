@@ -1,3 +1,4 @@
+import 'package:church_service_timer/live/cue_preview.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/settings/clicker_test_page.dart';
@@ -18,6 +19,10 @@ class WarningSettingsPanel extends StatelessWidget {
   final bool busy;
   final String title;
   final String? scope;
+
+  /// Whether the warning text's preview starts as a stage screen shows
+  /// it; null leaves the LED sign's preview alone, with no switch.
+  final bool? stagePreviewFirst;
   const WarningSettingsPanel({
     super.key,
     required this.settings,
@@ -25,6 +30,7 @@ class WarningSettingsPanel extends StatelessWidget {
     this.busy = false,
     this.title = 'Automatic warning cues',
     this.scope,
+    this.stagePreviewFirst,
   });
   @override
   Widget build(BuildContext context) {
@@ -44,6 +50,7 @@ class WarningSettingsPanel extends StatelessWidget {
             : null,
         builder: (_) => WarningEditor(
           initial: initial,
+          stagePreviewFirst: stagePreviewFirst,
           usedThresholds: d.warnings
               .asMap()
               .entries
@@ -255,10 +262,12 @@ class WarningSettingsPanel extends StatelessWidget {
 class WarningEditor extends StatefulWidget {
   final WarningRule initial;
   final Set<int> usedThresholds;
+  final bool? stagePreviewFirst;
   const WarningEditor({
     super.key,
     required this.initial,
     required this.usedThresholds,
+    this.stagePreviewFirst,
   });
   @override
   State<WarningEditor> createState() => _WarningEditorState();
@@ -339,6 +348,7 @@ class _WarningEditorState extends State<WarningEditor> {
                     initial: cue,
                     title: 'Warning text and formatting',
                     button: 'Use warning text',
+                    stagePreviewFirst: widget.stagePreviewFirst,
                   ),
                 );
                 if (next != null && mounted) setState(() => cue = next);
@@ -596,6 +606,7 @@ extension WarningSettingsViews on HomeState {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         WarningSettingsPanel(
+          stagePreviewFirst: c.previewsAsStageScreen,
           settings: c.state.defaults,
           title: 'Automatic warnings',
           scope:
@@ -676,14 +687,22 @@ extension WarningSettingsViews on HomeState {
   /// warning puts on the stage display.
   Widget warningPreviewPane() {
     final rules = c.state.defaults.warnings;
+    final stage = c.previewsAsStageScreen;
     return SidePane(
-      title: 'On the stage display',
+      key: const ValueKey('warning-preview-pane'),
+      title: stage ? 'On the stage screen' : 'On the LED sign',
       note: rules.isEmpty
-          ? 'No automatic warnings yet. Add one and it is shown here as the stage will see it.'
+          ? stage
+                ? 'No automatic warnings yet. Add one and it is shown here as a stage screen will show it.'
+                : 'No automatic warnings yet. Add one and it is shown here as the sign will show it.'
+          : stage
+          ? 'What each automatic warning shows on a stage, web or second screen when its time is reached. A warning that is switched off shows nothing. Point at a scrolling warning to play it.'
           : 'What each automatic warning shows when its time is reached. A warning that is switched off shows nothing. Point at a preview to play it.',
       children: [
         if (rules.isNotEmpty)
           SignPreviewGrid(
+            preview: stage ? HoverCueStagePreview.new : null,
+            absent: stage ? 'Not shown on the stage screen' : null,
             items: [
               for (final w in rules)
                 (

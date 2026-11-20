@@ -18,6 +18,7 @@ import 'package:church_service_timer/live/keys_live.dart';
 import 'package:church_service_timer/live/mission_control_live.dart';
 import 'package:church_service_timer/live/quick_timer_sheet.dart';
 import 'package:church_service_timer/live/second_screen_control.dart';
+import 'package:church_service_timer/live/simulator_choice.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
 /// The widest Classic's Live page is usually laid out.
@@ -834,7 +835,7 @@ extension LivePage on HomeState {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                DisplayPreviewHeader(connection: c.displayConnection),
+                displayPreviewHeader(),
                 const SizedBox(height: 14),
                 mobileStagePreview(),
                 ...secondScreenPreviewBeneath(),
@@ -849,14 +850,13 @@ extension LivePage on HomeState {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DisplayPreviewHeader(
-                  connection: c.displayConnection,
+                displayPreviewHeader(
                   secondScreen:
                       secondScreenPreviewNow ==
                       SecondScreenPreviewPlace.replaces,
                 ),
                 const SizedBox(height: 14),
-                previewOrSecondScreen(liveMatrix()),
+                previewOrSecondScreen(displayPreview()),
                 ...secondScreenPreviewBeneath(),
                 if (s.outputBlank)
                   const Padding(
@@ -865,8 +865,9 @@ extension LivePage on HomeState {
                   ),
                 const SizedBox(height: 12),
                 // The sign's size; not shown over a copy of the second
-                // screen.
+                // screen, or where the Simulator is a stage screen.
                 if (!dense &&
+                    !c.stageSimulator &&
                     secondScreenPreviewNow != SecondScreenPreviewPlace.replaces)
                   Text(
                     '32 × 16 · ${c.state.pixelShape == 'square' ? 'Square' : 'Circular'} LEDs',
@@ -1419,8 +1420,7 @@ extension LivePage on HomeState {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    DisplayPreviewHeader(
-                      connection: c.displayConnection,
+                    displayPreviewHeader(
                       secondScreen:
                           secondScreenPreviewNow ==
                           SecondScreenPreviewPlace.replaces,
@@ -1431,7 +1431,7 @@ extension LivePage on HomeState {
                         constraints: const BoxConstraints(maxWidth: 320),
                         child: c.destination == 'mobile'
                             ? mobileStagePreview()
-                            : previewOrSecondScreen(liveMatrix()),
+                            : previewOrSecondScreen(displayPreview()),
                       ),
                     ),
                     ...secondScreenPreviewBeneath(maxWidth: 320),

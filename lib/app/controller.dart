@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/diagnostics/service_metrics.dart';
 import 'package:church_service_timer/diagnostics/performance_report.dart';
 import 'package:church_service_timer/web_stage/web_stage_server.dart';
@@ -98,6 +99,30 @@ class AppController extends ChangeNotifier {
       : destination == 'led'
       ? (hardware.rememberedName.isEmpty ? 'LED sign' : hardware.rememberedName)
       : 'Simulator';
+
+  /// The Simulator is the display and stands in for a stage screen.
+  bool get stageSimulator =>
+      destination == 'simulator' && state.simulatorKind == 'stage';
+
+  /// The Simulator by the name of what it stands in for.
+  String get simulatorName => simulatorNameOf(state.simulatorKind);
+
+  /// Whether a preview of something for the stage starts as a stage
+  /// screen shows it, not as the LED sign does: the display is stage
+  /// screens, or the Simulator standing in for one.
+  bool get previewsAsStageScreen => destination == 'mobile' || stageSimulator;
+
+  /// Remembers what the Simulator stands in for: 'led' or 'stage'.
+  Future<bool> setSimulatorKind(String kind) async {
+    if (!simulatorKinds.containsKey(kind)) return false;
+    if (state.simulatorKind == kind) return true;
+    return commit((draft, _) => draft.simulatorKind = kind);
+  }
+
+  /// What a stage screen would show now, for the Simulator standing in
+  /// for one: the timer only, as a new stage screen starts.
+  Json stageSimulatorSnapshot() =>
+      stageWindowSnapshot()..['stageLayout'] = 'timer';
   late final quickMessages = QuickMessageController(this);
   late final practice = PracticeController(this);
   late final stageRequests = StageRequestController(this);
@@ -375,6 +400,9 @@ class AppController extends ChangeNotifier {
     final s = state.session, t = state.session.timeline;
     final display = s.intended(now);
     final quick = quickMessages.forStage;
+    // A banner needs a countdown or clock to sit over; otherwise, and on
+    // paired screens from before banners, the cue fills the screen.
+    final banner = display != null && display.bannerOnScreens && s.active;
     return {
       'revision': s.revision,
       'session': s.id,
@@ -405,7 +433,20 @@ class AppController extends ChangeNotifier {
       'outputMode': s.outputMode(now),
       'clockBlink': s.clockBlink,
       'effect': display?.effect ?? 'static',
+      // The LED sign's speed, which older paired screens keep following.
       'speed': display?.speed ?? 12,
+      'screenSpeed': ?display?.screenSpeed,
+      if (display != null && display.screenColor != 'white')
+        'cueColor': stageColorHex(
+          screenCueColors[display.screenColor] ?? stageAccentRgb(state.themeId),
+        ),
+      if (banner) ...{
+        'cuePosition': display.screenPosition,
+        'underText': s.showClock
+            ? stageClockText(now.wall, s.clockFormat)
+            : s.formatted(now),
+        'underMode': s.showClock ? 'Clock' : 'Countdown',
+      },
       'bold': display?.bold ?? false,
       'italic': display?.italic ?? false,
       'connection': displayConnection.label,

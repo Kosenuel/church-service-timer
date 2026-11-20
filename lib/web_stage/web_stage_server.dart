@@ -621,24 +621,43 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
               ],
       };
     case WebRole.stage:
+      // A banner cue: the page shows the countdown or clock as usual and
+      // the cue in a band over it.
+      final position = stageBannerPosition(s);
+      final shown = position == null ? s : stageUnderBanner(s);
+      final color = stageCueRgb(s);
+      String effectOf(Json from) =>
+          const {'scroll', 'flash'}.contains(from['effect'])
+          ? from['effect']
+          : 'static';
       return {
         ...common,
         'sharing': s['stageSharing'] == true,
         'blank': s['blank'] == true,
-        'displayText': s['displayText'] ?? '',
-        'bold': s['bold'] == true,
-        'italic': s['italic'] == true,
-        'effect': const {'scroll', 'flash'}.contains(s['effect'])
-            ? s['effect']
-            : 'static',
-        'speed': ((s['speed'] as num?)?.toDouble() ?? 12.0).clamp(1.0, 60.0),
+        'displayText': shown['displayText'] ?? '',
+        'bold': shown['bold'] == true,
+        'italic': shown['italic'] == true,
+        'effect': effectOf(shown),
+        // The cue's speed on screens; the LED sign's until one is set.
+        'speed': stageScrollSpeed(s),
+        // Only a checked "#rrggbb" reaches the page.
+        if (color != null && position == null) 'color': stageColorHex(color),
+        if (position != null)
+          'banner': {
+            'text': s['displayText'] ?? '',
+            'position': position,
+            'color': stageColorHex(color ?? 0xffffff),
+            'bold': s['bold'] == true,
+            'italic': s['italic'] == true,
+            'effect': effectOf(s),
+          },
         'overtime': s['overtime'] == true,
         'paused': s['paused'] == true,
         // Whether the text is a countdown or clock, whose colon blinks.
         'ticking':
             s['clockBlink'] != false &&
-            (s['outputMode'] == 'Clock' ||
-                (s['displayIsTimer'] == true && s['paused'] != true)),
+            (shown['outputMode'] == 'Clock' ||
+                (shown['displayIsTimer'] == true && s['paused'] != true)),
         if (s['quickMessage'] case final Map q)
           'message': {
             'headline': q['headline'] ?? '',

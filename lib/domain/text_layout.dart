@@ -3,10 +3,35 @@ library;
 
 import 'package:church_service_timer/domain/domain.dart';
 
+/// The fastest a cue may scroll on screens: twice the LED sign's fastest.
+const maxScreenSpeed = 48;
+
+/// The colours a cue may have on screens. 'accent' is the host's theme
+/// colour; the others are fixed (see [screenCueColors]).
+const screenColorNames = {'white', 'amber', 'red', 'green', 'accent'};
+
+/// Where a cue may show on screens.
+const screenPositions = {'full', 'top', 'bottom'};
+
 class TextLayout {
   final String text, effect, align, font;
   final bool bold, italic;
   final int speed, height;
+
+  /// Scrolling speed on stage, web and second screens, on the sign's scale
+  /// but up to twice as fast; null follows the LED sign's [speed].
+  final int? screenSpeed;
+  int get speedOnScreens => screenSpeed ?? speed;
+
+  /// The cue's colour on screens: one of [screenColorNames]. White, as
+  /// every cue was, until it is chosen.
+  final String screenColor;
+
+  /// Where the cue shows on screens: 'full' in place of the countdown, as
+  /// every cue did, or a band at the 'top' or 'bottom' with the countdown
+  /// still in view.
+  final String screenPosition;
+  bool get bannerOnScreens => screenPosition != 'full';
   const TextLayout(
     this.text, {
     this.bold = false,
@@ -14,6 +39,9 @@ class TextLayout {
     this.effect = 'scroll',
     this.align = 'center',
     this.speed = 12,
+    this.screenSpeed,
+    this.screenColor = 'white',
+    this.screenPosition = 'full',
     this.height = 1,
     this.font = 'i-proton_matrix',
   });
@@ -25,6 +53,9 @@ class TextLayout {
       'effect',
       'align',
       'speed',
+      'screenSpeed',
+      'screenColor',
+      'screenPosition',
       'height',
       'font',
     }, 'Text layout');
@@ -33,6 +64,9 @@ class TextLayout {
           j['bold'] is bool &&
           j['italic'] is bool &&
           j['speed'] is int &&
+          (j['screenSpeed'] == null || j['screenSpeed'] is int) &&
+          (j['screenColor'] == null || j['screenColor'] is String) &&
+          (j['screenPosition'] == null || j['screenPosition'] is String) &&
           j['height'] is int,
       'Text layout has missing or invalid fields.',
     );
@@ -43,6 +77,9 @@ class TextLayout {
       effect: j['effect'],
       align: j['align'],
       speed: j['speed'],
+      screenSpeed: j['screenSpeed'],
+      screenColor: j['screenColor'] ?? 'white',
+      screenPosition: j['screenPosition'] ?? 'full',
       height: j['height'],
       // Font ids from earlier versions still open (see legacyFontIds).
       font: legacyFontIds[j['font']] ?? j['font'] ?? 'i-proton_matrix',
@@ -68,6 +105,19 @@ class TextLayout {
       speed >= 4 && speed <= 24 && (height == 1 || height == 2),
       'Invalid text size or scrolling speed.',
     );
+    require(
+      screenSpeed == null ||
+          (screenSpeed! >= 4 && screenSpeed! <= maxScreenSpeed),
+      'Invalid scrolling speed on screens.',
+    );
+    require(
+      screenColorNames.contains(screenColor),
+      'Unsupported colour on screens.',
+    );
+    require(
+      screenPositions.contains(screenPosition),
+      'Unsupported position on screens.',
+    );
   }
 
   Json toJson() => {
@@ -77,6 +127,10 @@ class TextLayout {
     'effect': effect,
     'align': align,
     'speed': speed,
+    // Left out until it is set, so files without it stay as they were.
+    'screenSpeed': ?screenSpeed,
+    if (screenColor != 'white') 'screenColor': screenColor,
+    if (screenPosition != 'full') 'screenPosition': screenPosition,
     'height': height,
     'font': font,
   };

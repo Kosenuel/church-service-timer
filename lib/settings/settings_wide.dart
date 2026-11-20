@@ -307,7 +307,18 @@ class SignPreviewGrid extends StatelessWidget {
   /// The caption's first line, its quieter second line, and what the sign
   /// shows (nothing when this item never reaches the sign).
   final List<(String, String, TextLayout?)> items;
-  const SignPreviewGrid({super.key, required this.items});
+
+  /// Draws an item in place of the sign's preview: a stage screen's, say.
+  final Widget Function(TextLayout layout)? preview;
+
+  /// The words in the box of an item that is not shown at all.
+  final String? absent;
+  const SignPreviewGrid({
+    super.key,
+    required this.items,
+    this.preview,
+    this.absent,
+  });
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context);
@@ -327,10 +338,10 @@ class SignPreviewGrid extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (layout != null)
-                      SignPreview(layout)
+                      preview?.call(layout) ?? SignPreview(layout)
                     else
                       AspectRatio(
-                        aspectRatio: 2,
+                        aspectRatio: preview == null ? 2 : 16 / 9,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             border: Border.all(color: colors.border),
@@ -338,7 +349,7 @@ class SignPreviewGrid extends StatelessWidget {
                           ),
                           child: Center(
                             child: Text(
-                              'Not shown on the sign',
+                              absent ?? 'Not shown on the sign',
                               textAlign: TextAlign.center,
                               style: text.bodySmall?.copyWith(
                                 color: colors.muted,

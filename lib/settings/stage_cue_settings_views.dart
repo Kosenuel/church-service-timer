@@ -1,4 +1,5 @@
 import 'package:church_service_timer/settings/settings_wide.dart';
+import 'package:church_service_timer/live/cue_preview.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -42,6 +43,7 @@ extension OperatorSettings on HomeState {
       old ?? const TextLayout(''),
       index == null ? 'Create stage cue' : 'Edit stage cue',
       'Save cue',
+      cue: true,
     );
     if (result == null) return;
     final ok = await c.commit((draft, _) {
@@ -151,17 +153,26 @@ extension OperatorSettings on HomeState {
   );
 
   /// Beside Stage cues in a wide window: what each cue looks like on the
-  /// sign, in the order of the buttons on Live.
+  /// display in use, in the order of the buttons on Live. With stage
+  /// screens, or the Simulator standing in for one, that is a stage
+  /// screen; otherwise the LED sign.
   Widget stageCuePreviewPane() {
     final cues = c.state.stageCues;
+    final stage = c.previewsAsStageScreen;
     return SidePane(
-      title: 'On the sign',
+      key: const ValueKey('stage-cue-preview-pane'),
+      title: stage ? 'On the stage screen' : 'On the LED sign',
       note: cues.isEmpty
-          ? 'No cues yet. Create one and it is shown here as the sign will show it.'
+          ? stage
+                ? 'No cues yet. Create one and it is shown here as a stage screen will show it.'
+                : 'No cues yet. Create one and it is shown here as the sign will show it.'
+          : stage
+          ? 'What each cue shows on a stage, web or second screen when you send it from Live, in the order of the buttons there. Nothing here is sent to a screen. Point at a scrolling cue to play it.'
           : 'What each cue shows when you send it from Live, in the order of the buttons there. Nothing here is sent to the sign. Point at a preview to play it.',
       children: [
         if (cues.isNotEmpty)
           SignPreviewGrid(
+            preview: stage ? HoverCueStagePreview.new : null,
             items: [
               for (final cue in cues)
                 (

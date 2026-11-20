@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:async';
 import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
@@ -106,7 +107,7 @@ extension LiveLayout on HomeState {
           DisplayConnection.stageConnected => 'Stage screens',
           DisplayConnection.connected =>
             c.destination == 'led' ? 'LED sign' : 'Display',
-          DisplayConnection.simulator => 'Simulator',
+          DisplayConnection.simulator => c.simulatorName,
         };
 
   Widget liveMenu() => PopupMenuButton<String>(
@@ -371,7 +372,14 @@ class HeaderDisplayChip extends StatelessWidget {
                       ),
                     const SizedBox(width: 8),
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 140),
+                      // A narrow phone has room for less, most of all
+                      // with large text; the label shortens with "…".
+                      constraints: BoxConstraints(
+                        maxWidth: math.min(
+                          140,
+                          MediaQuery.sizeOf(context).width * .3,
+                        ),
+                      ),
                       child: Text(
                         label,
                         maxLines: 1,

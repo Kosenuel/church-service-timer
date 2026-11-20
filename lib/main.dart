@@ -95,7 +95,7 @@ export 'package:church_service_timer/live/mini_timer.dart';
 /// One line describing a layout. Each " · " stays with the word before
 /// it, so a wrap never starts a line with "· scroll".
 String styleSummary(TextLayout l) =>
-    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}\u00a0px · ${l.align == 'center' ? 'centre' : l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}\u00a0px/s' : ''}'
+    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}\u00a0px · ${l.align == 'center' ? 'centre' : l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}\u00a0px/s${l.screenSpeed == null ? '' : ' · screens ${l.screenSpeed}'}' : ''}${l.screenColor == 'white' ? '' : ' · ${l.screenColor == 'accent' ? 'theme colour' : l.screenColor} on screens'}${l.bannerOnScreens ? ' · banner at the ${l.screenPosition}' : ''}'
         .replaceAll(' · ', '\u00a0· ');
 
 void main(List<String> arguments) {

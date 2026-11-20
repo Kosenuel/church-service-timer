@@ -8,6 +8,8 @@ import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
+import 'package:church_service_timer/live/cue_screen_controls.dart';
+import 'package:church_service_timer/live/cue_preview.dart';
 
 /// Whether two layouts look the same; layouts are compared by content, as
 /// a copy of the default end screen is still the default.
@@ -18,12 +20,18 @@ class TextComposer extends StatefulWidget {
   final TextLayout initial;
   final String title, button;
   final Future<bool> Function()? onDelete;
+
+  /// For a stage cue: the preview has a switch between the LED sign and a
+  /// stage screen, starting on the stage screen when this is true. Null
+  /// shows the LED sign only.
+  final bool? stagePreviewFirst;
   const TextComposer({
     super.key,
     required this.initial,
     required this.title,
     required this.button,
     this.onDelete,
+    this.stagePreviewFirst,
   });
   @override
   State<TextComposer> createState() => _TextComposerState();
@@ -36,6 +44,8 @@ class _TextComposerState extends State<TextComposer> {
   late String effect, align, font;
   String? fontRequest, fontError;
   late int height, speed;
+  int? screenSpeed;
+  late String screenColor, screenPosition;
   final watch = Stopwatch()..start();
   final previewTick = ValueNotifier<int>(0);
   Timer? ticker;
@@ -50,6 +60,9 @@ class _TextComposerState extends State<TextComposer> {
     align = l.align;
     height = l.height;
     speed = l.speed;
+    screenSpeed = l.screenSpeed;
+    screenColor = l.screenColor;
+    screenPosition = l.screenPosition;
     font = l.font;
     ticker = Timer.periodic(const Duration(milliseconds: 80), (_) {
       if (mounted) previewTick.value++;
@@ -72,6 +85,10 @@ class _TextComposerState extends State<TextComposer> {
     align: align,
     height: height,
     speed: speed,
+    // Only scrolling text has a speed; nothing is kept for other effects.
+    screenSpeed: effect == 'scroll' ? screenSpeed : null,
+    screenColor: screenColor,
+    screenPosition: screenPosition,
     font: font,
   );
   @override
@@ -98,6 +115,27 @@ class _TextComposerState extends State<TextComposer> {
       error = e.toString();
     }
     if (font == 'tinos' && fontError != null) error = fontError;
+    final ledPreview = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        RepaintBoundary(
+          child: ValueListenableBuilder<int>(
+            valueListenable: previewTick,
+            builder: (context, _, child) => LedMatrix(
+              pixels: error == null
+                  ? renderPixels(layout, watch.elapsedMilliseconds)
+                  : List.filled(512, false),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'NOT TESTED ON SIGN · simulator preview',
+          style: TextStyle(color: appColors(context).warning, fontSize: 11),
+        ),
+      ],
+    );
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
@@ -107,24 +145,14 @@ class _TextComposerState extends State<TextComposer> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              RepaintBoundary(
-                child: ValueListenableBuilder<int>(
-                  valueListenable: previewTick,
-                  builder: (context, _, child) => LedMatrix(
-                    pixels: error == null
-                        ? renderPixels(layout, watch.elapsedMilliseconds)
-                        : List.filled(512, false),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'NOT TESTED ON SIGN · simulator preview',
-                style: TextStyle(
-                  color: appColors(context).warning,
-                  fontSize: 11,
-                ),
-              ),
+              if (widget.stagePreviewFirst case final stageFirst?)
+                CuePreviewSwitch(
+                  cue: error == null ? layout : null,
+                  stageFirst: stageFirst,
+                  led: ledPreview,
+                )
+              else
+                ledPreview,
               const SizedBox(height: 16),
               TextField(
                 controller: text,
@@ -209,8 +237,9 @@ class _TextComposerState extends State<TextComposer> {
               ),
               if (effect == 'scroll') ...[
                 const SizedBox(height: 12),
-                Text('Scroll speed: $speed pixels / second'),
+                Text('Speed on the LED sign: $speed pixels / second'),
                 Slider(
+                  key: const ValueKey('led-speed'),
                   value: speed.toDouble(),
                   min: 4,
                   max: 24,
@@ -226,6 +255,17 @@ class _TextComposerState extends State<TextComposer> {
                     ),
                   ),
               ],
+              const SizedBox(height: 16),
+              ScreenCueControls(
+                color: screenColor,
+                position: screenPosition,
+                scrolls: effect == 'scroll',
+                ledSpeed: speed,
+                screenSpeed: screenSpeed,
+                onColor: (v) => setState(() => screenColor = v),
+                onPosition: (v) => setState(() => screenPosition = v),
+                onSpeed: (v) => setState(() => screenSpeed = v),
+              ),
               if (error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
