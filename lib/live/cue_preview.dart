@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/pairing/stage_surface.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 
@@ -136,6 +137,7 @@ class CueStagePreview extends StatelessWidget {
                         stageAccentRgbOf(appColors(context).accent),
                   ),
                 if (cue != null && cue.screenWrap) 'screenWrap': true,
+                'screenWords': ?stageWordGroupsOf(cue),
                 if (cue != null && cue.screenPosition != 'full') ...{
                   'cuePosition': cue.screenPosition,
                   'underText': '12:34',

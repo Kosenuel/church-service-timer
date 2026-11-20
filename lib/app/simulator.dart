@@ -16,7 +16,7 @@ class Simulator {
   int drawnAt = 0;
 
   /// Whether the picture changes between updates by itself: text wider
-  /// than the sign scrolling, or flashing. The view then draws it again
+  /// than the sign scrolling, flashing, or shown a few words at a time. The view then draws it again
   /// on every frame with [pixelsAt], so it moves at the sign's own steady
   /// pace rather than only when the app's clock ticks.
   bool moving = false;
@@ -33,6 +33,10 @@ class Simulator {
     final shown = delivered;
     if (!moving || shown == null) return null;
     final elapsed = math.max(0, mono - deliveredAt);
+    // A few words at a time changes, at most, every frame of the sign's.
+    if (signWordGroups(shown) != null) {
+      return deliveredAt + (elapsed ~/ wordGroupFrameMs + 1) * wordGroupFrameMs;
+    }
     if (shown.effect == 'flash')
       return deliveredAt + (elapsed ~/ 500 + 1) * 500;
     final speed = shown.speed;
@@ -79,7 +83,8 @@ class Simulator {
         !clock &&
         shown != null &&
         (shown.effect == 'flash' ||
-            (shown.effect == 'scroll' && textWidth(shown) > 32));
+            (shown.effect == 'scroll' && textWidth(shown) > 32) ||
+            stageWordGroupsOf(shown) != null);
     drawnAt = now.mono;
     pixels = clock
         ? W2Program.clockPixels(

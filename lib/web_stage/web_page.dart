@@ -56,17 +56,21 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 @keyframes fx-up { from { transform:translateY(100vh); } to { transform:none; } }
 @keyframes fx-down { from { transform:translateY(-100vh); } to { transform:none; } }
 @keyframes fx-screen { from, to { background:var(--fx-tint); } }
+@keyframes fx-ink { from, to { color:#fff4dc; } }
 #stage .fx-pulse { animation:fx-pulse 2s ease-in-out infinite; }
 #stage .fx-flashHold { animation:fx-flash3 3s step-end 1; }
 #stage .fx-slideIn { animation:fx-up .3s ease-out 1; }
 #stage .band.top .fx-slideIn { animation-name:fx-down; }
 #stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:fx-screen .6s step-end 1; }
-#stage .cuebar { position:absolute; left:10vw; right:10vw; bottom:7vh; height:1.4vh; border-radius:1vh; display:none; overflow:hidden; background:rgba(255,255,255,.14); }
+/* Words in the cue's colour are warm white while the flash lights it. */
+#stage.fx-screenFlash.coloured .text { animation:fx-ink .6s step-end 1; }
+/* A countdown bar: placed just under the words by placeBar. */
+#stage .cuebar { position:absolute; left:0; top:0; width:0; height:0; display:none; overflow:hidden; background:rgba(255,255,255,.14); }
 #stage .cuebar i { display:block; height:100%; width:100%; background:currentColor; border-radius:inherit; }
-#stage .band .cuebar { left:6vh; right:6vh; bottom:1.4vh; height:.8vh; display:block; }
+#stage .band .cuebar { display:block; }
 @media (prefers-reduced-motion: reduce) {
   #stage .fx-slideIn { animation:none; }
-  #stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:none; }
+  #stage.fx-screenFlash, #stage .band.fx-screenFlash, #stage.fx-screenFlash.coloured .text { animation:none; }
   #stage.fx-screenFlash, #stage .band.fx-screenFlash { box-shadow:inset 0 0 0 1.2vh var(--fx); }
 }
 #stage .rule { position:absolute; left:0; right:0; bottom:0; height:max(4px, 1.667vh); display:none; }
@@ -418,6 +422,11 @@ function startMotion(text, value, s, key) {
     const speed = (Number(s.speed) || 12) * 6 * (size / Math.min(260, Math.max(42, w / 7)));
     motion = m; startScroll('stage', run, value.replace(/\n/g, ' '), w, speed);
     return;
+  } else if (s.group) {
+    const longest = s.group.words.reduce((a, b) => (b.length > a.length ? b : a));
+    fit(text, longest);
+    fitWords(text, s.group.words, parseFloat(text.style.fontSize), w * 0.92);
+    stepWords(m, text, s.group);
   } else {
     text.textContent = value;
     if (s.wrapAt) text.style.fontSize = s.wrapAt + 'px'; else fit(text, value || ' ');
@@ -440,6 +449,42 @@ function setFx(node, fx, key) {
   for (const f of FX) node.classList.remove('fx-' + f);
   if (fx) { void node.offsetWidth; node.classList.add('fx-' + fx); }
 }
+// Flash or Pulse text too wide for the LED sign, a few words at a time as
+// the sign shows it: which of [count] groups shows [ms] after the cue
+// appears, and how brightly. The same timing as the app's screens.
+function wordAt(kind, count, ms) {
+  const cycle = count * 2000 + (kind === 'flash' ? 300 : 0);
+  const t = ((Math.floor(ms) % cycle) + cycle) % cycle;
+  const index = Math.min(Math.floor(t / 2000), count - 1), within = t - index * 2000;
+  if (kind === 'flash') return { index, opacity: within < 500 || (within >= 1000 && within < 1500) ? 1 : 0 };
+  const v = Math.sin(Math.PI * within / 2000);
+  return { index, opacity: v * v };
+}
+// The groups of words [s] steps through, and with which effect, or null
+// when it shows its text whole (wrapped text flashes or pulses whole).
+function wordsOf(s, wrap) {
+  const ok = Array.isArray(s.words) && s.words.length > 0 && s.words.every((w) => typeof w === 'string');
+  if (!ok || wrap) return null;
+  const kind = s.effect === 'flash' ? 'flash' : s.screenEffect === 'pulse' ? 'pulse' : null;
+  return kind ? { kind, words: s.words } : null;
+}
+// Sets [node] to the size at which the widest of [words] fits [room] px
+// across, from [size] px at most, so every group is the same size.
+function fitWords(node, words, size, room) {
+  node.style.whiteSpace = 'nowrap'; node.style.fontSize = size + 'px';
+  for (const w of words) { node.textContent = w; if (node.offsetWidth > room) { size = size * room / node.offsetWidth; node.style.fontSize = size + 'px'; } }
+}
+// Steps [node] through the groups as time passes in motion [m].
+function stepWords(m, node, g) {
+  m.step = () => {
+    const at = wordAt(g.kind, g.words.length, m.elapsed * 1000);
+    if (node.textContent !== g.words[at.index]) node.textContent = g.words[at.index];
+    node.style.opacity = String(at.opacity);
+  };
+}
+// A coloured full-screen cue's words: warm white for amber, otherwise the
+// cue's own colour (the host lightens a dark theme colour before sending).
+const cardInk = (c) => c.toLowerCase() === '#ffa833' ? '#fff4dc' : c;
 // A screen flash is in the cue's colour, or red for a white cue.
 const flashColour = (c) => !c || c.toLowerCase() === '#ffffff' ? '#ff4d4d' : c;
 // The flash's background: a deep tint of its colour, so the cue stays
@@ -461,6 +506,35 @@ function setBar(bar, time) {
   fill.style.width = '0%';
 }
 
+// A countdown bar just under [node]'s words and as wide as them (nine
+// tenths of their width, at least 80 px), about 2% of the screen's height
+// thick with a gap of one and a half times that. The words move up by
+// half of the bar and gap, so the two stay centred together. Measured on
+// the words as drawn, so the bar matches them, wrapped or not.
+function placeBar(bar, node) {
+  node.style.position = ''; node.style.top = '';
+  if (bar.style.display === 'none' || !node.textContent.trim() || !bar.offsetParent) return;
+  const h = window.innerHeight;
+  const thick = Math.min(10, Math.max(4, h * 0.02)), gap = thick * 1.5;
+  node.style.position = 'relative'; node.style.top = (-(gap + thick) / 2) + 'px';
+  const range = document.createRange(); range.selectNodeContents(node);
+  // Across, the words themselves; down, the lines they sit on.
+  const r = range.getBoundingClientRect(), lines = node.getBoundingClientRect(), box = bar.offsetParent.getBoundingClientRect();
+  const width = Math.min(box.width, Math.max(80, r.width * 0.9));
+  bar.style.height = thick + 'px'; bar.style.borderRadius = thick + 'px';
+  bar.style.width = width + 'px';
+  bar.style.left = (r.left + r.width / 2 - width / 2 - box.left) + 'px';
+  // With nothing below the line (as in capitals), from the line the last
+  // words stand on; otherwise below the room kept for letters such as g.
+  let bottom = lines.bottom;
+  const last = node.textContent.trimEnd().split('\n').pop();
+  if (!/[gjpqyQ,;()\[\]{}|@_$]/.test(last)) {
+    const mark = el('span'); mark.style.display = 'inline-block'; mark.style.height = '0'; mark.style.verticalAlign = 'baseline';
+    node.append(mark); bottom = Math.min(bottom, mark.getBoundingClientRect().bottom); mark.remove();
+  }
+  bar.style.top = (bottom + gap - box.top) + 'px';
+}
+
 // A banner cue: the cue in a band across the top or bottom of the screen,
 // in its colour, while the countdown or clock stays in view behind it.
 let bandMotion = null;
@@ -471,7 +545,8 @@ function renderBand(s) {
   if (!b) { stop(); stopScroll('band', true); band.style.display = 'none'; band.dataset.key = ''; setFx(band, null, ''); clear(band); return; }
   const h = window.innerHeight, w = window.innerWidth;
   const fx = b.screenEffect || '';
-  const key = [b.text, b.position, b.color, b.bold, b.italic, b.effect, b.wrap, fx, s.speed, w, h].join('|');
+  const bandGroup = wordsOf(b, b.wrap === true);
+  const key = [b.text, b.position, b.color, b.bold, b.italic, b.effect, b.wrap, fx, bandGroup ? bandGroup.words.join('\n') : '', s.speed, w, h].join('|');
   // The same banner as the last poll: leave it running.
   if (band.dataset.key === key) { const bar = band.querySelector('.cuebar'); if (bar) setBar(bar, b.cueTime); return; }
   stop(); clear(band); band.dataset.key = key;
@@ -506,18 +581,25 @@ function renderBand(s) {
   } else {
     const wrapped = !!label;
     if (!label) { label = el('span', '', value); band.append(label); }
-    // A long cue is made smaller until it fits the band's width.
-    if (!wrapped && label.offsetWidth > room) band.style.fontSize = Math.max(12, size * room / label.offsetWidth) + 'px';
-    if (effect === 'flash') m.step = () => { label.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
-    // The band's text pulses, flashes three times or slides in from its
-    // edge; wrapped text does so as one block.
-    if (['pulse', 'flashHold', 'slideIn'].includes(fx)) label.classList.add('fx-' + fx);
+    if (bandGroup && !wrapped) {
+      // A few words at a time, every group the same size.
+      label.style.fontSize = size + 'px';
+      fitWords(label, bandGroup.words, size, room);
+      stepWords(m, label, bandGroup);
+    } else {
+      // A long cue is made smaller until it fits the band's width.
+      if (!wrapped && label.offsetWidth > room) band.style.fontSize = Math.max(12, size * room / label.offsetWidth) + 'px';
+      if (effect === 'flash') m.step = () => { label.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
+      // The band's text pulses, flashes three times or slides in from its
+      // edge; wrapped text does so as one block.
+      if (['pulse', 'flashHold', 'slideIn'].includes(fx)) label.classList.add('fx-' + fx);
+    }
   }
   // A screen flash lights the band only; the countdown stays as it is.
   band.style.setProperty('--fx', flashColour(b.color));
   band.style.setProperty('--fx-tint', flashTint(b.color));
   setFx(band, fx === 'screenFlash' ? fx : null, key);
-  if (fx === 'bar' && !scrollsInstead) { const bar = el('div', 'cuebar'); bar.append(el('i')); band.append(bar); setBar(bar, b.cueTime); }
+  if (fx === 'bar' && !scrollsInstead) { const bar = el('div', 'cuebar'); bar.append(el('i')); band.append(bar); setBar(bar, b.cueTime); placeBar(bar, label); }
   if (!m.step) return;
   const frame = (now) => {
     if (!$('stage').classList.contains('stale')) m.elapsed += (now - m.last) / 1000;
@@ -559,9 +641,11 @@ function renderStage(s) {
   const h = window.innerHeight, w = window.innerWidth;
   // "Wrap long text": wrapped onto up to 3 lines, as large as fits.
   const wrap = s.wrap === true && value.trim() !== '';
+  // A few words at a time, when the text is too wide for the LED sign.
+  const group = s.sharing && !s.message && !s.blank && value ? wordsOf(s, wrap) : null;
   // Wrapped text too long for 3 lines scrolls, so it may be moving too.
-  const moving = s.sharing && !s.message && !s.blank && value && (s.effect === 'scroll' || s.effect === 'flash' || wrap);
-  const key = moving ? [s.effect, wrap, value, s.speed, s.bold, s.italic, s.overtime, s.color, w, h].join('|') : '';
+  const moving = s.sharing && !s.message && !s.blank && value && (s.effect === 'scroll' || s.effect === 'flash' || wrap || !!group);
+  const key = moving ? [s.effect, s.screenEffect, wrap, value, group ? group.words.join('\n') : '', s.speed, s.bold, s.italic, s.overtime, s.color, w, h].join('|') : '';
   // The same moving text as the last poll: leave it running.
   if (moving && motion && motion.key === key) { note.textContent = s.paused ? 'PAUSED' : ''; return; }
   // Scrolling text started again carries on where it was.
@@ -569,25 +653,27 @@ function renderStage(s) {
   // A full-screen cue's newer effect, if it has one; nothing otherwise.
   const fx = s.sharing && !s.message && !s.blank && !s.banner && value ? (s.screenEffect || null) : null;
   const fxKey = [value, s.color, s.bold, s.italic].join('|');
-  setFx(text, ['pulse', 'flashHold', 'slideIn'].includes(fx) ? fx : null, fxKey);
+  setFx(text, ['pulse', 'flashHold', 'slideIn'].includes(fx) && !group ? fx : null, fxKey);
   stage.style.setProperty('--fx', flashColour(s.color));
   stage.style.setProperty('--fx-tint', flashTint(s.color));
   setFx(stage, fx === 'screenFlash' ? fx : null, fxKey);
   const bar = $('stageBar'); bar.style.color = s.color || '#fff';
   setBar(bar, fx === 'bar' ? s.cueTime : null);
-  // A full-screen cue in a colour: warm white on warm charcoal, with a
-  // rule in its colour along the bottom edge. White cues stay as they are.
+  // A full-screen cue in a colour: its words in that colour (warm white
+  // for amber) on warm charcoal, with a rule in its colour along the
+  // bottom edge. White cues stay as they are.
   const card = s.sharing && !s.message && !s.blank && !s.banner && value.trim() !== '' && !!s.color && s.color.toLowerCase() !== '#ffffff';
+  stage.classList.toggle('coloured', card);
   const rule = $('stageRule'); rule.style.display = card ? 'block' : 'none'; rule.style.background = card ? s.color : '';
-  clear(text); note.textContent = ''; stage.style.background = card ? '#1a1712' : '#000'; stage.style.textAlign = 'center'; text.style.width = ''; text.classList.remove('wrapped');
+  clear(text); note.textContent = ''; stage.style.background = card ? '#1a1712' : '#000'; stage.style.textAlign = 'center'; text.style.width = ''; text.style.position = ''; text.style.top = ''; text.style.opacity = ''; text.style.whiteSpace = ''; text.classList.remove('wrapped');
   if (!s.sharing) { text.textContent = 'Waiting for the host. On the host, tap Show on stage screens on Live.'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {
     renderMessage(stage, text, s.message); return;
   }
   if (s.blank) return;
-  // A coloured full-screen cue in warm white, its colour in the rule;
-  // otherwise white, or red in overtime.
-  text.style.color = card ? '#fff4dc' : s.color || (s.overtime ? '#ff4d4d' : '#fff');
+  // A coloured full-screen cue in its colour, amber's in warm white, with
+  // its colour in the rule too; otherwise white, or red in overtime.
+  text.style.color = card ? cardInk(s.color) : s.color || (s.overtime ? '#ff4d4d' : '#fff');
   text.style.fontWeight = s.bold ? '800' : '500';
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
   if (s.paused) note.textContent = 'PAUSED';
@@ -600,8 +686,9 @@ function renderStage(s) {
     // the whole block; too long for that, it scrolls.
     // A scrolling fallback drops its own effect and bar, as the app's
     // screens do; a screen flash still plays.
-    if (wrapAt) { if (effect !== 'flash') return; } else { text.classList.remove('wrapped'); clear(text); effect = 'scroll'; setFx(text, null, ''); setBar(bar, null); }
+    if (wrapAt) { if (effect !== 'flash') { placeBar(bar, text); return; } } else { text.classList.remove('wrapped'); clear(text); effect = 'scroll'; setFx(text, null, ''); setBar(bar, null); }
   }
+  if (group) { startMotion(text, value, Object.assign({}, s, { effect: 'words', group }), key); return; }
   if (moving && (effect === 'scroll' || effect === 'flash')) { startMotion(text, value, Object.assign({}, s, { effect, wrapAt }), key); return; }
   if (s.ticking && value.includes(':')) {
     // Each colon is its own span, so only its brightness changes.
@@ -611,6 +698,7 @@ function renderStage(s) {
     text.textContent = value;
   }
   fit(text, value || ' ', room);
+  placeBar(bar, text);
 }
 // The quick message's palette and style, as the paired screens show it.
 const PALETTES = { white: ['#ffffff', '#10151c'], amber: ['#ffdc8b', '#261b09'], sky: ['#c4e6ff', '#071b2c'], mint: ['#bcf4da', '#08271c'] };

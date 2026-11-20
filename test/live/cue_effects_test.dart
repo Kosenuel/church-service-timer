@@ -119,8 +119,10 @@ BoxDecoration flashOf(WidgetTester t, {bool band = false}) =>
 Color textColor(WidgetTester t, [String text = 'WRAP UP']) =>
     t.widget<Text>(find.text(text)).style!.color!;
 
+/// The bar as drawn on the screen, after the words and bar are shrunk
+/// together to fit.
 double barWidth(WidgetTester t) =>
-    t.getSize(find.byKey(const ValueKey('stage-cue-bar'))).width;
+    t.getRect(find.byKey(const ValueKey('stage-cue-bar'))).width;
 
 void main() {
   setUpAll(loadAppFonts);
@@ -383,8 +385,13 @@ void main() {
       await stage(t, data);
       await t.pump();
       final full = barWidth(t);
-      // Four fifths of the screen, inside its margin.
-      expect(full, closeTo((1920 - 24) * .8, 1));
+      // Nine tenths of the words' width, centred under them.
+      final words = t.getRect(find.text('WRAP UP'));
+      expect(full, closeTo(words.width * .9, 1));
+      final track = t.getRect(
+        find.byKey(const ValueKey('stage-cue-bar-track')),
+      );
+      expect(track.center.dx, closeTo(words.center.dx, 1));
       await t.pump(const Duration(seconds: 5));
       expect(barWidth(t), closeTo(full / 2, full * .02));
       // A new snapshot puts it where the host says, and it runs on.
@@ -415,16 +422,17 @@ void main() {
     testWidgets('screen flash lights the screen once', (t) async {
       await stage(t, cue('screenFlash', color: '#4ade80'));
       await t.pump(const Duration(milliseconds: 100));
-      // A deep tint of the cue's colour behind the cue's warm white text.
+      // A deep tint of the cue's colour; the words are warm white over it,
+      // as green on green would not read.
       expect(
         flashOf(t).color,
         Color.lerp(Colors.black, const Color(0xff4ade80), .32),
       );
       expect(textColor(t), const Color(0xfffff4dc));
-      // Then it settles to the coloured cue's charcoal.
+      // Then it settles to the coloured cue's charcoal, with green words.
       await t.pump(const Duration(milliseconds: 600));
       expect(flashOf(t).color, const Color(0xff1a1712));
-      expect(textColor(t), const Color(0xfffff4dc));
+      expect(textColor(t), const Color(0xff4ade80));
       expect(t.binding.hasScheduledFrame, isFalse);
       // The next snapshot of the same cue does not flash again.
       await next(t, cue('screenFlash', color: '#4ade80'));
@@ -633,7 +641,7 @@ void main() {
         expect(find.text(option.label), findsWidgets, reason: option.label);
         expect(find.text(option.hint!), findsOne, reason: option.hint);
       }
-      for (final effect in ['pulse', 'slideIn', 'bar', 'screenFlash']) {
+      for (final effect in ['slideIn', 'bar', 'screenFlash']) {
         expect(
           effectChoices.firstWhere((o) => o.value == effect).hint,
           contains('steady on the LED sign'),
@@ -700,7 +708,7 @@ void main() {
 
   group('Goldens', () {
     testWidgets('a stage screen mid-pulse', (t) async {
-      await stage(t, cue('pulse', color: '#ff4d4d'));
+      await stage(t, cue('pulse', color: '#ff7979'));
       await t.pump();
       await t.pump(const Duration(milliseconds: 700));
       await expectLater(
