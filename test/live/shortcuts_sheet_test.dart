@@ -4,6 +4,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/live/clicker_controls.dart';
 import 'package:church_service_timer/live/command_palette.dart';
+import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/live/shortcuts.dart';
 import 'package:church_service_timer/live/shortcuts_sheet.dart';
 import 'package:church_service_timer/main.dart';
@@ -247,6 +248,7 @@ void main() {
         find.byType(SnackBar).evaluate().isNotEmpty ||
         home(t).controlsLocked ||
         home(t).miniTimer ||
+        home(t).hostFullScreen.showing ||
         c.state.session.alert != null;
 
     testWidgets('a key that is not listed does nothing', (t) async {
@@ -324,6 +326,7 @@ void main() {
             final claimed =
                 isCommandPaletteKey(key, control: control) ||
                 isMiniTimerKey(key, control: control) ||
+                isFullScreenKey(key) ||
                 isShortcutsSheetKey(key, shift: shift) ||
                 clickerActionFor(key) != null ||
                 desktopLiveActionFor(key, control: control) != null ||
@@ -376,6 +379,7 @@ void main() {
         'message',
         'lock',
         'mini',
+        'fullscreen',
         'shortcuts',
       ]) {
         expect(withKeys.remove(id), shortcutHint(id), reason: id);

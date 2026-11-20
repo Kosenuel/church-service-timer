@@ -19,7 +19,7 @@ Directory windowsDataDirectory() {
   return Directory('$base\\I-Proton\\Church Service Timer');
 }
 
-class _Win32Window implements PinnableWindow {
+class _Win32Window implements PinnableWindow, FillableWindow {
   @override
   WindowPlace? read() {
     try {
@@ -49,6 +49,26 @@ class _Win32Window implements PinnableWindow {
     } catch (_) {
       return false;
     }
+  }
+
+  @override
+  bool fill() {
+    try {
+      return win32.enterFullScreen(win32.appWindow());
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  void unfill(WindowPlace place) {
+    try {
+      win32.leaveFullScreen(
+        win32.appWindow(),
+        place.frame,
+        maximised: place.maximised,
+      );
+    } catch (_) {}
   }
 }
 
@@ -102,6 +122,7 @@ WindowsPort? startWindowsPort(List<String> arguments) {
     loadTinosFace: (style) => File('$fonts\\Tinos-$style.ttf').readAsBytes(),
     stageLauncher: const WindowsStageLauncher(),
     miniWindow: memory,
+    fullScreenWindow: memory,
   );
   if (file != null) port.offerIncomingFile(file);
   instance.listen((path) {

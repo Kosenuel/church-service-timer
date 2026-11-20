@@ -1,3 +1,4 @@
+import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
@@ -829,6 +830,10 @@ extension PairingViews on HomeState {
         if (hub.hosting) ...[const SizedBox(height: 16), webScreensPanel()],
         const SizedBox(height: 16),
         stageRequestsPanel(),
+        if (c.secondScreen == null) ...[
+          const SizedBox(height: 16),
+          fullScreenPanel(),
+        ],
         if (hub.hosting) ...[const SizedBox(height: 16), stop],
       ],
     );
@@ -889,6 +894,10 @@ extension PairingViews on HomeState {
           const SizedBox(height: 16),
         ],
         stageRequestsPanel(),
+        if (c.secondScreen == null) ...[
+          const SizedBox(height: 16),
+          fullScreenPanel(),
+        ],
       ],
     );
     final web = hub.hosting
