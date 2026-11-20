@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -115,6 +116,7 @@ extension LiveLayout on HomeState {
     onSelected: (value) {
       if (value == 'focus') setFocused(!focused);
       if (value == 'mini') unawaited(setMiniTimer(true));
+      if (value == 'fullscreen') unawaited(setHostFullScreen(true));
       if (value == 'ready') {
         openSettingsDetail('Ready for service', readinessSettings);
       }
@@ -131,6 +133,12 @@ extension LiveLayout on HomeState {
           'mini',
           'Mini timer',
           keys: showKeyHints ? 'Ctrl M' : null,
+        ),
+      if (hostFullScreenAvailable && !controlsLocked)
+        AppMenuAction(
+          'fullscreen',
+          'Full screen',
+          keys: showKeyHints ? shortcutHint('fullscreen') : null,
         ),
       if (!focused && !controlsLocked)
         const AppMenuAction('ready', 'Ready for service'),

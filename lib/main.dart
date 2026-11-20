@@ -46,6 +46,7 @@ import 'package:church_service_timer/live/planning_views.dart';
 import 'package:church_service_timer/live/time_recovery_views.dart';
 import 'package:church_service_timer/live/timing_overview_views.dart';
 import 'package:church_service_timer/live/mini_timer.dart';
+import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/reports/report_library_views.dart';
 import 'package:church_service_timer/reports/reports_desktop.dart';
 
@@ -299,6 +300,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     if (miniTimer && !miniTimerAvailable) unawaited(setMiniTimer(false));
   }
 
+  /// The stage picture fills this screen (see host_full_screen.dart).
+  final hostFullScreen = HostFullScreenState();
+
   final settingsRefresh = ValueNotifier<int>(0);
 
   final programsPage = ProgramsPageState();
@@ -392,6 +396,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     // The clicker test page only shows what a key would do: nothing
     // pressed there reaches the service.
     if (clickerTestOpen) return false;
+    // F11 shows the stage full screen on this screen; F11 or Esc leaves.
+    final fullScreen = fullScreenKey(event.logicalKey);
+    if (fullScreen != null) return fullScreen;
     // Ctrl+K opens the command palette from any tab of the home screen.
     if (c.port.isDesktop &&
         isCommandPaletteKey(
@@ -613,6 +620,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     if (file == null || !mounted) return;
     // The import review needs the full window.
     if (miniTimer && await setMiniTimer(false)) return;
+    if (hostFullScreen.showing && await setHostFullScreen(false)) return;
     if (mounted) await importFile(received: file);
   }
 
@@ -678,7 +686,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> showError(String message) => miniTimer
+  Future<void> showError(String message) => compactQuestions
       ? miniError(message)
       : showDialog<void>(
           context: context,
@@ -703,8 +711,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     bool destructive = false,
   }) async =>
       // A dialog does not fit the mini timer window; the same question is
-      // asked in a compact form there.
-      miniTimer
+      // asked in a compact form there, and over the stage in full screen.
+      compactQuestions
       ? miniConfirm(
           title: title,
           action: button,
@@ -851,6 +859,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
         ? PairedScreen(controller: c)
         : miniTimer
         ? miniTimerView()
+        : hostFullScreen.showing
+        ? hostFullScreenView()
         : PopScope(
             // Android Back leaves selection mode, cancels a service that is
             // loaded but not started, returns to Live, and only then asks
@@ -968,6 +978,20 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                 icon: const Icon(
                                   Icons.picture_in_picture_alt_outlined,
                                 ),
+                              ),
+                            // The stage on this screen, for when it is the
+                            // one people watch. A narrow screen has the
+                            // button under the stage preview instead.
+                            if (page == 0 && fullScreenInHeader)
+                              IconButton(
+                                key: const ValueKey('full-screen-button'),
+                                tooltip: showKeyHints
+                                    ? 'Full screen: show the stage on this screen (F11)'
+                                    : 'Full screen: show the stage on this screen',
+                                onPressed: controlsLocked
+                                    ? null
+                                    : () => unawaited(setHostFullScreen(true)),
+                                icon: const Icon(Icons.fullscreen),
                               ),
                             if (c.ready && page == 0 && c.liveSession.active)
                               IconButton(

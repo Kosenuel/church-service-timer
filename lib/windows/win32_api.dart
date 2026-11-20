@@ -487,6 +487,77 @@ bool pinWindow(int window, {required bool onTop}) {
       0;
 }
 
+// ---- The app window, full screen -------------------------------------------
+
+final _getWindowRect = _user32
+    .lookupFunction<
+      Int32 Function(IntPtr, Pointer<Int32>),
+      int Function(int, Pointer<Int32>)
+    >('GetWindowRect');
+
+/// The window's style before [enterFullScreen] changed it.
+int? _styleBeforeFullScreen;
+
+/// Makes the app window a borderless one covering the monitor most of it
+/// is on, as [fillScreen] does for the stage window. False, with nothing
+/// changed, when the window or its screen could not be read.
+bool enterFullScreen(int window) {
+  if (window == 0 || _styleBeforeFullScreen != null) return false;
+  // GWL_STYLE (-16); 0 means the read failed.
+  final style = _getWindowLongPtr(window, -16);
+  if (style == 0) return false;
+  final rect = calloc<Int32>(4);
+  List<int>? screen;
+  try {
+    if (_getWindowRect(window, rect) == 0) return false;
+    var most = 0;
+    for (final monitor in displayMonitors()) {
+      final width =
+          (rect[2] < monitor[2] ? rect[2] : monitor[2]) -
+          (rect[0] > monitor[0] ? rect[0] : monitor[0]);
+      final height =
+          (rect[3] < monitor[3] ? rect[3] : monitor[3]) -
+          (rect[1] > monitor[1] ? rect[1] : monitor[1]);
+      if (width > 0 && height > 0 && width * height > most) {
+        most = width * height;
+        screen = monitor;
+      }
+    }
+  } finally {
+    calloc.free(rect);
+  }
+  if (screen == null) return false;
+  _styleBeforeFullScreen = style;
+  fillScreen(window, screen, topmost: false);
+  return true;
+}
+
+/// Undoes [enterFullScreen]: the style it found, then the place the
+/// window had ([frame], and whether it was [maximised]). False when the
+/// window was not full screen or that place is on no screen any more; the
+/// frame is given back either way.
+bool leaveFullScreen(int window, List<int> frame, {required bool maximised}) {
+  final style = _styleBeforeFullScreen;
+  if (window == 0 || style == null) return false;
+  _styleBeforeFullScreen = null;
+  // Without WS_MAXIMIZE (0x01000000): the placement below maximises the
+  // window again, which Windows skips for one it believes is maximised.
+  _setWindowLongPtr(window, -16, style & ~0x01000000);
+  final placed = restoreWindowPlacement(window, frame, maximised: maximised);
+  // SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER (0x4), SWP_NOACTIVATE and
+  // SWP_FRAMECHANGED: redraw the title bar and borders for the style.
+  _setWindowPos(
+    window,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020,
+  );
+  return placed;
+}
+
 // ---- The notification-area icon -------------------------------------------
 //
 // One icon beside the Windows clock whose tooltip is the countdown. Windows

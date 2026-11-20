@@ -278,6 +278,7 @@ String exportBackup(
     ..remove('recentQuickTimers')
     ..remove('settingsLock')
     ..remove('clickerControls')
+    ..remove('fullScreenLayout')
     ..remove('practisedWall')
     ..remove('practicePrompt')
     ..remove('stageRequests')

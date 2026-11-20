@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/live/standing_by_desktop.dart';
@@ -812,6 +813,7 @@ extension LivePage on HomeState {
                 const SizedBox(height: 12),
                 stageSharingControls(),
                 ...secondScreenControl(),
+                ...fullScreenControl(),
               ],
             ),
           )
@@ -899,6 +901,7 @@ extension LivePage on HomeState {
                   ),
                 ],
                 ...secondScreenControl(),
+                ...fullScreenControl(),
               ],
             ),
           );
