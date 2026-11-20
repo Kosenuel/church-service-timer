@@ -48,7 +48,7 @@ const countdown = <String, dynamic>{
   'nextSegment': 'Offering',
 };
 
-Json banner(String position, {String color = '#ffc247', Json? more}) => {
+Json banner(String position, {String color = '#ffa833', Json? more}) => {
   ...countdown,
   'displayText': 'WRAP UP',
   'displayIsTimer': false,
@@ -95,7 +95,7 @@ void main() {
     expect(band.height, closeTo(216, .1));
     expect(
       t.widget<Text>(find.text('WRAP UP')).style!.color,
-      const Color(0xffffc247),
+      const Color(0xffffa833),
     );
     // The countdown is still there, white, and clear of the band.
     expect(digits(t).bottom, lessThan(band.top - 16));

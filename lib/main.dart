@@ -95,7 +95,7 @@ export 'package:church_service_timer/live/mini_timer.dart';
 /// One line describing a layout. Each " · " stays with the word before
 /// it, so a wrap never starts a line with "· scroll".
 String styleSummary(TextLayout l) =>
-    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}\u00a0px · ${l.align == 'center' ? 'centre' : l.align} · ${l.effect}${l.effect == 'scroll' ? ' ${l.speed}\u00a0px/s${l.screenSpeed == null ? '' : ' · screens ${l.screenSpeed}'}' : ''}${l.screenColor == 'white' ? '' : ' · ${l.screenColor == 'accent' ? 'theme colour' : l.screenColor} on screens'}${l.bannerOnScreens ? ' · banner at the ${l.screenPosition}' : ''}'
+    '${l.text} · ${displayFontNames[l.font]} · ${l.bold ? 'bold · ' : ''}${l.italic ? 'italic · ' : ''}${l.height * 7}\u00a0px · ${l.align == 'center' ? 'centre' : l.align} · ${effectNames[l.effect] ?? l.effect}${l.effect == 'scroll' ? ' ${l.speed}\u00a0px/s${l.screenSpeed == null ? '' : ' · screens ${l.screenSpeed}'}' : ''}${l.screenColor == 'white' ? '' : ' · ${l.screenColor == 'accent' ? 'theme colour' : l.screenColor} on screens'}${l.bannerOnScreens ? ' · banner at the ${l.screenPosition}' : ''}'
         .replaceAll(' · ', '\u00a0· ');
 
 void main(List<String> arguments) {
@@ -243,7 +243,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   bool _miniTimerChanging = false;
 
   /// Opens the mini timer or expands back to the full window. Opening
-  /// needs a computer, a running service and nothing else open on top;
+  /// needs a computer and nothing else open on top;
   /// otherwise nothing happens. Returns whether the mini timer is showing
   /// afterwards.
   Future<bool> setMiniTimer(bool value) async {
@@ -294,10 +294,19 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     return miniTimer;
   }
 
-  /// The mini timer is for a running service: when it ends (or this
-  /// device joins another's), the full window comes back.
+  /// Whether the service was running when [_followMiniTimer] last looked.
+  bool _serviceWasActive = false;
+
+  /// When the service the mini timer was showing ends (or this device
+  /// joins another's), the full window comes back. Opened before a
+  /// service, it stays.
   void _followMiniTimer() {
-    if (miniTimer && !miniTimerAvailable) unawaited(setMiniTimer(false));
+    final active = c.ready && c.liveSession.active;
+    final ended = _serviceWasActive && !active;
+    _serviceWasActive = active;
+    if (miniTimer && (!miniTimerAvailable || ended)) {
+      unawaited(setMiniTimer(false));
+    }
   }
 
   /// The stage picture fills this screen (see host_full_screen.dart).
@@ -432,14 +441,17 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       return true;
     }
     // A PC keyboard adds its own keys on top of the clicker's; they open
-    // the same confirmations as the buttons on screen.
+    // the same confirmations as the buttons on screen. The clicker's keys
+    // follow Clicker and foot pedal on every device: a computer cannot
+    // tell a clicker from its keyboard, so switched off they do nothing
+    // from either, and the other keys still work.
     final desktopAction = c.port.isDesktop
         ? desktopLiveActionFor(
             event.logicalKey,
             control: HardwareKeyboard.instance.isControlPressed,
           )
         : null;
-    final action = c.state.clickerControls || c.port.isDesktop
+    final action = c.state.clickerControls
         ? clickerActionFor(event.logicalKey)
         : null;
     final cueIndex = c.port.isDesktop
@@ -559,6 +571,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     _followServiceCompletion();
     c.addListener(_followServiceCompletion);
     c.addListener(_followMiniTimer);
+    _serviceWasActive = c.ready && c.liveSession.active;
     c.liveNavigation.addListener(returnToLive);
     HardwareKeyboard.instance.addHandler(onClickerKey);
     c.port.setIncomingFileHandler(receiveIncomingFile);
@@ -965,8 +978,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                 ),
                               ),
                             // The mini timer was only in the menu and by
-                            // Ctrl+M, where it was easy never to find.
-                            if (page == 0 && miniTimerAvailable && !miniTimer)
+                            // Ctrl+M, where it was easy never to find. On a
+                            // computer it is on every page, service or not.
+                            if (miniTimerAvailable && !miniTimer)
                               IconButton(
                                 key: const ValueKey('mini-timer-button'),
                                 tooltip: showKeyHints
@@ -1037,54 +1051,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                               Flexible(
                                 flex: useTopTabs ? 0 : 1,
                                 fit: useTopTabs ? FlexFit.loose : FlexFit.tight,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // One line beside the display chip; a
-                                    // long name ends in "…" and shows in
-                                    // full on long-press.
-                                    // On another tab, the running
-                                    // service's name is the way back to
-                                    // Live.
-                                    Tooltip(
-                                      message: headerReturnsToLive
-                                          ? 'Return to Live'
-                                          : headerTitle(),
-                                      child: InkWell(
-                                        key: const ValueKey(
-                                          'header-return-to-live',
-                                        ),
-                                        borderRadius: BorderRadius.circular(6),
-                                        onTap: headerReturnsToLive
-                                            ? () => goToPage(0)
-                                            : null,
-                                        child: Text(
-                                          headerTitle(),
-                                          key: const ValueKey('header-title'),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    if (headerSubtitle().isNotEmpty)
-                                      Tooltip(
-                                        message: headerSubtitle(),
-                                        child: Text(
-                                          headerSubtitle(),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: appColors(context).muted,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                                child: headerName(),
                               ),
                               // A desktop layout keeps the tabs in the
                               // header, where a rail would cost a pane.
@@ -1250,6 +1217,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               floatingActionButtonLocation: programsFillWindow
                   ? programsButtonLocation
                   : null,
+              // Opening Programs changes the location as the button
+              // appears; animating that move showed it first at the right
+              // edge, over the summary, before it jumped to the list.
+              floatingActionButtonAnimator:
+                  FloatingActionButtonAnimator.noAnimation,
               bottomNavigationBar:
                   !focused &&
                       ((page == 1 && programsPage.selecting) ||

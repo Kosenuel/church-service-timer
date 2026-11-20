@@ -416,6 +416,23 @@ class AppController extends ChangeNotifier {
   /// would show of that session instead, as "Check this service" draws
   /// it on the stage simulator; no message is added to it.
   Json pairedSnapshot(bool privateNotes, {Session? session, Stamp? at}) {
+  /// The time a cue showing now has in all and has left, for a countdown
+  /// bar on screens; null for a cue shown until cleared, or none.
+  ({int total, int left})? _cueTime(Session s) {
+    if (s.hasAutomaticCue(now)) {
+      return (
+        total: s.automaticCueDurationMs,
+        left: s.automaticCueDurationMs - now.since(s.automaticCueAt!),
+      );
+    }
+    if (s.hasManualCue(now) && s.alertDurationSeconds > 0) {
+      final total = s.alertDurationSeconds * 1000;
+      return (total: total, left: total - now.since(s.alertAt!));
+    }
+    return null;
+  }
+
+  Json pairedSnapshot(bool privateNotes) {
     if (!ready) return {};
     final s = session ?? state.session, t = s.timeline;
     final now = at ?? this.now;
@@ -455,7 +472,7 @@ class AppController extends ChangeNotifier {
       'displayText': s.outputBlank ? '' : display?.text ?? '',
       'outputMode': s.outputMode(now),
       'clockBlink': s.clockBlink,
-      'effect': display?.effect ?? 'static',
+      ...stageEffectFields(display, time: _cueTime(s)),
       // The LED sign's speed, which older paired screens keep following.
       'speed': display?.speed ?? 12,
       'screenSpeed': ?display?.screenSpeed,

@@ -16,6 +16,67 @@ import 'package:church_service_timer/live/cue_preview.dart';
 bool sameLayout(TextLayout a, TextLayout b) =>
     jsonEncode(a.toJson()) == jsonEncode(b.toJson());
 
+/// The effects a cue may have, as the editor lists them, each with a line
+/// saying what it does. "Steady on the LED sign" marks those only screens
+/// can show; the sign shows the cue without moving.
+const effectChoices = [
+  ChoiceOption(
+    value: 'static',
+    label: 'Static · must fit',
+    hint: 'Holds still',
+  ),
+  ChoiceOption(
+    value: 'scroll',
+    label: 'Scroll long text',
+    hint: 'Moves across, for text too long to fit',
+  ),
+  ChoiceOption(
+    value: 'flash',
+    label: 'Flash · must fit',
+    hint: 'Blinks on and off until cleared',
+  ),
+  ChoiceOption(
+    value: 'flashHold',
+    label: 'Flash then hold · must fit',
+    hint: 'Flashes three times, then stays steady',
+  ),
+  ChoiceOption(
+    value: 'pulse',
+    label: 'Pulse · must fit',
+    hint: 'Gently brightens and dims · steady on the LED sign',
+  ),
+  ChoiceOption(
+    value: 'slideIn',
+    label: 'Slide in · must fit',
+    hint: 'Slides in from the edge of the screen · steady on the LED sign',
+  ),
+  ChoiceOption(
+    value: 'bar',
+    label: 'Countdown bar · must fit',
+    hint:
+        'A bar under the cue empties as its time runs out · steady on the LED sign',
+  ),
+  ChoiceOption(
+    value: 'screenFlash',
+    label: 'Screen flash · must fit',
+    hint:
+        'The screen flashes once in the cue’s colour · steady on the LED sign',
+  ),
+];
+
+/// More about the chosen effect, under the Effect choice.
+const effectNotes = {
+  'flashHold':
+      'On the LED sign the three flashes come again every 5 minutes while the cue shows.',
+  'pulse': 'Screens only. Steady on the LED sign.',
+  'slideIn':
+      'Screens only. Steady on the LED sign. With reduced motion the cue simply appears.',
+  'bar':
+      'Screens only. Steady on the LED sign. The bar runs over a warning’s time or the time chosen when sending; a cue shown until cleared has no bar.',
+  'screenFlash':
+      'Screens only. Steady on the LED sign. Red for a white cue. With reduced motion the screen gets a coloured edge instead.',
+};
+
 class TextComposer extends StatefulWidget {
   final TextLayout initial;
   final String title, button;
@@ -210,13 +271,14 @@ class _TextComposerState extends State<TextComposer> {
                 ),
               const SizedBox(height: 12),
               ChoiceField<String>(
+                key: const ValueKey('effect-choice'),
                 value: effect,
-                decoration: const InputDecoration(labelText: 'Effect'),
-                options: const [
-                  ChoiceOption(value: 'static', label: 'Static · must fit'),
-                  ChoiceOption(value: 'scroll', label: 'Scroll long text'),
-                  ChoiceOption(value: 'flash', label: 'Flash · must fit'),
-                ],
+                decoration: InputDecoration(
+                  labelText: 'Effect',
+                  helperText: effectNotes[effect],
+                  helperMaxLines: 3,
+                ),
+                options: effectChoices,
                 onChanged: (v) => setState(() {
                   effect = v!;
                   watch.reset();

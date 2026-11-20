@@ -37,7 +37,7 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 .tag { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); }
 .big { font-size: clamp(48px, 16vw, 120px); font-weight: 600; font-variant-numeric: tabular-nums; line-height:1.05; }
 .over { color: var(--bad); }
-#stage { position:fixed; inset:0; background:#000; display:none; align-items:center; justify-content:center; text-align:center; padding:4vw; }
+#stage { position:fixed; inset:0; overflow:hidden; background:#000; display:none; align-items:center; justify-content:center; text-align:center; padding:4vw; }
 #stage .text { color:#fff; font-weight:500; white-space:pre-wrap; word-break:break-word; line-height:1; margin:0 auto; font-variant-numeric: tabular-nums; }
 #stage .lane { position:absolute; inset:0; overflow:hidden; }
 #stage .run { position:absolute; left:0; top:50%; white-space:pre; line-height:1.1; will-change:transform; }
@@ -50,6 +50,25 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage.stale .band { opacity:.35; }
 #stage .line { position:absolute; left:4vw; right:4vw; bottom:6vh; display:none; color:#bbb; font-size:6vh; font-weight:600; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #stage.stale .line { opacity:.35; }
+/* The newer cue effects. Each starts again when a new cue arrives. */
+@keyframes fx-pulse { 0%, 100% { opacity:1; } 50% { opacity:.55; } }
+@keyframes fx-flash3 { 0% { opacity:1; } 16.667% { opacity:0; } 33.333% { opacity:1; } 50% { opacity:0; } 66.667% { opacity:1; } 83.333% { opacity:0; } 100% { opacity:1; } }
+@keyframes fx-up { from { transform:translateY(100vh); } to { transform:none; } }
+@keyframes fx-down { from { transform:translateY(-100vh); } to { transform:none; } }
+@keyframes fx-screen { from, to { background:var(--fx-tint); } }
+#stage .fx-pulse { animation:fx-pulse 2s ease-in-out infinite; }
+#stage .fx-flashHold { animation:fx-flash3 3s step-end 1; }
+#stage .fx-slideIn { animation:fx-up .3s ease-out 1; }
+#stage .band.top .fx-slideIn { animation-name:fx-down; }
+#stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:fx-screen .6s step-end 1; }
+#stage .cuebar { position:absolute; left:10vw; right:10vw; bottom:7vh; height:1.4vh; border-radius:1vh; display:none; overflow:hidden; background:rgba(255,255,255,.14); }
+#stage .cuebar i { display:block; height:100%; width:100%; background:currentColor; border-radius:inherit; }
+#stage .band .cuebar { left:6vh; right:6vh; bottom:1.4vh; height:.8vh; display:block; }
+@media (prefers-reduced-motion: reduce) {
+  #stage .fx-slideIn { animation:none; }
+  #stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:none; }
+  #stage.fx-screenFlash, #stage .band.fx-screenFlash { box-shadow:inset 0 0 0 1.2vh var(--fx); }
+}
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
@@ -74,6 +93,7 @@ body.stale #app { opacity:.6; }
 <body>
 <div id="app" class="wrap"></div>
 <div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="line" id="stageLine"></div><div class="note" id="stageNote"></div></div>
+<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="note" id="stageNote"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
 <div id="req"><span id="reqNote"></span><button class="chip" id="reqBtn">Request</button></div>
@@ -361,6 +381,37 @@ function startMotion(text, value, s, key) {
   motion = m; m.step(); m.raf = requestAnimationFrame(frame);
 }
 
+// The newer effects, as classes the styles above animate. A class is put
+// back only for a new cue, so a poll never restarts an animation.
+const FX = ['pulse', 'flashHold', 'slideIn', 'bar', 'screenFlash'];
+function setFx(node, fx, key) {
+  const k = fx ? fx + '|' + key : '';
+  if (node.dataset.fx === k) return;
+  node.dataset.fx = k;
+  for (const f of FX) node.classList.remove('fx-' + f);
+  if (fx) { void node.offsetWidth; node.classList.add('fx-' + fx); }
+}
+// A screen flash is in the cue's colour, or red for a white cue.
+const flashColour = (c) => !c || c.toLowerCase() === '#ffffff' ? '#ff4d4d' : c;
+// The flash's background: a deep tint of its colour, so the cue stays
+// in its own colour over it.
+const flashTint = (c) => {
+  const n = parseInt(flashColour(c).slice(1), 16);
+  return 'rgb(' + [16, 8, 0].map((s) => Math.round(((n >> s) & 255) * .32)).join(',') + ')';
+};
+// A countdown bar: set to the time left at each poll, then running down
+// smoothly until the next.
+function setBar(bar, time) {
+  if (!time || !(time.total > 0)) { bar.style.display = 'none'; return; }
+  bar.style.display = 'block';
+  const fill = bar.firstChild;
+  fill.style.transition = 'none';
+  fill.style.width = (100 * Math.min(1, Math.max(0, time.left / time.total))) + '%';
+  void fill.offsetWidth;
+  fill.style.transition = 'width ' + Math.max(0, time.left) + 'ms linear';
+  fill.style.width = '0%';
+}
+
 // A banner cue: the cue in a band across the top or bottom of the screen,
 // in its colour, while the countdown or clock stays in view behind it.
 let bandMotion = null;
@@ -368,11 +419,12 @@ function renderBand(s) {
   const band = $('stageBand');
   const b = s && s.sharing && !s.message && !s.blank ? s.banner : null;
   const stop = () => { if (bandMotion) cancelAnimationFrame(bandMotion.raf); bandMotion = null; };
-  if (!b) { stop(); band.style.display = 'none'; band.dataset.key = ''; clear(band); return; }
+  if (!b) { stop(); band.style.display = 'none'; band.dataset.key = ''; setFx(band, null, ''); clear(band); return; }
   const h = window.innerHeight, w = window.innerWidth;
-  const key = [b.text, b.position, b.color, b.bold, b.italic, b.effect, s.speed, w, h].join('|');
+  const fx = b.screenEffect || '';
+  const key = [b.text, b.position, b.color, b.bold, b.italic, b.effect, fx, s.speed, w, h].join('|');
   // The same banner as the last poll: leave it running.
-  if (band.dataset.key === key) return;
+  if (band.dataset.key === key) { const bar = band.querySelector('.cuebar'); if (bar) setBar(bar, b.cueTime); return; }
   stop(); clear(band); band.dataset.key = key;
   band.className = 'band ' + (b.position === 'top' ? 'top' : 'bottom');
   band.style.display = 'flex';
@@ -398,7 +450,14 @@ function renderBand(s) {
     const room = w - h * 0.12;
     if (label.offsetWidth > room) band.style.fontSize = Math.max(12, size * room / label.offsetWidth) + 'px';
     if (b.effect === 'flash') m.step = () => { label.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
+    // The band's text pulses, flashes three times or slides in from its edge.
+    if (['pulse', 'flashHold', 'slideIn'].includes(fx)) label.classList.add('fx-' + fx);
   }
+  // A screen flash lights the band only; the countdown stays as it is.
+  band.style.setProperty('--fx', flashColour(b.color));
+  band.style.setProperty('--fx-tint', flashTint(b.color));
+  setFx(band, fx === 'screenFlash' ? fx : null, key);
+  if (fx === 'bar') { const bar = el('div', 'cuebar'); bar.append(el('i')); band.append(bar); setBar(bar, b.cueTime); }
   if (!m.step) return;
   const frame = (now) => {
     if (!$('stage').classList.contains('stale')) m.elapsed += (now - m.last) / 1000;
@@ -442,6 +501,15 @@ function renderStage(s) {
   // The same moving text as the last poll: leave it running.
   if (moving && motion && motion.key === key) { note.textContent = s.paused ? 'PAUSED' : ''; return; }
   stopMotion(); text.style.visibility = 'visible';
+  // A full-screen cue's newer effect, if it has one; nothing otherwise.
+  const fx = s.sharing && !s.message && !s.blank && !s.banner && value ? (s.screenEffect || null) : null;
+  const fxKey = [value, s.color, s.bold, s.italic].join('|');
+  setFx(text, ['pulse', 'flashHold', 'slideIn'].includes(fx) ? fx : null, fxKey);
+  stage.style.setProperty('--fx', flashColour(s.color));
+  stage.style.setProperty('--fx-tint', flashTint(s.color));
+  setFx(stage, fx === 'screenFlash' ? fx : null, fxKey);
+  const bar = $('stageBar'); bar.style.color = s.color || '#fff';
+  setBar(bar, fx === 'bar' ? s.cueTime : null);
   clear(text); note.textContent = ''; stage.style.background = '#000'; stage.style.textAlign = 'center'; text.style.width = '';
   if (!s.sharing) { text.textContent = 'Waiting for the host. On the host, tap Show on stage screens on Live.'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {

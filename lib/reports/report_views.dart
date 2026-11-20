@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:church_service_timer/shared/app_pickers.dart';
 import 'package:church_service_timer/shared/date_range_dialog.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
@@ -239,8 +240,8 @@ extension ReportViews on HomeState {
             marked: dates.toSet(),
             markedHint: 'A day with a saved report',
           )
-        : await showDateRangePicker(
-            context: context,
+        : await showAppDateRangePicker(
+            context,
             firstDate: first,
             lastDate: lastDate,
             initialDateRange: reportsPage.dates,

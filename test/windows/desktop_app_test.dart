@@ -2,6 +2,8 @@ import 'dart:ui' show AppExitResponse;
 
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/live/desktop_live.dart';
+import 'package:church_service_timer/live/shortcuts.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/tab_swipe.dart';
@@ -91,11 +93,8 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Space asks before it pauses, even with clicker keys off', (
-    t,
-  ) async {
+  testWidgets('Space asks before it pauses', (t) async {
     final (c, _) = await running(t);
-    await c.commit((draft, _) => draft.clickerControls = false);
     // Space opens the Pause button's own question and changes nothing.
     await t.sendKeyEvent(LogicalKeyboardKey.space);
     await t.pumpAndSettle();
@@ -121,6 +120,101 @@ void main() {
     await t.sendKeyEvent(LogicalKeyboardKey.enter);
     await t.pumpAndSettle();
     expect(c.state.session.paused, isFalse);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Clicker and foot pedal off turns the clicker keys off on a PC '
+      'and leaves the other shortcuts', (t) async {
+    final (c, _) = await running(t);
+    final index = c.state.session.index;
+    Finder hint(String key) => find.descendant(
+      of: find.byKey(ValueKey(key)),
+      matching: find.byType(KeyHint),
+    );
+    // On, as a new install has it: the buttons show their keys.
+    expect(hint('pause-resume'), findsOneWidget);
+    expect(hint('next-segment'), findsOneWidget);
+    expect(
+      find.textContaining('PgDn PgDn', findRichText: true),
+      findsOneWidget,
+    );
+    await c.commit((draft, _) => draft.clickerControls = false);
+    await t.pumpAndSettle();
+    // The keys a clicker sends do nothing, from a clicker or the keyboard.
+    for (final key in [
+      LogicalKeyboardKey.space,
+      LogicalKeyboardKey.keyB,
+      LogicalKeyboardKey.pageDown,
+      LogicalKeyboardKey.arrowRight,
+    ]) {
+      await t.sendKeyEvent(key);
+      await t.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing, reason: '$key');
+      expect(find.byKey(const ValueKey('clicker-confirm')), findsNothing);
+    }
+    expect(c.state.session.paused, isFalse);
+    expect(c.state.session.index, index);
+    // Nothing on screen offers them.
+    expect(hint('pause-resume'), findsNothing);
+    expect(hint('next-segment'), findsNothing);
+    expect(find.textContaining('PgDn PgDn', findRichText: true), findsNothing);
+    expect(
+      find.textContaining('+ −  Adjust time', findRichText: true),
+      findsOneWidget,
+    );
+    // The buttons themselves still work, and still ask first.
+    await t.tap(find.byKey(const ValueKey('pause-resume')));
+    await t.pumpAndSettle();
+    expect(find.text('Pause Praise & Worship?'), findsOneWidget);
+    await t.sendKeyEvent(LogicalKeyboardKey.escape);
+    await t.pumpAndSettle();
+    // The other keyboard shortcuts are left alone: + opens Adjust time.
+    await t.sendKeyEvent(LogicalKeyboardKey.equal);
+    await t.pumpAndSettle();
+    expect(find.byType(TimeAdjustmentDialog), findsOneWidget);
+    await t.tapAt(const Offset(5, 5));
+    await t.pumpAndSettle();
+    // The shortcuts sheet says the clicker keys are off.
+    await t.sendKeyEvent(LogicalKeyboardKey.f1);
+    await t.pumpAndSettle();
+    expect(find.text(shortcutsClickerOffRule), findsOneWidget);
+    expect(
+      find.text('Off: Clicker and foot pedal is switched off'),
+      findsNWidgets(2),
+    );
+    await t.sendKeyEvent(LogicalKeyboardKey.escape);
+    await t.pumpAndSettle();
+    // Back on, Space asks again.
+    await c.commit((draft, _) => draft.clickerControls = true);
+    await t.pumpAndSettle();
+    await t.sendKeyEvent(LogicalKeyboardKey.space);
+    await t.pumpAndSettle();
+    expect(find.text('Pause Praise & Worship?'), findsOneWidget);
+    expect(c.state.session.paused, isFalse);
+    await t.sendKeyEvent(LogicalKeyboardKey.escape);
+    await t.pumpAndSettle();
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the clicker switch says what it does on a PC', (t) async {
+    await running(t);
+    final home = t.state<HomeState>(find.byType(Home, skipOffstage: false));
+    home.navigatePage(3);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Warnings & alerts'));
+    await t.pumpAndSettle();
+    final tile = find.byKey(const ValueKey('clicker-controls'));
+    await t.ensureVisible(tile);
+    await t.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: tile,
+        matching: find.textContaining(
+          'switching this off turns these keys off on the keyboard too',
+        ),
+      ),
+      findsOneWidget,
+    );
     await t.pumpWidget(const SizedBox());
   });
 

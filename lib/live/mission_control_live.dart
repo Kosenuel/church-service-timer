@@ -154,7 +154,10 @@ extension MissionControlLive on HomeState {
           color: colors.surface,
           child: timelineStrip(enabled, rich: richTimeline),
         ),
-        if (showKeyHints && s.active) ...[rule, const KeyLegend()],
+        if (showKeyHints && s.active) ...[
+          rule,
+          KeyLegend(clicker: clickerKeysOn),
+        ],
       ],
     );
   }
@@ -1126,13 +1129,25 @@ class TimelineBlock extends StatelessWidget {
   }
 }
 
-/// The keys that work on Live, along the bottom of the window.
+/// One key in [KeyLegend]: the keys, what they do, and how much the
+/// operator needs to see it (0 most) when there is not room for all.
+typedef KeyLegendEntry = ({String keys, String action, int rank});
+
+/// The keys that work on Live, along the bottom of the window: Mission
+/// control and Keys, and the middle pane of Three panes and The dial in a
+/// tall window. It keeps to one line: when the keys are wider than the
+/// room, the least needed ones are left out rather than wrapped.
 class KeyLegend extends StatelessWidget {
   /// Whether to list the keys at all. Off, only [status] shows.
   final bool keys;
 
   /// Also lists the number keys that send cues.
   final bool cues;
+
+  /// Also lists Space and Page Down, which follow Clicker and foot pedal.
+  final bool clicker;
+  /// Ends with the reminder that timer changes ask first, room allowing.
+  final bool reminder;
 
   /// A status line at the right, after a dot in [statusColour]. It keeps
   /// to one line, and when the two do not both fit it takes the place of
@@ -1143,42 +1158,56 @@ class KeyLegend extends StatelessWidget {
     super.key,
     this.keys = true,
     this.cues = true,
+    this.clicker = true,
+    this.reminder = true,
     this.status,
     this.statusColour,
   });
 
   static const _reminder = 'Timer changes ask to confirm';
 
+  /// Every entry, in the order they show.
+  static List<KeyLegendEntry> entries({bool cues = true}) => [
+    (keys: 'Space', action: 'Pause', rank: 0),
+    (keys: 'PgDn PgDn', action: 'Next', rank: 1),
+    (keys: '+ −', action: 'Adjust time', rank: 2),
+    (keys: 'Ctrl Z', action: 'Undo', rank: 4),
+    (keys: 'J', action: 'Jump to segment', rank: 5),
+    if (cues) (keys: '1 – 9', action: 'Cues', rank: 6),
+    (keys: 'M', action: 'Message', rank: 7),
+    (keys: 'Ctrl L', action: 'Lock', rank: 3),
+    (keys: 'Ctrl K', action: 'Commands', rank: 8),
+  ];
+
+  /// Space after each entry.
+  static const _gap = 22.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context);
     final style = TextStyle(fontSize: 12, color: colors.muted);
-    Widget item(String keys, String action) => Padding(
-      padding: const EdgeInsets.only(right: 22),
-      child: Text.rich(
+    TextSpan span(KeyLegendEntry e) => TextSpan(
+      children: [
         TextSpan(
-          children: [
-            TextSpan(
-              text: keys,
-              style: TextStyle(
-                color: colors.text,
-                fontWeight: FontWeight.w600,
-                letterSpacing: .3,
-              ),
-            ),
-            TextSpan(text: '  $action'),
-          ],
+          text: e.keys,
+          style: TextStyle(
+            color: colors.text,
+            fontWeight: FontWeight.w600,
+            letterSpacing: .3,
+          ),
         ),
-        maxLines: 1,
-        softWrap: false,
-        style: style,
-      ),
+        TextSpan(text: '  ${e.action}'),
+      ],
     );
-    double width(String text) {
+    Widget item(KeyLegendEntry e) => Padding(
+      padding: const EdgeInsets.only(right: _gap),
+      child: Text.rich(span(e), maxLines: 1, softWrap: false, style: style),
+    );
+    double measure(InlineSpan text) {
       final painter = TextPainter(
         text: TextSpan(
-          text: text,
           style: DefaultTextStyle.of(context).style.merge(style),
+          children: [text],
         ),
         textDirection: TextDirection.ltr,
         textScaler: MediaQuery.textScalerOf(context),
@@ -1189,6 +1218,8 @@ class KeyLegend extends StatelessWidget {
       return width;
     }
 
+    double width(String text) => measure(TextSpan(text: text));
+
     return Container(
       key: const ValueKey('key-legend'),
       color: colors.surface,
@@ -1197,8 +1228,7 @@ class KeyLegend extends StatelessWidget {
       child: Row(
         children: [
           if (keys) ...[
-            item('Space', 'Pause'),
-            item('PgDn PgDn', 'Next'),
+            if (clicker) ...[item('Space', 'Pause'), item('PgDn PgDn', 'Next')],
             item('+ −', 'Adjust time'),
             item('Ctrl Z', 'Undo'),
             if (cues) item('1 – 9', 'Cues'),
@@ -1244,20 +1274,86 @@ class KeyLegend extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: style,
                               ),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          // What the keys leave room for: the reminder, or enough of the
+          // status line to read.
+          final reminderRoom = reminder ? 24 + width(_reminder) + 2 : 0.0;
+          final statusRoom = status == null
+              ? 0.0
+              : 16 + math.min(width(status!), 220.0) + 2;
+          var shown = keys ? entries(cues: cues) : <KeyLegendEntry>[];
+          double keysWidth() =>
+              shown.fold(0.0, (sum, e) => sum + measure(span(e)) + _gap);
+          // Too many keys for the room: the reminder goes first, then
+          // the least needed keys.
+          final withReminder =
+              reminder &&
+              status == null &&
+              keysWidth() + reminderRoom <= box.maxWidth;
+          final room =
+              box.maxWidth - (withReminder ? reminderRoom : statusRoom);
+          while (shown.isNotEmpty && keysWidth() > room) {
+            final least = shown.reduce((a, b) => a.rank > b.rank ? a : b);
+            shown = [...shown]..remove(least);
+          }
+          return Row(
+            children: [
+              for (final e in shown) item(e),
+              if (status == null) ...[
+                const Spacer(),
+                if (withReminder) Text(_reminder, style: style),
+              ] else
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, space) {
+                      // The dot and its gap, the status, then the reminder.
+                      final both =
+                          reminder &&
+                          16 + width(status!) + reminderRoom <= space.maxWidth;
+                      return Row(
+                        mainAxisAlignment: keys
+                            ? MainAxisAlignment.end
+                            : MainAxisAlignment.start,
+                        children: [
+                          Flexible(
+                            child: Row(
+                              key: const ValueKey('live-status-line'),
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: statusColour ?? colors.muted,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    status!,
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: style,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                          if (keys && both) ...[
+                            const SizedBox(width: 24),
+                            Text(_reminder, style: style),
                           ],
-                        ),
-                      ),
-                      if (keys && both) ...[
-                        const SizedBox(width: 24),
-                        Text(_reminder, style: style),
-                      ],
-                    ],
-                  );
-                },
-              ),
-            ),
-        ],
+                        ],
+                      );
+                    },
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

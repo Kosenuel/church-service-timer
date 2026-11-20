@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:church_service_timer/shared/app_pickers.dart';
 import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
@@ -265,9 +266,11 @@ extension LivePage on HomeState {
             DateTime(now.year, now.month, now.day, now.hour + 1),
           )
         : TimeOfDay.fromDateTime(DateTime.fromMillisecondsSinceEpoch(current));
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await showAppTimePicker(
+      context,
       initialTime: initial,
+      use24Hour: c.state.clockFormat != '12h',
+      typed: c.port.isDesktop,
       helpText: 'Service starts at',
     );
     if (picked == null || !mounted) return;

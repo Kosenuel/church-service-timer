@@ -1,5 +1,6 @@
 import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/programs/send_program_views.dart';
@@ -679,15 +680,40 @@ Color stageCueColor(Json data) {
   return rgb == null ? Colors.white : Color(0xff000000 | rgb);
 }
 
+/// Over a cue on screens while its screen flash is lit: the cue is then
+/// drawn in black on the flash colour, so it stays readable.
+class StageFlashScope extends InheritedWidget {
+  final bool lit;
+  const StageFlashScope({super.key, required this.lit, required super.child});
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<StageFlashScope>()?.lit ??
+      false;
+  @override
+  bool updateShouldNotify(StageFlashScope old) => lit != old.lit;
+}
+
+/// How bright a pulsing cue is [seconds] after it appears: from full
+/// brightness down to 55% and back, once every two seconds.
+double stagePulseOpacity(double seconds) =>
+    .775 + .225 * math.cos(2 * math.pi * seconds / 2);
+
+/// How long a cue takes to slide in on screens.
+const stageSlideInSeconds = .3;
+
 /// Smooth local animation between host snapshots; freezes when the link is stale.
 class StageMessage extends StatefulWidget {
   final Json data;
   final bool stale, fullscreen;
+
+  /// Where a cue that slides in comes from: the top edge for a banner at
+  /// the top, otherwise the bottom.
+  final bool fromTop;
   const StageMessage({
     super.key,
     required this.data,
     required this.stale,
     this.fullscreen = false,
+    this.fromTop = false,
   });
   @override
   State<StageMessage> createState() => _StageMessageState();
@@ -696,11 +722,33 @@ class StageMessage extends StatefulWidget {
 class _StageMessageState extends State<StageMessage>
     with SingleTickerProviderStateMixin {
   late final AnimationController ticker;
-  double elapsed = 0;
+  // Seconds since the cue appeared, and since the bar's time last came.
+  double elapsed = 0, barElapsed = 0;
   int previousTick = 0;
-  bool get animates =>
-      !widget.stale &&
-      (widget.data['effect'] == 'scroll' || widget.data['effect'] == 'flash');
+  ({int total, int left})? barTime;
+  String? get screenEffect => stageScreenEffect(widget.data);
+  bool get sample => widget.data['cueBarSample'] == true;
+  bool get animates {
+    if (widget.stale) return false;
+    final effect = widget.data['effect'];
+    if (effect == 'scroll' || effect == 'flash') return true;
+    return switch (screenEffect) {
+      'pulse' => true,
+      'flashHold' => elapsed < flashHoldMs / 1000,
+      'slideIn' => elapsed < stageSlideInSeconds,
+      'bar' => sample || (barTime != null && barFraction > 0),
+      _ => false,
+    };
+  }
+
+  /// How much of a countdown bar is left, from 1 down to 0.
+  double get barFraction {
+    if (sample) return 1 - (elapsed % 8) / 8;
+    final time = barTime;
+    if (time == null) return 0;
+    return ((time.left - barElapsed * 1000) / time.total).clamp(0.0, 1.0);
+  }
+
   void syncTicker() {
     if (animates && !ticker.isAnimating) {
       previousTick = 0;
@@ -713,13 +761,19 @@ class _StageMessageState extends State<StageMessage>
   @override
   void initState() {
     super.initState();
+    barTime = stageCueTime(widget.data);
     ticker =
         AnimationController(vsync: this, duration: const Duration(hours: 24))
           ..addListener(() {
             final tick = ticker.lastElapsedDuration?.inMilliseconds ?? 0;
-            if (!widget.stale) elapsed += (tick - previousTick) / 1000;
+            if (!widget.stale) {
+              elapsed += (tick - previousTick) / 1000;
+              barElapsed += (tick - previousTick) / 1000;
+            }
             previousTick = tick;
             if (mounted) setState(() {});
+            // An entrance stops the ticker once it has played.
+            if (!animates) ticker.stop();
           });
     syncTicker();
   }
@@ -728,8 +782,16 @@ class _StageMessageState extends State<StageMessage>
   void didUpdateWidget(StageMessage old) {
     super.didUpdateWidget(old);
     if (old.data['displayText'] != widget.data['displayText'] ||
-        old.data['effect'] != widget.data['effect'])
+        old.data['effect'] != widget.data['effect'] ||
+        stageScreenEffect(old.data) != screenEffect)
       elapsed = 0;
+    // Each snapshot says how long the bar has left; it runs on smoothly
+    // from there until the next.
+    final time = stageCueTime(widget.data);
+    if (time != barTime) {
+      barTime = time;
+      barElapsed = 0;
+    }
     syncTicker();
   }
 
@@ -744,17 +806,19 @@ class _StageMessageState extends State<StageMessage>
     builder: (context, space) {
       final text = widget.data['displayText'] as String? ?? '';
       final effect = widget.data['effect'];
+      final screenEffect = this.screenEffect;
       final fullHeight = widget.fullscreen && space.maxHeight.isFinite;
       final previewSize = (space.maxWidth / 7).clamp(
         42.0,
         widget.fullscreen ? 260.0 : 130.0,
       );
+      final color = stageCueColor(widget.data);
       final style = TextStyle(
         // Start at screen height; static text then fits proportionally to width.
         // This keeps short cues large without cropping a long countdown.
         fontSize: fullHeight ? space.maxHeight * .9 : previewSize,
         height: fullHeight ? 1.1 : null,
-        color: stageCueColor(widget.data),
+        color: color,
         fontWeight: widget.data['bold'] == true
             ? FontWeight.bold
             : FontWeight.w500,
@@ -801,58 +865,119 @@ class _StageMessageState extends State<StageMessage>
           ),
         );
       }
-      return Opacity(
-        opacity: effect == 'flash' && (elapsed * 2).floor() % 2 == 1 ? 0 : 1,
-        child: SizedBox(
-          height: fullHeight ? space.maxHeight : 170,
-          width: space.maxWidth,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            // The clock and the countdown blink their colons; the countdown
-            // stays steady while paused, so a steady colon means stopped.
-            child:
-                widget.data['outputMode'] == 'Clock' ||
-                    (widget.data['displayIsTimer'] == true &&
-                        effect == 'static')
-                // Sized for the widest the time can be ("00:00"), with
-                // every digit the same width, so the numbers hold still
-                // as they count instead of being refitted each second.
-                ? Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ExcludeSemantics(
-                        child: Opacity(
-                          opacity: 0,
-                          child: Text(
-                            text.replaceAll(RegExp(r'[0-9]'), '0'),
-                            key: const ValueKey('stage-time-width'),
-                            style: steady,
-                            softWrap: false,
-                            textScaler: TextScaler.noScaling,
-                          ),
-                        ),
-                      ),
-                      ClockText(
-                        text: text,
+      final height = fullHeight ? space.maxHeight : 170.0;
+      final hidden =
+          (effect == 'flash' && (elapsed * 2).floor() % 2 == 1) ||
+          (screenEffect == 'flashHold' &&
+              elapsed < flashHoldMs / 1000 &&
+              (elapsed * 2).floor() % 2 == 1);
+      Widget body = FittedBox(
+        fit: BoxFit.scaleDown,
+        // The clock and the countdown blink their colons; the countdown
+        // stays steady while paused, so a steady colon means stopped.
+        child:
+            widget.data['outputMode'] == 'Clock' ||
+                (widget.data['displayIsTimer'] == true && effect == 'static')
+            // Sized for the widest the time can be ("00:00"), with
+            // every digit the same width, so the numbers hold still
+            // as they count instead of being refitted each second.
+            ? Stack(
+                alignment: Alignment.center,
+                children: [
+                  ExcludeSemantics(
+                    child: Opacity(
+                      opacity: 0,
+                      child: Text(
+                        text.replaceAll(RegExp(r'[0-9]'), '0'),
+                        key: const ValueKey('stage-time-width'),
                         style: steady,
-                        blink:
-                            widget.data['clockBlink'] != false &&
-                            (widget.data['outputMode'] == 'Clock' ||
-                                widget.data['paused'] != true),
-                        stale: widget.stale,
+                        softWrap: false,
+                        textScaler: TextScaler.noScaling,
                       ),
-                    ],
-                  )
-                : Text(
-                    text,
-                    style: style,
-                    softWrap: false,
-                    textScaler: TextScaler.noScaling,
-                    textAlign: TextAlign.center,
+                    ),
                   ),
-          ),
-        ),
+                  ClockText(
+                    text: text,
+                    style: steady,
+                    blink:
+                        widget.data['clockBlink'] != false &&
+                        (widget.data['outputMode'] == 'Clock' ||
+                            widget.data['paused'] != true),
+                    stale: widget.stale,
+                  ),
+                ],
+              )
+            : Text(
+                text,
+                style: style,
+                softWrap: false,
+                textScaler: TextScaler.noScaling,
+                textAlign: TextAlign.center,
+              ),
       );
+      final opacity = hidden
+          ? 0.0
+          : screenEffect == 'pulse'
+          ? stagePulseOpacity(elapsed)
+          : 1.0;
+      body = Opacity(
+        key: const ValueKey('stage-cue-opacity'),
+        opacity: opacity,
+        child: body,
+      );
+      // A countdown bar sits under the cue and empties over its time; a
+      // cue shown until cleared has no time, and no bar.
+      if (screenEffect == 'bar' && (sample || barTime != null)) {
+        final thickness = fullHeight
+            ? (height * .035).clamp(4.0, 14.0).toDouble()
+            : 6.0;
+        body = Column(
+          children: [
+            Expanded(child: body),
+            SizedBox(height: thickness),
+            Center(
+              child: SizedBox(
+                width: space.maxWidth * .8,
+                height: thickness,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .14),
+                    borderRadius: BorderRadius.circular(thickness),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: barFraction,
+                    child: DecoratedBox(
+                      key: const ValueKey('stage-cue-bar'),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(thickness),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+      // Slides in from the edge once, as the cue appears; with reduced
+      // motion it is simply there.
+      if (screenEffect == 'slideIn') {
+        final shown = reduceAppMotion(context)
+            ? 1.0
+            : Curves.easeOutCubic.transform(
+                (elapsed / stageSlideInSeconds).clamp(0.0, 1.0),
+              );
+        body = ClipRect(
+          child: Transform.translate(
+            key: const ValueKey('stage-cue-slide'),
+            offset: Offset(0, (1 - shown) * height * (widget.fromTop ? -1 : 1)),
+            child: body,
+          ),
+        );
+      }
+      return SizedBox(height: height, width: space.maxWidth, child: body);
     },
   );
 }

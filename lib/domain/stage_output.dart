@@ -40,12 +40,48 @@ double stageScrollSpeed(Json data) {
   return (speed is num ? speed.toDouble() : 12.0).clamp(1.0, 60.0);
 }
 
+/// A cue's effect as a stage snapshot carries it. `effect` is always one
+/// every version knows, so an older paired screen shows a newer effect as
+/// steady text; `screenEffect` is the newer effect, for screens that know
+/// it. [time] is the cue's whole time and the time left, in milliseconds,
+/// for a countdown bar; a cue shown until cleared has none, and no bar.
+Json stageEffectFields(TextLayout? cue, {({int total, int left})? time}) => {
+  'effect': cue?.compatibleEffect ?? 'static',
+  'screenEffect': ?cue?.screenEffect,
+  if (cue?.screenEffect == 'bar' && time != null && time.total > 0) ...{
+    'cueTotalMs': time.total,
+    'cueLeftMs': time.left.clamp(0, time.total),
+  },
+};
+
+/// The newer effect a snapshot asks screens for, or null: none, or one
+/// this version does not know, which is then shown as its `effect` says.
+String? stageScreenEffect(Json data) {
+  final effect = data['screenEffect'];
+  return screenEffects.contains(effect) ? effect as String : null;
+}
+
+/// A countdown bar's whole time and time left, in milliseconds, or null
+/// when the snapshot has no sensible one (the cue then shows no bar).
+({int total, int left})? stageCueTime(Json data) {
+  final total = data['cueTotalMs'], left = data['cueLeftMs'];
+  if (stageScreenEffect(data) != 'bar' ||
+      total is! int ||
+      left is! int ||
+      total <= 0 ||
+      left < 0 ||
+      left > total) {
+    return null;
+  }
+  return (total: total, left: left);
+}
+
 /// The fixed colours a cue can have on screens, as RGB. Each is bright
 /// enough to read on the black stage background and they are far apart
 /// from one another. The theme's accent is worked out by the host.
 const screenCueColors = <String, int>{
   'white': 0xffffff,
-  'amber': 0xffc247,
+  'amber': 0xffa833,
   'red': 0xff4d4d,
   'green': 0x4ade80,
 };
@@ -94,6 +130,10 @@ Json stageUnderBanner(Json data) {
       'underText',
       'underMode',
       'screenSpeed',
+      // The countdown under a banner never takes the cue's effect.
+      'screenEffect',
+      'cueTotalMs',
+      'cueLeftMs',
     }.contains(key),
   );
 }

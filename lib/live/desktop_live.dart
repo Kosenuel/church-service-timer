@@ -8,6 +8,13 @@ import 'package:church_service_timer/live/service_dial.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 
+/// The window height from which Three panes and The dial list the keys
+/// under the middle pane. A 1366 × 768 laptop window has no room for them.
+const keyLegendFromHeight = 800.0;
+
+/// The keys line and the rule above it.
+const keyLegendHeight = 29.0;
+
 /// Live in a wide window: the desktop layouts chosen in Settings ›
 /// Appearance. They arrange the same timer, cues, stage preview and rundown
 /// as the phone, so a change to one of those shows in every layout.
@@ -49,9 +56,15 @@ extension DesktopLive on HomeState {
     _ => c.port.isDesktop,
   };
 
-  /// [text] followed by its keyboard key, when key labels are on.
-  Widget keyLabel(String text, String key, {TextAlign? textAlign}) =>
-      showKeyHints
+  /// Whether Space, B, Page Down and → do anything on Live. They are the
+  /// keys a clicker or pedal sends, and follow Clicker and foot pedal on
+  /// a computer too.
+  bool get clickerKeysOn => c.state.clickerControls;
+
+  /// [text] followed by its keyboard key, when key labels are on and the
+  /// key does something.
+  Widget keyLabel(String text, String? key, {TextAlign? textAlign}) =>
+      showKeyHints && key != null
       ? Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -127,10 +140,17 @@ extension DesktopLive on HomeState {
         // what has happened, as in Mission control. A laptop does not:
         // there the stage preview and cues fill the pane.
         final tall = space.maxHeight >= 900;
+        // A tall window lists the keys along the bottom of the middle
+        // pane; the timer has the height that is left.
+        final legend =
+            showKeyHints &&
+            s.active &&
+            MediaQuery.sizeOf(context).height >= keyLegendFromHeight;
+        final paneHeight = space.maxHeight - (legend ? keyLegendHeight : 0);
         // A large window gives the ring more of the pane.
         final paneWidth = space.maxWidth - side - stage - 2;
         final large = timer == null
-            ? largePaneMode(paneWidth, space.maxHeight)
+            ? largePaneMode(paneWidth, paneHeight)
             : LargePane.off;
         return Row(
           key: const ValueKey('three-pane-live'),
@@ -150,48 +170,62 @@ extension DesktopLive on HomeState {
             ),
             line,
             Expanded(
-              child: large != LargePane.off
-                  ? largeTimerPane(
-                      mode: large,
-                      notices: notices,
-                      header: header,
-                      endService: endService,
-                      enabled: enabled,
-                      canJump: canJump,
-                      width: paneWidth,
-                      height: space.maxHeight,
-                    )
-                  : SingleChildScrollView(
-                      key: const ValueKey('live-timer-pane'),
-                      // Page Down is Next segment here, not a scroll key.
-                      primary: false,
-                      padding: const EdgeInsets.fromLTRB(28, 10, 28, 12),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 620),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              ...notices,
-                              timer ??
-                                  desktopTimer(
-                                    header: header,
-                                    endService: endService,
-                                    enabled: enabled,
-                                    canJump: canJump,
-                                    // What is left of the window once the title,
-                                    // controls and End service have their room.
-                                    gauge: math.min(
-                                      space.maxWidth - side - stage - 120,
-                                      space.maxHeight - 470,
-                                    ),
-                                    paneHeight: space.maxHeight,
-                                  ),
-                            ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: large != LargePane.off
+                        ? largeTimerPane(
+                            mode: large,
+                            notices: notices,
+                            header: header,
+                            endService: endService,
+                            enabled: enabled,
+                            canJump: canJump,
+                            width: paneWidth,
+                            height: paneHeight,
+                          )
+                        : SingleChildScrollView(
+                            key: const ValueKey('live-timer-pane'),
+                            // Page Down is Next segment here, not a scroll key.
+                            primary: false,
+                            padding: const EdgeInsets.fromLTRB(28, 10, 28, 12),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 620,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    ...notices,
+                                    timer ??
+                                        desktopTimer(
+                                          header: header,
+                                          endService: endService,
+                                          enabled: enabled,
+                                          canJump: canJump,
+                                          // What is left of the window once the title,
+                                          // controls and End service have their room.
+                                          gauge: math.min(
+                                            space.maxWidth - side - stage - 120,
+                                            paneHeight - 470,
+                                          ),
+                                          paneHeight: paneHeight,
+                                        ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
+                  ),
+                  if (legend) ...[
+                    Divider(height: 1, thickness: 1, color: colors.border),
+                    const KeyLegend(key: ValueKey('pane-key-legend')),
+                  ],
+                ],
+              ),
             ),
             line,
             SizedBox(
