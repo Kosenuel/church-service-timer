@@ -16,6 +16,35 @@ const downloadPageUrl =
 const _releasePagePrefix =
     'https://github.com/ImmanuelOkose/church-service-timer-guide/releases/';
 
+/// The only place a release's files may download from.
+const releaseDownloadPrefix =
+    'https://github.com/ImmanuelOkose/church-service-timer-guide/releases/download/';
+
+/// The release's files that are on the guide repository, with a sensible
+/// name and size. Anything else in the answer is ignored.
+List<ReleaseAsset> _assets(Object? listed) {
+  if (listed is! List) return const [];
+  final found = <ReleaseAsset>[];
+  for (final item in listed) {
+    if (item is! Map) continue;
+    final name = item['name'], url = item['browser_download_url'];
+    final size = item['size'], digest = item['digest'];
+    if (name is! String ||
+        url is! String ||
+        size is! int ||
+        size <= 0 ||
+        !url.startsWith(releaseDownloadPrefix) ||
+        !url.endsWith('/${Uri.encodeComponent(name)}')) {
+      continue;
+    }
+    final hash = digest is String
+        ? RegExp(r'^sha256:([0-9a-fA-F]{64})$').firstMatch(digest)?.group(1)
+        : null;
+    found.add(ReleaseAsset(name, url, size, sha256: hash?.toLowerCase()));
+  }
+  return found;
+}
+
 /// The x.y.z of a version such as `0.32.0 (37)` or a tag such as `v0.32.0`.
 /// The build number in brackets is ignored. Null when [text] is not a
 /// version.
@@ -48,10 +77,30 @@ class UpToDate extends UpdateResult {
   const UpToDate(this.version);
 }
 
+/// One file attached to a release, as GitHub lists it.
+class ReleaseAsset {
+  /// The file name, for example `Church-Service-Timer-0.33.0.apk`.
+  final String name;
+
+  /// Where it downloads from: always on the guide repository's releases.
+  final String url;
+
+  /// Its size in bytes, as GitHub reports it.
+  final int size;
+
+  /// The SHA-256 GitHub worked out when the file was uploaded, as 64
+  /// lower-case hex digits; null when the answer did not include one.
+  final String? sha256;
+  const ReleaseAsset(this.name, this.url, this.size, {this.sha256});
+}
+
 /// A newer [version] (x.y.z) is published; [page] is where to download it.
+/// [assets] are the release's files that download from the guide
+/// repository (anything listed elsewhere is left out).
 class UpdateAvailable extends UpdateResult {
   final String version, page;
-  const UpdateAvailable(this.version, this.page);
+  final List<ReleaseAsset> assets;
+  const UpdateAvailable(this.version, this.page, [this.assets = const []]);
 }
 
 /// The check could not be made, or its answer made no sense.
@@ -64,7 +113,8 @@ typedef FetchText = Future<String?> Function(String url);
 
 /// Asks GitHub which version is the newest, when the person asks for it in
 /// Settings › About. Nothing here runs on its own, and nothing about the
-/// device or the church is sent: it is one plain GET.
+/// device or the church is sent: it is one plain GET. Downloading a new
+/// version, on a PC, is update_installer.dart, and only when asked.
 class UpdateChecker {
   final FetchText fetch;
   const UpdateChecker([this.fetch = fetchOverHttps]);
@@ -97,6 +147,7 @@ class UpdateChecker {
         page is String && page.startsWith(_releasePagePrefix)
             ? page
             : downloadPageUrl,
+        _assets(release['assets']),
       );
     } catch (_) {
       return const UpdateUnknown();
