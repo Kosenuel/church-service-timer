@@ -4,6 +4,9 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Mission control is the layout a new install starts in.** In a wide window, a fresh install and **Reset** now give Mission control with Midnight Lime, and it is listed first in Settings › Desktop layout. If you already use the app, your layout stays as it is; choose Mission control there if you want it.
+- **Click the service name to go back to Live.** On Programs, Reports or Settings, the name of the loaded or running service at the top left returns to Live. With no service loaded it is the app's name and does nothing.
+- **Mission control with large text.** With Windows or Android set to larger text, the names in the rundown timeline were cut off at the bottom. The timeline now grows to fit.
 - **A button for the mini timer.** The mini timer is the small window that stays above your lyrics or slides program, with the countdown, Pause, Next and a cue. It could only be opened from the ⋮ menu or with Ctrl+M, so it was easy never to find. On a PC, while a service runs, Live now has a button for it at the top right, beside Lock controls.
 
 - **A clearer example for review notes.** The example under Review notes on a report now reads “Reduce the Announcements time from next week”.

@@ -677,11 +677,14 @@ class RundownTimeline extends StatelessWidget {
         final w = space.maxWidth;
         double x(int ms) => ms / total * w;
         final plannedEnd = x(s.plannedMs);
+        // Two lines of text in each block and one under it: taller with
+        // large system text, so nothing is cut off.
+        final scaler = MediaQuery.textScalerOf(context);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
-              height: 50,
+              height: scaler.scale(31) + 19,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -707,7 +710,7 @@ class RundownTimeline extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             SizedBox(
-              height: 16,
+              height: scaler.scale(13) + 3,
               child: run == null || s.phase == 'ready'
                   ? Align(
                       alignment: Alignment.centerLeft,

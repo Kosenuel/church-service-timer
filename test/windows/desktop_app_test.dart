@@ -65,16 +65,16 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a wide window shows three panes and the running service', (
+  testWidgets('a wide window shows Mission control and the running service', (
     t,
   ) async {
     final (c, port) = await running(t);
     port.at = after(75);
     await c.tick();
     await t.pumpAndSettle();
-    expect(find.byKey(const ValueKey('three-pane-live')), findsOneWidget);
-    expect(find.byKey(const ValueKey('desktop-tabs')), findsOneWidget);
-    expect(find.byKey(const ValueKey('navigation-rail')), findsNothing);
+    expect(find.byKey(const ValueKey('mission-control-live')), findsOneWidget);
+    expect(find.byKey(const ValueKey('navigation-rail')), findsOneWidget);
+    expect(find.byKey(const ValueKey('desktop-tabs')), findsNothing);
     expect(find.byType(NavigationBar), findsNothing);
     expect(t.takeException(), isNull);
     await expectLater(

@@ -43,13 +43,13 @@ Only one copy of the app runs per Windows user; starting it again brings the fir
 
 In a window at least 1200 wide and 600 tall, Live uses a desktop layout, chosen in **Settings › Desktop layout** (the same page as **Settings › Appearance**, on its second tab, **Layout & accessibility**). This is not Windows-only: a large tablet held sideways gets it too.
 
-- **Three panes** (the default): the rundown on the left, the timer in the middle, the stage preview and cues on the right, with Live, Programs, Reports and Settings as tabs in the header. Each pane scrolls on its own. With no service loaded, Live keeps its single centred column.
-- **Mission control**: a status strip (ahead or behind, time now, planned finish, now ending, End service), then the timer, stage preview and cues side by side, with the rundown as a timeline along the bottom and the Live keys listed under it. It keeps the side rail. The timeline is `RundownTimeline` in `lib/live/mission_control_live.dart`.
+- **Mission control** (the default): a status strip (ahead or behind, time now, planned finish, now ending, End service), then the timer, stage preview and cues side by side, with the rundown as a timeline along the bottom and the Live keys listed under it. It keeps the side rail. The timeline is `RundownTimeline` in `lib/live/mission_control_live.dart`.
+- **Three panes**: the rundown on the left, the timer in the middle, the stage preview and cues on the right, with Live, Programs, Reports and Settings as tabs in the header. Each pane scrolls on its own. With no service loaded, Live keeps its single centred column.
 - **The dial**: Three panes with the service ring in the middle in place of the countdown dial: the whole service as a ring ending at the cross, the running segment's time left as an inner ring (`ServiceDial` in `lib/live/service_dial.dart`). It arrives with Royal Navy.
 - **Keys**: the dense layout. A strip with the running segment, a large countdown and the controls; the rundown as a table (`lib/live/keys_live.dart`); the stage preview and cues beside it; the keys along the bottom. Automatic spacing is Compact, and it arrives with Graphite. Before the first segment starts it shows the three panes.
 - **Classic**: the side rail and one column of cards, as before.
 
-A layout arrives with a theme (Three panes with Midnight Lime); any theme can be chosen afterwards. **Save this look** stores the layout, theme, spacing, contrast and key labels under a name; saved looks are included in backups, while the layout in use stays on the device like the other appearance settings. **Reset to default** returns to Three panes with Midnight Lime.
+A layout arrives with a theme (Mission control with Midnight Lime); any theme can be chosen afterwards. **Save this look** stores the layout, theme, spacing, contrast and key labels under a name; saved looks are included in backups, while the layout in use stays on the device like the other appearance settings. **Reset to default** returns to Three panes with Midnight Lime.
 
 The layouts only arrange the same timer, cues, stage preview and rundown that the phone uses (`lib/live/desktop_live.dart`), so a change to one of those shows everywhere. Smaller windows, and the focused operator view, use the phone and tablet layout.
 ## Second screen

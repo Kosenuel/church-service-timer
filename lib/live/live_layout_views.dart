@@ -31,6 +31,16 @@ extension LiveLayout on HomeState {
 
   String headerSubtitle() => headerChurchName;
 
+  /// Whether clicking the header's title goes back to Live: on another
+  /// tab, while the title is a loaded or running service's name. Locked
+  /// controls block it, as they block the tabs.
+  bool get headerReturnsToLive =>
+      c.ready &&
+      page != 0 &&
+      !controlsLocked &&
+      !liveStandingBy &&
+      c.liveSession.timeline != null;
+
   /// Wide screens use a side rail so Live keeps its full height.
   bool get useNavigationRail =>
       !focused &&

@@ -51,6 +51,13 @@ void main() {
     final port = DesktopFakePort();
     final c = AppController(port);
     await c.initialize(startTicker: false);
+    // These pages were laid out and photographed under Three panes; the
+    // default is covered in test/live/desktop_layout_test.dart.
+    await c.commit(
+      (draft, _) => draft.appearance = draft.appearance.copyWith(
+        desktopLayout: 'three_panes',
+      ),
+    );
     await c.commit((draft, _) {
       draft.churchName = 'Grace Community Church';
       draft.templates.clear();
