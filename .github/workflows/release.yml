@@ -106,11 +106,12 @@ jobs:
             --notes-file "$RUNNER_TEMP/notes.md" \
             --verify-tag
 
-  # The Windows app: a zip of the program folder and an installer, added to
-  # the GitHub Release once it exists. It runs after the Android release is
+  # The Windows app: a zip of the program folder and an installer, each with
+  # a .sha256 checksum file, added to the GitHub Release once it exists. It runs after the Android release is
   # published, so a Windows problem can never hold up or change the APK.
   # Neither file is code-signed; Windows SmartScreen warns the first time.
-  # They are not copied to the public guide site yet.
+  # The installer and its checksum are then copied to the public guide site
+  # by the guide job below; the zip stays here.
   windows:
     needs: release
     runs-on: windows-latest
@@ -142,10 +143,12 @@ jobs:
         run: gh release upload "$env:GITHUB_REF_NAME" (Get-ChildItem dist/Church-Service-Timer-*-windows-*).FullName --clobber
 
   # Copy the release to the public guide site's Releases (see
-  # publish-to-guide.yml). Skipped with a warning if GUIDE_RELEASE_TOKEN is
-  # not set.
+  # publish-to-guide.yml), including the Windows installer once the windows
+  # job has added it. If the Windows build fails, the APK is still
+  # published. Skipped with a warning if GUIDE_RELEASE_TOKEN is not set.
   guide:
-    needs: release
+    needs: [release, windows]
+    if: ${{ always() && needs.release.result == 'success' }}
     uses: ./.github/workflows/publish-to-guide.yml
     with:
       tag: ${{ github.ref_name }}

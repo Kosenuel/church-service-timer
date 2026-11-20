@@ -57,11 +57,9 @@ const screenGroups = {
   'choir': 'Choir',
   'media': 'Media desk',
 };
-const screenLayouts = {
-  'timer': 'Timer only',
-  'current': 'Timer + current segment',
-  'next': 'Timer + next segment',
-};
+
+/// The same choices, in the same words, as every other stage screen.
+const screenLayouts = stageLayouts;
 
 extension PairMemory on PairHub {
   Future<void> configureScreen(

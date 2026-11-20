@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -10,12 +11,43 @@ class Simulator {
   String owner = '', signature = '';
   int revision = -1, deliveredAt = 0;
   List<bool> pixels = List.filled(512, false);
+
+  /// The monotonic time [pixels] were drawn for.
+  int drawnAt = 0;
+
+  /// Whether the picture changes between updates by itself: text wider
+  /// than the sign scrolling, or flashing. The view then draws it again
+  /// on every frame with [pixelsAt], so it moves at the sign's own steady
+  /// pace rather than only when the app's clock ticks.
+  bool moving = false;
+
+  /// What the sign shows at the monotonic time [mono]: the delivered text
+  /// as far through its scroll or flash as it is by then.
+  List<bool> pixelsAt(int mono) =>
+      moving ? renderPixels(delivered, mono - deliveredAt) : pixels;
+
+  /// The first monotonic time after [mono] at which the moving picture
+  /// changes: the next column of the scroll, or the next half second of a
+  /// flash. Null when it does not move.
+  int? nextChangeAfter(int mono) {
+    final shown = delivered;
+    if (!moving || shown == null) return null;
+    final elapsed = math.max(0, mono - deliveredAt);
+    if (shown.effect == 'flash')
+      return deliveredAt + (elapsed ~/ 500 + 1) * 500;
+    final speed = shown.speed;
+    if (speed <= 0) return null;
+    final column = elapsed * speed ~/ 1000;
+    return deliveredAt + ((column + 1) * 1000 + speed - 1) ~/ speed;
+  }
+
   void clear() {
     delivered = null;
     owner = signature = '';
     revision = -1;
     deliveredAt = 0;
     pixels = List.filled(512, false);
+    moving = false;
   }
 
   void update(Session s, Stamp now) {
@@ -27,6 +59,8 @@ class Simulator {
       revision = s.revision;
       delivered = null;
       pixels = List.filled(512, false);
+      moving = false;
+      drawnAt = now.mono;
       return;
     }
     final desired = s.intended(now);
@@ -39,7 +73,15 @@ class Simulator {
       deliveredAt = now.mono;
     }
     revision = s.revision;
-    pixels = s.outputMode(now) == 'Clock'
+    final clock = s.outputMode(now) == 'Clock';
+    final shown = delivered;
+    moving =
+        !clock &&
+        shown != null &&
+        (shown.effect == 'flash' ||
+            (shown.effect == 'scroll' && textWidth(shown) > 32));
+    drawnAt = now.mono;
+    pixels = clock
         ? W2Program.clockPixels(
             DateTime.fromMillisecondsSinceEpoch(now.wall),
             format12Hour: s.clockFormat == '12h',

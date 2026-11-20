@@ -13,6 +13,38 @@ const screenColorNames = {'white', 'amber', 'red', 'green', 'accent'};
 /// Where a cue may show on screens.
 const screenPositions = {'full', 'top', 'bottom'};
 
+/// The effects every version of the app knows, and plays on the LED sign.
+const classicEffects = {'static', 'scroll', 'flash'};
+
+/// The newer effects. Each is drawn on screens; on the LED sign only
+/// 'flashHold' moves (the sign cannot dim, slide or colour) and the rest
+/// show steady. Stage snapshots carry them beside a classic effect, so an
+/// older paired screen shows the cue steady (see [TextLayout.screenEffect]).
+const screenEffects = {'pulse', 'flashHold', 'slideIn', 'bar', 'screenFlash'};
+
+/// Every effect a cue may have.
+const textEffects = {...classicEffects, ...screenEffects};
+
+/// Short names for an effect, as summaries write them.
+const effectNames = {
+  'static': 'static',
+  'scroll': 'scroll',
+  'flash': 'flash',
+  'pulse': 'pulse',
+  'flashHold': 'flash then hold',
+  'slideIn': 'slide in',
+  'bar': 'countdown bar',
+  'screenFlash': 'screen flash',
+};
+
+/// How long 'flashHold' flashes before it holds steady: three flashes at
+/// the rhythm of 'flash', half a second on and half a second off.
+const flashHoldMs = 3000;
+
+/// On the LED sign a 'flashHold' cue is a loop the controller plays by
+/// itself, so its three flashes come again once each cycle this long.
+const flashHoldCycleMs = 300000;
+
 class TextLayout {
   final String text, effect, align, font;
   final bool bold, italic;
@@ -32,6 +64,24 @@ class TextLayout {
   /// still in view.
   final String screenPosition;
   bool get bannerOnScreens => screenPosition != 'full';
+
+  /// Whether stage, web and second screens wrap the text onto up to three
+  /// lines (two in a banner) instead of scrolling it or shrinking it onto
+  /// one. The LED sign is not changed. Off, as every cue was, until chosen.
+  final bool screenWrap;
+
+  /// The effect as every version of the app knows it: the newer effects
+  /// are steady text to an older paired screen.
+  String get compatibleEffect =>
+      classicEffects.contains(effect) ? effect : 'static';
+
+  /// One of [screenEffects], or null for a classic effect.
+  String? get screenEffect => screenEffects.contains(effect) ? effect : null;
+
+  /// Whether the LED sign shows the cue without moving: the newer effects
+  /// it cannot draw, as well as static text.
+  bool get steadyOnSign =>
+      effect == 'static' || (effect != 'flashHold' && screenEffect != null);
   const TextLayout(
     this.text, {
     this.bold = false,
@@ -42,6 +92,7 @@ class TextLayout {
     this.screenSpeed,
     this.screenColor = 'white',
     this.screenPosition = 'full',
+    this.screenWrap = false,
     this.height = 1,
     this.font = 'i-proton_matrix',
   });
@@ -56,6 +107,7 @@ class TextLayout {
       'screenSpeed',
       'screenColor',
       'screenPosition',
+      'screenWrap',
       'height',
       'font',
     }, 'Text layout');
@@ -67,6 +119,7 @@ class TextLayout {
           (j['screenSpeed'] == null || j['screenSpeed'] is int) &&
           (j['screenColor'] == null || j['screenColor'] is String) &&
           (j['screenPosition'] == null || j['screenPosition'] is String) &&
+          (j['screenWrap'] == null || j['screenWrap'] is bool) &&
           j['height'] is int,
       'Text layout has missing or invalid fields.',
     );
@@ -80,6 +133,7 @@ class TextLayout {
       screenSpeed: j['screenSpeed'],
       screenColor: j['screenColor'] ?? 'white',
       screenPosition: j['screenPosition'] ?? 'full',
+      screenWrap: j['screenWrap'] ?? false,
       height: j['height'],
       // Font ids from earlier versions still open (see legacyFontIds).
       font: legacyFontIds[j['font']] ?? j['font'] ?? 'i-proton_matrix',
@@ -93,10 +147,7 @@ class TextLayout {
       text.trim().isNotEmpty && text.runes.length <= 160,
       'Display text must contain 1–160 characters.',
     );
-    require(
-      {'static', 'scroll', 'flash'}.contains(effect),
-      'Unsupported text effect.',
-    );
+    require(textEffects.contains(effect), 'Unsupported text effect.');
     require(
       {'left', 'center', 'right'}.contains(align),
       'Unsupported alignment.',
@@ -131,6 +182,7 @@ class TextLayout {
     'screenSpeed': ?screenSpeed,
     if (screenColor != 'white') 'screenColor': screenColor,
     if (screenPosition != 'full') 'screenPosition': screenPosition,
+    if (screenWrap) 'screenWrap': true,
     'height': height,
     'font': font,
   };

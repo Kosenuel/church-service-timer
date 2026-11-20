@@ -5,6 +5,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/screen_orientation.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,8 +28,8 @@ class HostFullScreenState {
 
 /// Makes the screen itself full: on a computer the window loses its frame
 /// and covers its monitor, where the computer can do that; on a phone or
-/// tablet the system bars are hidden. Without either, the stage still
-/// fills the app's window.
+/// tablet the system bars are hidden and it turns landscape. Without
+/// either, the stage still fills the app's window.
 Future<void> applyFullScreen(DevicePort port, bool on) async {
   try {
     if (port.isDesktop) {
@@ -39,9 +40,14 @@ Future<void> applyFullScreen(DevicePort port, bool on) async {
         await window?.leaveFullScreen();
       }
     } else {
-      await SystemChrome.setEnabledSystemUIMode(
-        on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
-      );
+      // Landscape suits the stage picture; leaving brings back what the
+      // app asked for before.
+      await Future.wait([
+        ScreenOrientation.setFullScreen(on),
+        SystemChrome.setEnabledSystemUIMode(
+          on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+        ),
+      ]);
     }
   } catch (_) {
     // The stage fills the window all the same.

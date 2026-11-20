@@ -40,12 +40,48 @@ double stageScrollSpeed(Json data) {
   return (speed is num ? speed.toDouble() : 12.0).clamp(1.0, 60.0);
 }
 
+/// A cue's effect as a stage snapshot carries it. `effect` is always one
+/// every version knows, so an older paired screen shows a newer effect as
+/// steady text; `screenEffect` is the newer effect, for screens that know
+/// it. [time] is the cue's whole time and the time left, in milliseconds,
+/// for a countdown bar; a cue shown until cleared has none, and no bar.
+Json stageEffectFields(TextLayout? cue, {({int total, int left})? time}) => {
+  'effect': cue?.compatibleEffect ?? 'static',
+  'screenEffect': ?cue?.screenEffect,
+  if (cue?.screenEffect == 'bar' && time != null && time.total > 0) ...{
+    'cueTotalMs': time.total,
+    'cueLeftMs': time.left.clamp(0, time.total),
+  },
+};
+
+/// The newer effect a snapshot asks screens for, or null: none, or one
+/// this version does not know, which is then shown as its `effect` says.
+String? stageScreenEffect(Json data) {
+  final effect = data['screenEffect'];
+  return screenEffects.contains(effect) ? effect as String : null;
+}
+
+/// A countdown bar's whole time and time left, in milliseconds, or null
+/// when the snapshot has no sensible one (the cue then shows no bar).
+({int total, int left})? stageCueTime(Json data) {
+  final total = data['cueTotalMs'], left = data['cueLeftMs'];
+  if (stageScreenEffect(data) != 'bar' ||
+      total is! int ||
+      left is! int ||
+      total <= 0 ||
+      left < 0 ||
+      left > total) {
+    return null;
+  }
+  return (total: total, left: left);
+}
+
 /// The fixed colours a cue can have on screens, as RGB. Each is bright
 /// enough to read on the black stage background and they are far apart
 /// from one another. The theme's accent is worked out by the host.
 const screenCueColors = <String, int>{
   'white': 0xffffff,
-  'amber': 0xffc247,
+  'amber': 0xffa833,
   'red': 0xff4d4d,
   'green': 0x4ade80,
 };
@@ -94,6 +130,11 @@ Json stageUnderBanner(Json data) {
       'underText',
       'underMode',
       'screenSpeed',
+      'screenWrap',
+      // The countdown under a banner never takes the cue's effect.
+      'screenEffect',
+      'cueTotalMs',
+      'cueLeftMs',
     }.contains(key),
   );
 }
@@ -104,3 +145,96 @@ Json stageBannerText(Json data) => {
   'displayIsTimer': false,
   'outputMode': 'Cue',
 }..removeWhere((key, _) => const {'cuePosition', 'underText'}.contains(key));
+
+/// The most lines a cue wraps onto on screens: three filling the screen,
+/// two in a banner.
+const stageWrapLines = 3, stageBannerWrapLines = 2;
+
+/// The smallest wrapped text may be, as a share of the height of its box
+/// for each line it may use: on a 1080-line screen, 130 px for three lines
+/// and, in a banner, 31 px for two. Text that would need to be smaller
+/// scrolls instead, so it is never cut off or too small to read.
+const stageWrapMinimum = .36;
+
+/// Whether a snapshot's cue is wrapped onto lines on screens: a cue (not
+/// the countdown or clock) with "Wrap long text" chosen. Wrapped text does
+/// not scroll on screens (the LED sign still does); a newer effect such as
+/// pulse or slide in plays on the wrapped block as a whole. The effects
+/// arrive as a classic `effect` (see [stageEffectFields]), so one this
+/// version does not know is not wrapped.
+bool stageWrapsText(Json data) =>
+    data['screenWrap'] == true &&
+    data['displayIsTimer'] != true &&
+    data['outputMode'] != 'Clock' &&
+    const {'static', 'scroll', 'flash', null}.contains(data['effect']);
+
+/// A full-screen cue in a colour other than white is shown as warm white
+/// text on a warm charcoal screen, with a rule in its colour along the
+/// bottom edge: the colour marks the cue without tinting every letter.
+/// White cues, banners, the countdown and the clock are as they were.
+const stageCardBackground = 0x1a1712, stageCardInk = 0xfff4dc;
+
+/// Whether [data] shows its cue full screen in a colour (see
+/// [stageCardBackground]).
+bool stageColouredCard(Json data) {
+  final rgb = stageCueRgb(data);
+  final text = data['displayText'];
+  return rgb != null &&
+      rgb != 0xffffff &&
+      data['blank'] != true &&
+      data['quickMessage'] == null &&
+      data['displayIsTimer'] != true &&
+      data['outputMode'] != 'Clock' &&
+      stageBannerPosition(data) == null &&
+      text is String &&
+      text.trim().isNotEmpty;
+}
+
+/// The coloured rule along the bottom of a screen [height] tall: 18 px on
+/// a 1080-line screen, and never thinner than 4 px.
+double stageCardRule(double height) =>
+    (height * 18 / 1080).clamp(4.0, double.infinity).toDouble();
+
+/// What a stage screen shows while it counts down, by the name the stage
+/// snapshot carries, with the words every chooser uses: paired stage
+/// screens, web stage displays, the second screen, full screen and the
+/// stage simulator.
+const stageLayouts = {
+  'timer': 'Timer only',
+  'current': 'Timer and segment name',
+  'next': 'Timer and up next',
+};
+
+/// A stage layout from saved settings; anything unknown is 'timer'.
+String stageLayoutValue(dynamic value) =>
+    stageLayouts.containsKey(value) ? value as String : 'timer';
+
+/// The "up next" line for the segment after [index] in [timeline]:
+/// `Next: Response · Worship team · 5 min`. Empty on the last segment,
+/// during a Quick timer and with no program, so nothing shows then.
+String stageUpNextLine(Timeline? timeline, int index, {bool quick = false}) {
+  if (timeline == null || quick || index + 1 >= timeline.segments.length) {
+    return '';
+  }
+  final next = timeline.segments[index + 1];
+  return [
+    'Next: ${next.name}',
+    if (next.speaker.trim().isNotEmpty) next.speaker.trim(),
+    next.durationText,
+  ].join(' · ');
+}
+
+/// The line under the countdown in a stage snapshot for its layout: the
+/// segment name, the up next line, or empty for nothing. A snapshot from
+/// a host from before the up next line has only the next segment's name.
+String stageLayoutLine(Json data, String layout) => switch (layout) {
+  'timer' => '',
+  'next' => switch (data['upNext']) {
+    final String line => line,
+    _ => switch (data['nextSegment']) {
+      final String name when name.isNotEmpty => 'Next: $name',
+      _ => '',
+    },
+  },
+  _ => '${data['segment'] ?? ''}',
+};
