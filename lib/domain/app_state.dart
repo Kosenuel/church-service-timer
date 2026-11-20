@@ -72,6 +72,11 @@ class AppState {
   /// Local to this phone; not part of backups.
   String fullScreenLayout;
 
+  /// What the Simulator stands in for when it is the display: 'led', an
+  /// LED sign, or 'stage', a stage screen. Local to this phone; not part
+  /// of backups.
+  String simulatorKind;
+
   /// When guided practice was last finished on this phone, and whether
   /// Live still offers it. Local to this phone; not part of backups.
   int? practisedWall;
@@ -107,6 +112,7 @@ class AppState {
     this.settingsLock,
     this.clickerControls = true,
     this.fullScreenLayout = 'timer',
+    this.simulatorKind = 'led',
     this.practisedWall,
     this.practicePrompt = true,
     this.stageRequests = false,
@@ -285,6 +291,7 @@ class AppState {
         'next' => 'next',
         _ => 'timer',
       },
+      simulatorKind: simulatorKindValue(j['simulatorKind']),
       practisedWall: j['practisedWall'] is int
           ? j['practisedWall'] as int
           : null,
@@ -445,6 +452,7 @@ class AppState {
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
     'fullScreenLayout': fullScreenLayout,
+    'simulatorKind': simulatorKind,
   };
   AppState copy() => AppState.fromJson(toJson());
 

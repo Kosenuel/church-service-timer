@@ -98,6 +98,30 @@ class AppController extends ChangeNotifier {
       : destination == 'led'
       ? (hardware.rememberedName.isEmpty ? 'LED sign' : hardware.rememberedName)
       : 'Simulator';
+
+  /// The Simulator is the display and stands in for a stage screen.
+  bool get stageSimulator =>
+      destination == 'simulator' && state.simulatorKind == 'stage';
+
+  /// The Simulator by the name of what it stands in for.
+  String get simulatorName => simulatorNameOf(state.simulatorKind);
+
+  /// Whether a preview of something for the stage starts as a stage
+  /// screen shows it, not as the LED sign does: the display is stage
+  /// screens, or the Simulator standing in for one.
+  bool get previewsAsStageScreen => destination == 'mobile' || stageSimulator;
+
+  /// Remembers what the Simulator stands in for: 'led' or 'stage'.
+  Future<bool> setSimulatorKind(String kind) async {
+    if (!simulatorKinds.containsKey(kind)) return false;
+    if (state.simulatorKind == kind) return true;
+    return commit((draft, _) => draft.simulatorKind = kind);
+  }
+
+  /// What a stage screen would show now, for the Simulator standing in
+  /// for one: the timer only, as a new stage screen starts.
+  Json stageSimulatorSnapshot() =>
+      stageWindowSnapshot()..['stageLayout'] = 'timer';
   late final quickMessages = QuickMessageController(this);
   late final practice = PracticeController(this);
   late final stageRequests = StageRequestController(this);
