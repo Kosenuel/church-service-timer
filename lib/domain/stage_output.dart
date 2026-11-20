@@ -32,3 +32,10 @@ class StageOutputMessage {
   final int seconds;
   const StageOutputMessage(this.layout, {this.seconds = 0});
 }
+
+/// How fast a scrolling cue moves on a screen, on the LED sign's scale: the
+/// cue's speed on screens when the host sent one, otherwise the sign's.
+double stageScrollSpeed(Json data) {
+  final speed = data['screenSpeed'] ?? data['speed'];
+  return (speed is num ? speed.toDouble() : 12.0).clamp(1.0, 60.0);
+}

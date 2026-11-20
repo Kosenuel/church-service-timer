@@ -631,7 +631,8 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         'effect': const {'scroll', 'flash'}.contains(s['effect'])
             ? s['effect']
             : 'static',
-        'speed': ((s['speed'] as num?)?.toDouble() ?? 12.0).clamp(1.0, 60.0),
+        // The cue's speed on screens; the LED sign's until one is set.
+        'speed': stageScrollSpeed(s),
         'overtime': s['overtime'] == true,
         'paused': s['paused'] == true,
         // Whether the text is a countdown or clock, whose colon blinks.

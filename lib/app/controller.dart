@@ -405,7 +405,9 @@ class AppController extends ChangeNotifier {
       'outputMode': s.outputMode(now),
       'clockBlink': s.clockBlink,
       'effect': display?.effect ?? 'static',
+      // The LED sign's speed, which older paired screens keep following.
       'speed': display?.speed ?? 12,
+      'screenSpeed': ?display?.screenSpeed,
       'bold': display?.bold ?? false,
       'italic': display?.italic ?? false,
       'connection': displayConnection.label,

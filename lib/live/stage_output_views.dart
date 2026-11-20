@@ -163,7 +163,8 @@ extension StageOutputViews on HomeState {
             ack['bold'] == cue?.bold &&
             ack['italic'] == cue?.italic &&
             ack['effect'] == cue?.effect &&
-            ack['speed'] == cue?.speed;
+            ack['speed'] == cue?.speed &&
+            ack['screenSpeed'] == cue?.screenSpeed;
       }).length;
       final web = c.webStage.syncedStageDevices.length;
       status = peers.isEmpty

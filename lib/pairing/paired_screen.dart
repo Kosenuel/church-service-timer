@@ -768,9 +768,7 @@ class _StageMessageState extends State<StageMessage>
         )..layout();
         final travel = space.maxWidth + painter.width;
         final speed =
-            ((widget.data['speed'] as num?) ?? 12).toDouble() *
-            6 *
-            (style.fontSize! / previewSize);
+            stageScrollSpeed(widget.data) * 6 * (style.fontSize! / previewSize);
         final x = space.maxWidth - (elapsed * speed) % travel;
         final height = fullHeight ? space.maxHeight : painter.height + 24;
         final top = (height - painter.height) / 2;

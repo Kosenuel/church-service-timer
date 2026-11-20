@@ -8,6 +8,7 @@ import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
+import 'package:church_service_timer/live/cue_screen_controls.dart';
 
 /// Whether two layouts look the same; layouts are compared by content, as
 /// a copy of the default end screen is still the default.
@@ -36,6 +37,7 @@ class _TextComposerState extends State<TextComposer> {
   late String effect, align, font;
   String? fontRequest, fontError;
   late int height, speed;
+  int? screenSpeed;
   final watch = Stopwatch()..start();
   final previewTick = ValueNotifier<int>(0);
   Timer? ticker;
@@ -50,6 +52,7 @@ class _TextComposerState extends State<TextComposer> {
     align = l.align;
     height = l.height;
     speed = l.speed;
+    screenSpeed = l.screenSpeed;
     font = l.font;
     ticker = Timer.periodic(const Duration(milliseconds: 80), (_) {
       if (mounted) previewTick.value++;
@@ -72,6 +75,8 @@ class _TextComposerState extends State<TextComposer> {
     align: align,
     height: height,
     speed: speed,
+    // Only scrolling text has a speed; nothing is kept for other effects.
+    screenSpeed: effect == 'scroll' ? screenSpeed : null,
     font: font,
   );
   @override
@@ -209,8 +214,9 @@ class _TextComposerState extends State<TextComposer> {
               ),
               if (effect == 'scroll') ...[
                 const SizedBox(height: 12),
-                Text('Scroll speed: $speed pixels / second'),
+                Text('Speed on the LED sign: $speed pixels / second'),
                 Slider(
+                  key: const ValueKey('led-speed'),
                   value: speed.toDouble(),
                   min: 4,
                   max: 24,
@@ -225,6 +231,12 @@ class _TextComposerState extends State<TextComposer> {
                       fontSize: 12,
                     ),
                   ),
+                const SizedBox(height: 12),
+                ScreenSpeedControl(
+                  ledSpeed: speed,
+                  screenSpeed: screenSpeed,
+                  onChanged: (v) => setState(() => screenSpeed = v),
+                ),
               ],
               if (error != null)
                 Padding(
