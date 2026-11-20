@@ -32,6 +32,11 @@ abstract class DevicePort {
   /// mini timer, where the device can do that (a PC); null elsewhere.
   MiniWindow? get miniWindow => null;
 
+  /// The app window made truly full screen, for the stage on the
+  /// operator's own screen, where the device has a window to change (a
+  /// PC); null elsewhere.
+  FullScreenWindow? get fullScreenWindow => null;
+
   Future<Json> signWifiProfile(String id) async => {
     'ssid': '',
     'supported': false,

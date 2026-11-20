@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -598,8 +599,9 @@ extension LiveViewActions on HomeState {
     required Widget Function() content,
     bool destructive = false,
   }) async {
-    // The same question, in a form that fits the mini timer window.
-    if (miniTimer) {
+    // The same question, in a form that fits the mini timer window, and
+    // sits over the stage in full screen.
+    if (compactQuestions) {
       return miniConfirm(
         revision: revision,
         title: title,

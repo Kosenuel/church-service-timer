@@ -16,6 +16,21 @@ abstract class MiniWindow {
   Future<void> leave();
 }
 
+/// The app window made truly full screen: no title bar or borders,
+/// covering the monitor it is on, for showing the stage on the operator's
+/// own screen. On Windows it is `WindowMemory` too; a phone hides its
+/// system bars instead and has none.
+abstract class FullScreenWindow {
+  /// Covers the window's monitor. Where the window was is kept for
+  /// [leaveFullScreen]. False, with the window as it was, when the
+  /// computer would not do it.
+  Future<bool> enterFullScreen();
+
+  /// Puts the window back exactly as [enterFullScreen] found it. Does
+  /// nothing when the window is not full screen.
+  Future<void> leaveFullScreen();
+}
+
 /// The size of the inside of the window, in screen pixels, and how many of
 /// those make one of the app's units ([scale], 1.5 on a screen set to
 /// 150%).

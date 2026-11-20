@@ -96,6 +96,8 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   final StageOutputHost? stageOutput;
   @override
   final MiniWindow? miniWindow;
+  @override
+  final FullScreenWindow? fullScreenWindow;
   late final AtomicTextFile _state = AtomicTextFile.json(
     File(_path('service-state.json')),
   );
@@ -183,6 +185,7 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     this._pairingVault,
     this.stageOutput,
     this.miniWindow,
+    this.fullScreenWindow,
   );
 
   factory WindowsPort({
@@ -196,6 +199,7 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     W2Transport? sign,
     StageOutputLauncher? stageLauncher,
     MiniWindow? miniWindow,
+    FullScreenWindow? fullScreenWindow,
   }) {
     String path(String name) => '${dataDir.path}${Platform.pathSeparator}$name';
     final prefs = JsonPrefs(File(path('sign.json')));
@@ -218,6 +222,7 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
       ),
       stageLauncher == null ? null : StageOutputHost(stageLauncher),
       miniWindow,
+      fullScreenWindow,
     );
   }
 

@@ -67,6 +67,11 @@ class AppState {
   /// Presentation clickers and foot pedals drive Next and Pause on Live.
   bool clickerControls;
 
+  /// What Full screen on Live shows on this device's own screen: 'timer',
+  /// 'current' or 'next'. A PC uses its second screen's choice instead.
+  /// Local to this phone; not part of backups.
+  String fullScreenLayout;
+
   /// When guided practice was last finished on this phone, and whether
   /// Live still offers it. Local to this phone; not part of backups.
   int? practisedWall;
@@ -101,6 +106,7 @@ class AppState {
     this.lockScreenControls = true,
     this.settingsLock,
     this.clickerControls = true,
+    this.fullScreenLayout = 'timer',
     this.practisedWall,
     this.practicePrompt = true,
     this.stageRequests = false,
@@ -274,6 +280,11 @@ class AppState {
           ? null
           : SettingsLock.fromJson(Map<String, dynamic>.from(j['settingsLock'])),
       clickerControls: boolSetting(j['clickerControls'] ?? true),
+      fullScreenLayout: switch (j['fullScreenLayout']) {
+        'current' => 'current',
+        'next' => 'next',
+        _ => 'timer',
+      },
       practisedWall: j['practisedWall'] is int
           ? j['practisedWall'] as int
           : null,
@@ -433,6 +444,7 @@ class AppState {
     'recentQuickTimers': [for (final r in recentQuickTimers) r.toJson()],
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
+    'fullScreenLayout': fullScreenLayout,
   };
   AppState copy() => AppState.fromJson(toJson());
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/live/quick_timer_sheet.dart';
 import 'package:church_service_timer/live/shortcuts.dart';
@@ -353,6 +354,17 @@ extension CommandPalette on HomeState {
           keys: keys ? shortcutHint('mini') : null,
           words: 'small always on top lyrics slides shrink',
           run: () => setMiniTimer(true),
+        ),
+      if (hostFullScreenAvailable && !miniTimer)
+        PaletteCommand(
+          id: 'fullscreen',
+          label: 'Full screen',
+          detail: 'Show the stage on this screen',
+          icon: Icons.fullscreen,
+          group: 'This window',
+          keys: keys ? shortcutHint('fullscreen') : null,
+          words: 'stage big countdown whole screen present audience',
+          run: () => setHostFullScreen(true),
         ),
       if (keys)
         PaletteCommand(
