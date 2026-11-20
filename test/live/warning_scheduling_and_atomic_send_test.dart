@@ -58,8 +58,9 @@ void main() {
       expect(state.stageCues.last.bold, true);
       expect(state.stageCues.last.speed, 21);
       expect(state.stageCues.last.font, 'i-proton_matrix');
-      expect(state.stageCues.length, 4);
-      expect(AppState.fromJson(state.toJson()).stageCues.length, 4);
+      // The seven default cues, then the saved one.
+      expect(state.stageCues.length, 8);
+      expect(AppState.fromJson(state.toJson()).stageCues.length, 8);
       expect(displayFontNames.keys, [
         'i-proton_matrix',
         'i-proton_sq_matrix',
@@ -167,9 +168,10 @@ void main() {
       await c.retry!();
       expect(c.simulator.delivered!.text, '2 MIN LEFT');
       expect((port.plans.last['notice'] as Map)['title'], '2 MIN LEFT');
-      port.at = at(68);
+      // 2 MIN LEFT shows for 12 seconds.
+      port.at = at(72);
       await c.tick();
-      expect(c.simulator.delivered!.text, '01:52');
+      expect(c.simulator.delivered!.text, '01:48');
       c.dispose();
     },
   );
@@ -213,9 +215,11 @@ void main() {
 
   test('Upgrade uses shared defaults as the authoritative warning rules', () {
     final old = AppState.fresh(epoch).toJson()..['version'] = 2;
-    for (final warning in old['defaults']['warnings']) {
-      warning['destination'] = 'operator';
-    }
+    // The warnings suggested then, for the operator only.
+    old['defaults']['warnings'] = [
+      for (final w in legacyDefaultWarnings)
+        {...w.toJson(), 'destination': 'operator'},
+    ];
     old['templates'][0]['display']['warnings'] = [
       const WarningRule(45, TextLayout('CUSTOM')).toJson(),
     ];

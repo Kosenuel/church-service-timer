@@ -21,10 +21,18 @@ Future<void> loadAppFonts() async {
 }
 
 /// Sets the test screen to [size] logical pixels at 1×, restored after
-/// the test.
-void setScreen(WidgetTester t, [Size size = const Size(430, 1000)]) {
+/// the test. The device's whole display is the same size, so a phone-sized
+/// screen is a phone and a 1366 × 768 one a tablet; pass [display] for an
+/// app window smaller than its screen.
+void setScreen(
+  WidgetTester t, [
+  Size size = const Size(430, 1000),
+  Size? display,
+]) {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
+  t.view.display.size = display ?? size;
   addTearDown(t.view.resetPhysicalSize);
   addTearDown(t.view.resetDevicePixelRatio);
+  addTearDown(t.view.display.resetSize);
 }

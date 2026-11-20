@@ -23,12 +23,8 @@ Timeline sunday() => Timeline(
     Segment('Response', 15, speaker: 'Worship team'),
     Segment('Closing', 2),
   ],
-  DisplaySettings(
-    warnings: const [
-      WarningRule(300, TextLayout('5 MIN LEFT')),
-      ...defaultWarnings,
-    ],
-  ),
+  // The suggested warnings: 5:00, 2:00, 0:30 and 0:00.
+  DisplaySettings(),
 );
 
 const checkStart = Stamp(1000, 1700000000000, 'boot');
@@ -83,8 +79,8 @@ void main() {
         [for (final w in welcome) formatTime(w.remainingMs!)],
         ['05:00', '02:00', '00:30', '00:00'],
       );
-      expect(welcome.first.where, 'Operator only');
-      expect(welcome[1].where, 'Operator and stage');
+      // The suggested warnings all show on the stage too.
+      expect(welcome.map((w) => w.where).toSet(), {'Operator and stage'});
       expect(run.unreachable, hasLength(2));
       expect(run.unreachableIn(4).single.rule.cue.text, '5 MIN LEFT');
       expect(run.unreachableIn(1).single.rule.cue.text, '5 MIN LEFT');

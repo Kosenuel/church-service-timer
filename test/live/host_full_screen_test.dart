@@ -503,13 +503,20 @@ void main() {
       expect(c.state.session.toJson().toString(), before);
       expect(stage, findsOneWidget);
 
-      // A cue shows on it as it does on a stage screen.
+      // A cue shows on it as it does on a stage screen: TIME'S UP in
+      // place of the countdown, WRAP UP in a banner under it.
+      await t.sendKeyEvent(LogicalKeyboardKey.digit2);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      expect(c.state.session.alert?.text, "TIME'S UP");
+      expect(find.text("TIME'S UP"), findsOneWidget);
+      expect(find.byType(ClockText), findsNothing);
       await t.sendKeyEvent(LogicalKeyboardKey.digit1);
       await t.pump();
       await t.pump(const Duration(milliseconds: 100));
       expect(c.state.session.alert?.text, 'WRAP UP');
       expect(find.text('WRAP UP'), findsOneWidget);
-      expect(find.byType(ClockText), findsNothing);
+      expect(find.byType(ClockText), findsOneWidget);
       await t.sendKeyEvent(LogicalKeyboardKey.digit1);
       await t.pump();
       await t.pump(const Duration(milliseconds: 100));

@@ -1,5 +1,6 @@
 import 'package:church_service_timer/settings/desktop_layout_views.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/layout_device.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -127,6 +128,7 @@ extension SettingsViews on HomeState {
   );
 
   Widget settingsHub() {
+    final wideLayouts = wideLayoutDevice(context, desktop: c.port.isDesktop);
     Widget entry(
       IconData icon,
       String title,
@@ -226,13 +228,15 @@ extension SettingsViews on HomeState {
                 openAppearance,
               ),
               // Its own row, because it was easy to miss as the second tab
-              // of Appearance.
-              entry(
-                Icons.dashboard_customize_outlined,
-                'Desktop layout',
-                '${desktopLayoutName(effectiveDesktopLayout(c.state.appearance.desktopLayout))} · for a wide window',
-                () => openAppearance(tab: 1),
-              ),
+              // of Appearance. A phone never has a window large enough for
+              // it, so it has no row there.
+              if (wideLayouts != WideLayoutDevice.none)
+                entry(
+                  Icons.dashboard_customize_outlined,
+                  wideLayoutSettingName(wideLayouts),
+                  '${desktopLayoutName(effectiveDesktopLayout(c.state.appearance.desktopLayout))} · ${wideLayouts == WideLayoutDevice.tablet ? 'in landscape' : 'for a wide window'}',
+                  () => openAppearance(tab: 1),
+                ),
             ]),
             group('Service & display', [
               entry(
@@ -1155,7 +1159,16 @@ class _AppearancePageState extends State<AppearancePage> {
                           Icons.dashboard_customize_outlined,
                           size: 18,
                         ),
-                        label: const Text('Desktop layout and spacing'),
+                        label: Text(switch (wideLayoutDevice(
+                          context,
+                          desktop: widget.controller.port.isDesktop,
+                        )) {
+                          WideLayoutDevice.computer =>
+                            'Desktop layout and spacing',
+                          WideLayoutDevice.tablet =>
+                            'Tablet layout and spacing',
+                          WideLayoutDevice.none => 'Spacing and accessibility',
+                        }),
                       ),
                     ),
                   ),

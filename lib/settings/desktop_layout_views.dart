@@ -1,10 +1,13 @@
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/layout_device.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 
-/// Settings › Appearance › Layout: the desktop layout presets, the looks
-/// saved under a name, and the way back to the default.
+/// Settings › Appearance › Layout: the desktop layout presets (named the
+/// tablet layout on a tablet, and left out on a phone, which never has a
+/// window large enough for them), the looks saved under a name, and the
+/// way back to the default.
 class DesktopLayoutSection extends StatelessWidget {
   final AppearancePreferences appearance;
   final String themeId;
@@ -45,44 +48,52 @@ class DesktopLayoutSection extends StatelessWidget {
       text,
       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
     );
+    final device = wideLayoutDevice(context, desktop: desktop);
+    final layouts = device != WideLayoutDevice.none;
     return Column(
       key: const ValueKey('desktop-layout-section'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        heading('Desktop layout'),
-        const SizedBox(height: 4),
-        Text(
-          'How Live is arranged in a wide window, on a computer or a large tablet held sideways. Narrower windows keep the phone layout. Choosing a layout also sets its theme; change the theme afterwards if you like.',
-          style: muted,
-        ),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, space) {
-            final columns = space.maxWidth >= 480 ? 2 : 1;
-            final width = (space.maxWidth - 10 * (columns - 1)) / columns;
-            return Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final id in builtDesktopLayouts)
-                  SizedBox(
-                    width: width,
-                    child: _LayoutChoice(
-                      id: id,
-                      selected: id == chosen,
-                      onTap: onChanged == null
-                          ? null
-                          : () => onChanged!(
-                              appearance.copyWith(desktopLayout: id),
-                              desktopLayoutTheme(id) ?? themeId,
-                            ),
+        if (layouts) ...[
+          heading(wideLayoutSettingName(device)),
+          const SizedBox(height: 4),
+          Text(
+            device == WideLayoutDevice.tablet
+                ? 'Used when the tablet is in landscape, with the app filling the screen. In portrait or split screen, Live keeps the phone layout. Choosing a layout also sets its theme; change the theme afterwards if you like.'
+                : 'How Live is arranged in a window at least 1200 wide and 600 tall. Smaller windows keep the phone layout. Choosing a layout also sets its theme; change the theme afterwards if you like.',
+            key: const ValueKey('desktop-layout-when'),
+            style: muted,
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (layouts)
+          LayoutBuilder(
+            builder: (context, space) {
+              final columns = space.maxWidth >= 480 ? 2 : 1;
+              final width = (space.maxWidth - 10 * (columns - 1)) / columns;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final id in builtDesktopLayouts)
+                    SizedBox(
+                      width: width,
+                      child: _LayoutChoice(
+                        id: id,
+                        selected: id == chosen,
+                        onTap: onChanged == null
+                            ? null
+                            : () => onChanged!(
+                                appearance.copyWith(desktopLayout: id),
+                                desktopLayoutTheme(id) ?? themeId,
+                              ),
+                      ),
                     ),
-                  ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 8),
+                ],
+              );
+            },
+          ),
+        if (layouts) const SizedBox(height: 8),
         SwitchListTile(
           key: const ValueKey('key-hints'),
           contentPadding: EdgeInsets.zero,
@@ -103,7 +114,9 @@ class DesktopLayoutSection extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           looks.isEmpty
-              ? 'Save this layout and theme together under a name, to come back to later. Saved looks are included in backups.'
+              ? layouts
+                    ? 'Save this layout and theme together under a name, to come back to later. Saved looks are included in backups.'
+                    : 'Save this theme and spacing together under a name, to come back to later. Saved looks are included in backups.'
               : deviceText(
                   'Tap a look to use it. Up to $savedLookLimit; they are included in backups.',
                 ),
@@ -120,7 +133,9 @@ class DesktopLayoutSection extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              '${desktopLayoutName(effectiveDesktopLayout(look.layout))} · ${paletteFor(look.themeId).name}',
+              layouts
+                  ? '${desktopLayoutName(effectiveDesktopLayout(look.layout))} · ${paletteFor(look.themeId).name}'
+                  : paletteFor(look.themeId).name,
             ),
             onTap: onChanged == null
                 ? null

@@ -80,7 +80,70 @@ class WarningRule {
   };
 }
 
+/// The automatic warnings a new install starts with, all on the operator's
+/// device and the stage. Like [defaultStageCues], each scrolls on the LED
+/// sign in tall bold letters and wraps (holding still) on screens. Each
+/// shows long enough to scroll past the sign twice: 5 MIN LEFT and 2 MIN
+/// LEFT are 63 columns wide, 69 with the gap, so 11.5 seconds at 12 a
+/// second; WRAP UP is 52 with the gap (8.7 seconds); TIME'S UP is 60 at
+/// 14 a second (8.6 seconds).
 const defaultWarnings = [
+  WarningRule(
+    300,
+    TextLayout(
+      '5 MIN LEFT',
+      bold: true,
+      height: 2,
+      screenPosition: 'top',
+      screenWrap: true,
+    ),
+    destination: 'stage',
+    durationSeconds: 12,
+  ),
+  WarningRule(
+    120,
+    TextLayout(
+      '2 MIN LEFT',
+      bold: true,
+      height: 2,
+      screenColor: 'amber',
+      screenPosition: 'bottom',
+      screenWrap: true,
+    ),
+    destination: 'stage',
+    durationSeconds: 12,
+  ),
+  WarningRule(
+    30,
+    TextLayout(
+      'WRAP UP',
+      bold: true,
+      height: 2,
+      screenColor: 'amber',
+      screenPosition: 'bottom',
+      screenWrap: true,
+    ),
+    destination: 'stage',
+    durationSeconds: 10,
+  ),
+  WarningRule(
+    0,
+    TextLayout(
+      "TIME'S UP",
+      bold: true,
+      height: 2,
+      speed: 14,
+      screenColor: 'red',
+      screenWrap: true,
+    ),
+    destination: 'stage',
+    durationSeconds: 10,
+  ),
+];
+
+/// The warnings installs started with before [defaultWarnings], which
+/// saved state from then is upgraded from.
+const legacyDefaultWarnings = [
   WarningRule(120, TextLayout('2 MIN LEFT'), destination: 'stage'),
   WarningRule(30, TextLayout('WRAP UP', bold: true), destination: 'stage'),
   WarningRule(0, TextLayout("TIME'S UP", bold: true), destination: 'stage'),
