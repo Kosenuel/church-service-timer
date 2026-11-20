@@ -609,7 +609,7 @@ void main() {
       expect(find.text('Sermon'), findsOneWidget);
       await c.commit((draft, _) => draft.fullScreenLayout = 'next');
       await t.pumpAndSettle();
-      expect(find.text('Next: Response'), findsOneWidget);
+      expect(find.text('Next: Response · 10 min'), findsOneWidget);
       expect(time(t), '12:38');
       // Kept on this device: in its saved state, never in a backup.
       expect(c.state.toJson()['fullScreenLayout'], 'next');
@@ -637,7 +637,7 @@ void main() {
       expect(find.text('Welcome'), findsNothing);
       await c.secondScreen!.setLayout('next');
       await t.pumpAndSettle();
-      expect(find.text('Next: Sermon'), findsOneWidget);
+      expect(find.text('Next: Sermon · 40 min'), findsOneWidget);
       expect(home(t).hostStageSnapshot(), c.stageWindowSnapshot());
       // No window to change here: the stage fills the one there is.
       expect(t.getSize(key('full-screen-stage')), const Size(1366, 768));

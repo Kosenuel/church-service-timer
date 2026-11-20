@@ -77,6 +77,11 @@ class AppState {
   /// of backups.
   String simulatorKind;
 
+  /// What the Simulator shows under the time while it stands in for a
+  /// stage screen: 'timer', 'current' or 'next'. Local to this phone; not
+  /// part of backups.
+  String simulatorLayout;
+
   /// When guided practice was last finished on this phone, and whether
   /// Live still offers it. Local to this phone; not part of backups.
   int? practisedWall;
@@ -113,6 +118,7 @@ class AppState {
     this.clickerControls = true,
     this.fullScreenLayout = 'timer',
     this.simulatorKind = 'led',
+    this.simulatorLayout = 'timer',
     this.practisedWall,
     this.practicePrompt = true,
     this.stageRequests = false,
@@ -286,12 +292,9 @@ class AppState {
           ? null
           : SettingsLock.fromJson(Map<String, dynamic>.from(j['settingsLock'])),
       clickerControls: boolSetting(j['clickerControls'] ?? true),
-      fullScreenLayout: switch (j['fullScreenLayout']) {
-        'current' => 'current',
-        'next' => 'next',
-        _ => 'timer',
-      },
+      fullScreenLayout: stageLayoutValue(j['fullScreenLayout']),
       simulatorKind: simulatorKindValue(j['simulatorKind']),
+      simulatorLayout: stageLayoutValue(j['simulatorLayout']),
       practisedWall: j['practisedWall'] is int
           ? j['practisedWall'] as int
           : null,
@@ -453,6 +456,7 @@ class AppState {
     'clickerControls': clickerControls,
     'fullScreenLayout': fullScreenLayout,
     'simulatorKind': simulatorKind,
+    'simulatorLayout': simulatorLayout,
   };
   AppState copy() => AppState.fromJson(toJson());
 
