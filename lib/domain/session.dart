@@ -80,7 +80,13 @@ class Session {
   Stamp anchor, checkpoint;
   Stamp? outage;
   Session? prior;
-  int rate, warningCeiling;
+  int rate;
+
+  /// Warnings fire only for a time left below this: the time the segment
+  /// started with, or more once time is added. So a warning fires when the
+  /// countdown comes down to its time, never at the start of a segment
+  /// that is that long or shorter.
+  int warningCeiling;
   RunMetrics? run;
   List<int> warningSeen;
   String? warningNotice;
@@ -499,7 +505,7 @@ Session transition(
     s.startsAtWall = null;
     s.showClock = false;
     s.run = RunMetrics.fresh(now, s.timeline!.segments.length);
-    s.warningCeiling = s.baseMs + 1;
+    s.warningCeiling = s.baseMs;
     s.warningSeen = [];
     s.anchor = now;
     s.checkpoint = now;
@@ -524,7 +530,7 @@ Session transition(
     s.warningSeen = [];
     s.warningNotice = null;
     s.baseMs = s.timeline!.segments.first.durationMs;
-    s.warningCeiling = s.baseMs + 1;
+    s.warningCeiling = s.baseMs;
     s.anchor = now;
     s.checkpoint = now;
     // Nothing is timed in Ready, so there is nothing to review; the display
@@ -583,7 +589,9 @@ Session transition(
         );
         if (s.run != null) s.run!.adjustmentsMs[s.index] += applied;
         s.baseMs = result;
-        s.warningCeiling = math.max(s.warningCeiling, s.baseMs + 1);
+        // Time added above a warning's time lets it fire when the countdown
+        // comes down to it again, if it has not fired in this segment.
+        s.warningCeiling = math.max(s.warningCeiling, s.baseMs);
         s.anchor = now;
         s.undo = s.undo?.markModified();
       case 'advance':
@@ -616,7 +624,7 @@ Session transition(
         s.outputBlank = value == true; // Explicit Keep blank choice.
         s.held = false;
         s.baseMs = s.timeline!.segments[s.index].durationMs;
-        s.warningCeiling = s.baseMs + 1;
+        s.warningCeiling = s.baseMs;
         s.warningSeen = [];
         s.warningNotice = null;
         s.automaticCue = null;

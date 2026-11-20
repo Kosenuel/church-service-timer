@@ -13,7 +13,9 @@ import '../support/fake_port.dart';
 import '../support/widget_setup.dart';
 
 /// Sunday: 65 minutes, with the default warnings at 2 min, 30 s and zero,
-/// and a 5 MIN LEFT warning that cannot fire in the 3-minute Notices.
+/// a 5 MIN LEFT warning that cannot fire in the 5-minute Welcome (a
+/// warning never fires as a segment starts) or the 3-minute Notices, and
+/// neither 5 MIN LEFT nor 2 MIN LEFT in the 2-minute Closing.
 Timeline sunday() => Timeline(
   'Sunday Service',
   const [
@@ -37,7 +39,7 @@ void main() {
     test('runs the whole service in 10 to 20 seconds', () {
       final run = ServiceCheckRun(sunday(), checkStart);
       // 65 minutes in about 12 seconds.
-      expect(run.rate, serviceCheckRate(65 * 60000, warnings: 18));
+      expect(run.rate, serviceCheckRate(65 * 60000, warnings: 16));
       expect(run.rate, greaterThan(60));
       expect(run.expectedMs, inInclusiveRange(10000, 20000));
       var ticks = 0;
@@ -67,22 +69,27 @@ void main() {
       while (!run.done) {
         run.step(50);
       }
-      // Four warnings in each segment, except Notices and Closing, which
-      // are too short for 5 MIN LEFT.
-      expect(run.fired, hasLength(18));
+      // Four warnings in each segment, except Welcome, which starts at
+      // 5:00, Notices, too short for 5 MIN LEFT, and Closing, which starts
+      // at 2:00.
+      expect(run.fired, hasLength(16));
       final welcome = run.firedIn(0);
       expect(
         [for (final w in welcome) w.rule.cue.text],
-        ['5 MIN LEFT', '2 MIN LEFT', 'WRAP UP', "TIME'S UP"],
+        ['2 MIN LEFT', 'WRAP UP', "TIME'S UP"],
       );
       expect(
         [for (final w in welcome) formatTime(w.remainingMs!)],
-        ['05:00', '02:00', '00:30', '00:00'],
+        ['02:00', '00:30', '00:00'],
       );
       // The suggested warnings all show on the stage too.
       expect(welcome.map((w) => w.where).toSet(), {'Operator and stage'});
-      expect(run.unreachable, hasLength(2));
-      expect(run.unreachableIn(4).single.rule.cue.text, '5 MIN LEFT');
+      expect(run.unreachable, hasLength(4));
+      expect(run.unreachableIn(0).single.rule.cue.text, '5 MIN LEFT');
+      expect(run.unreachableIn(4).map((w) => w.rule.cue.text), [
+        '5 MIN LEFT',
+        '2 MIN LEFT',
+      ]);
       expect(run.unreachableIn(1).single.rule.cue.text, '5 MIN LEFT');
       expect(run.firedIn(1).map((w) => w.rule.cue.text), [
         '2 MIN LEFT',
@@ -93,7 +100,7 @@ void main() {
 
     test('holds each stage warning on screen for a moment', () {
       final run = ServiceCheckRun(sunday(), checkStart);
-      while (run.fired.length < 2) {
+      while (run.fired.isEmpty) {
         run.step(50);
       }
       // 2 MIN LEFT has just fired: the stage shows it and the time waits.
@@ -180,8 +187,18 @@ void main() {
       expect(page.run.done, isTrue);
       expect(page.run.elapsedMs, inInclusiveRange(10000, 20000));
       expect(find.text('Check complete'), findsOneWidget);
-      expect(find.text('18 warnings fired · 2 could not fire'), findsOneWidget);
-      expect(find.textContaining('5 MIN LEFT cannot fire'), findsNWidgets(2));
+      expect(find.text('16 warnings fired · 4 could not fire'), findsOneWidget);
+      expect(find.textContaining('5 MIN LEFT cannot fire'), findsNWidgets(3));
+      expect(find.textContaining('2 MIN LEFT cannot fire'), findsOneWidget);
+      // Welcome is 5 min and Closing 2 min: each starts at the warning.
+      expect(
+        find.textContaining('the whole of this 5 min segment'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('the whole of this 2 min segment'),
+        findsOneWidget,
+      );
       expect(find.text('Planned finish'), findsOneWidget);
       // Nothing was saved, started or sent.
       expect(c.state.session.phase, 'idle');
@@ -367,7 +384,7 @@ void main() {
         find.byType(ServiceCheckPage),
       );
       // On to Notices' 2 MIN LEFT, held on the stage.
-      while (page.run.fired.length < 5) {
+      while (page.run.fired.length < 4) {
         await t.pump(const Duration(milliseconds: 50));
       }
       await t.pump(const Duration(milliseconds: 100));

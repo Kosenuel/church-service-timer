@@ -160,16 +160,42 @@ void main() {
       );
     });
 
-    test('the new effects must fit the LED sign, as static text does', () {
+    test('flash then hold must fit the LED sign; screen-only effects '
+        'scroll there when too wide', () {
+      const wide = 'PLEASE WRAP UP NOW THANK YOU';
       for (final effect in screenEffects) {
-        expect(
-          () => validateLayout(
-            TextLayout('PLEASE WRAP UP NOW THANK YOU', effect: effect),
-          ),
-          throwsA(anything),
-          reason: effect,
-        );
         validateLayout(TextLayout('AMEN', effect: effect));
+        expect(scrollsOnSign(TextLayout('AMEN', effect: effect)), isFalse);
+      }
+      expect(
+        () => validateLayout(const TextLayout(wide, effect: 'flashHold')),
+        throwsA(
+          predicate(
+            (e) =>
+                '$e'.contains(
+                  'must fit the LED sign’s 32 pixels to flash '
+                  'then hold',
+                ) &&
+                '$e'.contains('Choose Flash'),
+          ),
+        ),
+      );
+      expect(
+        () => validateLayout(const TextLayout(wide, effect: 'static')),
+        throwsA(anything),
+      );
+      for (final effect in signScrollEffects) {
+        final l = TextLayout(wide, effect: effect, speed: 10);
+        validateLayout(l);
+        expect(scrollsOnSign(l), isTrue, reason: effect);
+        // The sign scrolls it just as Scroll long text, at the sign's speed.
+        final scroll = TextLayout(wide, speed: 10);
+        for (final ms in [0, 700, 2300, 9100]) {
+          expect(renderPixels(l, ms), renderPixels(scroll, ms), reason: effect);
+        }
+        // Screens keep the effect; an older screen shows it steady.
+        expect(l.compatibleEffect, 'static');
+        expect(l.screenEffect, effect);
       }
     });
 
@@ -591,6 +617,30 @@ void main() {
         await w2.flush();
         expect(frames(port.sent.last.bytes), 1, reason: effect);
       }
+      // Too wide for the sign, they scroll across it, as Scroll long text
+      // does: a frame for each column and the gap.
+      const wide = 'PLEASE SEE ME';
+      final width = textWidth(const TextLayout(wide));
+      for (final effect in ['scroll', ...signScrollEffects]) {
+        await c.act('cue', value: TextLayout(wide, effect: effect));
+        await w2.flush();
+        expect(frames(port.sent.last.bytes), width + 6, reason: effect);
+      }
+    });
+
+    test('the LED simulator scrolls a screen-only effect too wide for '
+        'the sign', () async {
+      final c = await running();
+      addTearDown(c.dispose);
+      const l = TextLayout('PLEASE SEE ME', effect: 'slideIn');
+      await c.act('cue', value: l);
+      final sim = c.simulator;
+      expect(sim.moving, isTrue);
+      final at = sim.deliveredAt;
+      expect(sim.pixelsAt(at + 1500), renderPixels(l, 1500));
+      expect(sim.pixelsAt(at + 1500), isNot(sim.pixelsAt(at)));
+      await c.act('cue', value: const TextLayout('AMEN', effect: 'slideIn'));
+      expect(c.simulator.moving, isFalse);
     });
   });
 
@@ -632,6 +682,38 @@ void main() {
       await t.pumpAndSettle();
     }
 
+    testWidgets('a screen-only effect too wide for the sign has a speed '
+        'there', (t) async {
+      setScreen(t, const Size(1366, 768));
+      Future<void> edit(TextLayout initial) async {
+        await t.pumpWidget(
+          MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: appTheme('midnight_lime', size: const Size(1366, 768)),
+            home: Scaffold(
+              body: TextComposer(
+                key: ValueKey(initial.text),
+                initial: initial,
+                title: 'Edit cue',
+                button: 'Save cue',
+              ),
+            ),
+          ),
+        );
+        await t.pump(const Duration(milliseconds: 100));
+      }
+
+      await edit(const TextLayout('PLEASE SEE ME', effect: 'slideIn'));
+      expect(find.byKey(const ValueKey('led-speed')), findsOne);
+      expect(find.text('Save cue'), findsOne);
+      expect(find.textContaining('must fit'), findsNothing);
+      await edit(const TextLayout('AMEN', effect: 'slideIn'));
+      expect(find.byKey(const ValueKey('led-speed')), findsNothing);
+      await edit(const TextLayout('PLEASE SEE ME', effect: 'flashHold'));
+      expect(find.textContaining('to flash then hold'), findsOne);
+      expect(t.takeException(), isNull);
+    });
+
     testWidgets('lists every effect with a line saying what it does', (
       t,
     ) async {
@@ -644,7 +726,7 @@ void main() {
       for (final effect in ['slideIn', 'bar', 'screenFlash']) {
         expect(
           effectChoices.firstWhere((o) => o.value == effect).hint,
-          contains('steady on the LED sign'),
+          contains('on the LED sign: steady, or scrolls if too wide'),
         );
       }
       expect(t.takeException(), isNull);
@@ -652,8 +734,11 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('../goldens/desktop-cue-effect-list.png'),
       );
-      await t.tap(find.text('Countdown bar (must fit)'));
-      await t.pumpAndSettle();
+      await t.tap(find.text('Countdown bar'));
+      // WRAP UP is too wide for the sign, so the preview keeps scrolling.
+      for (var i = 0; i < 10; i++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
       final edited =
           (t.state(find.byType(TextComposer)) as dynamic).layout as TextLayout;
       expect(edited.effect, 'bar');

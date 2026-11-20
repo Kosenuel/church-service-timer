@@ -531,7 +531,8 @@ class HardwareDisplay extends ChangeNotifier {
       ], frameIntervalMs: 500);
     // The controller loops whatever it is sent, so three flashes and then
     // a long steady stretch, at the same half-second rhythm as 'flash'.
-    // Pulse, slide in, countdown bar and screen flash are steady here.
+    // Pulse is steady here, and so are slide in, countdown bar and screen
+    // flash when they fit; too wide, they scroll as Scroll long text does.
     if (l.effect == 'flashHold') {
       final on = renderPixels(l, flashHoldMs), off = List.filled(512, false);
       return W2Program.frames([
@@ -539,7 +540,7 @@ class HardwareDisplay extends ChangeNotifier {
           i * 500 < flashHoldMs && i.isOdd ? off : on,
       ], frameIntervalMs: 500);
     }
-    if (l.effect == 'scroll' && textWidth(l) > 32) {
+    if (scrollsOnSign(l)) {
       final interval = 2 * (500 / l.speed).round();
       return W2Program.frames(
         List.generate(

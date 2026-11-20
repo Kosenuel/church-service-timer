@@ -83,7 +83,7 @@ class Simulator {
         !clock &&
         shown != null &&
         (shown.effect == 'flash' ||
-            (shown.effect == 'scroll' && textWidth(shown) > 32) ||
+            scrollsOnSign(shown) ||
             stageWordGroupsOf(shown) != null);
     drawnAt = now.mono;
     pixels = clock

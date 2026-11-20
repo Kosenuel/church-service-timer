@@ -5,7 +5,6 @@ import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/live/cue_preview.dart';
 import 'package:church_service_timer/live/text_composer.dart';
-import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/time_picker.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -298,7 +297,7 @@ class _WarningEditorState extends State<WarningEditor> {
           )
         else
           help(
-            'Fires once in each segment when the countdown reaches this time.',
+            'Fires once in each segment when the countdown reaches this time, never as a segment starts.',
           ),
       ],
     );

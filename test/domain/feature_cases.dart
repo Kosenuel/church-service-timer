@@ -144,9 +144,13 @@ final featureCases = <String, void Function()>{
     equal(dueWarnings(s, at(180)), []);
     s = transition(s, 'advance', at(181));
     equal(s.warningSeen, []);
+    // The 2-minute segment starts at its 2:00 warning, so it never fires.
     s = transition(s, 'warnings', at(181));
-    equal(s.warningSeen, [1]);
-    s = transition(s, 'undo', at(182));
+    equal(s.warningSeen, []);
+    s = transition(s, 'warnings', at(271));
+    equal(s.warningSeen, [2]);
+    // Undo brings back the first segment's, as it was.
+    s = transition(s, 'undo', at(272));
     equal(s.warningSeen, [1]);
   },
   'Short segments skip warnings above their initial duration': () {

@@ -156,7 +156,7 @@ void main() {
     expect(find.text('Change'), findsOne);
     expect(
       find.text(
-        'Fires once in each segment when the countdown reaches this time.',
+        'Fires once in each segment when the countdown reaches this time, never as a segment starts.',
       ),
       findsOne,
     );

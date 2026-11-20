@@ -58,22 +58,115 @@ void main() {
 
   test('every default is legible on the LED sign and holds still on '
       'screens', () {
-    for (final cue in [
-      ...defaultStageCues,
-      ...defaultWarnings.map((w) => w.cue),
-    ]) {
-      // Each is wider than the sign, so it scrolls there, in tall letters.
+    final all = [...defaultStageCues, ...defaultWarnings.map((w) => w.cue)];
+    expect(
+      [for (final cue in all) '${cue.text}: ${cue.effect}'],
+      [
+        'WRAP UP: pulse',
+        "TIME'S UP: flash",
+        'SPEAK UP: scroll',
+        'SLOW DOWN: scroll',
+        'MIC OFF?: scroll',
+        'FINAL SONG: scroll',
+        'SEE ME: slideIn',
+        '5 MIN LEFT: scroll',
+        '2 MIN LEFT: scroll',
+        'WRAP UP: scroll',
+        "TIME'S UP: screenFlash",
+      ],
+    );
+    for (final cue in all) {
+      // Each is wider than the sign, in tall letters, and wraps on screens.
       expect(textWidth(cue), greaterThan(32), reason: cue.text);
-      expect(cue.effect, 'scroll', reason: cue.text);
-      expect(cue.bold && cue.height == 2, isTrue, reason: cue.text);
+      expect(cue.height, 2, reason: cue.text);
       expect(cue.screenWrap, isTrue, reason: cue.text);
       validateLayout(cue);
+      // On the sign it scrolls, or shows a word or two at a time.
+      expect(
+        scrollsOnSign(cue) != (signWordGroups(cue) != null),
+        isTrue,
+        reason: cue.text,
+      );
+    }
+    // Bold, except TIME'S UP flashing a word at a time: in bold, TIME'S
+    // alone would be too wide for the sign.
+    expect(
+      [
+        for (final cue in all)
+          if (!cue.bold) cue.effect,
+      ],
+      ['flash'],
+    );
+    expect(signWordGroups(defaultStageCues[0]), ['WRAP', 'UP']);
+    expect(signWordGroups(defaultStageCues[1]), ["TIME'S", 'UP']);
+    // TIME'S UP cannot flash then hold in any built-in pixel font.
+    for (final font in ['i-proton_matrix', 'i-proton_sq_matrix']) {
+      for (final height in [1, 2]) {
+        expect(
+          textWidth(TextLayout("TIME'S UP", font: font, height: height)),
+          greaterThan(32),
+        );
+      }
     }
     // Each warning shows long enough to pass across the sign twice.
     for (final w in defaultWarnings) {
+      expect(scrollsOnSign(w.cue), isTrue, reason: w.cue.text);
       final pass = (textWidth(w.cue) + 6) * 1000 / w.cue.speed;
       expect(w.durationSeconds * 1000, greaterThanOrEqualTo(2 * pass));
     }
+  });
+
+  test('cues and warnings still as version 15 made them are renewed', () {
+    const own = TextLayout('BAND TO STAGE', bold: true);
+    // The church changed SPEAK UP's colour; it is kept as it is.
+    final speakUp = TextLayout.fromJson({
+      ...version15DefaultStageCues[2].toJson(),
+      'screenColor': 'green',
+    });
+    final cues = [...version15DefaultStageCues]..[2] = speakUp;
+    final old = AppState.fresh(now).toJson()
+      ..['version'] = 15
+      ..['stageCues'] = [
+        for (final c in [...cues, own]) c.toJson(),
+      ];
+    // The warnings as version 15 made them, but for 2 MIN LEFT, switched
+    // off.
+    final warnings = [for (final w in version15DefaultWarnings) w.toJson()]
+      ..[1] = {...version15DefaultWarnings[1].toJson(), 'enabled': false};
+    final display = Map<String, dynamic>.from(old['defaults'])
+      ..['cues'] = [for (final c in version15DefaultStageCues) c.toJson()]
+      ..['warnings'] = warnings;
+    old['defaults'] = display;
+    old['templates'] = [
+      for (final t in old['templates'] as List)
+        Map<String, dynamic>.from(t)..['display'] = display,
+    ];
+    final a = AppState.fromJson(jsonDecode(jsonEncode(old)), now: now);
+    expect(
+      json(a.stageCues),
+      json([
+        ...[...defaultStageCues]..[2] = speakUp,
+        own,
+      ]),
+    );
+    expect(json(a.defaults.cues), json(defaultStageCues));
+    expect(
+      json(a.defaults.warnings),
+      json([
+        defaultWarnings[0],
+        WarningRule.fromJson(warnings[1]),
+        defaultWarnings[2],
+        defaultWarnings[3],
+      ]),
+    );
+    expect(a.defaults.warnings[3].cue.effect, 'screenFlash');
+    for (final t in a.templates) {
+      expect(json(t.display.cues), json(defaultStageCues));
+      expect(json(t.display.warnings), json(a.defaults.warnings));
+    }
+    // Saved again, it reads back the same.
+    final again = AppState.fromJson(a.toJson(), now: now);
+    expect(json(again.toJson()), json(a.toJson()));
   });
 
   test('saved state from before is given the new cues and warnings', () {

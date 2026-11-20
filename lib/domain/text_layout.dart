@@ -19,10 +19,17 @@ const classicEffects = {'static', 'scroll', 'flash'};
 
 /// The newer effects. Each is drawn on screens; on the LED sign only
 /// 'flashHold' moves (the sign cannot dim, slide or colour) and the rest
-/// show steady, except 'pulse' text too wide for the sign, which it shows
-/// a few words at a time (see [wordGroupEffects]). Stage snapshots carry them beside a classic effect, so an
-/// older paired screen shows the cue steady (see [TextLayout.screenEffect]).
+/// show steady, except text too wide for the sign: 'pulse' shows it a few
+/// words at a time (see [wordGroupEffects]) and the rest of them scroll it
+/// (see [signScrollEffects]). Stage snapshots carry them beside a classic
+/// effect, so an older paired screen shows the cue steady (see
+/// [TextLayout.screenEffect]).
 const screenEffects = {'pulse', 'flashHold', 'slideIn', 'bar', 'screenFlash'};
+
+/// The effects only screens show, which the LED sign shows steady when the
+/// text fits it and scrolls across it, at the cue's speed on the sign, when
+/// it is too wide. Screens play the effect either way.
+const signScrollEffects = {'slideIn', 'bar', 'screenFlash'};
 
 /// Every effect a cue may have.
 const textEffects = {...classicEffects, ...screenEffects};
@@ -147,9 +154,10 @@ class TextLayout {
   /// One of [screenEffects], or null for a classic effect.
   String? get screenEffect => screenEffects.contains(effect) ? effect : null;
 
-  /// Whether the LED sign shows the cue without moving: the newer effects
-  /// it cannot draw, as well as static text. Pulse text too wide for the
-  /// sign is shown a few words at a time all the same.
+  /// Whether the LED sign shows the cue without moving when it fits: the
+  /// newer effects it cannot draw, as well as static text. Text too wide
+  /// for the sign moves all the same: Pulse a few words at a time, and
+  /// slide in, countdown bar and screen flash scroll across it.
   bool get steadyOnSign =>
       effect == 'static' || (effect != 'flashHold' && screenEffect != null);
   const TextLayout(
@@ -265,14 +273,81 @@ const defaultEndScreen = TextLayout(
   height: 2,
 );
 
-/// The stage cues a new install starts with, in the order of keys 1–7.
+/// The stage cues a new install starts with, in the order of keys 1–7,
+/// in the tall 14-pixel letters that read best from a distance.
 ///
 /// None of them fits the LED sign's 32 columns in bold (the shortest,
-/// SEE ME, is 39), and every effect but scrolling must fit, so each
-/// scrolls on the sign, in the tall 14-pixel letters that read best from
-/// a distance. On screens they wrap instead, which holds short text still
-/// and as large as it fits; the colour and position say how urgent it is.
+/// SEE ME, is 39). So WRAP UP pulses and TIME'S UP flashes a word at a
+/// time on the sign. TIME'S UP is at least 41 columns in every built-in
+/// pixel font, so it cannot flash then hold, and it is in regular weight
+/// so that TIME'S (29 columns) fits on its own. SEE ME slides in on
+/// screens and scrolls on the sign, and the rest scroll on the sign. On
+/// screens they wrap, which holds short text still and as large as it
+/// fits; the colour and position say how urgent it is.
 const defaultStageCues = [
+  TextLayout(
+    'WRAP UP',
+    bold: true,
+    height: 2,
+    effect: 'pulse',
+    screenColor: 'amber',
+    screenPosition: 'bottom',
+    screenWrap: true,
+  ),
+  // Regular weight: in bold, TIME'S alone is 35 columns, too wide.
+  TextLayout(
+    "TIME'S UP",
+    height: 2,
+    effect: 'flash',
+    speed: 14,
+    screenColor: 'red',
+    screenWrap: true,
+  ),
+  TextLayout(
+    'SPEAK UP',
+    bold: true,
+    height: 2,
+    screenPosition: 'top',
+    screenWrap: true,
+  ),
+  TextLayout(
+    'SLOW DOWN',
+    bold: true,
+    height: 2,
+    speed: 10,
+    screenPosition: 'top',
+    screenWrap: true,
+  ),
+  TextLayout(
+    'MIC OFF?',
+    bold: true,
+    height: 2,
+    screenColor: 'amber',
+    screenPosition: 'top',
+    screenWrap: true,
+  ),
+  TextLayout(
+    'FINAL SONG',
+    bold: true,
+    height: 2,
+    screenColor: 'green',
+    screenPosition: 'bottom',
+    screenWrap: true,
+  ),
+  TextLayout(
+    'SEE ME',
+    bold: true,
+    height: 2,
+    effect: 'slideIn',
+    screenColor: 'accent',
+    screenWrap: true,
+  ),
+];
+
+/// The stage cues version 15 started with, before the effects only
+/// screens show could scroll on the sign: each scrolled there. Saved state
+/// with them as they were is upgraded to [defaultStageCues].
+const version15DefaultStageCues = [
   TextLayout(
     'WRAP UP',
     bold: true,
