@@ -383,6 +383,8 @@ class StageBanner extends StatelessWidget {
             fullscreen: true,
             wrapLines: stageBannerWrapLines,
             fromTop: top,
+            // The band is a fifth of the screen.
+            screenHeight: space.maxHeight / .2,
           ),
         ),
       );

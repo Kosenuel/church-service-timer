@@ -64,9 +64,10 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:fx-screen .6s step-end 1; }
 /* Words in the cue's colour are warm white while the flash lights it. */
 #stage.fx-screenFlash.coloured .text { animation:fx-ink .6s step-end 1; }
-#stage .cuebar { position:absolute; left:10vw; right:10vw; bottom:7vh; height:1.4vh; border-radius:1vh; display:none; overflow:hidden; background:rgba(255,255,255,.14); }
+/* A countdown bar: placed just under the words by placeBar. */
+#stage .cuebar { position:absolute; left:0; top:0; width:0; height:0; display:none; overflow:hidden; background:rgba(255,255,255,.14); }
 #stage .cuebar i { display:block; height:100%; width:100%; background:currentColor; border-radius:inherit; }
-#stage .band .cuebar { left:6vh; right:6vh; bottom:1.4vh; height:.8vh; display:block; }
+#stage .band .cuebar { display:block; }
 @media (prefers-reduced-motion: reduce) {
   #stage .fx-slideIn { animation:none; }
   #stage.fx-screenFlash, #stage .band.fx-screenFlash, #stage.fx-screenFlash.coloured .text { animation:none; }
@@ -465,6 +466,35 @@ function setBar(bar, time) {
   fill.style.width = '0%';
 }
 
+// A countdown bar just under [node]'s words and as wide as them (nine
+// tenths of their width, at least 80 px), about 2% of the screen's height
+// thick with a gap of one and a half times that. The words move up by
+// half of the bar and gap, so the two stay centred together. Measured on
+// the words as drawn, so the bar matches them, wrapped or not.
+function placeBar(bar, node) {
+  node.style.position = ''; node.style.top = '';
+  if (bar.style.display === 'none' || !node.textContent.trim() || !bar.offsetParent) return;
+  const h = window.innerHeight;
+  const thick = Math.min(10, Math.max(4, h * 0.02)), gap = thick * 1.5;
+  node.style.position = 'relative'; node.style.top = (-(gap + thick) / 2) + 'px';
+  const range = document.createRange(); range.selectNodeContents(node);
+  // Across, the words themselves; down, the lines they sit on.
+  const r = range.getBoundingClientRect(), lines = node.getBoundingClientRect(), box = bar.offsetParent.getBoundingClientRect();
+  const width = Math.min(box.width, Math.max(80, r.width * 0.9));
+  bar.style.height = thick + 'px'; bar.style.borderRadius = thick + 'px';
+  bar.style.width = width + 'px';
+  bar.style.left = (r.left + r.width / 2 - width / 2 - box.left) + 'px';
+  // With nothing below the line (as in capitals), from the line the last
+  // words stand on; otherwise below the room kept for letters such as g.
+  let bottom = lines.bottom;
+  const last = node.textContent.trimEnd().split('\n').pop();
+  if (!/[gjpqyQ,;()\[\]{}|@_$]/.test(last)) {
+    const mark = el('span'); mark.style.display = 'inline-block'; mark.style.height = '0'; mark.style.verticalAlign = 'baseline';
+    node.append(mark); bottom = Math.min(bottom, mark.getBoundingClientRect().bottom); mark.remove();
+  }
+  bar.style.top = (bottom + gap - box.top) + 'px';
+}
+
 // A banner cue: the cue in a band across the top or bottom of the screen,
 // in its colour, while the countdown or clock stays in view behind it.
 let bandMotion = null;
@@ -521,7 +551,7 @@ function renderBand(s) {
   band.style.setProperty('--fx', flashColour(b.color));
   band.style.setProperty('--fx-tint', flashTint(b.color));
   setFx(band, fx === 'screenFlash' ? fx : null, key);
-  if (fx === 'bar' && !scrollsInstead) { const bar = el('div', 'cuebar'); bar.append(el('i')); band.append(bar); setBar(bar, b.cueTime); }
+  if (fx === 'bar' && !scrollsInstead) { const bar = el('div', 'cuebar'); bar.append(el('i')); band.append(bar); setBar(bar, b.cueTime); placeBar(bar, label); }
   if (!m.step) return;
   const frame = (now) => {
     if (!$('stage').classList.contains('stale')) m.elapsed += (now - m.last) / 1000;
@@ -574,7 +604,7 @@ function renderStage(s) {
   const card = s.sharing && !s.message && !s.blank && !s.banner && value.trim() !== '' && !!s.color && s.color.toLowerCase() !== '#ffffff';
   stage.classList.toggle('coloured', card);
   const rule = $('stageRule'); rule.style.display = card ? 'block' : 'none'; rule.style.background = card ? s.color : '';
-  clear(text); note.textContent = ''; stage.style.background = card ? '#1a1712' : '#000'; stage.style.textAlign = 'center'; text.style.width = ''; text.classList.remove('wrapped');
+  clear(text); note.textContent = ''; stage.style.background = card ? '#1a1712' : '#000'; stage.style.textAlign = 'center'; text.style.width = ''; text.style.position = ''; text.style.top = ''; text.classList.remove('wrapped');
   if (!s.sharing) { text.textContent = 'Waiting for the host. On the host, tap Show on stage screens on Live.'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {
     renderMessage(stage, text, s.message); return;
@@ -595,7 +625,7 @@ function renderStage(s) {
     // the whole block; too long for that, it scrolls.
     // A scrolling fallback drops its own effect and bar, as the app's
     // screens do; a screen flash still plays.
-    if (wrapAt) { if (effect !== 'flash') return; } else { text.classList.remove('wrapped'); clear(text); effect = 'scroll'; setFx(text, null, ''); setBar(bar, null); }
+    if (wrapAt) { if (effect !== 'flash') { placeBar(bar, text); return; } } else { text.classList.remove('wrapped'); clear(text); effect = 'scroll'; setFx(text, null, ''); setBar(bar, null); }
   }
   if (moving && (effect === 'scroll' || effect === 'flash')) { startMotion(text, value, Object.assign({}, s, { effect, wrapAt }), key); return; }
   if (s.ticking && value.includes(':')) {
@@ -606,6 +636,7 @@ function renderStage(s) {
     text.textContent = value;
   }
   fit(text, value || ' ', room);
+  placeBar(bar, text);
 }
 // The quick message's palette and style, as the paired screens show it.
 const PALETTES = { white: ['#ffffff', '#10151c'], amber: ['#ffdc8b', '#261b09'], sky: ['#c4e6ff', '#071b2c'], mint: ['#bcf4da', '#08271c'] };

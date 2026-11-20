@@ -119,8 +119,10 @@ BoxDecoration flashOf(WidgetTester t, {bool band = false}) =>
 Color textColor(WidgetTester t, [String text = 'WRAP UP']) =>
     t.widget<Text>(find.text(text)).style!.color!;
 
+/// The bar as drawn on the screen, after the words and bar are shrunk
+/// together to fit.
 double barWidth(WidgetTester t) =>
-    t.getSize(find.byKey(const ValueKey('stage-cue-bar'))).width;
+    t.getRect(find.byKey(const ValueKey('stage-cue-bar'))).width;
 
 void main() {
   setUpAll(loadAppFonts);
@@ -383,8 +385,13 @@ void main() {
       await stage(t, data);
       await t.pump();
       final full = barWidth(t);
-      // Four fifths of the screen, inside its margin.
-      expect(full, closeTo((1920 - 24) * .8, 1));
+      // Nine tenths of the words' width, centred under them.
+      final words = t.getRect(find.text('WRAP UP'));
+      expect(full, closeTo(words.width * .9, 1));
+      final track = t.getRect(
+        find.byKey(const ValueKey('stage-cue-bar-track')),
+      );
+      expect(track.center.dx, closeTo(words.center.dx, 1));
       await t.pump(const Duration(seconds: 5));
       expect(barWidth(t), closeTo(full / 2, full * .02));
       // A new snapshot puts it where the host says, and it runs on.
