@@ -292,6 +292,7 @@ String exportBackup(
     ..remove('clickerControls')
     ..remove('fullScreenLayout')
     ..remove('simulatorKind')
+    ..remove('simulatorLayout')
     ..remove('practisedWall')
     ..remove('practicePrompt')
     ..remove('stageRequests')

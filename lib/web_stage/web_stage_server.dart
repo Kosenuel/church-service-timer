@@ -34,6 +34,10 @@ class WebStageSettings {
   final String orderCode;
   final bool showSpeakers;
 
+  /// What Stage displays show under the time: 'timer', 'current' or
+  /// 'next', as [stageLayouts] names them.
+  final String stageLayout;
+
   /// Shown as `<localName>.local`.
   final String localName;
 
@@ -43,6 +47,7 @@ class WebStageSettings {
     this.orderAccess = OrderAccess.code,
     required this.orderCode,
     this.showSpeakers = false,
+    this.stageLayout = 'timer',
     required this.localName,
     this.customName = false,
   });
@@ -51,11 +56,13 @@ class WebStageSettings {
     OrderAccess? orderAccess,
     String? orderCode,
     bool? showSpeakers,
+    String? stageLayout,
     String? localName,
   }) => WebStageSettings(
     orderAccess: orderAccess ?? this.orderAccess,
     orderCode: orderCode ?? this.orderCode,
     showSpeakers: showSpeakers ?? this.showSpeakers,
+    stageLayout: stageLayout ?? this.stageLayout,
     localName: localName ?? this.localName,
     customName: localName != null || customName,
   );
@@ -64,6 +71,7 @@ class WebStageSettings {
     'orderAccess': orderAccess.name,
     'orderCode': orderCode,
     'showSpeakers': showSpeakers,
+    'stageLayout': stageLayout,
     'localName': localName,
     'customName': customName,
   };
@@ -81,6 +89,7 @@ class WebStageSettings {
           OrderAccess.code,
       orderCode: code is String && validOrderCode(code) ? code : newOrderCode(),
       showSpeakers: j['showSpeakers'] == true,
+      stageLayout: stageLayoutValue(j['stageLayout']),
       // Until someone chooses a name, it follows the church profile.
       localName: custom ? name : localNameFor(churchName),
       customName: custom,
@@ -672,6 +681,10 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
             'words': ?stageWordGroups(s),
             ...effectsOf(s),
           },
+        // The segment name or up next line under the time, if chosen.
+        'line': shown['displayIsTimer'] == true
+            ? stageLayoutLine(s, settings.stageLayout)
+            : '',
         'overtime': s['overtime'] == true,
         'paused': s['paused'] == true,
         // Whether the text is a countdown or clock, whose colon blinks.

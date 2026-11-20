@@ -399,6 +399,57 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
+  testWidgets('New program is over the list from the first frame', (t) async {
+    final create = find.byKey(const ValueKey('new-template'));
+    final list = find.byKey(const ValueKey('programs-list-pane'));
+    const names = ['Live', 'Programs', 'Reports', 'Settings'];
+    // The tabs in the header during a service, the side rail otherwise.
+    Finder tab(int i) {
+      final top = find.byKey(ValueKey('desktop-tab-$i'));
+      return top.evaluate().isNotEmpty
+          ? top
+          : find.descendant(
+              of: find.byType(NavigationRail),
+              matching: find.text(names[i]),
+            );
+    }
+
+    for (final size in const [Size(1366, 768), Size(1920, 1080)]) {
+      for (final running in [false, true]) {
+        // From Live, Reports and Settings in turn.
+        for (final from in [0, 2, 3]) {
+          await programs(t, size: size, running: running);
+          final where = '$size from ${names[from]}, running: $running';
+          await t.tap(tab(from));
+          await t.pumpAndSettle();
+          expect(create, findsNothing, reason: where);
+          await t.tap(tab(1));
+          // Each frame as the page comes in. The button grows in, so its
+          // centre is what must not move.
+          final centres = <Offset>[];
+          await t.pump();
+          for (var frame = 0; frame < 30; frame++) {
+            final pane = t.getRect(list);
+            final centre = t.getCenter(create);
+            expect(pane.contains(centre), isTrue, reason: '$where, $frame');
+            centres.add(centre);
+            await t.pump(const Duration(milliseconds: 16));
+          }
+          await t.pumpAndSettle();
+          final settled = t.getCenter(create);
+          for (final (frame, centre) in centres.indexed) {
+            expect(
+              (centre - settled).distance,
+              lessThan(0.5),
+              reason: '$where, frame $frame',
+            );
+          }
+          await t.pumpWidget(const SizedBox());
+        }
+      }
+    }
+  });
+
   testWidgets('nothing overflows at the smallest desktop window', (t) async {
     for (final layout in ['three_panes', 'mission_control', 'keys']) {
       await programs(

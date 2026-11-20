@@ -8,6 +8,7 @@ import 'package:church_service_timer/windows/win32_api.dart' as win32;
 import 'package:church_service_timer/windows/window_memory.dart';
 import 'package:church_service_timer/windows/windows_port.dart';
 import 'package:church_service_timer/windows/windows_system.dart';
+import 'package:church_service_timer/windows/windows_updates.dart';
 import 'package:flutter/widgets.dart';
 
 /// Where the app keeps its data on Windows: the user's roaming app-data
@@ -123,6 +124,7 @@ WindowsPort? startWindowsPort(List<String> arguments) {
     stageLauncher: const WindowsStageLauncher(),
     miniWindow: memory,
     fullScreenWindow: memory,
+    updateFiles: const WindowsUpdateFiles(),
   );
   if (file != null) port.offerIncomingFile(file);
   instance.listen((path) {

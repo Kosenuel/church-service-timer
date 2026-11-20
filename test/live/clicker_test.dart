@@ -57,9 +57,18 @@ void main() {
   ) async {
     final c = await running(t);
     await c.commit((draft, _) => draft.clickerControls = false);
-    await t.sendKeyEvent(LogicalKeyboardKey.keyB);
-    await t.pumpAndSettle();
+    for (final key in [
+      LogicalKeyboardKey.keyB,
+      LogicalKeyboardKey.space,
+      LogicalKeyboardKey.pageDown,
+      LogicalKeyboardKey.arrowRight,
+    ]) {
+      await t.sendKeyEvent(key);
+      await t.pumpAndSettle();
+      expect(find.textContaining('Press again to start'), findsNothing);
+    }
     expect(c.state.session.paused, isFalse);
+    expect(c.state.session.index, 0);
     await c.commit((draft, _) => draft.clickerControls = true);
     await t.tap(find.text('Programs'));
     await t.pumpAndSettle();
