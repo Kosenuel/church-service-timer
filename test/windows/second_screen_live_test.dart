@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/app/platform.dart';
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/live/command_palette.dart';
+import 'package:church_service_timer/live/second_screen_control.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
@@ -68,10 +70,32 @@ class SecondPort extends DesktopFakePort {
       saved = Map.of(settings);
 }
 
+/// A PC that also has an LED sign set up as its display.
+class SignSecondPort extends SecondPort {
+  @override
+  Future<Json> displayPreferences() async => {
+    'hardware': true,
+    'id': 'sign-1',
+    'name': 'Hall sign',
+  };
+}
+
 void main() {
   setUpAll(loadAppFonts);
   setUp(() => desktopWording = true);
   tearDown(() => desktopWording = false);
+
+  /// Lets the window come to rest. With an LED sign that is waiting to
+  /// reconnect something always moves, so a few frames are drawn instead.
+  Future<void> rest(WidgetTester t, DevicePort port) async {
+    if (port is SignSecondPort) {
+      for (var i = 0; i < 6; i++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
+    } else {
+      await t.pumpAndSettle();
+    }
+  }
 
   /// A controller on [port], with Sunday's service loaded and ready.
   Future<AppController> ready(
@@ -103,7 +127,7 @@ void main() {
     final c = await ready(t, port, layout: layout);
     await t.runAsync(() => c.act('start'));
     await t.pumpWidget(TimerApp(controller: c));
-    await t.pumpAndSettle();
+    await rest(t, port);
     return c;
   }
 
@@ -120,7 +144,7 @@ void main() {
       );
       await until(() => feed.data != null);
     });
-    await t.pumpAndSettle();
+    await rest(t, port);
     return feed;
   }
 
@@ -134,13 +158,17 @@ void main() {
     await t.pumpWidget(const SizedBox());
   }
 
-  Future<void> press(WidgetTester t, String key) async {
+  Future<void> press(WidgetTester t, String key, [DevicePort? port]) async {
     final button = t.widget<ButtonStyleButton>(find.byKey(ValueKey(key)));
     await t.runAsync(() async {
       button.onPressed!();
       await Future<void>.delayed(const Duration(milliseconds: 100));
     });
-    await t.pumpAndSettle();
+    if (port == null) {
+      await t.pumpAndSettle();
+    } else {
+      await rest(t, port);
+    }
   }
 
   const control = ValueKey('live-second-screen');
@@ -333,6 +361,240 @@ void main() {
         matchesGoldenFile('../goldens/desktop-second-screen-live.png'),
       );
       await finish(t, port, feed);
+    });
+  });
+
+  group('the display preview on Live', () {
+    const preview = ValueKey('second-screen-preview');
+    final matrix = find.byType(LedMatrix);
+
+    /// The stage window went by itself: Esc on that screen, or its
+    /// monitor was unplugged.
+    Future<void> gone(WidgetTester t, SecondPort port) async {
+      port.launcher.screens = [laptop];
+      await t.runAsync(() async {
+        port.launcher.children.last.kill();
+        await until(() => !port.stageOutput.open);
+      });
+      await rest(t, port);
+    }
+
+    test('where the copy of the second screen goes', () {
+      SecondScreenPreviewPlace place({
+        bool showing = true,
+        bool sign = false,
+        bool screens = false,
+      }) => secondScreenPreviewPlace(
+        showing: showing,
+        sign: sign,
+        screens: screens,
+      );
+      // The Simulator alone gives way to it.
+      expect(place(), SecondScreenPreviewPlace.replaces);
+      // One real display keeps its preview, with the copy under it.
+      expect(place(sign: true), SecondScreenPreviewPlace.beneath);
+      expect(place(screens: true), SecondScreenPreviewPlace.beneath);
+      // A sign and stage screens together: nothing changes.
+      expect(place(sign: true, screens: true), SecondScreenPreviewPlace.none);
+      // Not showing: nothing, whatever the display.
+      for (final sign in [false, true]) {
+        for (final screens in [false, true]) {
+          expect(
+            place(showing: false, sign: sign, screens: screens),
+            SecondScreenPreviewPlace.none,
+          );
+        }
+      }
+    });
+
+    testWidgets('it takes the Simulator’s place, and Stop brings that back', (
+      t,
+    ) async {
+      final port = SecondPort();
+      final c = await live(t, port);
+      expect(matrix, findsOneWidget);
+      expect(find.byKey(preview), findsNothing);
+
+      await press(t, 'live-second-screen-show');
+      final feed = await window(t, port);
+      expect(matrix, findsNothing);
+      expect(find.byKey(preview), findsOneWidget);
+      expect(find.text('Second screen'), findsOneWidget);
+      // The same picture the second screen is sent, in its layout.
+      final surface = t.widget<StageSurface>(
+        find.descendant(
+          of: find.byKey(preview),
+          matching: find.byType(StageSurface),
+        ),
+      );
+      expect(surface.data['remaining'], c.stageWindowSnapshot()['remaining']);
+      expect(surface.data['stageLayout'], c.secondScreen!.layout);
+      // In the screen's own shape: 3840 × 2160.
+      final box = t.getSize(
+        find.descendant(
+          of: find.byKey(preview),
+          matching: find.byType(AspectRatio),
+        ),
+      );
+      expect(box.width / box.height, closeTo(16 / 9, .01));
+      expect(t.takeException(), isNull);
+
+      await press(t, 'live-second-screen-stop');
+      await t.runAsync(() => until(() => feed.closed));
+      await t.pumpAndSettle();
+      expect(matrix, findsOneWidget);
+      expect(find.byKey(preview), findsNothing);
+      await finish(t, port, feed);
+    });
+
+    testWidgets('it follows the second screen’s own layout', (t) async {
+      final port = SecondPort();
+      final c = await live(t, port);
+      await press(t, 'live-second-screen-show');
+      final feed = await window(t, port);
+      await t.runAsync(() => c.secondScreen!.setLayout('next'));
+      await t.pumpAndSettle();
+      expect(
+        t
+            .widget<StageSurface>(
+              find.descendant(
+                of: find.byKey(preview),
+                matching: find.byType(StageSurface),
+              ),
+            )
+            .data['stageLayout'],
+        'next',
+      );
+      await finish(t, port, feed);
+    });
+
+    testWidgets('an LED sign keeps its preview, with the copy under it', (
+      t,
+    ) async {
+      final port = SignSecondPort();
+      final c = await live(t, port);
+      expect(c.hardware.enabled, isTrue);
+      expect(c.destination, 'led');
+      expect(matrix, findsOneWidget);
+
+      await press(t, 'live-second-screen-show', port);
+      final feed = await window(t, port);
+      expect(matrix, findsOneWidget);
+      expect(find.byKey(preview), findsOneWidget);
+      expect(
+        t.getRect(find.byKey(preview)).top,
+        greaterThanOrEqualTo(t.getRect(matrix).bottom),
+      );
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/desktop-second-screen-preview-sign.png'),
+      );
+
+      await press(t, 'live-second-screen-stop', port);
+      await t.runAsync(() => until(() => feed.closed));
+      await rest(t, port);
+      expect(matrix, findsOneWidget);
+      expect(find.byKey(preview), findsNothing);
+      await finish(t, port, feed);
+    });
+
+    testWidgets('stage screens keep their preview, with the copy under it', (
+      t,
+    ) async {
+      final port = SecondPort();
+      final c = await live(t, port);
+      await t.runAsync(() => c.selectDestination('mobile'));
+      await t.pumpAndSettle();
+      expect(c.destination, 'mobile');
+      // The stage screens' preview, with none joined yet.
+      final waiting = find.text('Waiting for a screen').last;
+      expect(waiting, findsOneWidget);
+      expect(matrix, findsNothing);
+
+      await press(t, 'live-second-screen-show');
+      final feed = await window(t, port);
+      expect(waiting, findsOneWidget);
+      expect(find.byKey(preview), findsOneWidget);
+      expect(
+        t.getRect(find.byKey(preview)).top,
+        greaterThan(t.getRect(waiting).bottom),
+      );
+      expect(t.takeException(), isNull);
+
+      await press(t, 'live-second-screen-stop');
+      await t.runAsync(() => until(() => feed.closed));
+      await t.pumpAndSettle();
+      expect(waiting, findsOneWidget);
+      expect(find.byKey(preview), findsNothing);
+      await finish(t, port, feed);
+    });
+
+    testWidgets('unplugging the second screen is the same as Stop', (t) async {
+      final port = SecondPort();
+      await live(t, port);
+      await press(t, 'live-second-screen-show');
+      final feed = await window(t, port);
+      expect(matrix, findsNothing);
+      expect(find.byKey(preview), findsOneWidget);
+      await gone(t, port);
+      // Back to the Simulator.
+      expect(matrix, findsOneWidget);
+      expect(find.byKey(preview), findsNothing);
+      expect(find.text('No second screen connected'), findsOneWidget);
+      await finish(t, port, feed);
+    });
+
+    testWidgets('unplugging it leaves an LED sign’s preview as it was', (
+      t,
+    ) async {
+      final port = SignSecondPort();
+      await live(t, port);
+      await press(t, 'live-second-screen-show', port);
+      final feed = await window(t, port);
+      expect(matrix, findsOneWidget);
+      expect(find.byKey(preview), findsOneWidget);
+      await gone(t, port);
+      expect(matrix, findsOneWidget);
+      expect(find.byKey(preview), findsNothing);
+      await finish(t, port, feed);
+    });
+
+    testWidgets('every desktop layout has it, and nothing overflows', (
+      t,
+    ) async {
+      for (final layout in const [
+        'three_panes',
+        'dial',
+        'keys',
+        'mission_control',
+        'classic',
+      ]) {
+        for (final size in const [Size(1366, 768), Size(2560, 1440)]) {
+          final port = SecondPort();
+          await live(t, port, layout: layout, size: size);
+          await press(t, 'live-second-screen-show');
+          final feed = await window(t, port);
+          expect(find.byKey(preview), findsOneWidget, reason: '$layout $size');
+          expect(matrix, findsNothing, reason: '$layout $size');
+          expect(t.takeException(), isNull, reason: '$layout $size');
+          await finish(t, port, feed);
+        }
+      }
+    });
+
+    testWidgets('a phone has no second screen and keeps its preview', (
+      t,
+    ) async {
+      setScreen(t);
+      final c = await ready(t, FakePort());
+      await t.runAsync(() => c.act('start'));
+      await t.pumpWidget(TimerApp(controller: c));
+      await t.pumpAndSettle();
+      expect(c.secondScreen, isNull);
+      expect(find.byKey(preview), findsNothing);
+      expect(matrix, findsOneWidget);
+      await t.pumpWidget(const SizedBox());
     });
   });
 

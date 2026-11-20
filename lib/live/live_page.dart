@@ -836,6 +836,7 @@ extension LivePage on HomeState {
                 DisplayPreviewHeader(connection: c.displayConnection),
                 const SizedBox(height: 14),
                 mobileStagePreview(),
+                ...secondScreenPreviewBeneath(),
                 const SizedBox(height: 12),
                 stageSharingControls(),
                 ...secondScreenControl(),
@@ -848,14 +849,18 @@ extension LivePage on HomeState {
               children: [
                 DisplayPreviewHeader(connection: c.displayConnection),
                 const SizedBox(height: 14),
-                liveMatrix(),
+                previewOrSecondScreen(liveMatrix()),
+                ...secondScreenPreviewBeneath(),
                 if (s.outputBlank)
                   const Padding(
                     padding: EdgeInsets.only(top: 8),
                     child: Text('Screen intentionally blanked'),
                   ),
                 const SizedBox(height: 12),
-                if (!dense)
+                // The sign's size; not shown over a copy of the second
+                // screen.
+                if (!dense &&
+                    secondScreenPreviewNow != SecondScreenPreviewPlace.replaces)
                   Text(
                     '32 × 16 · ${c.state.pixelShape == 'square' ? 'Square' : 'Circular'} LEDs',
                     style: TextStyle(
@@ -1413,9 +1418,10 @@ extension LivePage on HomeState {
                         constraints: const BoxConstraints(maxWidth: 320),
                         child: c.destination == 'mobile'
                             ? mobileStagePreview()
-                            : liveMatrix(),
+                            : previewOrSecondScreen(liveMatrix()),
                       ),
                     ),
+                    ...secondScreenPreviewBeneath(),
                     const SizedBox(height: 8),
                     if (c.destination == 'mobile')
                       stageSharingControls()
