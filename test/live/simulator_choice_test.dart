@@ -599,7 +599,9 @@ void main() {
       expect(find.text('NOT TESTED ON SIGN · simulator preview'), findsNothing);
       // The same picture a stage screen draws for a cue.
       expect(cueShown(t)['displayText'], cue.text);
-      expect(cueShown(t)['effect'], cue.effect);
+      // WRAP UP pulses: an older screen is sent it steady.
+      expect(cueShown(t)['effect'], cue.compatibleEffect);
+      expect(cueShown(t)['screenEffect'], 'pulse');
       expect(cueShown(t)['bold'], cue.bold);
       // WRAP UP is a banner, over a sample countdown.
       expect(cueShown(t)['cuePosition'], 'bottom');
@@ -613,10 +615,10 @@ void main() {
       final box = t.getSize(find.byKey(cueStage));
       expect(box.width / box.height, closeTo(16 / 9, .01));
 
-      // It follows the typing.
-      await t.enterText(find.byType(TextField).first, 'TWO MINUTES');
+      // It follows the typing (each word fits the sign, for Pulse).
+      await t.enterText(find.byType(TextField).first, 'TWO MINS');
       await t.pump(const Duration(milliseconds: 100));
-      expect(cueShown(t)['displayText'], 'TWO MINUTES');
+      expect(cueShown(t)['displayText'], 'TWO MINS');
 
       await choose(t, 'LED sign');
       expect(dialogMatrix, findsOneWidget);

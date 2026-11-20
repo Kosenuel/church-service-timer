@@ -13,10 +13,22 @@ export 'package:church_service_timer/display/matrix_font.dart' show glyphs;
 Map<String, String> layoutGlyphs(TextLayout l) =>
     l.font == 'i-proton_sq_matrix' ? squareGlyphs : glyphs;
 
+/// Whether the LED sign scrolls [layout] across it: text too wide for the
+/// sign with Scroll long text, or with an effect only screens show (see
+/// [signScrollEffects]). False while a Tinos cue is still being drawn.
+bool scrollsOnSign(TextLayout layout) {
+  if (layout.effect != 'scroll' && !signScrollEffects.contains(layout.effect)) {
+    return false;
+  }
+  try {
+    return textWidth(layout) > 32;
+  } catch (_) {
+    return false;
+  }
+}
+
 int warningDurationMs(WarningRule rule) {
-  if (rule.scrollOnce &&
-      rule.cue.effect == 'scroll' &&
-      textWidth(rule.cue) > 32) {
+  if (rule.scrollOnce && scrollsOnSign(rule.cue)) {
     return ((textWidth(rule.cue) + 6) * 2 * (500 / rule.cue.speed).round())
         .clamp(1000, 120000);
   }
@@ -113,7 +125,13 @@ void validateLayout(TextLayout layout) {
     'This pixel font does not support: ${unknown.map((r) => 'U+${r.toRadixString(16).toUpperCase().padLeft(4, '0')}').join(', ')}. Use basic Latin letters, numbers and supported punctuation.',
   );
   final width = textWidth(layout);
-  if (layout.effect == 'scroll' || width <= 32) return;
+  // Scroll long text, and the effects only screens show, scroll across
+  // the sign when they are too wide for it.
+  if (layout.effect == 'scroll' ||
+      signScrollEffects.contains(layout.effect) ||
+      width <= 32) {
+    return;
+  }
   // Flash and Pulse show text too wide for the sign a few words at a time.
   if (wordGroupEffects.contains(layout.effect)) {
     final length = layout.text.trim().runes.length;
@@ -123,11 +141,13 @@ void validateLayout(TextLayout layout) {
     );
     if (signWordGroups(layout) != null) return;
   }
-  // Every other effect but scrolling says "(must fit)" in the editor's
-  // list; a single word too wide for the sign does not fit either.
+  // Static and Flash then hold say "(must fit)" in the editor's list; a
+  // single word too wide for the sign does not fit either.
   require(
     false,
-    'This text is $width pixels wide and must fit the LED sign’s 32 pixels. Choose Scroll long text, or make it shorter.',
+    layout.effect == 'flashHold'
+        ? 'This text is $width pixels wide and must fit the LED sign’s 32 pixels to flash then hold. Choose Flash, which shows long text a few words at a time, or make it shorter.'
+        : 'This text is $width pixels wide and must fit the LED sign’s 32 pixels. Choose Scroll long text, or make it shorter.',
   );
 }
 
@@ -166,9 +186,9 @@ List<bool> renderPixels(TextLayout? layout, int elapsedMs) {
     if (cycle < flashHoldMs && (cycle ~/ 500).isOdd) return pixels;
   }
   final width = textWidth(layout);
+  final scrolling = scrollsOnSign(layout);
   if (layout.font == 'tinos') {
     final raster = NativeDisplayFonts.cached(layout)!;
-    final scrolling = layout.effect == 'scroll' && width > 32;
     final start = scrolling
         ? -((elapsedMs * layout.speed ~/ 1000) % (width + 6))
         : layout.align == 'left'
@@ -195,7 +215,7 @@ List<bool> renderPixels(TextLayout? layout, int elapsedMs) {
   final table = layoutGlyphs(layout);
   final rowScale = layout.height;
   int start;
-  if (layout.effect == 'scroll' && width > 32) {
+  if (scrolling) {
     // Begin visibly at x=0, then scroll through a 6-pixel inter-message gap.
     start = -((elapsedMs * layout.speed ~/ 1000) % (width + 6));
   } else {
@@ -231,7 +251,7 @@ List<bool> renderPixels(TextLayout? layout, int elapsedMs) {
   }
 
   drawAt(start);
-  if (layout.effect == 'scroll' && width > 32) drawAt(start + width + 6);
+  if (scrolling) drawAt(start + width + 6);
   return pixels;
 }
 

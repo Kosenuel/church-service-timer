@@ -67,7 +67,16 @@ void main() {
         find.widgetWithText(TextField, 'Display text'),
         'FINISH NOW',
       );
-      // WRAP UP starts bold and tall; add italic and the square font.
+      // WRAP UP starts bold, tall and pulsing; FINISH NOW scrolls, since
+      // it does not fit the sign a word at a time in the square font.
+      await tester.ensureVisible(find.byKey(const ValueKey('effect-choice')));
+      await tester.tap(find.byKey(const ValueKey('effect-choice')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Scroll long text').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      // Add italic and the square font.
       await tester.tap(find.text('Italic'));
       await tester.tap(find.text('I-Proton Matrix'));
       await tester.pump();

@@ -225,16 +225,6 @@ class PanePoints extends StatelessWidget {
   );
 }
 
-/// Whether [layout] is too wide for the sign and moves across it, so a
-/// still preview shows only its beginning.
-bool scrollsOnSign(TextLayout layout) {
-  try {
-    return layout.effect == 'scroll' && textWidth(layout) > 32;
-  } catch (_) {
-    return false;
-  }
-}
-
 /// The sign showing [layout], or a line of text while its font is still
 /// being prepared.
 class SignPreview extends StatefulWidget {
@@ -276,7 +266,13 @@ class _SignPreviewState extends State<SignPreview> {
   Widget build(BuildContext context) {
     List<bool>? pixels;
     try {
-      pixels = renderPixels(widget.layout, watch.elapsedMilliseconds);
+      // At rest, Pulse shows its first words at their brightest, not the
+      // blank moment it starts from.
+      final rest = widget.layout.effect == 'pulse' ? wordGroupMs ~/ 2 : 0;
+      pixels = renderPixels(
+        widget.layout,
+        watch.isRunning ? watch.elapsedMilliseconds : rest,
+      );
     } catch (_) {
       pixels = null;
     }

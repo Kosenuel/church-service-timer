@@ -246,6 +246,7 @@ class AppState {
         13,
         14,
         15,
+        16,
       }.contains(j['version']),
       'Unsupported saved-state version.',
     );
@@ -425,7 +426,7 @@ class AppState {
           .reversed
           .toList();
     }
-    if ((j['version'] as int) < 15) a.upgradeDefaultCues();
+    if ((j['version'] as int) < 16) a.upgradeDefaultCues();
     a.session.clockFormat = a.clockFormat;
     a.session.clockBlink = a.clockBlink;
     a.applySharedZero();
@@ -433,7 +434,7 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 15,
+    'version': 16,
     'appearance': appearance.toJson(),
     'programLibrary': programLibrary.toJson(),
     'programHistory': writeProgramHistory(programHistory),
@@ -501,6 +502,11 @@ class AppState {
   /// exactly as they were suggested become the new ones. Warnings that
   /// were changed stay as they are, and so does a cue list without any of
   /// the old cues.
+  ///
+  /// The cues and warnings version 15 started with
+  /// ([version15DefaultStageCues], [version15DefaultWarnings]) become
+  /// today's in their place, each one only if it is still exactly as
+  /// version 15 made it.
   void upgradeDefaultCues() {
     String json(TextLayout l) => jsonEncode(l.toJson());
     final legacy = legacyDefaultStageCues.map(json).toSet();
@@ -517,11 +523,21 @@ class AppState {
       addStageCues([...defaultStageCues, ...own]);
       if (stageCues.length > 100) stageCues = stageCues.sublist(0, 100);
     }
+    final version15 = {
+      for (var i = 0; i < version15DefaultStageCues.length; i++)
+        json(version15DefaultStageCues[i]): defaultStageCues[i],
+    };
+    List<TextLayout> renewed(List<TextLayout> cues) => [
+      for (final l in cues) version15[json(l)] ?? l,
+    ];
+    final cues = renewed(stageCues);
+    stageCues = [];
+    addStageCues(cues);
     String list(List<TextLayout> cues) => cues.map(json).join('|');
     DisplaySettings upgrade(DisplaySettings d) =>
         list(d.cues) == list(legacyDefaultStageCues)
         ? d.withCues(defaultStageCues)
-        : d;
+        : d.withCues(renewed(d.cues));
     templates = [for (final t in templates) t.withDisplay(upgrade(t.display))];
     void upgradeSession(Session s) {
       final t = s.timeline;
@@ -530,11 +546,19 @@ class AppState {
     }
 
     upgradeSession(session);
+    String rule(WarningRule r) => jsonEncode(r.toJson());
     String rules(List<WarningRule> w) =>
         jsonEncode([for (final r in w) r.toJson()]);
     defaults = upgrade(defaults);
     if (rules(defaults.warnings) == rules(legacyDefaultWarnings))
       defaults = defaults.withWarnings(defaultWarnings);
+    final version15Rules = {
+      for (var i = 0; i < version15DefaultWarnings.length; i++)
+        rule(version15DefaultWarnings[i]): defaultWarnings[i],
+    };
+    defaults = defaults.withWarnings([
+      for (final r in defaults.warnings) version15Rules[rule(r)] ?? r,
+    ]);
   }
 
   void addStageCues(Iterable<TextLayout> layouts) {

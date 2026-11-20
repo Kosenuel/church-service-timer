@@ -85,7 +85,9 @@ class _CuePreviewSwitchState extends State<CuePreviewSwitch> {
 
 /// A cue as a stage, web or second screen shows it, in a 16:9 box and
 /// drawn by the same [StageSurface] the screens use. A banner sits over
-/// a sample countdown. With [still], a scrolling cue holds still.
+/// a sample countdown. With [still], the cue holds still: it does not
+/// scroll, flash, pulse, slide in or show its countdown bar or screen
+/// flash, so a page of previews stays calm.
 class CueStagePreview extends StatelessWidget {
   final TextLayout? cue;
   final bool still;
@@ -108,12 +110,11 @@ class CueStagePreview extends StatelessWidget {
                 'displayIsTimer': false,
                 'outputMode': 'Cue',
                 'displayText': cue?.text ?? '',
-                ...stageEffectFields(
-                  still && cue?.effect == 'scroll' ? null : cue,
-                ),
+                // Held still, it shows steady, whatever its effect.
+                ...stageEffectFields(still ? null : cue),
                 // A cue here has no time of its own, so a countdown bar
                 // shows a sample one that empties and starts again.
-                if (cue?.screenEffect == 'bar') 'cueBarSample': true,
+                if (!still && cue?.screenEffect == 'bar') 'cueBarSample': true,
                 'speed': cue?.speed ?? 12,
                 'screenSpeed': ?cue?.screenSpeed,
                 if (cue != null && cue.screenColor != 'white')
@@ -122,7 +123,7 @@ class CueStagePreview extends StatelessWidget {
                         stageAccentRgbOf(appColors(context).accent),
                   ),
                 if (cue != null && cue.screenWrap) 'screenWrap': true,
-                'screenWords': ?stageWordGroupsOf(cue),
+                if (!still) 'screenWords': ?stageWordGroupsOf(cue),
                 if (cue != null && cue.screenPosition != 'full') ...{
                   'cuePosition': cue.screenPosition,
                   'underText': '12:34',
@@ -139,8 +140,8 @@ class CueStagePreview extends StatelessWidget {
   }
 }
 
-/// [CueStagePreview] that plays a scrolling cue only while pointed at,
-/// as the sign previews beside it do.
+/// [CueStagePreview] that plays a cue's scrolling or effect only while
+/// pointed at, as the sign previews beside it do.
 class HoverCueStagePreview extends StatefulWidget {
   final TextLayout cue;
   const HoverCueStagePreview(this.cue, {super.key});

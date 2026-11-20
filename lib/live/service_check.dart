@@ -156,7 +156,7 @@ class ServiceCheckPageState extends State<ServiceCheckPage> {
 
   List<bool> ledPixels() {
     final shown = run.session.intended(run.now);
-    final layout = shown != null && _warning && shown.effect == 'scroll'
+    final layout = shown != null && _warning && scrollsOnSign(shown)
         ? TextLayout.fromJson({...shown.toJson(), 'effect': 'static'})
         : shown;
     final signature = jsonEncode(layout?.toJson());

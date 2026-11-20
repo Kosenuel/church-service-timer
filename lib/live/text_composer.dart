@@ -17,9 +17,9 @@ bool sameLayout(TextLayout a, TextLayout b) =>
     jsonEncode(a.toJson()) == jsonEncode(b.toJson());
 
 /// The effects a cue may have, as the editor lists them, each with a line
-/// saying what it does. "Steady on the LED sign" marks those only screens
-/// can show; the sign shows the cue without moving. Flash and Pulse need
-/// not fit the sign: long text shows a few words at a time.
+/// saying what it does. "On the LED sign: steady, or scrolls if too wide"
+/// marks those only screens can show. Only Static and Flash then hold must
+/// fit the sign: Flash and Pulse show long text a few words at a time.
 const effectChoices = [
   ChoiceOption(
     value: 'static',
@@ -49,20 +49,21 @@ const effectChoices = [
   ),
   ChoiceOption(
     value: 'slideIn',
-    label: 'Slide in (must fit)',
-    hint: 'Slides in from the edge of the screen · steady on the LED sign',
+    label: 'Slide in',
+    hint:
+        'Slides in from the edge of the screen · on the LED sign: steady, or scrolls if too wide',
   ),
   ChoiceOption(
     value: 'bar',
-    label: 'Countdown bar (must fit)',
+    label: 'Countdown bar',
     hint:
-        'A bar under the cue empties as its time runs out · steady on the LED sign',
+        'A bar under the cue empties as its time runs out · on the LED sign: steady, or scrolls if too wide',
   ),
   ChoiceOption(
     value: 'screenFlash',
-    label: 'Screen flash (must fit)',
+    label: 'Screen flash',
     hint:
-        'The screen flashes once in the cue’s colour · steady on the LED sign',
+        'The screen flashes once in the cue’s colour · on the LED sign: steady, or scrolls if too wide',
   ),
 ];
 
@@ -75,11 +76,11 @@ const effectNotes = {
   'pulse':
       'Brightens and dims on screens; the LED sign shows it steady. Text too wide for the sign shows a few words at a time, on the sign and on screens. With Wrap long text, screens show it all at once.',
   'slideIn':
-      'Screens only. Steady on the LED sign. With reduced motion the cue simply appears.',
+      'Screens only. The LED sign shows it steady, or scrolls it if it is too wide. With reduced motion the cue simply appears.',
   'bar':
-      'Screens only. Steady on the LED sign. The bar runs over a warning’s time or the time chosen when sending; a cue shown until cleared has no bar.',
+      'Screens only. The LED sign shows it steady, or scrolls it if it is too wide. The bar runs over a warning’s time or the time chosen when sending; a cue shown until cleared has no bar.',
   'screenFlash':
-      'Screens only. Steady on the LED sign. Red for a white cue. With reduced motion the screen gets a coloured edge instead.',
+      'Screens only. The LED sign shows it steady, or scrolls it if it is too wide. Red for a white cue. With reduced motion the screen gets a coloured edge instead.',
 };
 
 class TextComposer extends StatefulWidget {
@@ -266,8 +267,12 @@ class _TextComposerState extends State<TextComposer> {
       ],
       onChanged: (v) => setState(() => align = v!),
     );
+    // Scroll long text has a speed on the sign, and so do the effects only
+    // screens show when the sign scrolls them because they are too wide.
+    final scrollsOnLed =
+        effect == 'scroll' || (error == null && scrollsOnSign(layout));
     final ledSpeed = [
-      if (effect == 'scroll') ...[
+      if (scrollsOnLed) ...[
         const SizedBox(height: 12),
         Text('Speed on the LED sign: $speed pixels / second'),
         Slider(
