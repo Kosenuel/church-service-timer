@@ -415,20 +415,21 @@ void main() {
     testWidgets('screen flash lights the screen once', (t) async {
       await stage(t, cue('screenFlash', color: '#4ade80'));
       await t.pump(const Duration(milliseconds: 100));
-      // A deep tint of the cue's colour, with the cue in its own colour.
+      // A deep tint of the cue's colour behind the cue's warm white text.
       expect(
         flashOf(t).color,
         Color.lerp(Colors.black, const Color(0xff4ade80), .32),
       );
-      expect(textColor(t), const Color(0xff4ade80));
+      expect(textColor(t), const Color(0xfffff4dc));
+      // Then it settles to the coloured cue's charcoal.
       await t.pump(const Duration(milliseconds: 600));
-      expect(flashOf(t).color, Colors.transparent);
-      expect(textColor(t), const Color(0xff4ade80));
+      expect(flashOf(t).color, const Color(0xff1a1712));
+      expect(textColor(t), const Color(0xfffff4dc));
       expect(t.binding.hasScheduledFrame, isFalse);
       // The next snapshot of the same cue does not flash again.
       await next(t, cue('screenFlash', color: '#4ade80'));
       await t.pump(const Duration(milliseconds: 100));
-      expect(flashOf(t).color, Colors.transparent);
+      expect(flashOf(t).color, const Color(0xff1a1712));
     });
 
     testWidgets('a white cue flashes red', (t) async {
@@ -446,9 +447,9 @@ void main() {
       await stage(t, cue('screenFlash', color: '#ffa833'), reducedMotion: true);
       await t.pump(const Duration(milliseconds: 100));
       final box = flashOf(t);
-      expect(box.color, Colors.transparent);
+      expect(box.color, const Color(0xff1a1712));
       expect((box.border! as Border).top.color, const Color(0xffffa833));
-      expect(textColor(t), const Color(0xffffa833));
+      expect(textColor(t), const Color(0xfffff4dc));
     });
 
     testWidgets('an older screen shows a newer effect steady', (t) async {
@@ -643,7 +644,7 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('../goldens/desktop-cue-effect-list.png'),
       );
-      await t.tap(find.text('Countdown bar · must fit'));
+      await t.tap(find.text('Countdown bar (must fit)'));
       await t.pumpAndSettle();
       final edited =
           (t.state(find.byType(TextComposer)) as dynamic).layout as TextLayout;

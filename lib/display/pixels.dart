@@ -62,7 +62,8 @@ void validateLayout(TextLayout layout) {
   );
   require(
     layout.effect == 'scroll' || textWidth(layout) <= 32,
-    'This text is ${textWidth(layout)} pixels wide. Choose scrolling or shorten it to fit 32 pixels.',
+    // Every effect but scrolling says "(must fit)" in the editor's list.
+    'This text is ${textWidth(layout)} pixels wide and must fit the LED sign’s 32 pixels. Choose Scroll long text, or make it shorter.',
   );
 }
 

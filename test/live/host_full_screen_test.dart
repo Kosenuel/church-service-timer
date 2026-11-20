@@ -8,6 +8,7 @@ import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/live/shortcuts.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/screen_orientation.dart';
 import 'package:church_service_timer/windows/atomic_store.dart';
 import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/window_memory.dart';
@@ -760,6 +761,197 @@ void main() {
         t.widget<ChoiceChip>(key('full-screen-layout-next')).selected,
         isTrue,
       );
+      await done(t);
+    });
+
+    testWidgets('a phone or tablet turns landscape, and back on leaving', (
+      t,
+    ) async {
+      ScreenOrientation.reset();
+      addTearDown(ScreenOrientation.reset);
+      // What the app asks the system for, latest last.
+      final asked = <String>[];
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemChrome.setPreferredOrientations') {
+            final list = (call.arguments as List).cast<String>();
+            asked.add(
+              list.isEmpty
+                  ? 'any'
+                  : list.map((o) => o.split('.').last).join(' '),
+            );
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      const landscape = 'landscapeLeft landscapeRight';
+      await running(t, desktop: false, size: const Size(430, 900));
+      expect(asked, isEmpty);
+      Future<void> open() async {
+        await openLiveMenu(t, 'Full screen');
+        expect(stage, findsOneWidget);
+        expect(asked.last, landscape);
+      }
+
+      // Exit.
+      await open();
+      await settleControl(t);
+      await t.tapAt(const Offset(200, 600));
+      await t.pumpAndSettle();
+      await t.tap(key('full-screen-exit'));
+      await t.pumpAndSettle();
+      expect(asked, [landscape, 'any']);
+
+      // Back.
+      await open();
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(stage, findsNothing);
+      expect(asked, [landscape, 'any', landscape, 'any']);
+
+      // Closed with the app, from full screen.
+      await open();
+      await done(t);
+      expect(asked, [landscape, 'any', landscape, 'any', landscape, 'any']);
+      expect(ScreenOrientation.fullScreen, isFalse);
+    });
+
+    testWidgets('leaving brings back what the app asked for before', (t) async {
+      ScreenOrientation.reset();
+      addTearDown(ScreenOrientation.reset);
+      final asked = <String>[];
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemChrome.setPreferredOrientations') {
+            final list = (call.arguments as List).cast<String>();
+            asked.add(
+              list.isEmpty
+                  ? 'any'
+                  : list.map((o) => o.split('.').last).join(' '),
+            );
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      const landscape = 'landscapeLeft landscapeRight';
+      final (c, _) = await running(
+        t,
+        desktop: false,
+        size: const Size(430, 900),
+      );
+      Future<void> open() async {
+        await openLiveMenu(t, 'Full screen');
+        expect(stage, findsOneWidget);
+        expect(asked.last, landscape);
+      }
+
+      // Whatever the app asked for before comes back, not "any".
+      await ScreenOrientation.setApp(const [DeviceOrientation.portraitUp]);
+      asked.clear();
+      await open();
+      // Asked for while full screen: kept for later, still landscape.
+      await ScreenOrientation.setApp(const [
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.landscapeLeft,
+      ]);
+      expect(asked, [landscape]);
+      // The service ends: it leaves by itself.
+      await c.act('end');
+      await t.pumpAndSettle();
+      expect(stage, findsNothing);
+      expect(asked, [landscape, 'portraitUp landscapeLeft']);
+      await ScreenOrientation.setApp(const []);
+      await done(t);
+    });
+
+    testWidgets('joining another service as a stage screen stays landscape', (
+      t,
+    ) async {
+      ScreenOrientation.reset();
+      addTearDown(ScreenOrientation.reset);
+      final asked = <List<Object?>>[];
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemChrome.setPreferredOrientations') {
+            asked.add(call.arguments as List);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final (c, _) = await running(
+        t,
+        desktop: false,
+        size: const Size(430, 900),
+      );
+      await openLiveMenu(t, 'Full screen');
+      expect(stage, findsOneWidget);
+      c.pairing
+        ..mode = 'stage'
+        ..status = 'Connected to Grace Chapel sound desk'
+        ..snapshot = c.pairedSnapshot(false)
+        ..lastSnapshot = DateTime.now().millisecondsSinceEpoch
+        ..changed();
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      expect(find.byType(PairedScreen), findsOneWidget);
+      expect(stage, findsNothing);
+      // The stage screen's own landscape, whichever came last.
+      expect(asked.last, [
+        'DeviceOrientation.landscapeLeft',
+        'DeviceOrientation.landscapeRight',
+      ]);
+      expect(ScreenOrientation.app, ScreenOrientation.landscape);
+      expect(ScreenOrientation.fullScreen, isFalse);
+      await done(t);
+    });
+
+    testWidgets('a computer leaves its orientation alone', (t) async {
+      ScreenOrientation.reset();
+      addTearDown(ScreenOrientation.reset);
+      var asked = 0;
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemChrome.setPreferredOrientations' ||
+              call.method == 'SystemChrome.setEnabledSystemUIMode') {
+            asked++;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      expect(stage, findsOneWidget);
+      await press(t, LogicalKeyboardKey.escape);
+      expect(stage, findsNothing);
+      expect(asked, 0);
       await done(t);
     });
 

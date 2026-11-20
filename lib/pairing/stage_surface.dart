@@ -63,13 +63,23 @@ class StageSurface extends StatelessWidget {
         ),
       ),
     );
-    final timer = StageMessage(data: under, stale: stale, fullscreen: true);
-    return StageBannerFrame(
+    // A full-screen cue in a colour: warm white on charcoal, with a rule in
+    // its colour along the bottom edge (see [stageColouredCard]).
+    final card = stageColouredCard(data);
+    final timer = StageMessage(
+      data: under,
+      stale: stale,
+      fullscreen: true,
+      ink: card ? const Color(0xff000000 | stageCardInk) : null,
+    );
+    Widget surface(double rule) => StageBannerFrame(
       banner: position == null ? null : stageBannerText(data),
       top: position == 'top',
       stale: stale,
       builder: (context, band, top) => Padding(
-        padding: const EdgeInsets.all(12),
+        // Clear of the rule, above and below alike, so the cue stays
+        // centred.
+        padding: EdgeInsets.fromLTRB(12, 12 + rule, 12, 12 + rule),
         child: LayoutBuilder(
           builder: (context, space) {
             if (!space.maxHeight.isFinite) {
@@ -109,53 +119,40 @@ class StageSurface extends StatelessWidget {
               ],
             );
           },
-    // A full-screen cue's screen flash lights the whole screen; a banner's
-    // lights only its band (see [StageBanner]).
-    return StageScreenFlash(
-      data: position == null ? data : null,
-      base: Colors.transparent,
-      child: StageBannerFrame(
-        banner: position == null ? null : stageBannerText(data),
-        top: position == 'top',
-        stale: stale,
-        builder: (context, band, top) => Padding(
-          padding: const EdgeInsets.all(12),
-          child: LayoutBuilder(
-            builder: (context, space) {
-              if (!space.maxHeight.isFinite) {
-                return showSegment
-                    ? Column(
-                        children: [timer, const SizedBox(height: 8), label()],
-                      )
-                    : timer;
-              }
-              // The time keeps the box it has without a banner and gives up
-              // the same space above and below, so it stays centred. Under a
-              // bottom band the segment name moves up to sit above the band.
-              final below = showSegment ? 44.0 : 0.0;
-              final lift = top ? 0.0 : band;
-              final clear = StageBannerFrame.clearance(
-                space.maxHeight - below,
-                above: top && band > 0 ? band - 12 : 0,
-                below: showSegment ? lift : (lift > 0 ? lift - 12 : 0),
-              );
-              return Stack(
-                children: [
-                  Positioned.fill(
-                    bottom: below,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: clear),
-                      child: timer,
-                    ),
-                  ),
-                  if (showSegment)
-                    Positioned(left: 0, right: 0, bottom: lift, child: label()),
-                ],
-              );
-            },
-          ),
         ),
       ),
+    );
+    // A full-screen cue's screen flash lights the whole screen; a banner's
+    // lights only its band (see [StageBanner]).
+    return LayoutBuilder(
+      builder: (context, screen) {
+        final rule = card && screen.maxHeight.isFinite
+            ? stageCardRule(screen.maxHeight)
+            : 0.0;
+        return StageScreenFlash(
+          data: position == null ? data : null,
+          base: card
+              ? const Color(0xff000000 | stageCardBackground)
+              : Colors.transparent,
+          child: Stack(
+            fit: StackFit.passthrough,
+            children: [
+              surface(rule),
+              if (rule > 0)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: rule,
+                  child: ColoredBox(
+                    key: const ValueKey('stage-card-rule'),
+                    color: stageCueColor(data),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -385,13 +382,16 @@ class StageBanner extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.symmetric(
             // Scrolling text runs from edge to edge of the screen.
-            horizontal: data['effect'] == 'scroll' ? 0 : space.maxHeight * .3,
+            horizontal: data['effect'] == 'scroll' && !stageWrapsText(data)
+                ? 0
+                : space.maxHeight * .3,
             vertical: space.maxHeight * .1,
           ),
           child: StageMessage(
             data: data,
             stale: stale,
             fullscreen: true,
+            wrapLines: stageBannerWrapLines,
             fromTop: top,
           ),
         ),

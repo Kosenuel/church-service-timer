@@ -65,6 +65,11 @@ class TextLayout {
   final String screenPosition;
   bool get bannerOnScreens => screenPosition != 'full';
 
+  /// Whether stage, web and second screens wrap the text onto up to three
+  /// lines (two in a banner) instead of scrolling it or shrinking it onto
+  /// one. The LED sign is not changed. Off, as every cue was, until chosen.
+  final bool screenWrap;
+
   /// The effect as every version of the app knows it: the newer effects
   /// are steady text to an older paired screen.
   String get compatibleEffect =>
@@ -87,6 +92,7 @@ class TextLayout {
     this.screenSpeed,
     this.screenColor = 'white',
     this.screenPosition = 'full',
+    this.screenWrap = false,
     this.height = 1,
     this.font = 'i-proton_matrix',
   });
@@ -101,6 +107,7 @@ class TextLayout {
       'screenSpeed',
       'screenColor',
       'screenPosition',
+      'screenWrap',
       'height',
       'font',
     }, 'Text layout');
@@ -112,6 +119,7 @@ class TextLayout {
           (j['screenSpeed'] == null || j['screenSpeed'] is int) &&
           (j['screenColor'] == null || j['screenColor'] is String) &&
           (j['screenPosition'] == null || j['screenPosition'] is String) &&
+          (j['screenWrap'] == null || j['screenWrap'] is bool) &&
           j['height'] is int,
       'Text layout has missing or invalid fields.',
     );
@@ -125,6 +133,7 @@ class TextLayout {
       screenSpeed: j['screenSpeed'],
       screenColor: j['screenColor'] ?? 'white',
       screenPosition: j['screenPosition'] ?? 'full',
+      screenWrap: j['screenWrap'] ?? false,
       height: j['height'],
       // Font ids from earlier versions still open (see legacyFontIds).
       font: legacyFontIds[j['font']] ?? j['font'] ?? 'i-proton_matrix',
@@ -173,6 +182,7 @@ class TextLayout {
     'screenSpeed': ?screenSpeed,
     if (screenColor != 'white') 'screenColor': screenColor,
     if (screenPosition != 'full') 'screenPosition': screenPosition,
+    if (screenWrap) 'screenWrap': true,
     'height': height,
     'font': font,
   };

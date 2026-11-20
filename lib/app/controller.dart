@@ -412,13 +412,9 @@ class AppController extends ChangeNotifier {
     ready ? state.themeId : 'midnight_lime',
   );
 
-  /// What stage screens are sent. With [session] and [at], what they
-  /// would show of that session instead, as "Check this service" draws
-  /// it on the stage simulator; no message is added to it.
-  Json pairedSnapshot(bool privateNotes, {Session? session, Stamp? at}) {
   /// The time a cue showing now has in all and has left, for a countdown
   /// bar on screens; null for a cue shown until cleared, or none.
-  ({int total, int left})? _cueTime(Session s) {
+  ({int total, int left})? _cueTime(Session s, Stamp now) {
     if (s.hasAutomaticCue(now)) {
       return (
         total: s.automaticCueDurationMs,
@@ -432,7 +428,10 @@ class AppController extends ChangeNotifier {
     return null;
   }
 
-  Json pairedSnapshot(bool privateNotes) {
+  /// What stage screens are sent. With [session] and [at], what they
+  /// would show of that session instead, as "Check this service" draws
+  /// it on the stage simulator; no message is added to it.
+  Json pairedSnapshot(bool privateNotes, {Session? session, Stamp? at}) {
     if (!ready) return {};
     final s = session ?? state.session, t = s.timeline;
     final now = at ?? this.now;
@@ -472,7 +471,7 @@ class AppController extends ChangeNotifier {
       'displayText': s.outputBlank ? '' : display?.text ?? '',
       'outputMode': s.outputMode(now),
       'clockBlink': s.clockBlink,
-      ...stageEffectFields(display, time: _cueTime(s)),
+      ...stageEffectFields(display, time: _cueTime(s, now)),
       // The LED sign's speed, which older paired screens keep following.
       'speed': display?.speed ?? 12,
       'screenSpeed': ?display?.screenSpeed,
@@ -480,6 +479,8 @@ class AppController extends ChangeNotifier {
         'cueColor': stageColorHex(
           screenCueColors[display.screenColor] ?? stageAccentRgb(state.themeId),
         ),
+      // Wrapped onto lines on screens; older paired screens ignore it.
+      if (display != null && display.screenWrap) 'screenWrap': true,
       if (banner) ...{
         'cuePosition': display.screenPosition,
         'underText': s.showClock

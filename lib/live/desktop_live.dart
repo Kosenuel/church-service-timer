@@ -222,7 +222,10 @@ extension DesktopLive on HomeState {
                   ),
                   if (legend) ...[
                     Divider(height: 1, thickness: 1, color: colors.border),
-                    const KeyLegend(key: ValueKey('pane-key-legend')),
+                    KeyLegend(
+                      key: const ValueKey('pane-key-legend'),
+                      clicker: clickerKeysOn,
+                    ),
                   ],
                 ],
               ),

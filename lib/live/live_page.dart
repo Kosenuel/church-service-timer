@@ -21,6 +21,7 @@ import 'package:church_service_timer/live/quick_timer_sheet.dart';
 import 'package:church_service_timer/live/second_screen_control.dart';
 import 'package:church_service_timer/live/service_check.dart';
 import 'package:church_service_timer/live/simulator_choice.dart';
+import 'package:church_service_timer/live/simulator_matrix.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
 /// The widest Classic's Live page is usually laid out.
@@ -57,18 +58,20 @@ extension LivePage on HomeState {
   );
 
   Widget liveMatrix() => RepaintBoundary(
-    child: AnimatedBuilder(
-      animation: c.previewClock,
-      builder: (context, _) => LedMatrix(
-        pixels: c.hardware.enabled
-            ? c.hardware.preview(c.now)
-            : c.simulator.pixels,
-        hardware: c.hardware.enabled,
-        stale: c.hardware.enabled
-            ? c.hardware.held || !c.hardware.connected || c.hardware.interrupted
-            : c.state.session.held || c.state.session.disconnected,
-      ),
-    ),
+    child: c.hardware.enabled
+        ? AnimatedBuilder(
+            animation: c.previewClock,
+            builder: (context, _) => LedMatrix(
+              pixels: c.hardware.preview(c.now),
+              hardware: true,
+              stale:
+                  c.hardware.held ||
+                  !c.hardware.connected ||
+                  c.hardware.interrupted,
+            ),
+          )
+        // Scrolling text moves on every frame, at the sign's own pace.
+        : SimulatorMatrix(controller: c),
   );
 
   /// Pinned (or most recent) programs that load straight into Ready.

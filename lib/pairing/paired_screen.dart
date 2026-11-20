@@ -8,10 +8,12 @@ import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/reconnect_banner.dart';
+import 'package:church_service_timer/shared/screen_orientation.dart';
 import 'package:church_service_timer/display/clock_text.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
+import 'package:church_service_timer/pairing/scrolling_text.dart';
 import 'package:church_service_timer/main.dart';
 
 class PairedScreen extends StatefulWidget {
@@ -45,14 +47,7 @@ class _PairedScreenState extends State<PairedScreen> {
     if (_stage == next) return;
     _stage = next;
     unawaited(
-      SystemChrome.setPreferredOrientations(
-        next
-            ? [
-                DeviceOrientation.landscapeLeft,
-                DeviceOrientation.landscapeRight,
-              ]
-            : [],
-      ),
+      ScreenOrientation.setApp(next ? ScreenOrientation.landscape : const []),
     );
     unawaited(
       SystemChrome.setEnabledSystemUIMode(
@@ -75,7 +70,7 @@ class _PairedScreenState extends State<PairedScreen> {
     controller.pairing.removeListener(updateMode);
     _hideTools?.cancel();
     if (_stage) {
-      unawaited(SystemChrome.setPreferredOrientations([]));
+      unawaited(ScreenOrientation.setApp(const []));
       unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     }
     super.dispose();
@@ -708,12 +703,22 @@ class StageMessage extends StatefulWidget {
   /// Where a cue that slides in comes from: the top edge for a banner at
   /// the top, otherwise the bottom.
   final bool fromTop;
+
+  /// The most lines a cue with "Wrap long text" may use here.
+  final int wrapLines;
+
+  /// The text's colour in place of the cue's own, as on a coloured
+  /// full-screen cue (see [stageColouredCard]); a countdown bar keeps the
+  /// cue's colour.
+  final Color? ink;
   const StageMessage({
     super.key,
     required this.data,
     required this.stale,
     this.fullscreen = false,
     this.fromTop = false,
+    this.wrapLines = stageWrapLines,
+    this.ink,
   });
   @override
   State<StageMessage> createState() => _StageMessageState();
@@ -726,12 +731,19 @@ class _StageMessageState extends State<StageMessage>
   double elapsed = 0, barElapsed = 0;
   int previousTick = 0;
   ({int total, int left})? barTime;
+  // Wrapped text: the box and style it was last fitted to, the size found
+  // (null when it does not fit, and then scrolls), and whether it scrolls.
+  Object? wrapKey;
+  double? wrapSize;
+  bool wrapScrolls = false;
   String? get screenEffect => stageScreenEffect(widget.data);
   bool get sample => widget.data['cueBarSample'] == true;
   bool get animates {
     if (widget.stale) return false;
-    final effect = widget.data['effect'];
-    if (effect == 'scroll' || effect == 'flash') return true;
+    // Scrolling text, including wrapped text too long to wrap, moves
+    // itself frame by frame (see [ScrollingText]) and plays no effect.
+    if (stageWrapsText(widget.data) && wrapScrolls) return false;
+    if (widget.data['effect'] == 'flash') return true;
     return switch (screenEffect) {
       'pulse' => true,
       'flashHold' => elapsed < flashHoldMs / 1000,
@@ -801,11 +813,50 @@ class _StageMessageState extends State<StageMessage>
     super.dispose();
   }
 
+  /// The size [text] is wrapped at in a box [width] × [height], worked out
+  /// once for each text, box and style; null when it scrolls instead.
+  double? wrappedSize(
+    String text,
+    TextStyle style,
+    double width,
+    double height,
+  ) {
+    final key = (
+      text,
+      width,
+      height,
+      style.fontSize,
+      style.fontWeight,
+      style.fontStyle,
+      widget.wrapLines,
+    );
+    if (key != wrapKey) {
+      wrapKey = key;
+      wrapSize = stageWrapSize(
+        text,
+        style,
+        width: width * .94,
+        height: height,
+        lines: widget.wrapLines,
+        min: height * stageWrapMinimum / widget.wrapLines,
+        max: style.fontSize!,
+      );
+    }
+    final scrolls = wrapSize == null;
+    if (scrolls != wrapScrolls) {
+      wrapScrolls = scrolls;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) syncTicker();
+      });
+    }
+    return wrapSize;
+  }
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, space) {
       final text = widget.data['displayText'] as String? ?? '';
-      final effect = widget.data['effect'];
+      var effect = widget.data['effect'];
       final screenEffect = this.screenEffect;
       final fullHeight = widget.fullscreen && space.maxHeight.isFinite;
       final previewSize = (space.maxWidth / 7).clamp(
@@ -818,7 +869,7 @@ class _StageMessageState extends State<StageMessage>
         // This keeps short cues large without cropping a long countdown.
         fontSize: fullHeight ? space.maxHeight * .9 : previewSize,
         height: fullHeight ? 1.1 : null,
-        color: color,
+        color: widget.ink ?? color,
         fontWeight: widget.data['bold'] == true
             ? FontWeight.bold
             : FontWeight.w500,
@@ -832,89 +883,102 @@ class _StageMessageState extends State<StageMessage>
         fontFamily: 'Roboto',
         fontFeatures: const [FontFeature.tabularFigures()],
       );
+      final height = fullHeight ? space.maxHeight : 170.0;
+      final hasBar = screenEffect == 'bar' && (sample || barTime != null);
+      final thickness = fullHeight
+          ? (height * .035).clamp(4.0, 14.0).toDouble()
+          : 6.0;
+      double? wrapped;
+      if (stageWrapsText(widget.data) && text.trim().isNotEmpty) {
+        wrapped = wrappedSize(
+          text,
+          // Measured in the font it is drawn in.
+          DefaultTextStyle.of(context).style.merge(style),
+          space.maxWidth,
+          // Above the countdown bar, when there is one.
+          hasBar ? height - 2 * thickness : height,
+        );
+        // Wrapped text holds still on screens (its effect still plays);
+        // text too long to wrap at a readable size scrolls instead.
+        if (wrapped == null) {
+          effect = 'scroll';
+        } else if (effect == 'scroll') {
+          effect = 'static';
+        }
+      }
       if (effect == 'scroll') {
-        final painter = TextPainter(
-          text: TextSpan(text: text, style: style),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        final travel = space.maxWidth + painter.width;
-        final speed =
-            stageScrollSpeed(widget.data) * 6 * (style.fontSize! / previewSize);
-        final x = space.maxWidth - (elapsed * speed) % travel;
-        final height = fullHeight ? space.maxHeight : painter.height + 24;
-        final top = (height - painter.height) / 2;
-        painter.dispose();
-        return SizedBox(
-          height: height,
-          width: space.maxWidth,
-          child: ClipRect(
-            child: Stack(
-              children: [
-                Positioned(
-                  left: x,
-                  top: top,
-                  child: Text(
-                    text,
-                    style: style,
-                    softWrap: false,
-                    textScaler: TextScaler.noScaling,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        return ScrollingText(
+          text: text,
+          style: style,
+          speed:
+              stageScrollSpeed(widget.data) *
+              6 *
+              (style.fontSize! / previewSize),
+          height: fullHeight ? space.maxHeight : null,
+          paused: widget.stale,
         );
       }
-      final height = fullHeight ? space.maxHeight : 170.0;
       final hidden =
           (effect == 'flash' && (elapsed * 2).floor() % 2 == 1) ||
           (screenEffect == 'flashHold' &&
               elapsed < flashHoldMs / 1000 &&
               (elapsed * 2).floor() % 2 == 1);
-      Widget body = FittedBox(
-        fit: BoxFit.scaleDown,
-        // The clock and the countdown blink their colons; the countdown
-        // stays steady while paused, so a steady colon means stopped.
-        child:
-            widget.data['outputMode'] == 'Clock' ||
-                (widget.data['displayIsTimer'] == true && effect == 'static')
-            // Sized for the widest the time can be ("00:00"), with
-            // every digit the same width, so the numbers hold still
-            // as they count instead of being refitted each second.
-            ? Stack(
-                alignment: Alignment.center,
-                children: [
-                  ExcludeSemantics(
-                    child: Opacity(
-                      opacity: 0,
-                      child: Text(
-                        text.replaceAll(RegExp(r'[0-9]'), '0'),
-                        key: const ValueKey('stage-time-width'),
-                        style: steady,
-                        softWrap: false,
-                        textScaler: TextScaler.noScaling,
-                      ),
-                    ),
-                  ),
-                  ClockText(
-                    text: text,
-                    style: steady,
-                    blink:
-                        widget.data['clockBlink'] != false &&
-                        (widget.data['outputMode'] == 'Clock' ||
-                            widget.data['paused'] != true),
-                    stale: widget.stale,
-                  ),
-                ],
-              )
-            : Text(
+      Widget body = wrapped != null
+          ? Center(
+              child: Text(
                 text,
-                style: style,
-                softWrap: false,
-                textScaler: TextScaler.noScaling,
+                key: const ValueKey('stage-wrapped'),
+                style: style.copyWith(fontSize: wrapped, height: 1.1),
+                maxLines: widget.wrapLines,
                 textAlign: TextAlign.center,
+                textScaler: TextScaler.noScaling,
               ),
-      );
+            )
+          : FittedBox(
+              fit: BoxFit.scaleDown,
+              // The clock and the countdown blink their colons; the countdown
+              // stays steady while paused, so a steady colon means stopped.
+              child:
+                  widget.data['outputMode'] == 'Clock' ||
+                      (widget.data['displayIsTimer'] == true &&
+                          effect == 'static')
+                  // Sized for the widest the time can be ("00:00"), with
+                  // every digit the same width, so the numbers hold still
+                  // as they count instead of being refitted each second.
+                  ? Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        ExcludeSemantics(
+                          child: Opacity(
+                            opacity: 0,
+                            child: Text(
+                              text.replaceAll(RegExp(r'[0-9]'), '0'),
+                              key: const ValueKey('stage-time-width'),
+                              style: steady,
+                              softWrap: false,
+                              textScaler: TextScaler.noScaling,
+                            ),
+                          ),
+                        ),
+                        ClockText(
+                          text: text,
+                          style: steady,
+                          blink:
+                              widget.data['clockBlink'] != false &&
+                              (widget.data['outputMode'] == 'Clock' ||
+                                  widget.data['paused'] != true),
+                          stale: widget.stale,
+                        ),
+                      ],
+                    )
+                  : Text(
+                      text,
+                      style: style,
+                      softWrap: false,
+                      textScaler: TextScaler.noScaling,
+                      textAlign: TextAlign.center,
+                    ),
+            );
       final opacity = hidden
           ? 0.0
           : screenEffect == 'pulse'
@@ -927,10 +991,7 @@ class _StageMessageState extends State<StageMessage>
       );
       // A countdown bar sits under the cue and empties over its time; a
       // cue shown until cleared has no time, and no bar.
-      if (screenEffect == 'bar' && (sample || barTime != null)) {
-        final thickness = fullHeight
-            ? (height * .035).clamp(4.0, 14.0).toDouble()
-            : 6.0;
+      if (hasBar) {
         body = Column(
           children: [
             Expanded(child: body),
@@ -980,4 +1041,64 @@ class _StageMessageState extends State<StageMessage>
       return SizedBox(height: height, width: space.maxWidth, child: body);
     },
   );
+}
+
+/// The largest font size from [min] to [max] at which [text] wraps onto at
+/// most [lines] centred lines inside [width] × [height], 1.1 lines apart,
+/// with no word split across lines; null when it does not fit at [min].
+double? stageWrapSize(
+  String text,
+  TextStyle style, {
+  required double width,
+  required double height,
+  required int lines,
+  required double min,
+  required double max,
+}) {
+  TextPainter painter(String value, double size, [double? maxWidth]) =>
+      TextPainter(
+        text: TextSpan(
+          text: value,
+          style: style.copyWith(fontSize: size, height: 1.1),
+        ),
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
+        textScaler: TextScaler.noScaling,
+      )..layout(maxWidth: maxWidth ?? double.infinity);
+  double measure(String value, double size) {
+    final p = painter(value, size);
+    final w = p.width;
+    p.dispose();
+    return w;
+  }
+
+  // The widest word, which must fit on a line of its own.
+  final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+  if (words.isEmpty) return null;
+  var widest = words.first;
+  var widestWidth = 0.0;
+  for (final word in words) {
+    final w = measure(word, max);
+    if (w > widestWidth) (widest, widestWidth) = (word, w);
+  }
+  bool fits(double size) {
+    if (measure(widest, size) > width) return false;
+    final p = painter(text, size, width);
+    final ok = p.height <= height && p.computeLineMetrics().length <= lines;
+    p.dispose();
+    return ok;
+  }
+
+  if (max < min || !fits(min)) return null;
+  if (fits(max)) return max;
+  var lo = min, hi = max;
+  for (var i = 0; i < 14; i++) {
+    final mid = (lo + hi) / 2;
+    if (fits(mid)) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo.floorToDouble();
 }
