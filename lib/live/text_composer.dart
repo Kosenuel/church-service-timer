@@ -18,7 +18,8 @@ bool sameLayout(TextLayout a, TextLayout b) =>
 
 /// The effects a cue may have, as the editor lists them, each with a line
 /// saying what it does. "Steady on the LED sign" marks those only screens
-/// can show; the sign shows the cue without moving.
+/// can show; the sign shows the cue without moving. Flash and Pulse need
+/// not fit the sign: long text shows a few words at a time.
 const effectChoices = [
   ChoiceOption(
     value: 'static',
@@ -32,8 +33,9 @@ const effectChoices = [
   ),
   ChoiceOption(
     value: 'flash',
-    label: 'Flash (must fit)',
-    hint: 'Blinks on and off until cleared',
+    label: 'Flash',
+    hint:
+        'Blinks on and off until cleared. Long text shows a few words at a time',
   ),
   ChoiceOption(
     value: 'flashHold',
@@ -42,8 +44,8 @@ const effectChoices = [
   ),
   ChoiceOption(
     value: 'pulse',
-    label: 'Pulse (must fit)',
-    hint: 'Gently brightens and dims · steady on the LED sign',
+    label: 'Pulse',
+    hint: 'Gently brightens and dims. Long text shows a few words at a time',
   ),
   ChoiceOption(
     value: 'slideIn',
@@ -68,7 +70,10 @@ const effectChoices = [
 const effectNotes = {
   'flashHold':
       'On the LED sign the three flashes come again every 5 minutes while the cue shows.',
-  'pulse': 'Screens only. Steady on the LED sign.',
+  'flash':
+      'Text too wide for the LED sign shows a few words at a time, on the sign and on screens. With Wrap long text, screens show it all at once.',
+  'pulse':
+      'Brightens and dims on screens; the LED sign shows it steady. Text too wide for the sign shows a few words at a time, on the sign and on screens. With Wrap long text, screens show it all at once.',
   'slideIn':
       'Screens only. Steady on the LED sign. With reduced motion the cue simply appears.',
   'bar':

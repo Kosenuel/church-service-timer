@@ -509,6 +509,21 @@ class HardwareDisplay extends ChangeNotifier {
   Uint8List _program(HardwareOutputPlan p, Stamp at) {
     final l = p.layout;
     if (l == null) return W2Program.frames([List.filled(512, false)]);
+    // Flash or Pulse text too wide for the sign: a few words at a time, a
+    // tenth of a second a frame, one round of the groups (and Flash's
+    // pause) that the controller loops by itself. At most 60 characters
+    // make at most 30 groups, so at most 603 of its 2048 frames.
+    final groups = signWordGroups(l);
+    if (groups != null) {
+      return W2Program.frames([
+        for (
+          var t = 0;
+          t < wordGroupCycleMs(l.effect, groups.length);
+          t += wordGroupFrameMs
+        )
+          renderPixels(l, t),
+      ], frameIntervalMs: wordGroupFrameMs);
+    }
     if (l.effect == 'flash')
       return W2Program.frames([
         renderPixels(l, 0),

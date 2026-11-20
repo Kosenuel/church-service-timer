@@ -2,6 +2,8 @@ import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:convert';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/app/platform.dart';
+import 'package:church_service_timer/display/pixels.dart'
+    show wordGroupCandidates;
 
 class TextRaster {
   final int width, height;
@@ -45,6 +47,19 @@ class NativeDisplayFonts {
   static TextRaster? cached(TextLayout l) => _cache[key(l)];
   static Future<void> prepare(TextLayout l) async {
     if (l.font != 'tinos') return;
+    await _prepare(l);
+    // Flash and Pulse show text too wide for the sign a few words at a
+    // time, so each word and run of words is measured too.
+    if (wordGroupEffects.contains(l.effect) &&
+        (cached(l)?.width ?? 0) > 32 &&
+        l.text.trim().runes.length <= wordGroupMaxLength) {
+      for (final part in wordGroupCandidates(l)) {
+        await _prepare(part);
+      }
+    }
+  }
+
+  static Future<void> _prepare(TextLayout l) async {
     l.validate();
     require(
       available && _port != null,

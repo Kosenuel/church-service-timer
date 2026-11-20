@@ -63,14 +63,17 @@ class StageSurface extends StatelessWidget {
         ),
       ),
     );
-    // A full-screen cue in a colour: warm white on charcoal, with a rule in
-    // its colour along the bottom edge (see [stageColouredCard]).
+    // A full-screen cue in a colour: its words in that colour (warm white
+    // for amber) on charcoal, with a rule in its colour along the bottom
+    // edge (see [stageColouredCard]).
     final card = stageColouredCard(data);
     final timer = StageMessage(
       data: under,
       stale: stale,
       fullscreen: true,
-      ink: card ? const Color(0xff000000 | stageCardInk) : null,
+      ink: card
+          ? Color(0xff000000 | stageCardInkFor(stageCueRgb(data)!))
+          : null,
     );
     Widget surface(double rule) => StageBannerFrame(
       banner: position == null ? null : stageBannerText(data),
@@ -393,6 +396,8 @@ class StageBanner extends StatelessWidget {
             fullscreen: true,
             wrapLines: stageBannerWrapLines,
             fromTop: top,
+            // The band is a fifth of the screen.
+            screenHeight: space.maxHeight / .2,
           ),
         ),
       );

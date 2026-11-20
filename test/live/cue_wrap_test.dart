@@ -426,7 +426,13 @@ void main() {
       await t.pump(const Duration(milliseconds: 100));
       final bar = t.getRect(find.byKey(const ValueKey('stage-cue-bar')));
       final text = t.getRect(wrapped);
-      expect(text.bottom, lessThanOrEqualTo(bar.top));
+      // Just under the last line the words stand on, as wide as the block.
+      expect(bar.top, greaterThan(text.bottom - text.height * .1));
+      expect(bar.top - text.bottom, lessThanOrEqualTo(bar.height * 1.5 + 1));
+      expect(
+        t.getRect(find.byKey(const ValueKey('stage-cue-bar-track'))).width,
+        lessThan(text.width),
+      );
       expect(wrappedLines(t).$2, inInclusiveRange(2, 3));
       expect(t.takeException(), isNull);
     });
