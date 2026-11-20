@@ -1,7 +1,9 @@
 import 'dart:ui' as ui;
 
 import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/live/cue_preview.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/settings/image_crop_page.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
@@ -153,8 +155,39 @@ void main() {
   ) async {
     await settings(t, full);
     await open(t, 'Warnings & alerts');
-    expect(find.text('ON THE STAGE DISPLAY'), findsOne);
+    expect(find.text('ON THE LED SIGN'), findsOne);
+    expect(find.byType(CueStagePreview), findsNothing);
     await shot(t, 'warnings');
+  });
+
+  testWidgets('Warnings & alerts follows the stage simulator', (t) async {
+    final c = await settings(t, full);
+    await t.runAsync(() => c.setSimulatorKind('stage'));
+    await open(t, 'Warnings & alerts');
+    expect(find.text('ON THE STAGE SCREEN'), findsOne);
+    expect(find.text('ON THE LED SIGN'), findsNothing);
+    expect(find.byType(CueStagePreview), findsWidgets);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('warning-preview-pane')),
+        matching: find.byType(LedMatrix),
+      ),
+      findsNothing,
+    );
+    await shot(t, 'warnings-stage-screen');
+
+    // Editing a warning's text starts on the stage screen's preview,
+    // with the switch to see the LED sign's.
+    await t.tap(find.byKey(const ValueKey('warning-rule-0')));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.text('Edit warning text'));
+    await t.tap(find.text('Edit warning text'));
+    for (var i = 0; i < 4; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(CuePreviewSwitch), findsOneWidget);
+    expect(find.byKey(const ValueKey('cue-stage-preview')), findsOneWidget);
+    expect(t.takeException(), isNull);
   });
 
   testWidgets('Display settings lists its sections beside the chosen one', (
@@ -188,9 +221,52 @@ void main() {
   testWidgets('Stage cues shows each cue as the sign shows it', (t) async {
     await settings(t, full);
     await open(t, 'Stage cues');
-    expect(find.text('ON THE SIGN'), findsOne);
+    expect(find.text('ON THE LED SIGN'), findsOne);
+    expect(find.byType(CueStagePreview), findsNothing);
     expectOrdinaryButtons(t);
     await shot(t, 'stage-cues');
+  });
+
+  testWidgets('Stage cues follows the stage simulator', (t) async {
+    final c = await settings(t, full);
+    await t.runAsync(() => c.setSimulatorKind('stage'));
+    await t.runAsync(
+      () => c.commit(
+        (draft, _) => draft.stageCues = [
+          const TextLayout(
+            'WRAP UP',
+            bold: true,
+            screenColor: 'amber',
+            screenPosition: 'bottom',
+          ),
+          const TextLayout("TIME'S UP", bold: true, screenColor: 'red'),
+          ...draft.stageCues.skip(2),
+        ],
+      ),
+    );
+    await open(t, 'Stage cues');
+    expect(find.text('ON THE STAGE SCREEN'), findsOne);
+    expect(find.text('ON THE LED SIGN'), findsNothing);
+    // Every cue as a stage screen draws it, none as LED dots.
+    expect(
+      find.byType(CueStagePreview),
+      findsNWidgets(c.state.stageCues.length),
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('stage-cue-preview-pane')),
+        matching: find.byType(LedMatrix),
+      ),
+      findsNothing,
+    );
+    expect(t.takeException(), isNull);
+    await shot(t, 'stage-cues-stage-screen');
+
+    // Back to the LED simulator: the sign's previews return.
+    await t.runAsync(() => c.setSimulatorKind('led'));
+    await t.pumpAndSettle();
+    expect(find.text('ON THE LED SIGN'), findsOne);
+    expect(find.byType(CueStagePreview), findsNothing);
   });
 
   testWidgets('LED device management uses two columns', (t) async {

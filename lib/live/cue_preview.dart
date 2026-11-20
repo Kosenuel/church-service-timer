@@ -55,46 +55,79 @@ class _CuePreviewSwitchState extends State<CuePreviewSwitch> {
           Semantics(
             key: const ValueKey('cue-stage-preview'),
             label: 'Stage screen preview',
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: ColoredBox(
-                  color: Colors.black,
-                  child: ExcludeSemantics(
-                    child: StageSurface(
-                      stale: false,
-                      data: {
-                        'stageSharing': true,
-                        'stageLayout': 'timer',
-                        'displayIsTimer': false,
-                        'outputMode': 'Cue',
-                        'displayText': cue?.text ?? '',
-                        'effect': cue?.effect ?? 'static',
-                        'speed': cue?.speed ?? 12,
-                        'screenSpeed': ?cue?.screenSpeed,
-                        // Colour and banner as a screen would get them;
-                        // the banner sits over a sample countdown.
-                        if (cue != null && cue.screenColor != 'white')
-                          'cueColor': stageColorHex(
-                            screenCueColors[cue.screenColor] ??
-                                stageAccentRgbOf(appColors(context).accent),
-                          ),
-                        if (cue != null && cue.screenPosition != 'full') ...{
-                          'cuePosition': cue.screenPosition,
-                          'underText': '12:34',
-                          'underMode': 'Countdown',
-                        },
-                        'bold': cue?.bold ?? false,
-                        'italic': cue?.italic ?? false,
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            child: CueStagePreview(cue),
           ),
       ],
     );
   }
+}
+
+/// A cue as a stage, web or second screen shows it, in a 16:9 box and
+/// drawn by the same [StageSurface] the screens use. A banner sits over
+/// a sample countdown. With [still], a scrolling cue holds still.
+class CueStagePreview extends StatelessWidget {
+  final TextLayout? cue;
+  final bool still;
+  const CueStagePreview(this.cue, {super.key, this.still = false});
+  @override
+  Widget build(BuildContext context) {
+    final cue = this.cue;
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: ColoredBox(
+          color: Colors.black,
+          child: ExcludeSemantics(
+            child: StageSurface(
+              stale: false,
+              data: {
+                'stageSharing': true,
+                'stageLayout': 'timer',
+                'displayIsTimer': false,
+                'outputMode': 'Cue',
+                'displayText': cue?.text ?? '',
+                'effect': still && cue?.effect == 'scroll'
+                    ? 'static'
+                    : cue?.effect ?? 'static',
+                'speed': cue?.speed ?? 12,
+                'screenSpeed': ?cue?.screenSpeed,
+                if (cue != null && cue.screenColor != 'white')
+                  'cueColor': stageColorHex(
+                    screenCueColors[cue.screenColor] ??
+                        stageAccentRgbOf(appColors(context).accent),
+                  ),
+                if (cue != null && cue.screenPosition != 'full') ...{
+                  'cuePosition': cue.screenPosition,
+                  'underText': '12:34',
+                  'underMode': 'Countdown',
+                },
+                'bold': cue?.bold ?? false,
+                'italic': cue?.italic ?? false,
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// [CueStagePreview] that plays a scrolling cue only while pointed at,
+/// as the sign previews beside it do.
+class HoverCueStagePreview extends StatefulWidget {
+  final TextLayout cue;
+  const HoverCueStagePreview(this.cue, {super.key});
+  @override
+  State<HoverCueStagePreview> createState() => _HoverCueStagePreviewState();
+}
+
+class _HoverCueStagePreviewState extends State<HoverCueStagePreview> {
+  var playing = false;
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    onEnter: (_) => setState(() => playing = true),
+    onExit: (_) => setState(() => playing = false),
+    child: CueStagePreview(widget.cue, still: !playing),
+  );
 }
