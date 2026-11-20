@@ -353,18 +353,27 @@ void main() {
       // The sign's size means nothing here.
       expect(find.textContaining('32 × 16'), findsNothing);
 
-      // A five-minute segment has its 5 MIN LEFT warning straight away,
-      // in a banner over the countdown, for 12 seconds.
+      // A five-minute segment does not start with its 5 MIN LEFT warning.
       port.at = after(40);
       await t.runAsync(c.tick);
       await t.pump();
-      expect(shown(t)['displayText'], '5 MIN LEFT');
-      expect(shown(t)['cuePosition'], 'top');
+      expect(shown(t)['displayIsTimer'], true);
+      expect(shown(t)['displayText'], '04:20');
       port.at = after(60);
       await t.runAsync(c.tick);
       await t.pumpAndSettle();
       expect(shown(t)['remaining'], '04:00');
       expect(shown(t)['displayText'], '04:00');
+      // 2 MIN LEFT comes in a banner under the countdown, for 12 seconds.
+      port.at = after(180);
+      await t.runAsync(c.tick);
+      await t.pump();
+      expect(shown(t)['displayText'], '2 MIN LEFT');
+      expect(shown(t)['cuePosition'], 'bottom');
+      port.at = after(200);
+      await t.runAsync(c.tick);
+      await t.pumpAndSettle();
+      expect(shown(t)['displayText'], '01:40');
 
       expect(
         await t.runAsync(

@@ -69,12 +69,14 @@ class CheckedWarning {
       rule.destination == 'stage' ? 'Operator and stage' : 'Operator only';
 }
 
-/// The warnings of [t] that can never fire in a segment because they come
-/// before it starts: a threshold longer than the segment.
+/// The warnings of [t] that can never fire in a segment because the
+/// countdown starts at or below their time: a threshold as long as the
+/// segment, or longer. A warning fires when the countdown comes down to
+/// its time, never at the start of a segment.
 List<CheckedWarning> unreachableWarnings(Timeline t) => [
   for (var i = 0; i < t.segments.length; i++)
     for (final rule in t.display.warnings)
-      if (rule.enabled && rule.seconds * 1000 > t.segments[i].durationMs)
+      if (rule.enabled && rule.seconds * 1000 >= t.segments[i].durationMs)
         CheckedWarning(i, rule, null),
 ];
 
@@ -120,12 +122,12 @@ class ServiceCheckRun {
   static int _planned(Timeline t) =>
       t.segments.fold<int>(0, (n, s) => n + s.durationMs);
 
-  /// How many warnings can fire: one per enabled warning that fits in a
-  /// segment.
+  /// How many warnings can fire: one per enabled warning set for less
+  /// time than a segment has.
   static int _reachable(Timeline t) => [
     for (final segment in t.segments)
       for (final rule in t.display.warnings)
-        if (rule.enabled && rule.seconds * 1000 <= segment.durationMs) rule,
+        if (rule.enabled && rule.seconds * 1000 < segment.durationMs) rule,
   ].length;
 
   /// About how long the whole check takes in real time.

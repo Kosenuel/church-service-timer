@@ -304,7 +304,9 @@ class ServiceCheckPageState extends State<ServiceCheckPage> {
                   row(
                     Icons.warning_amber_rounded,
                     colors.warning,
-                    '${w.rule.cue.text} cannot fire: it is set for ${formatTime(w.rule.seconds * 1000)} left and this segment is only ${t.segments[i].durationText}',
+                    w.rule.seconds * 1000 == t.segments[i].durationMs
+                        ? '${w.rule.cue.text} cannot fire: it is set for ${formatTime(w.rule.seconds * 1000)} left, the whole of this ${t.segments[i].durationText} segment, and a warning never fires as a segment starts'
+                        : '${w.rule.cue.text} cannot fire: it is set for ${formatTime(w.rule.seconds * 1000)} left and this segment is only ${t.segments[i].durationText}',
                   ),
                 if (run.firedIn(i).isEmpty && run.unreachableIn(i).isEmpty)
                   Padding(

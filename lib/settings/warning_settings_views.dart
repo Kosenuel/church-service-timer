@@ -250,7 +250,7 @@ class WarningSettingsPanel extends StatelessWidget {
         Padding(
           padding: EdgeInsets.zero,
           child: Text(
-            'Each warning fires once per segment at the time remaining. Stage cues return to the timer afterwards; Blank screen hides them.',
+            'Each warning fires once in each segment, when the countdown reaches its time; not at the start of a segment that is that long or shorter. Stage cues return to the timer afterwards; Blank screen hides them.',
             style: TextStyle(color: colors.muted, fontSize: 12),
           ),
         ),
@@ -307,7 +307,9 @@ class _WarningEditorState extends State<WarningEditor> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Remaining time'),
-              subtitle: Text(formatTime(threshold * 1000)),
+              subtitle: Text(
+                '${formatTime(threshold * 1000)} · fires once in each segment when the countdown reaches this time',
+              ),
               trailing: const Icon(Icons.expand_more),
               onTap: () async {
                 final value = await showWheelTimePicker(
