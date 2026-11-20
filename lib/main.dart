@@ -243,7 +243,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   bool _miniTimerChanging = false;
 
   /// Opens the mini timer or expands back to the full window. Opening
-  /// needs a computer, a running service and nothing else open on top;
+  /// needs a computer and nothing else open on top;
   /// otherwise nothing happens. Returns whether the mini timer is showing
   /// afterwards.
   Future<bool> setMiniTimer(bool value) async {
@@ -294,10 +294,19 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     return miniTimer;
   }
 
-  /// The mini timer is for a running service: when it ends (or this
-  /// device joins another's), the full window comes back.
+  /// Whether the service was running when [_followMiniTimer] last looked.
+  bool _serviceWasActive = false;
+
+  /// When the service the mini timer was showing ends (or this device
+  /// joins another's), the full window comes back. Opened before a
+  /// service, it stays.
   void _followMiniTimer() {
-    if (miniTimer && !miniTimerAvailable) unawaited(setMiniTimer(false));
+    final active = c.ready && c.liveSession.active;
+    final ended = _serviceWasActive && !active;
+    _serviceWasActive = active;
+    if (miniTimer && (!miniTimerAvailable || ended)) {
+      unawaited(setMiniTimer(false));
+    }
   }
 
   /// The stage picture fills this screen (see host_full_screen.dart).
@@ -559,6 +568,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     _followServiceCompletion();
     c.addListener(_followServiceCompletion);
     c.addListener(_followMiniTimer);
+    _serviceWasActive = c.ready && c.liveSession.active;
     c.liveNavigation.addListener(returnToLive);
     HardwareKeyboard.instance.addHandler(onClickerKey);
     c.port.setIncomingFileHandler(receiveIncomingFile);
@@ -965,8 +975,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                 ),
                               ),
                             // The mini timer was only in the menu and by
-                            // Ctrl+M, where it was easy never to find.
-                            if (page == 0 && miniTimerAvailable && !miniTimer)
+                            // Ctrl+M, where it was easy never to find. On a
+                            // computer it is on every page, service or not.
+                            if (miniTimerAvailable && !miniTimer)
                               IconButton(
                                 key: const ValueKey('mini-timer-button'),
                                 tooltip: showKeyHints
@@ -1037,54 +1048,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                               Flexible(
                                 flex: useTopTabs ? 0 : 1,
                                 fit: useTopTabs ? FlexFit.loose : FlexFit.tight,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // One line beside the display chip; a
-                                    // long name ends in "…" and shows in
-                                    // full on long-press.
-                                    // On another tab, the running
-                                    // service's name is the way back to
-                                    // Live.
-                                    Tooltip(
-                                      message: headerReturnsToLive
-                                          ? 'Return to Live'
-                                          : headerTitle(),
-                                      child: InkWell(
-                                        key: const ValueKey(
-                                          'header-return-to-live',
-                                        ),
-                                        borderRadius: BorderRadius.circular(6),
-                                        onTap: headerReturnsToLive
-                                            ? () => goToPage(0)
-                                            : null,
-                                        child: Text(
-                                          headerTitle(),
-                                          key: const ValueKey('header-title'),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    if (headerSubtitle().isNotEmpty)
-                                      Tooltip(
-                                        message: headerSubtitle(),
-                                        child: Text(
-                                          headerSubtitle(),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: appColors(context).muted,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                                child: headerName(),
                               ),
                               // A desktop layout keeps the tabs in the
                               // header, where a rail would cost a pane.

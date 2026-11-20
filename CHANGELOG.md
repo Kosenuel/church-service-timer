@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Back to Live from the name, a mini timer on every page, and more keys listed.** Clicking or tapping the app or service name at the top, or your church's name under it, now returns to Live from Programs, Reports or Settings even when no service is running; Lock controls still stops it. On a PC the mini timer button is now at the top of every page, and the mini timer opens with no service running too: it shows the time of day and, when a service is loaded, its name and start time, counting down in the last hour before it. Ctrl M works from every page. The keys listed along the bottom of Mission control and Keys now include **J Jump to segment**, and Three panes and The dial list them under the middle pane in a window at least 800 high, when key labels are on. When the line is too long for the room, the least needed keys are left out. Phones and tablets are unchanged, apart from the name returning to Live.
 - **Five new effects for cues.** The **Effect** choice in the cue editor now lists, each with a line saying what it does:
   - **Flash then hold** flashes three times, at the same rhythm as Flash, then stays steady. The LED sign does this too; while the cue stays up, the sign flashes three times again every 5 minutes.
   - **Pulse** gently brightens and dims, about every two seconds.
