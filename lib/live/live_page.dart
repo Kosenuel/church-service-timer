@@ -1002,9 +1002,13 @@ extension LivePage on HomeState {
           cueDeliveryFeedback(),
           const SizedBox(height: 12),
           // Cues: every button the same height; a lone last cue fills its
-          // row rather than leaving a gap.
+          // row rather than leaving a gap. Three across where they fit, so
+          // the seven cues a church starts with take three rows, not four.
           ControlGrid(
-            maxColumns: 2,
+            maxColumns: 3,
+            // A desktop layout's narrow cue pane still takes three, as
+            // its buttons have no icon.
+            minWidth: dense ? 96 : 118,
             fillLastRow: true,
             children: c.state.stageCues.asMap().entries.map((e) {
               final active = e.key == activeCueIndex;
@@ -1074,9 +1078,10 @@ extension LivePage on HomeState {
           const SizedBox(height: 16),
           // Display actions sit apart from the cues, in one even row.
           ControlGrid(
-            // Two by two: the display actions and Quick timer.
-            maxColumns: 2,
-            minWidth: 92,
+            // Two by two: the display actions and Quick timer. In one row
+            // in a desktop layout, so the cue pane fits without scrolling.
+            maxColumns: dense ? 4 : 2,
+            minWidth: dense ? 76 : 92,
             children: [
               if (clockSwap)
                 ShowTimerButton(

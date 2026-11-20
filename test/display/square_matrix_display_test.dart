@@ -122,7 +122,7 @@ void main() {
       );
       await t.tap(find.text('Cancel'));
       await t.pumpAndSettle();
-      expect(c.state.stageCues.length, 3);
+      expect(c.state.stageCues.length, 7);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
       final restored = AppController(port);

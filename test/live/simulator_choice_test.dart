@@ -353,6 +353,13 @@ void main() {
       // The sign's size means nothing here.
       expect(find.textContaining('32 × 16'), findsNothing);
 
+      // A five-minute segment has its 5 MIN LEFT warning straight away,
+      // in a banner over the countdown, for 12 seconds.
+      port.at = after(40);
+      await t.runAsync(c.tick);
+      await t.pump();
+      expect(shown(t)['displayText'], '5 MIN LEFT');
+      expect(shown(t)['cuePosition'], 'top');
       port.at = after(60);
       await t.runAsync(c.tick);
       await t.pumpAndSettle();
@@ -594,12 +601,14 @@ void main() {
       expect(cueShown(t)['displayText'], cue.text);
       expect(cueShown(t)['effect'], cue.effect);
       expect(cueShown(t)['bold'], cue.bold);
+      // WRAP UP is a banner, over a sample countdown.
+      expect(cueShown(t)['cuePosition'], 'bottom');
       expect(
         find.descendant(
           of: find.byKey(cueStage),
           matching: find.byType(StageMessage),
         ),
-        findsOneWidget,
+        findsNWidgets(2),
       );
       final box = t.getSize(find.byKey(cueStage));
       expect(box.width / box.height, closeTo(16 / 9, .01));

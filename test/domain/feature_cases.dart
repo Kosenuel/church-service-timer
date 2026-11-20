@@ -145,13 +145,13 @@ final featureCases = <String, void Function()>{
     s = transition(s, 'advance', at(181));
     equal(s.warningSeen, []);
     s = transition(s, 'warnings', at(181));
-    equal(s.warningSeen, [0]);
+    equal(s.warningSeen, [1]);
     s = transition(s, 'undo', at(182));
-    equal(s.warningSeen, [0]);
+    equal(s.warningSeen, [1]);
   },
   'Short segments skip warnings above their initial duration': () {
     final s = service(firstMinutes: 1);
-    equal(dueWarnings(s, at(31)), [1]);
+    equal(dueWarnings(s, at(31)), [2]);
   },
   'Automatic warning replaces a manual cue and restores the current timer': () {
     var s = service(
@@ -216,7 +216,7 @@ final featureCases = <String, void Function()>{
     var s = transition(service(), 'pause', at(60));
     equal(dueWarnings(s, at(100)), []);
     s = transition(s, 'pause', at(100));
-    equal(dueWarnings(s, at(100)), [0]);
+    equal(dueWarnings(s, at(100)), [1]);
   },
   'Report survives reload with early-end rows and rehearsal flag': () {
     var s = service(rate: 10);

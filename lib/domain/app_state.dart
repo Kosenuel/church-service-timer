@@ -224,7 +224,23 @@ class AppState {
   );
   factory AppState.fromJson(Json j, {Stamp? now}) {
     require(
-      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}.contains(j['version']),
+      {
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+      }.contains(j['version']),
       'Unsupported saved-state version.',
     );
     require(
@@ -347,7 +363,7 @@ class AppState {
             d.warnings.every(
               (w) =>
                   w.destination == 'operator' &&
-                  defaultWarnings.any(
+                  legacyDefaultWarnings.any(
                     (v) => v.seconds == w.seconds && v.cue.text == w.cue.text,
                   ),
             );
@@ -406,6 +422,7 @@ class AppState {
           .reversed
           .toList();
     }
+    if ((j['version'] as int) < 15) a.upgradeDefaultCues();
     a.session.clockFormat = a.clockFormat;
     a.session.clockBlink = a.clockBlink;
     a.applySharedZero();
@@ -413,7 +430,7 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 14,
+    'version': 15,
     'appearance': appearance.toJson(),
     'programLibrary': programLibrary.toJson(),
     'programHistory': writeProgramHistory(programHistory),
@@ -468,6 +485,52 @@ class AppState {
     }
 
     normalizeSession(session);
+  }
+
+  /// Replaces the stage cues and warnings installs started with before
+  /// version 15 ([legacyDefaultStageCues], [legacyDefaultWarnings]) with
+  /// today's [defaultStageCues] and [defaultWarnings]. It goes by what is
+  /// saved, not only the version, because every backup is read as an
+  /// earlier version: a cue list holding any of the old cues gets the new
+  /// ones first, followed by the church's own cues (except any with the
+  /// text of a new one, such as an old WRAP UP restyled), and warnings
+  /// exactly as they were suggested become the new ones. Warnings that
+  /// were changed stay as they are, and so does a cue list without any of
+  /// the old cues.
+  void upgradeDefaultCues() {
+    String json(TextLayout l) => jsonEncode(l.toJson());
+    final legacy = legacyDefaultStageCues.map(json).toSet();
+    if (stageCues.any((l) => legacy.contains(json(l)))) {
+      final replaced = {for (final c in defaultStageCues) c.text.toUpperCase()};
+      final own = stageCues
+          .where(
+            (l) =>
+                !legacy.contains(json(l)) &&
+                !replaced.contains(l.text.trim().toUpperCase()),
+          )
+          .toList();
+      stageCues = [];
+      addStageCues([...defaultStageCues, ...own]);
+      if (stageCues.length > 100) stageCues = stageCues.sublist(0, 100);
+    }
+    String list(List<TextLayout> cues) => cues.map(json).join('|');
+    DisplaySettings upgrade(DisplaySettings d) =>
+        list(d.cues) == list(legacyDefaultStageCues)
+        ? d.withCues(defaultStageCues)
+        : d;
+    templates = [for (final t in templates) t.withDisplay(upgrade(t.display))];
+    void upgradeSession(Session s) {
+      final t = s.timeline;
+      if (t != null) s.timeline = t.withDisplay(upgrade(t.display));
+      if (s.prior != null) upgradeSession(s.prior!);
+    }
+
+    upgradeSession(session);
+    String rules(List<WarningRule> w) =>
+        jsonEncode([for (final r in w) r.toJson()]);
+    defaults = upgrade(defaults);
+    if (rules(defaults.warnings) == rules(legacyDefaultWarnings))
+      defaults = defaults.withWarnings(defaultWarnings);
   }
 
   void addStageCues(Iterable<TextLayout> layouts) {

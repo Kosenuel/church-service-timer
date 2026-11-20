@@ -245,7 +245,7 @@ void main() {
       await t.pumpAndSettle();
       await tap(t, 'Delete cue');
       await tap(t, 'Delete cue');
-      expect(c.state.stageCues.length, 2);
+      expect(c.state.stageCues.length, 6);
       await tap(t, 'Undo');
       expect(c.state.stageCues.first.toJson(), cue);
       await t.pageBack();
@@ -255,7 +255,7 @@ void main() {
       await t.pumpAndSettle();
       await tap(t, 'Delete warning');
       await tap(t, 'Delete warning');
-      expect(c.state.defaults.warnings.length, 2);
+      expect(c.state.defaults.warnings.length, 3);
       await tap(t, 'Undo');
       expect(c.state.defaults.warnings.first.toJson(), warning);
       expect(t.takeException(), isNull);
