@@ -675,8 +675,9 @@ Color stageCueColor(Json data) {
   return rgb == null ? Colors.white : Color(0xff000000 | rgb);
 }
 
-/// Over a cue on screens while its screen flash is lit: the cue is then
-/// drawn in black on the flash colour, so it stays readable.
+/// Over a cue on screens while its screen flash is lit: a coloured
+/// full-screen cue's words are then warm white, so they stay readable on
+/// the flash in their own colour.
 class StageFlashScope extends InheritedWidget {
   final bool lit;
   const StageFlashScope({super.key, required this.lit, required super.child});
@@ -707,9 +708,16 @@ class StageMessage extends StatefulWidget {
   /// The most lines a cue with "Wrap long text" may use here.
   final int wrapLines;
 
+  /// The height of the whole screen, where this is only part of it (a
+  /// banner's band): a countdown bar's thickness follows it. Null when
+  /// this fills the screen.
+  final double? screenHeight;
+
   /// The text's colour in place of the cue's own, as on a coloured
   /// full-screen cue (see [stageColouredCard]); a countdown bar keeps the
-  /// cue's colour.
+  /// cue's colour. While a screen flash lights the screen in the cue's
+  /// colour, words in that colour would not read on it, so they are warm
+  /// white until it settles.
   final Color? ink;
   const StageMessage({
     super.key,
@@ -718,6 +726,7 @@ class StageMessage extends StatefulWidget {
     this.fullscreen = false,
     this.fromTop = false,
     this.wrapLines = stageWrapLines,
+    this.screenHeight,
     this.ink,
   });
   @override
@@ -869,7 +878,11 @@ class _StageMessageState extends State<StageMessage>
         // This keeps short cues large without cropping a long countdown.
         fontSize: fullHeight ? space.maxHeight * .9 : previewSize,
         height: fullHeight ? 1.1 : null,
-        color: widget.ink ?? color,
+        color: widget.ink == null
+            ? color
+            : StageFlashScope.of(context)
+            ? const Color(0xff000000 | stageCardInk)
+            : widget.ink,
         fontWeight: widget.data['bold'] == true
             ? FontWeight.bold
             : FontWeight.w500,
@@ -885,9 +898,12 @@ class _StageMessageState extends State<StageMessage>
       );
       final height = fullHeight ? space.maxHeight : 170.0;
       final hasBar = screenEffect == 'bar' && (sample || barTime != null);
-      final thickness = fullHeight
-          ? (height * .035).clamp(4.0, 14.0).toDouble()
-          : 6.0;
+      // A countdown bar is about 2% of the screen's height, 4–10 px thick,
+      // with a gap of one and a half times that between it and the words.
+      final thickness = ((widget.screenHeight ?? height) * .02)
+          .clamp(4.0, 10.0)
+          .toDouble();
+      final gap = thickness * 1.5;
       double? wrapped;
       if (stageWrapsText(widget.data) && text.trim().isNotEmpty) {
         wrapped = wrappedSize(
@@ -895,8 +911,8 @@ class _StageMessageState extends State<StageMessage>
           // Measured in the font it is drawn in.
           DefaultTextStyle.of(context).style.merge(style),
           space.maxWidth,
-          // Above the countdown bar, when there is one.
-          hasBar ? height - 2 * thickness : height,
+          // With room for the countdown bar under it, when there is one.
+          hasBar ? height - gap - thickness : height,
         );
         // Wrapped text holds still on screens (its effect still plays);
         // text too long to wrap at a readable size scrolls instead.
@@ -918,12 +934,52 @@ class _StageMessageState extends State<StageMessage>
           paused: widget.stale,
         );
       }
+      // Flash or Pulse text too wide for the LED sign steps through the
+      // same groups of words as the sign, in time with it, unless it is
+      // wrapped, when the whole block flashes or pulses.
+      final wordEffect = stageWordEffect(widget.data);
+      final groups = wordEffect == null ? null : stageWordGroups(widget.data);
+      final step = groups == null
+          ? null
+          : wordGroupAt(wordEffect!, groups.length, (elapsed * 1000).floor());
       final hidden =
-          (effect == 'flash' && (elapsed * 2).floor() % 2 == 1) ||
+          step == null &&
+              (effect == 'flash' && (elapsed * 2).floor() % 2 == 1) ||
           (screenEffect == 'flashHold' &&
               elapsed < flashHoldMs / 1000 &&
               (elapsed * 2).floor() % 2 == 1);
-      Widget body = wrapped != null
+      Widget body = groups != null
+          // Every group at the size the widest fits at, so the words stay
+          // the same size as they change.
+          ? FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  for (final group in groups)
+                    ExcludeSemantics(
+                      child: Opacity(
+                        opacity: 0,
+                        child: Text(
+                          group,
+                          style: style,
+                          softWrap: false,
+                          textScaler: TextScaler.noScaling,
+                        ),
+                      ),
+                    ),
+                  Text(
+                    groups[step!.index],
+                    key: const ValueKey('stage-word-group'),
+                    style: style,
+                    softWrap: false,
+                    textAlign: TextAlign.center,
+                    textScaler: TextScaler.noScaling,
+                  ),
+                ],
+              ),
+            )
+          : wrapped != null
           ? Center(
               child: Text(
                 text,
@@ -979,47 +1035,127 @@ class _StageMessageState extends State<StageMessage>
                       textAlign: TextAlign.center,
                     ),
             );
-      final opacity = hidden
+      final opacity = step != null
+          ? step.opacity
+          : hidden
           ? 0.0
           : screenEffect == 'pulse'
           ? stagePulseOpacity(elapsed)
           : 1.0;
-      body = Opacity(
-        key: const ValueKey('stage-cue-opacity'),
-        opacity: opacity,
-        child: body,
-      );
-      // A countdown bar sits under the cue and empties over its time; a
-      // cue shown until cleared has no time, and no bar.
+      if (!hasBar) {
+        body = Opacity(
+          key: const ValueKey('stage-cue-opacity'),
+          opacity: opacity,
+          child: body,
+        );
+      }
+      // A countdown bar sits just under the words, as wide as they are,
+      // and empties over the cue's time; a cue shown until cleared has no
+      // time, and no bar. The words and the bar are laid out together at
+      // the words' own size and shrunk together to fit, so the bar always
+      // matches the words as drawn; its thickness and gap are set so they
+      // come out at their size on the screen after shrinking.
       if (hasBar) {
-        body = Column(
-          children: [
-            Expanded(child: body),
-            SizedBox(height: thickness),
-            Center(
-              child: SizedBox(
-                width: space.maxWidth * .8,
-                height: thickness,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .14),
-                    borderRadius: BorderRadius.circular(thickness),
-                  ),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: barFraction,
-                    child: DecoratedBox(
-                      key: const ValueKey('stage-cue-bar'),
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(thickness),
+        final shown = wrapped != null
+            ? style.copyWith(fontSize: wrapped, height: 1.1)
+            : style;
+        final painter = TextPainter(
+          text: TextSpan(
+            text: text,
+            style: DefaultTextStyle.of(context).style.merge(shown),
+          ),
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.center,
+          textScaler: TextScaler.noScaling,
+          maxLines: wrapped != null ? widget.wrapLines : null,
+          textWidthBasis: TextWidthBasis.longestLine,
+        )..layout(maxWidth: wrapped != null ? space.maxWidth : double.infinity);
+        final wordsWidth = math.max(1.0, painter.width);
+        final wordsHeight = math.max(1.0, painter.height);
+        // With nothing below the line (as in capitals), the bar is measured
+        // from the line the last words stand on, so it sits just under them
+        // rather than under the room kept for letters such as g and y.
+        final lines = painter.computeLineMetrics();
+        final lastLine = text.trimRight().split('\n').last;
+        final standsOn =
+            lines.isEmpty ||
+                RegExp(r'[gjpqyQ,;()\[\]{}|@_$]').hasMatch(lastLine)
+            ? wordsHeight
+            : math.min(wordsHeight, lines.last.baseline);
+        painter.dispose();
+        final shrink = math
+            .min(
+              1.0,
+              math.min(
+                space.maxWidth / wordsWidth,
+                (height - gap - thickness) / standsOn,
+              ),
+            )
+            .clamp(.01, 1.0)
+            .toDouble();
+        // Nine tenths of the words' width, and never under 80 px.
+        final barWidth = math.min(
+          math.max(wordsWidth * .9, 80 / shrink),
+          space.maxWidth / shrink,
+        );
+        final thick = thickness / shrink;
+        body = FittedBox(
+          fit: BoxFit.scaleDown,
+          child: SizedBox(
+            width: math.max(wordsWidth, barWidth),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: standsOn,
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    minHeight: wordsHeight,
+                    maxHeight: wordsHeight,
+                    child: Opacity(
+                      key: const ValueKey('stage-cue-opacity'),
+                      opacity: opacity,
+                      child: Text(
+                        text,
+                        key: wrapped != null
+                            ? const ValueKey('stage-wrapped')
+                            : null,
+                        style: shown,
+                        softWrap: wrapped != null,
+                        maxLines: wrapped != null ? widget.wrapLines : null,
+                        textAlign: TextAlign.center,
+                        textScaler: TextScaler.noScaling,
+                        textWidthBasis: TextWidthBasis.longestLine,
                       ),
                     ),
                   ),
                 ),
-              ),
+                SizedBox(height: gap / shrink),
+                SizedBox(
+                  width: barWidth,
+                  height: thick,
+                  child: DecoratedBox(
+                    key: const ValueKey('stage-cue-bar-track'),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(thick),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: barFraction,
+                      child: DecoratedBox(
+                        key: const ValueKey('stage-cue-bar'),
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(thick),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       }
       // Slides in from the edge once, as the cue appears; with reduced

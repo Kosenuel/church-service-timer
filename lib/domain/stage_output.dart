@@ -76,13 +76,14 @@ String? stageScreenEffect(Json data) {
   return (total: total, left: left);
 }
 
-/// The fixed colours a cue can have on screens, as RGB. Each is bright
-/// enough to read on the black stage background and they are far apart
-/// from one another. The theme's accent is worked out by the host.
+/// The fixed colours a cue can have on screens, as RGB. Each reads at
+/// 7:1 or better on a coloured cue's charcoal (and so on the black stage
+/// background), red lightened only as far as that needs, and they are far
+/// apart from one another. The theme's accent is worked out by the host.
 const screenCueColors = <String, int>{
   'white': 0xffffff,
   'amber': 0xffa833,
-  'red': 0xff4d4d,
+  'red': 0xff7979,
   'green': 0x4ade80,
 };
 
@@ -111,6 +112,31 @@ String? stageBannerPosition(Json data) {
       : null;
 }
 
+/// The groups of words a snapshot's Flash or Pulse cue steps through on
+/// screens, as the LED sign does with text too wide for it (see
+/// [groupWords]); null when it sent none, or they are not words. An older
+/// version leaves them out, and a screen then shows the whole text.
+List<String>? stageWordGroups(Json data) {
+  final words = data['screenWords'];
+  if (words is! List ||
+      words.isEmpty ||
+      words.length > wordGroupMaxLength ||
+      words.any((w) => w is! String || w.trim().isEmpty)) {
+    return null;
+  }
+  return List<String>.from(words);
+}
+
+/// The effect a snapshot steps its groups of words with, 'flash' or
+/// 'pulse', or null when it shows its text whole: no groups, another
+/// effect, or wrapped onto lines (wrapped text flashes or pulses whole).
+String? stageWordEffect(Json data) {
+  if (stageWordGroups(data) == null || stageWrapsText(data)) return null;
+  if (data['effect'] == 'flash') return 'flash';
+  if (stageScreenEffect(data) == 'pulse') return 'pulse';
+  return null;
+}
+
 /// The snapshot of what stays in view under a banner: the countdown or
 /// the clock, plain and white, as if no cue were showing.
 Json stageUnderBanner(Json data) {
@@ -131,6 +157,7 @@ Json stageUnderBanner(Json data) {
       'underMode',
       'screenSpeed',
       'screenWrap',
+      'screenWords',
       // The countdown under a banner never takes the cue's effect.
       'screenEffect',
       'cueTotalMs',
@@ -168,11 +195,20 @@ bool stageWrapsText(Json data) =>
     data['outputMode'] != 'Clock' &&
     const {'static', 'scroll', 'flash', null}.contains(data['effect']);
 
-/// A full-screen cue in a colour other than white is shown as warm white
-/// text on a warm charcoal screen, with a rule in its colour along the
-/// bottom edge: the colour marks the cue without tinting every letter.
-/// White cues, banners, the countdown and the clock are as they were.
+/// A full-screen cue in a colour other than white is shown on a warm
+/// charcoal screen, with a rule in its colour along the bottom edge. Its
+/// words are in the cue's colour too, except amber, whose words are warm
+/// white (see [stageCardInkFor]). White cues, banners, the countdown and
+/// the clock are as they were.
 const stageCardBackground = 0x1a1712, stageCardInk = 0xfff4dc;
+
+/// The colour of a coloured full-screen cue's words, as RGB, for a cue in
+/// [rgb]: warm white for amber, otherwise the cue's own colour. Each reads
+/// on the charcoal: amber's words would be no clearer than warm white, so
+/// they stay warm white; the theme's colour is lightened until it reads at
+/// 7:1 or better before it is sent (see `stageAccentRgbOf`).
+int stageCardInkFor(int rgb) =>
+    rgb == screenCueColors['amber'] ? stageCardInk : rgb;
 
 /// Whether [data] shows its cue full screen in a colour (see
 /// [stageCardBackground]).

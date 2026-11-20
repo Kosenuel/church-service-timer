@@ -264,7 +264,7 @@ void main() {
         await c.act('cue', value: cue);
         snapshot = c.pairedSnapshot(false);
         expect(snapshot['displayText'], 'MIC LOW');
-        expect(snapshot['cueColor'], '#ff4d4d');
+        expect(snapshot['cueColor'], '#ff7979');
         expect(snapshot.containsKey('cuePosition'), isFalse);
         expect(stageBannerPosition(snapshot), isNull);
       },
@@ -314,8 +314,8 @@ void main() {
       expect(plain.containsKey('banner'), isFalse);
       expect(plain.containsKey('color'), isFalse);
       expect(plain['displayText'], 'WRAP UP');
-      final red = view({'cueColor': '#ff4d4d'});
-      expect(red['color'], '#ff4d4d');
+      final red = view({'cueColor': '#ff7979'});
+      expect(red['color'], '#ff7979');
       expect(red['displayText'], 'WRAP UP');
       // Nothing but a checked colour reaches the page.
       expect(view({'cueColor': 'red;x'}).containsKey('color'), isFalse);
