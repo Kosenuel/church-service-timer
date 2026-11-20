@@ -56,9 +56,15 @@ extension DesktopLive on HomeState {
     _ => c.port.isDesktop,
   };
 
-  /// [text] followed by its keyboard key, when key labels are on.
-  Widget keyLabel(String text, String key, {TextAlign? textAlign}) =>
-      showKeyHints
+  /// Whether Space, B, Page Down and → do anything on Live. They are the
+  /// keys a clicker or pedal sends, and follow Clicker and foot pedal on
+  /// a computer too.
+  bool get clickerKeysOn => c.state.clickerControls;
+
+  /// [text] followed by its keyboard key, when key labels are on and the
+  /// key does something.
+  Widget keyLabel(String text, String? key, {TextAlign? textAlign}) =>
+      showKeyHints && key != null
       ? Row(
           mainAxisSize: MainAxisSize.min,
           children: [

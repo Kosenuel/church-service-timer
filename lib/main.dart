@@ -441,14 +441,17 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       return true;
     }
     // A PC keyboard adds its own keys on top of the clicker's; they open
-    // the same confirmations as the buttons on screen.
+    // the same confirmations as the buttons on screen. The clicker's keys
+    // follow Clicker and foot pedal on every device: a computer cannot
+    // tell a clicker from its keyboard, so switched off they do nothing
+    // from either, and the other keys still work.
     final desktopAction = c.port.isDesktop
         ? desktopLiveActionFor(
             event.logicalKey,
             control: HardwareKeyboard.instance.isControlPressed,
           )
         : null;
-    final action = c.state.clickerControls || c.port.isDesktop
+    final action = c.state.clickerControls
         ? clickerActionFor(event.logicalKey)
         : null;
     final cueIndex = c.port.isDesktop
@@ -1214,6 +1217,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               floatingActionButtonLocation: programsFillWindow
                   ? programsButtonLocation
                   : null,
+              // Opening Programs changes the location as the button
+              // appears; animating that move showed it first at the right
+              // edge, over the summary, before it jumped to the list.
+              floatingActionButtonAnimator:
+                  FloatingActionButtonAnimator.noAnimation,
               bottomNavigationBar:
                   !focused &&
                       ((page == 1 && programsPage.selecting) ||

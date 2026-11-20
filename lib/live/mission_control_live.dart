@@ -154,7 +154,10 @@ extension MissionControlLive on HomeState {
           color: colors.surface,
           child: timelineStrip(enabled, rich: richTimeline),
         ),
-        if (showKeyHints && s.active) ...[rule, const KeyLegend()],
+        if (showKeyHints && s.active) ...[
+          rule,
+          KeyLegend(clicker: clickerKeysOn),
+        ],
       ],
     );
   }
@@ -1141,6 +1144,8 @@ class KeyLegend extends StatelessWidget {
   /// Also lists the number keys that send cues.
   final bool cues;
 
+  /// Also lists Space and Page Down, which follow Clicker and foot pedal.
+  final bool clicker;
   /// Ends with the reminder that timer changes ask first, room allowing.
   final bool reminder;
 
@@ -1153,6 +1158,7 @@ class KeyLegend extends StatelessWidget {
     super.key,
     this.keys = true,
     this.cues = true,
+    this.clicker = true,
     this.reminder = true,
     this.status,
     this.statusColour,
@@ -1219,6 +1225,55 @@ class KeyLegend extends StatelessWidget {
       color: colors.surface,
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          if (keys) ...[
+            if (clicker) ...[item('Space', 'Pause'), item('PgDn PgDn', 'Next')],
+            item('+ −', 'Adjust time'),
+            item('Ctrl Z', 'Undo'),
+            if (cues) item('1 – 9', 'Cues'),
+            item('M', 'Message'),
+            item('Ctrl L', 'Lock'),
+            item('Ctrl K', 'Commands'),
+          ],
+          if (status == null) ...[
+            const Spacer(),
+            Text(_reminder, style: style),
+          ] else
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, space) {
+                  // The dot and its gap, the status, then the reminder.
+                  final both =
+                      16 + width(status!) + 24 + width(_reminder) + 2 <=
+                      space.maxWidth;
+                  return Row(
+                    mainAxisAlignment: keys
+                        ? MainAxisAlignment.end
+                        : MainAxisAlignment.start,
+                    children: [
+                      Flexible(
+                        child: Row(
+                          key: const ValueKey('live-status-line'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: statusColour ?? colors.muted,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                status!,
+                                maxLines: 1,
+                                softWrap: false,
+                                overflow: TextOverflow.ellipsis,
+                                style: style,
+                              ),
       child: LayoutBuilder(
         builder: (context, box) {
           // What the keys leave room for: the reminder, or enough of the

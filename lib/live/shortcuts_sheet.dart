@@ -21,7 +21,7 @@ extension ShortcutsSheet on HomeState {
     await showAppSheet<void>(
       context,
       maxWidth: 920,
-      builder: (_) => const ShortcutsSheetView(),
+      builder: (_) => ShortcutsSheetView(clickerOn: c.state.clickerControls),
     );
   }
 }
@@ -98,7 +98,10 @@ class KeyCaps extends StatelessWidget {
 
 /// The sheet's content: two rules, then the keys in three plain groups.
 class ShortcutsSheetView extends StatelessWidget {
-  const ShortcutsSheetView({super.key});
+  /// Whether Clicker and foot pedal is on. Off, the sheet says so and the
+  /// clicker's keys are listed as doing nothing.
+  final bool clickerOn;
+  const ShortcutsSheetView({super.key, this.clickerOn = true});
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +126,10 @@ class ShortcutsSheetView extends StatelessWidget {
 
     Widget row(Shortcut s, bool stacked) {
       final caps = KeyCaps(s.caps, joiner: s.joiner);
+      final off = s.clicker && !clickerOn;
+      final confirm = off
+          ? 'off: Clicker and foot pedal is switched off'
+          : s.confirm;
       final words = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -131,8 +138,11 @@ class ShortcutsSheetView extends StatelessWidget {
             style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           Text(
-            '${s.confirm[0].toUpperCase()}${s.confirm.substring(1)}',
-            style: text.bodySmall?.copyWith(color: colors.muted, height: 1.3),
+            '${confirm[0].toUpperCase()}${confirm.substring(1)}',
+            style: text.bodySmall?.copyWith(
+              color: off ? colors.warning : colors.muted,
+              height: 1.3,
+            ),
           ),
         ],
       );
@@ -142,7 +152,7 @@ class ShortcutsSheetView extends StatelessWidget {
         child: Semantics(
           key: ValueKey('shortcut-${s.id}'),
           container: true,
-          label: '${caps.spoken}: ${s.action}, ${s.confirm}. ${s.when}',
+          label: '${caps.spoken}: ${s.action}, $confirm. ${s.when}',
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 7),
             child: stacked
@@ -202,6 +212,8 @@ class ShortcutsSheetView extends StatelessWidget {
               const SizedBox(height: 6),
               rule(Icons.task_alt, shortcutsConfirmRule),
               rule(Icons.lock_outline, shortcutsLockRule),
+              if (!clickerOn)
+                rule(Icons.keyboard_alt_outlined, shortcutsClickerOffRule),
               const SizedBox(height: 14),
               Divider(height: 1, thickness: 1, color: colors.border),
               Flexible(
