@@ -42,6 +42,9 @@ void main() {
       expect(words.parseCompactDate(null), isNull);
       expect(words.dateHelpText, 'dd/mm/yyyy');
     });
+    test('weeks start on Monday', () {
+      expect(words.firstDayOfWeekIndex, 1);
+    });
   });
 
   /// The app on Live with a program loaded, on [friday].
@@ -112,6 +115,16 @@ void main() {
               : '../goldens/date-picker-phone.png',
         ),
       );
+      // The week starts on Monday: Sunday 1 November ends the first row.
+      Offset at(String day) => t.getCenter(
+        find.descendant(
+          of: find.byType(DatePickerDialog),
+          matching: find.text(day),
+        ),
+      );
+      expect(at('2').dx, lessThan(at('1').dx));
+      expect(at('1').dy, lessThan(at('2').dy));
+      expect(at('8').dx, at('1').dx);
       // Choosing a day writes it on the sheet.
       await t.tap(find.text('27'));
       await t.pumpAndSettle();
@@ -221,15 +234,18 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
-  testWidgets('the pre-service time follows a 12-hour clock format', (t) async {
+  testWidgets('the pre-service time stays 24-hour with a 12-hour stage clock', (
+    t,
+  ) async {
     await app(t, desktop: false, clock: '12h');
     final set = find.text('Set time');
     await t.ensureVisible(set);
     await t.pumpAndSettle();
     await t.tap(set);
     await t.pumpAndSettle();
-    expect(find.text('AM'), findsOneWidget);
-    expect(find.text('PM'), findsOneWidget);
+    expect(find.byType(TimePickerDialog), findsOneWidget);
+    expect(find.text('AM'), findsNothing);
+    expect(find.text('PM'), findsNothing);
     await t.tap(find.text('Cancel'));
     await t.pumpAndSettle();
     await t.pumpWidget(const SizedBox());
@@ -274,7 +290,8 @@ void main() {
 
   test('no picker call bypasses the app\'s own', () {
     // Every date and time picker goes through lib/shared/app_pickers.dart,
-    // so none is month first, 12-hour against the setting, or tinted.
+    // so none is month first, 12-hour, starts the week on Sunday or is
+    // tinted.
     final hits = <String>[];
     for (final file in Directory('lib').listSync(recursive: true)) {
       if (file is! File || !file.path.endsWith('.dart')) continue;

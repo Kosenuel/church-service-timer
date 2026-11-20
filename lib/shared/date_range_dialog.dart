@@ -533,7 +533,8 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
     final colors = appColors(context);
     final text = Theme.of(context).textTheme;
     final words = MaterialLocalizations.of(context);
-    final firstColumn = (m.weekday % 7 - words.firstDayOfWeekIndex + 7) % 7;
+    // Monday is the first column, as on a UK calendar.
+    final firstColumn = m.weekday - DateTime.monday;
     final days = _daysIn(m);
     final rows = <Widget>[];
     for (var slot = 0; slot < 42; slot += 7) {
@@ -605,8 +606,8 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
                     height: 28,
                     child: Center(
                       child: Text(
-                        words.narrowWeekdays[(i + words.firstDayOfWeekIndex) %
-                            7],
+                        // narrowWeekdays starts on Sunday.
+                        words.narrowWeekdays[(i + 1) % 7],
                         style: text.bodySmall?.copyWith(
                           color: colors.muted,
                           fontWeight: FontWeight.w600,
