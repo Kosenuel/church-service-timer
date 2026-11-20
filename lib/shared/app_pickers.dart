@@ -28,9 +28,9 @@ const _months = [
 
 /// Flutter's English wording with dates written day first, as the rest
 /// of the app writes them: "Fri 20 Nov 2026" over the calendar and
-/// 20/11/2026 when a date is typed. Everything else is unchanged, so the
-/// pickers keep their own words and the week still starts where the
-/// app's other calendar starts it.
+/// 20/11/2026 when a date is typed. Weeks start on Monday, as in the
+/// reports calendar. Everything else is unchanged, so the pickers keep
+/// their own words.
 class DayFirstLocalizations extends DefaultMaterialLocalizations {
   const DayFirstLocalizations();
 
@@ -75,6 +75,10 @@ class DayFirstLocalizations extends DefaultMaterialLocalizations {
     if (day > DateUtils.getDaysInMonth(year, month)) return null;
     return DateTime(year, month, day);
   }
+
+  /// Monday, as a UK calendar starts the week.
+  @override
+  int get firstDayOfWeekIndex => 1;
 
   @override
   String get dateHelpText => 'dd/mm/yyyy';
@@ -219,8 +223,9 @@ ThemeData appPickerTheme(BuildContext context) {
   );
 }
 
-/// Wraps a picker in [appPickerTheme] and [DayFirstLocalizations]. With
-/// [use24Hour] set, times are shown and chosen on a 24-hour clock.
+/// Wraps a picker in [appPickerTheme] and [DayFirstLocalizations]. Times
+/// are always shown and chosen on a 24-hour clock, as the app writes
+/// them, whatever the stage clock format.
 ///
 /// A calendar ([dates]) stands upright, its header over the month, in any
 /// window tall enough for it: Flutter lays it on its side whenever the
@@ -228,15 +233,9 @@ ThemeData appPickerTheme(BuildContext context) {
 /// side header has room for only half of "Fri 20 Nov 2026". When it must
 /// lie on its side, as on a phone held sideways, the date is written
 /// smaller so it fits on two lines.
-Widget _pickerFrame(
-  BuildContext context,
-  Widget? child, {
-  bool? use24Hour,
-  bool dates = false,
-}) {
+Widget _pickerFrame(BuildContext context, Widget? child, {bool dates = false}) {
   final media = MediaQuery.of(context);
-  var data = media;
-  if (use24Hour != null) data = data.copyWith(alwaysUse24HourFormat: use24Hour);
+  var data = media.copyWith(alwaysUse24HourFormat: true);
   var theme = appPickerTheme(context);
   if (dates) {
     final size = media.size;
@@ -314,15 +313,14 @@ Future<DateTimeRange?> showAppDateRangePicker(
   builder: (context, child) => _pickerFrame(context, child),
 );
 
-/// A time of day, from Flutter's clock in the app's look. [use24Hour]
-/// follows the app's clock format, which is 24-hour unless the church
-/// chose 12-hour. On a computer ([typed]) the hours and minutes start as
+/// A time of day, from Flutter's clock in the app's look, always on a
+/// 24-hour clock: the Clock format setting is for the stage only. On a
+/// computer ([typed]) the hours and minutes start as
 /// fields to type into, which suits a keyboard better than a dial; the
 /// icon in the corner still switches to the dial.
 Future<TimeOfDay?> showAppTimePicker(
   BuildContext context, {
   required TimeOfDay initialTime,
-  required bool use24Hour,
   bool typed = false,
   String? helpText,
 }) => showTimePicker(
@@ -332,6 +330,5 @@ Future<TimeOfDay?> showAppTimePicker(
   initialEntryMode: typed
       ? TimePickerEntryMode.input
       : TimePickerEntryMode.dial,
-  builder: (context, child) =>
-      _pickerFrame(context, child, use24Hour: use24Hour),
+  builder: (context, child) => _pickerFrame(context, child),
 );

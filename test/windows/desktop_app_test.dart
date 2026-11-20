@@ -9,6 +9,7 @@ import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/tab_swipe.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -210,11 +211,20 @@ void main() {
       find.descendant(
         of: tile,
         matching: find.textContaining(
-          'switching this off turns these keys off on the keyboard too',
+          'Off, these keys do nothing from the keyboard either.',
         ),
       ),
       findsOneWidget,
     );
+    // Two lines at most in a 1366 × 768 window.
+    final subtitle = find.descendant(
+      of: tile,
+      matching: find.textContaining('twice for Next'),
+    );
+    final paragraph = t.renderObject<RenderParagraph>(subtitle);
+    final line = paragraph.getFullHeightForCaret(const TextPosition(offset: 0));
+    final lines = (paragraph.size.height / line).round();
+    expect(lines, lessThanOrEqualTo(2));
     await t.pumpWidget(const SizedBox());
   });
 
