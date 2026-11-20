@@ -137,11 +137,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('2 MIN LEFT'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Operator and stage'));
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('warning-where-operator')),
+      );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Operator + phone notification').last);
+      await tester.tap(find.byKey(const ValueKey('warning-where-operator')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Save warning'));
+      await tester.tap(find.byKey(const ValueKey('warning-save')));
       await tester.pumpAndSettle();
       // 2 MIN LEFT comes after 5 MIN LEFT.
       expect(c.state.defaults.warnings[1].destination, 'operator');

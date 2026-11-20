@@ -126,7 +126,7 @@ void main() {
     await t.tap(edit.hitTestable());
     await t.pumpAndSettle();
     expect(find.byType(WarningEditor), findsOneWidget);
-    await t.tap(find.text('Remaining time'));
+    await t.tap(find.byKey(const ValueKey('warning-time')));
     await t.pumpAndSettle();
     for (final entry in {0: '0', 1: seconds}.entries) {
       await t.tapAt(t.getCenter(find.byType(CupertinoPicker).at(entry.key)));
@@ -137,7 +137,7 @@ void main() {
     }
     await t.tap(find.text('Use 00:$seconds'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Save warning'));
+    await t.tap(find.byKey(const ValueKey('warning-save')));
     await t.pumpAndSettle();
   }
 

@@ -1,4 +1,5 @@
 import 'package:church_service_timer/live/cue_preview.dart';
+export 'package:church_service_timer/settings/warning_editor.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/settings/clicker_test_page.dart';
@@ -9,7 +10,6 @@ import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/display/pixels.dart';
-import 'package:church_service_timer/shared/time_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 
@@ -35,41 +35,6 @@ class WarningSettingsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = settings;
-    Future<void> edit({int? index}) async {
-      final initial = index == null
-          ? const WarningRule(
-              60,
-              TextLayout('1 MIN LEFT'),
-              destination: 'stage',
-            )
-          : d.warnings[index];
-      final next = await showDialog<WarningRule>(
-        context: context,
-        animationStyle: reduceAppMotion(context)
-            ? AnimationStyle.noAnimation
-            : null,
-        builder: (_) => WarningEditor(
-          initial: initial,
-          stagePreviewFirst: stagePreviewFirst,
-          usedThresholds: d.warnings
-              .asMap()
-              .entries
-              .where((e) => e.key != index)
-              .map((e) => e.value.seconds)
-              .toSet(),
-        ),
-      );
-      if (next != null && context.mounted) {
-        final rules = [...d.warnings];
-        if (index == null) {
-          rules.add(next);
-        } else {
-          rules[index] = next;
-        }
-        await onSave(d.withWarnings(rules));
-      }
-    }
-
     final colors = appColors(context);
     Future<void> save(List<WarningRule> rules) => onSave(d.withWarnings(rules));
     Future<void> toggle(int index, bool on) {
@@ -81,7 +46,8 @@ class WarningSettingsPanel extends StatelessWidget {
       return save(rules);
     }
 
-    Future<void> delete(int index) async {
+    /// Asks first; true when the warning was deleted.
+    Future<bool> delete(int index) async {
       final yes = await showDialog<bool>(
         context: context,
         animationStyle: reduceAppMotion(context)
@@ -105,19 +71,51 @@ class WarningSettingsPanel extends StatelessWidget {
           ],
         ),
       );
-      if (yes != true) return;
+      if (yes != true) return false;
       await save([...d.warnings]..removeAt(index));
+      return true;
+    }
+
+    Future<void> edit({int? index}) async {
+      final initial = index == null
+          ? const WarningRule(
+              60,
+              TextLayout('1 MIN LEFT'),
+              destination: 'stage',
+            )
+          : d.warnings[index];
+      final next = await showDialog<WarningRule>(
+        context: context,
+        animationStyle: reduceAppMotion(context)
+            ? AnimationStyle.noAnimation
+            : null,
+        builder: (_) => WarningEditor(
+          initial: initial,
+          isNew: index == null,
+          onDelete: index == null ? null : () => delete(index),
+          stagePreviewFirst: stagePreviewFirst,
+          usedThresholds: d.warnings
+              .asMap()
+              .entries
+              .where((e) => e.key != index)
+              .map((e) => e.value.seconds)
+              .toSet(),
+        ),
+      );
+      if (next != null && context.mounted) {
+        final rules = [...d.warnings];
+        if (index == null) {
+          rules.add(next);
+        } else {
+          rules[index] = next;
+        }
+        await onSave(d.withWarnings(rules));
+      }
     }
 
     Widget card(int index) {
       final w = d.warnings[index];
-      final timeColor = !w.enabled
-          ? colors.muted
-          : w.seconds == 0
-          ? colors.error
-          : w.seconds < 60
-          ? colors.warning
-          : colors.text;
+      final timeColor = warningTimeColor(context, w.seconds, w.enabled);
       final where = [
         w.destination == 'stage' ? 'Operator and stage' : 'Operator only',
         if (w.destination == 'stage')
@@ -257,235 +255,6 @@ class WarningSettingsPanel extends StatelessWidget {
       ],
     );
   }
-}
-
-class WarningEditor extends StatefulWidget {
-  final WarningRule initial;
-  final Set<int> usedThresholds;
-  final bool? stagePreviewFirst;
-  const WarningEditor({
-    super.key,
-    required this.initial,
-    required this.usedThresholds,
-    this.stagePreviewFirst,
-  });
-  @override
-  State<WarningEditor> createState() => _WarningEditorState();
-}
-
-class _WarningEditorState extends State<WarningEditor> {
-  late int threshold;
-  late bool enabled;
-  late String destination;
-  late bool scrollOnce;
-  late int duration;
-  late TextLayout cue;
-  String? error;
-  @override
-  void initState() {
-    super.initState();
-    threshold = widget.initial.seconds;
-    enabled = widget.initial.enabled;
-    destination = widget.initial.destination;
-    cue = widget.initial.cue;
-    scrollOnce = widget.initial.scrollOnce;
-    duration = widget.initial.durationSeconds;
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Automatic warning'),
-    content: SizedBox(
-      width: 480,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Trigger when this much time remains:'),
-            const SizedBox(height: 10),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Remaining time'),
-              subtitle: Text(
-                '${formatTime(threshold * 1000)} · fires once in each segment when the countdown reaches this time',
-              ),
-              trailing: const Icon(Icons.expand_more),
-              onTap: () async {
-                final value = await showWheelTimePicker(
-                  context,
-                  title: 'Warning threshold',
-                  initial: threshold,
-                  allowZero: true,
-                );
-                if (value != null && mounted) setState(() => threshold = value);
-              },
-            ),
-            const SizedBox(height: 12),
-            ChoiceField<String>(
-              value: destination,
-              row: true,
-              rowPadding: EdgeInsets.zero,
-              decoration: const InputDecoration(labelText: 'Where to show'),
-              options: const [
-                ChoiceOption(
-                  value: 'operator',
-                  label: 'Operator + phone notification',
-                ),
-                ChoiceOption(value: 'stage', label: 'Operator and stage'),
-              ],
-              onChanged: (v) => setState(() => destination = v!),
-            ),
-            const SizedBox(height: 12),
-            Text(styleSummary(cue)),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final next = await showDialog<TextLayout>(
-                  context: context,
-                  animationStyle: reduceAppMotion(context)
-                      ? AnimationStyle.noAnimation
-                      : null,
-                  builder: (_) => TextComposer(
-                    initial: cue,
-                    title: 'Warning text and formatting',
-                    button: 'Use warning text',
-                    stagePreviewFirst: widget.stagePreviewFirst,
-                  ),
-                );
-                if (next != null && mounted) setState(() => cue = next);
-              },
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Edit warning text'),
-            ),
-            const SizedBox(height: 10),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Scroll once, then return'),
-              subtitle: const Text(
-                'For scrolling text wider than the display.',
-              ),
-              value: scrollOnce,
-              onChanged: (v) => setState(() => scrollOnce = v),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Show for'),
-              subtitle: Text(durationLabel(duration * 1000)),
-              trailing: const Icon(Icons.expand_more),
-              onTap: () async {
-                final value = await showWheelTimePicker(
-                  context,
-                  title: 'Warning duration',
-                  initial: duration,
-                  maximum: 120,
-                );
-                if (value != null && mounted) setState(() => duration = value);
-              },
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Preview runs ${durationLabel(warningDurationMs(WarningRule(0, cue, scrollOnce: scrollOnce, durationSeconds: duration)))}. The timer keeps running underneath.',
-            ),
-            const SizedBox(height: 8),
-            WarningAnimationPreview(layout: cue),
-            if (error != null)
-              Text(error!, style: TextStyle(color: appColors(context).warning)),
-          ],
-        ),
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () {
-          try {
-            require(
-              threshold >= 0 && threshold <= 3599,
-              'Choose a threshold up to 59:59.',
-            );
-            require(
-              !widget.usedThresholds.contains(threshold),
-              'A warning already uses this threshold.',
-            );
-            validateLayout(cue);
-            final secondsToShow = duration;
-            require(
-              secondsToShow >= 1 && secondsToShow <= 120,
-              'Enter a duration from 1 to 120 seconds.',
-            );
-            Navigator.pop(
-              context,
-              WarningRule(
-                threshold,
-                cue,
-                enabled: enabled,
-                destination: destination,
-                durationSeconds: secondsToShow,
-                scrollOnce: scrollOnce,
-              ),
-            );
-          } catch (e) {
-            setState(() => error = '$e');
-          }
-        },
-        child: const Text('Save warning'),
-      ),
-    ],
-  );
-}
-
-class WarningAnimationPreview extends StatefulWidget {
-  final TextLayout layout;
-  const WarningAnimationPreview({super.key, required this.layout});
-  @override
-  State<WarningAnimationPreview> createState() =>
-      _WarningAnimationPreviewState();
-}
-
-class _WarningAnimationPreviewState extends State<WarningAnimationPreview> {
-  Timer? timer;
-  final watch = Stopwatch();
-  void toggle() {
-    if (watch.isRunning) {
-      watch.stop();
-      timer?.cancel();
-    } else {
-      watch.start();
-      timer = Timer.periodic(const Duration(milliseconds: 80), (_) {
-        if (mounted) setState(() {});
-      });
-    }
-    setState(() {});
-  }
-
-  @override
-  void didUpdateWidget(WarningAnimationPreview old) {
-    super.didUpdateWidget(old);
-    if (old.layout != widget.layout) watch.reset();
-  }
-
-  @override
-  void dispose() {
-    timer?.cancel();
-    watch.stop();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      LedMatrix(pixels: renderPixels(widget.layout, watch.elapsedMilliseconds)),
-      TextButton.icon(
-        onPressed: toggle,
-        icon: Icon(watch.isRunning ? Icons.pause : Icons.play_arrow),
-        label: Text(watch.isRunning ? 'Pause preview' : 'Play preview'),
-      ),
-    ],
-  );
 }
 
 extension WarningSettingsViews on HomeState {
