@@ -523,4 +523,48 @@ void main() {
       expect(stageBannerPosition(window), 'top');
     },
   );
+
+  test(
+    'an automatic warning carries its colour, banner and screen speed',
+    () async {
+      final port = FakePort();
+      final c = AppController(port);
+      addTearDown(c.dispose);
+      await c.initialize(startTicker: false);
+      expect(
+        await c.setSharedWarnings(const [
+          WarningRule(
+            240,
+            TextLayout(
+              'WRAP UP SOON PLEASE',
+              effect: 'scroll',
+              screenSpeed: 40,
+              screenColor: 'amber',
+              screenPosition: 'bottom',
+            ),
+            destination: 'stage',
+          ),
+        ]),
+        true,
+      );
+      await c.act(
+        'load',
+        value: Timeline('Service', const [
+          Segment('Talk', 5),
+        ], c.state.defaults),
+      );
+      await c.act('start');
+      port.at = after(61);
+      await c.tick();
+      await Future<void>.delayed(Duration.zero);
+      await c.tick();
+      expect(c.state.session.automaticCueAt, isNotNull);
+      final snapshot = c.stageWindowSnapshot();
+      expect(snapshot['cueColor'], '#ffc247');
+      expect(snapshot['cuePosition'], 'bottom');
+      expect(snapshot['screenSpeed'], 40);
+      // The sign keeps its own speed.
+      expect(snapshot['speed'], 12);
+    },
+  );
 }
