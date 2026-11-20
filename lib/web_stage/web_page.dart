@@ -48,8 +48,6 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .band.bottom { bottom:0; border-top:.7vh solid currentColor; }
 #stage .band .run { top:50%; }
 #stage.stale .band { opacity:.35; }
-#stage .line { position:absolute; left:4vw; right:4vw; bottom:6vh; display:none; color:#bbb; font-size:6vh; font-weight:600; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-#stage.stale .line { opacity:.35; }
 /* The newer cue effects. Each starts again when a new cue arrives. */
 @keyframes fx-pulse { 0%, 100% { opacity:1; } 50% { opacity:.55; } }
 @keyframes fx-flash3 { 0% { opacity:1; } 16.667% { opacity:0; } 33.333% { opacity:1; } 50% { opacity:0; } 66.667% { opacity:1; } 83.333% { opacity:0; } 100% { opacity:1; } }
@@ -69,6 +67,8 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
   #stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:none; }
   #stage.fx-screenFlash, #stage .band.fx-screenFlash { box-shadow:inset 0 0 0 1.2vh var(--fx); }
 }
+#stage .line { position:absolute; left:4vw; right:4vw; bottom:6vh; display:none; color:#bbb; font-size:6vh; font-weight:600; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#stage.stale .line { opacity:.35; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
@@ -92,8 +92,7 @@ body.stale #app { opacity:.6; }
 </head>
 <body>
 <div id="app" class="wrap"></div>
-<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="line" id="stageLine"></div><div class="note" id="stageNote"></div></div>
-<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="note" id="stageNote"></div></div>
+<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="line" id="stageLine"></div><div class="note" id="stageNote"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
 <div id="req"><span id="reqNote"></span><button class="chip" id="reqBtn">Request</button></div>

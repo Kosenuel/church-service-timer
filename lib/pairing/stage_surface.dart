@@ -64,51 +64,6 @@ class StageSurface extends StatelessWidget {
       ),
     );
     final timer = StageMessage(data: under, stale: stale, fullscreen: true);
-    return StageBannerFrame(
-      banner: position == null ? null : stageBannerText(data),
-      top: position == 'top',
-      stale: stale,
-      builder: (context, band, top) => Padding(
-        padding: const EdgeInsets.all(12),
-        child: LayoutBuilder(
-          builder: (context, space) {
-            if (!space.maxHeight.isFinite) {
-              return showSegment
-                  ? Column(
-                      children: [timer, const SizedBox(height: 8), label(36)],
-                    )
-                  : timer;
-            }
-            // The time keeps the box it has without a banner and gives up
-            // the same space above and below, so it stays centred. Under a
-            // bottom band the segment name moves up to sit above the band.
-            final line = (space.maxHeight * .06).clamp(28.0, 84.0);
-            final below = showSegment ? line + 8 : 0.0;
-            final lift = top ? 0.0 : band;
-            final clear = StageBannerFrame.clearance(
-              space.maxHeight - below,
-              above: top && band > 0 ? band - 12 : 0,
-              below: showSegment ? lift : (lift > 0 ? lift - 12 : 0),
-            );
-            return Stack(
-              children: [
-                Positioned.fill(
-                  bottom: below,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: clear),
-                    child: timer,
-                  ),
-                ),
-                if (showSegment)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: lift,
-                    child: label(line),
-                  ),
-              ],
-            );
-          },
     // A full-screen cue's screen flash lights the whole screen; a banner's
     // lights only its band (see [StageBanner]).
     return StageScreenFlash(
@@ -125,14 +80,15 @@ class StageSurface extends StatelessWidget {
               if (!space.maxHeight.isFinite) {
                 return showSegment
                     ? Column(
-                        children: [timer, const SizedBox(height: 8), label()],
+                        children: [timer, const SizedBox(height: 8), label(36)],
                       )
                     : timer;
               }
               // The time keeps the box it has without a banner and gives up
               // the same space above and below, so it stays centred. Under a
               // bottom band the segment name moves up to sit above the band.
-              final below = showSegment ? 44.0 : 0.0;
+              final line = (space.maxHeight * .06).clamp(28.0, 84.0);
+              final below = showSegment ? line + 8 : 0.0;
               final lift = top ? 0.0 : band;
               final clear = StageBannerFrame.clearance(
                 space.maxHeight - below,
@@ -149,7 +105,12 @@ class StageSurface extends StatelessWidget {
                     ),
                   ),
                   if (showSegment)
-                    Positioned(left: 0, right: 0, bottom: lift, child: label()),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: lift,
+                      child: label(line),
+                    ),
                 ],
               );
             },

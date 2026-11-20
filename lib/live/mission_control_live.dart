@@ -1144,10 +1144,11 @@ class KeyLegend extends StatelessWidget {
   /// Also lists the number keys that send cues.
   final bool cues;
 
-  /// Also lists Space and Page Down, which follow Clicker and foot pedal.
-  final bool clicker;
   /// Ends with the reminder that timer changes ask first, room allowing.
   final bool reminder;
+
+  /// Also lists Space and Page Down, which follow Clicker and foot pedal.
+  final bool clicker;
 
   /// A status line at the right, after a dot in [statusColour]. It keeps
   /// to one line, and when the two do not both fit it takes the place of
@@ -1158,8 +1159,8 @@ class KeyLegend extends StatelessWidget {
     super.key,
     this.keys = true,
     this.cues = true,
-    this.clicker = true,
     this.reminder = true,
+    this.clicker = true,
     this.status,
     this.statusColour,
   });
@@ -1167,9 +1168,12 @@ class KeyLegend extends StatelessWidget {
   static const _reminder = 'Timer changes ask to confirm';
 
   /// Every entry, in the order they show.
-  static List<KeyLegendEntry> entries({bool cues = true}) => [
-    (keys: 'Space', action: 'Pause', rank: 0),
-    (keys: 'PgDn PgDn', action: 'Next', rank: 1),
+  static List<KeyLegendEntry> entries({
+    bool cues = true,
+    bool clicker = true,
+  }) => [
+    if (clicker) (keys: 'Space', action: 'Pause', rank: 0),
+    if (clicker) (keys: 'PgDn PgDn', action: 'Next', rank: 1),
     (keys: '+ −', action: 'Adjust time', rank: 2),
     (keys: 'Ctrl Z', action: 'Undo', rank: 4),
     (keys: 'J', action: 'Jump to segment', rank: 5),
@@ -1225,55 +1229,6 @@ class KeyLegend extends StatelessWidget {
       color: colors.surface,
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          if (keys) ...[
-            if (clicker) ...[item('Space', 'Pause'), item('PgDn PgDn', 'Next')],
-            item('+ −', 'Adjust time'),
-            item('Ctrl Z', 'Undo'),
-            if (cues) item('1 – 9', 'Cues'),
-            item('M', 'Message'),
-            item('Ctrl L', 'Lock'),
-            item('Ctrl K', 'Commands'),
-          ],
-          if (status == null) ...[
-            const Spacer(),
-            Text(_reminder, style: style),
-          ] else
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, space) {
-                  // The dot and its gap, the status, then the reminder.
-                  final both =
-                      16 + width(status!) + 24 + width(_reminder) + 2 <=
-                      space.maxWidth;
-                  return Row(
-                    mainAxisAlignment: keys
-                        ? MainAxisAlignment.end
-                        : MainAxisAlignment.start,
-                    children: [
-                      Flexible(
-                        child: Row(
-                          key: const ValueKey('live-status-line'),
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: statusColour ?? colors.muted,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                status!,
-                                maxLines: 1,
-                                softWrap: false,
-                                overflow: TextOverflow.ellipsis,
-                                style: style,
-                              ),
       child: LayoutBuilder(
         builder: (context, box) {
           // What the keys leave room for: the reminder, or enough of the
@@ -1282,7 +1237,9 @@ class KeyLegend extends StatelessWidget {
           final statusRoom = status == null
               ? 0.0
               : 16 + math.min(width(status!), 220.0) + 2;
-          var shown = keys ? entries(cues: cues) : <KeyLegendEntry>[];
+          var shown = keys
+              ? entries(cues: cues, clicker: clicker)
+              : <KeyLegendEntry>[];
           double keysWidth() =>
               shown.fold(0.0, (sum, e) => sum + measure(span(e)) + _gap);
           // Too many keys for the room: the reminder goes first, then
