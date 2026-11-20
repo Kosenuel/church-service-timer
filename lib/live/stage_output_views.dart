@@ -162,7 +162,7 @@ extension StageOutputViews on HomeState {
             ack['outputMode'] == s.outputMode(c.now) &&
             ack['bold'] == cue?.bold &&
             ack['italic'] == cue?.italic &&
-            ack['effect'] == cue?.effect &&
+            ack['effect'] == cue?.compatibleEffect &&
             ack['speed'] == cue?.speed &&
             ack['screenSpeed'] == cue?.screenSpeed;
       }).length;

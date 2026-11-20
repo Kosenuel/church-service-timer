@@ -630,6 +630,18 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
           const {'scroll', 'flash'}.contains(from['effect'])
           ? from['effect']
           : 'static';
+      // The newer effects the page draws itself; a countdown bar only with
+      // a time to run over.
+      Json effectsOf(Json from) {
+        final effect = stageScreenEffect(from);
+        final time = stageCueTime(from);
+        if (effect == null || (effect == 'bar' && time == null)) return {};
+        return {
+          'screenEffect': effect,
+          if (time != null) 'cueTime': {'total': time.total, 'left': time.left},
+        };
+      }
+
       return {
         ...common,
         'sharing': s['stageSharing'] == true,
@@ -638,6 +650,7 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         'bold': shown['bold'] == true,
         'italic': shown['italic'] == true,
         'effect': effectOf(shown),
+        ...effectsOf(shown),
         // The cue's speed on screens; the LED sign's until one is set.
         'speed': stageScrollSpeed(s),
         // Only a checked "#rrggbb" reaches the page.
@@ -653,6 +666,7 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
             'italic': s['italic'] == true,
             'effect': effectOf(s),
             if (stageWrapsText(s)) 'wrap': true,
+            ...effectsOf(s),
           },
         'overtime': s['overtime'] == true,
         'paused': s['paused'] == true,

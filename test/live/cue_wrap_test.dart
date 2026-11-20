@@ -353,6 +353,173 @@ void main() {
     });
   });
 
+  group('Wrapped with a newer effect', () {
+    const long = 'PLEASE MAKE YOUR WAY TO THE FRONT FOR PRAYER';
+    Json effectCue(String effect, {Json? more}) => {
+      ...cue(long, more: more),
+      ...stageEffectFields(
+        TextLayout(long, effect: effect),
+        time: (total: 60000, left: 30000),
+      ),
+    };
+    Future<void> show(WidgetTester t, Json data) async {
+      setScreen(t, const Size(1920, 1080));
+      await t.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(
+            backgroundColor: Colors.black,
+            body: StageSurface(data: data, stale: false),
+          ),
+        ),
+      );
+    }
+
+    Finder around(String key) =>
+        find.ancestor(of: wrapped, matching: find.byKey(ValueKey(key)));
+
+    test('wraps every newer effect, and leaves the countdown alone', () {
+      for (final effect in screenEffects) {
+        final data = effectCue(effect);
+        expect(data['effect'], 'static', reason: effect);
+        expect(stageWrapsText(data), isTrue, reason: effect);
+      }
+    });
+
+    testWidgets('pulse dims and brightens the wrapped block', (t) async {
+      await show(t, effectCue('pulse'));
+      expect(wrapped, findsOne);
+      expect(around('stage-cue-opacity'), findsOne);
+      double opacity() =>
+          t.widget<Opacity>(around('stage-cue-opacity')).opacity;
+      final first = opacity();
+      await t.pump(const Duration(milliseconds: 1000));
+      expect(opacity(), isNot(first));
+      expect(wrappedLines(t).$2, inInclusiveRange(2, 3));
+    });
+
+    testWidgets('flash then hold flashes the block, then holds', (t) async {
+      await show(t, effectCue('flashHold'));
+      await t.pump(const Duration(milliseconds: 600));
+      expect(t.widget<Opacity>(around('stage-cue-opacity')).opacity, 0);
+      await t.pump(const Duration(milliseconds: 3000));
+      await t.pump(const Duration(milliseconds: 100));
+      expect(t.widget<Opacity>(around('stage-cue-opacity')).opacity, 1);
+      expect(wrapped, findsOne);
+      expect(t.binding.hasScheduledFrame, isFalse);
+    });
+
+    testWidgets('slide in moves the whole block up into place', (t) async {
+      await show(t, effectCue('slideIn'));
+      await t.pump(const Duration(milliseconds: 100));
+      final moving = t.getRect(wrapped);
+      expect(around('stage-cue-slide'), findsOne);
+      await t.pump(const Duration(milliseconds: 400));
+      final still = t.getRect(wrapped);
+      expect(moving.top, greaterThan(still.top));
+      expect(moving.height, closeTo(still.height, .01));
+      expect(still.center.dy, closeTo(540, 2));
+    });
+
+    testWidgets('the countdown bar sits under the wrapped block', (t) async {
+      await show(t, effectCue('bar'));
+      await t.pump(const Duration(milliseconds: 100));
+      final bar = t.getRect(find.byKey(const ValueKey('stage-cue-bar')));
+      final text = t.getRect(wrapped);
+      expect(text.bottom, lessThanOrEqualTo(bar.top));
+      expect(wrappedLines(t).$2, inInclusiveRange(2, 3));
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('screen flash lights the screen behind the block', (t) async {
+      await show(t, effectCue('screenFlash'));
+      await t.pump(const Duration(milliseconds: 100));
+      expect(wrapped, findsOne);
+      Color? flash() =>
+          (t
+                      .widget<DecoratedBox>(
+                        find.byKey(const ValueKey('stage-screen-flash')).first,
+                      )
+                      .decoration
+                  as BoxDecoration)
+              .color;
+      // A tint behind the block; the cue keeps its own colour.
+      expect(flash(), isNot(Colors.transparent));
+      expect(t.widget<Text>(wrapped).style!.color, Colors.white);
+      await t.pump(const Duration(milliseconds: 700));
+      expect(flash(), Colors.transparent);
+      expect(wrappedLines(t).$2, inInclusiveRange(2, 3));
+    });
+
+    testWidgets('keeps to 2 lines in a banner with each effect', (t) async {
+      for (final effect in screenEffects) {
+        await show(t, {...effectCue(effect), ...banner});
+        await t.pump(const Duration(milliseconds: 100));
+        await t.pump(const Duration(seconds: 4));
+        expect(wrapped, findsOne, reason: effect);
+        expect(wrappedLines(t).$2, inInclusiveRange(1, 2), reason: effect);
+        final band = t.getRect(find.byKey(const ValueKey('stage-banner')));
+        final text = t.getRect(wrapped);
+        expect(text.top, greaterThanOrEqualTo(band.top), reason: effect);
+        expect(text.bottom, lessThanOrEqualTo(band.bottom), reason: effect);
+        expect(t.takeException(), isNull, reason: effect);
+        await t.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('too long to wrap, it still scrolls', (t) async {
+      final words = List.filled(16, 'PLEASE').join(' ');
+      for (final effect in ['pulse', 'slideIn', 'bar']) {
+        await show(t, {...effectCue(effect), 'displayText': words});
+        await t.pump(const Duration(milliseconds: 100));
+        expect(wrapped, findsNothing, reason: effect);
+        final before = t.getRect(find.text(words)).left;
+        await t.pump(const Duration(milliseconds: 500));
+        expect(t.getRect(find.text(words)).left, lessThan(before));
+        await t.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('a wrapped cue sliding in, at full HD', (t) async {
+      await show(t, effectCue('slideIn', more: {'cueColor': '#ffc247'}));
+      await t.pump(const Duration(milliseconds: 500));
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(StageSurface),
+        matchesGoldenFile('../goldens/stage-cue-wrapped-slide-in-1080.png'),
+      );
+    });
+
+    testWidgets('a wrapped cue with a countdown bar, at full HD', (t) async {
+      await show(t, effectCue('bar', more: {'cueColor': '#4ade80'}));
+      await t.pump(const Duration(milliseconds: 100));
+      await expectLater(
+        find.byType(StageSurface),
+        matchesGoldenFile('../goldens/stage-cue-wrapped-bar-1080.png'),
+      );
+    });
+
+    test('the web page wraps the newer effects as one block', () {
+      const settings = WebStageSettings(orderCode: '1234', localName: 'church');
+      for (final effect in screenEffects) {
+        final full = viewFor(WebRole.stage, effectCue(effect), settings);
+        expect(full['wrap'], true, reason: effect);
+        expect(full['screenEffect'], effect, reason: effect);
+        final band =
+            viewFor(WebRole.stage, {
+                  ...effectCue(effect),
+                  ...banner,
+                }, settings)['banner']
+                as Map;
+        expect(band['wrap'], true, reason: effect);
+        expect(band['screenEffect'], effect, reason: effect);
+      }
+      // Clear of the bar; the fallback drops the effect and bar.
+      expect(webStagePage, contains("fx === 'bar' ? h * 0.74"));
+      expect(webStagePage, contains('scrollsInstead'));
+    });
+  });
+
   group('The cue editor', () {
     final led = find.byKey(const ValueKey('on-led-sign'));
     final screens = find.byKey(const ValueKey('on-screens'));

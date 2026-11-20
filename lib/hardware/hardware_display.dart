@@ -424,7 +424,7 @@ class HardwareDisplay extends ChangeNotifier {
   }
 
   static bool staticLayout(TextLayout l) =>
-      l.effect != 'flash' && textWidth(l) <= 32;
+      l.effect != 'flash' && l.effect != 'flashHold' && textWidth(l) <= 32;
   List<bool> _pixels(HardwareOutputPlan p, Stamp at) {
     if (p.kind == HardwareOutputKind.clock)
       return W2Program.clockPixels(
@@ -514,6 +514,16 @@ class HardwareDisplay extends ChangeNotifier {
         renderPixels(l, 0),
         List.filled(512, false),
       ], frameIntervalMs: 500);
+    // The controller loops whatever it is sent, so three flashes and then
+    // a long steady stretch, at the same half-second rhythm as 'flash'.
+    // Pulse, slide in, countdown bar and screen flash are steady here.
+    if (l.effect == 'flashHold') {
+      final on = renderPixels(l, flashHoldMs), off = List.filled(512, false);
+      return W2Program.frames([
+        for (var i = 0; i < flashHoldCycleMs ~/ 500; i++)
+          i * 500 < flashHoldMs && i.isOdd ? off : on,
+      ], frameIntervalMs: 500);
+    }
     if (l.effect == 'scroll' && textWidth(l) > 32) {
       final interval = 2 * (500 / l.speed).round();
       return W2Program.frames(

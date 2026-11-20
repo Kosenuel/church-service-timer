@@ -57,49 +57,151 @@ class StageSurface extends StatelessWidget {
       ),
     );
     final timer = StageMessage(data: under, stale: stale, fullscreen: true);
-    return StageBannerFrame(
-      banner: position == null ? null : stageBannerText(data),
-      top: position == 'top',
-      stale: stale,
-      builder: (context, band, top) => Padding(
-        padding: const EdgeInsets.all(12),
-        child: LayoutBuilder(
-          builder: (context, space) {
-            if (!space.maxHeight.isFinite) {
-              return showSegment
-                  ? Column(
-                      children: [timer, const SizedBox(height: 8), label()],
-                    )
-                  : timer;
-            }
-            // The time keeps the box it has without a banner and gives up
-            // the same space above and below, so it stays centred. Under a
-            // bottom band the segment name moves up to sit above the band.
-            final below = showSegment ? 44.0 : 0.0;
-            final lift = top ? 0.0 : band;
-            final clear = StageBannerFrame.clearance(
-              space.maxHeight - below,
-              above: top && band > 0 ? band - 12 : 0,
-              below: showSegment ? lift : (lift > 0 ? lift - 12 : 0),
-            );
-            return Stack(
-              children: [
-                Positioned.fill(
-                  bottom: below,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: clear),
-                    child: timer,
+    // A full-screen cue's screen flash lights the whole screen; a banner's
+    // lights only its band (see [StageBanner]).
+    return StageScreenFlash(
+      data: position == null ? data : null,
+      base: Colors.transparent,
+      child: StageBannerFrame(
+        banner: position == null ? null : stageBannerText(data),
+        top: position == 'top',
+        stale: stale,
+        builder: (context, band, top) => Padding(
+          padding: const EdgeInsets.all(12),
+          child: LayoutBuilder(
+            builder: (context, space) {
+              if (!space.maxHeight.isFinite) {
+                return showSegment
+                    ? Column(
+                        children: [timer, const SizedBox(height: 8), label()],
+                      )
+                    : timer;
+              }
+              // The time keeps the box it has without a banner and gives up
+              // the same space above and below, so it stays centred. Under a
+              // bottom band the segment name moves up to sit above the band.
+              final below = showSegment ? 44.0 : 0.0;
+              final lift = top ? 0.0 : band;
+              final clear = StageBannerFrame.clearance(
+                space.maxHeight - below,
+                above: top && band > 0 ? band - 12 : 0,
+                below: showSegment ? lift : (lift > 0 ? lift - 12 : 0),
+              );
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    bottom: below,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: clear),
+                      child: timer,
+                    ),
                   ),
-                ),
-                if (showSegment)
-                  Positioned(left: 0, right: 0, bottom: lift, child: label()),
-              ],
-            );
-          },
+                  if (showSegment)
+                    Positioned(left: 0, right: 0, bottom: lift, child: label()),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
+}
+
+/// A cue's whole-screen flash: when a cue with the 'screenFlash' effect
+/// appears, [child]'s background glows with a deep tint of the cue's
+/// colour (red for a white cue) for [duration], with the cue still drawn
+/// in its own colour, and then it is [base] again. With reduced motion there is no flash: the
+/// edge stays in the cue's colour while the cue shows instead.
+class StageScreenFlash extends StatefulWidget {
+  /// The cue's snapshot, or null where nothing here flashes.
+  final Json? data;
+  final Color base;
+  final Widget child;
+
+  /// The decoration's border while there is one, e.g. a banner's rule.
+  final Border? border;
+  const StageScreenFlash({
+    super.key,
+    required this.data,
+    required this.base,
+    required this.child,
+    this.border,
+  });
+  static const duration = Duration(milliseconds: 600);
+
+  /// The colour a cue in [data] flashes the screen: its own, or red when
+  /// it is white, as white would only glare.
+  static Color colorOf(Json data) {
+    final color = stageCueColor(data);
+    return color == Colors.white ? const Color(0xffff4d4d) : color;
+  }
+
+  @override
+  State<StageScreenFlash> createState() => _StageScreenFlashState();
+}
+
+class _StageScreenFlashState extends State<StageScreenFlash>
+    with SingleTickerProviderStateMixin {
+  late final flash = AnimationController(
+    vsync: this,
+    duration: StageScreenFlash.duration,
+  );
+  bool get on =>
+      widget.data != null && stageScreenEffect(widget.data!) == 'screenFlash';
+  String key(Json? data) => data == null || stageScreenEffect(data) == null
+      ? ''
+      : '${data['displayText']}|${stageScreenEffect(data)}';
+
+  @override
+  void initState() {
+    super.initState();
+    if (on) flash.forward();
+  }
+
+  @override
+  void didUpdateWidget(StageScreenFlash old) {
+    super.didUpdateWidget(old);
+    if (key(old.data) != key(widget.data)) {
+      if (on) {
+        flash.forward(from: 0);
+      } else {
+        flash.reset();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    flash.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, space) => AnimatedBuilder(
+      animation: flash,
+      builder: (context, child) {
+        final calm = reduceAppMotion(context);
+        final lit = on && !calm && flash.isAnimating;
+        final color = on ? StageScreenFlash.colorOf(widget.data!) : null;
+        final edge = (space.biggest.shortestSide * .025)
+            .clamp(4.0, 24.0)
+            .toDouble();
+        return DecoratedBox(
+          key: const ValueKey('stage-screen-flash'),
+          decoration: BoxDecoration(
+            color: lit ? Color.lerp(Colors.black, color, .32) : widget.base,
+            border: on && calm
+                ? Border.all(color: color!, width: edge)
+                : widget.border,
+          ),
+          child: StageFlashScope(lit: lit, child: child!),
+        );
+      },
+      child: widget.child,
+    ),
+  );
 }
 
 /// The stage with room for a banner cue: a band across the top or bottom
@@ -223,12 +325,11 @@ class StageBanner extends StatelessWidget {
         color: color,
         width: (space.maxHeight * .035).clamp(2.0, 8.0),
       );
-      return DecoratedBox(
+      return StageScreenFlash(
         key: const ValueKey('stage-banner'),
-        decoration: BoxDecoration(
-          color: Color.alphaBlend(color.withValues(alpha: .16), Colors.black),
-          border: top ? Border(bottom: rule) : Border(top: rule),
-        ),
+        data: data,
+        base: Color.alphaBlend(color.withValues(alpha: .16), Colors.black),
+        border: top ? Border(bottom: rule) : Border(top: rule),
         child: Padding(
           padding: EdgeInsets.symmetric(
             // Scrolling text runs from edge to edge of the screen.
@@ -242,6 +343,7 @@ class StageBanner extends StatelessWidget {
             stale: stale,
             fullscreen: true,
             wrapLines: stageBannerWrapLines,
+            fromTop: top,
           ),
         ),
       );
