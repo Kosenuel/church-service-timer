@@ -79,8 +79,9 @@ class Shortcut {
   /// Whether it changes the running timer.
   final bool timerAction;
 
-  /// Whether a clicker or pedal on a phone or tablet can do it too. The
-  /// rest need a computer.
+  /// Whether it is one of the keys a clicker or pedal sends. These work
+  /// on a phone or tablet too, and on every device only while Clicker and
+  /// foot pedal is on. The rest need a computer.
   final bool clicker;
 
   /// Answered by the question or window on screen, not by Live.
@@ -281,7 +282,6 @@ final List<Shortcut> shortcuts = List.unmodifiable([
     hint: 'Ctrl M',
     action: 'Mini timer',
     confirm: 'a small window on top; again to leave it',
-    condition: 'While a service is running.',
     presses: [KeyPress(LogicalKeyboardKey.keyM, control: true)],
   ),
   Shortcut(
@@ -343,6 +343,10 @@ final List<Shortcut> shortcuts = List.unmodifiable([
     presses: [KeyPress(LogicalKeyboardKey.escape, control: null)],
   ),
 ]);
+
+/// What the shortcuts sheet says while Clicker and foot pedal is off.
+const shortcutsClickerOffRule =
+    'Clicker and foot pedal is switched off in Settings › Warnings & alerts, so Space, B, Page Down and → do nothing on Live.';
 
 /// The two rules that hold for every key.
 const shortcutsConfirmRule =
@@ -465,7 +469,9 @@ String keyName(
 const unusedKeyExplanation = 'Nothing: the app does not use this key';
 
 /// What a press does on Live, in one line. On a phone or tablet only the
-/// clicker's keys do anything, and only while the clicker setting is on.
+/// clicker's keys do anything. On every device the clicker's keys work
+/// only while the clicker setting is on; a computer's other keys work
+/// either way.
 String keyExplanation(
   LogicalKeyboardKey key, {
   required bool control,
@@ -475,7 +481,7 @@ String keyExplanation(
 }) {
   final s = shortcutFor(key, control: control, shift: shift);
   if (s == null || (!desktop && !s.clicker)) return unusedKeyExplanation;
-  if (!desktop && !clickerOn) {
+  if (s.clicker && !clickerOn) {
     return 'Nothing while Clicker and foot pedal is switched off';
   }
   return s.explanation(desktop: desktop);

@@ -421,7 +421,8 @@ extension MobileDisplayViews on HomeState {
     final isWeb = chosen != null && chosen.id.startsWith('web:');
     Json? data = selected?.acknowledgedSnapshot;
     if (isWeb) {
-      data = c.pairedSnapshot(false)..['stageLayout'] = 'timer';
+      data = c.pairedSnapshot(false)
+        ..['stageLayout'] = c.webStageSettings.stageLayout;
       if (!c.quickRecipients.contains(chosen.id)) {
         data
           ..remove('quickMessage')

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:church_service_timer/app/platform.dart';
 import 'package:church_service_timer/app/update_checker.dart';
+import 'package:church_service_timer/app/update_installer.dart';
 import 'package:church_service_timer/display/tinos_rasterizer.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/hardware/w2/w2_transport.dart';
@@ -98,6 +99,12 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   final MiniWindow? miniWindow;
   @override
   final FullScreenWindow? fullScreenWindow;
+
+  /// The download, temporary file and installer start for Check for
+  /// updates, and how the app ends once the installer runs. Null in
+  /// tests that do not need them.
+  final UpdateFiles? updateFiles;
+  final void Function() exitApp;
   late final AtomicTextFile _state = AtomicTextFile.json(
     File(_path('service-state.json')),
   );
@@ -186,6 +193,8 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     this.stageOutput,
     this.miniWindow,
     this.fullScreenWindow,
+    this.updateFiles,
+    this.exitApp,
   );
 
   factory WindowsPort({
@@ -200,6 +209,8 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     StageOutputLauncher? stageLauncher,
     MiniWindow? miniWindow,
     FullScreenWindow? fullScreenWindow,
+    UpdateFiles? updateFiles,
+    void Function()? exitApp,
   }) {
     String path(String name) => '${dataDir.path}${Platform.pathSeparator}$name';
     final prefs = JsonPrefs(File(path('sign.json')));
@@ -223,6 +234,8 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
       stageLauncher == null ? null : StageOutputHost(stageLauncher),
       miniWindow,
       fullScreenWindow,
+      updateFiles,
+      exitApp ?? () => exit(0),
     );
   }
 
@@ -709,6 +722,21 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
 
   @override
   UpdateChecker get updateChecker => const UpdateChecker();
+
+  /// The installer replaces the app's files, so once it has started the
+  /// app closes as if its window were closed: the notification-area icon,
+  /// warnings and the stage window go with it.
+  @override
+  late final UpdateInstaller? updateInstaller = updateFiles == null
+      ? null
+      : UpdateInstaller(
+          updateFiles!,
+          quit: () async {
+            await windowClosing();
+            dispose();
+            exitApp();
+          },
+        );
 
   @override
   Future<Json> batteryStatus() async => system.power();

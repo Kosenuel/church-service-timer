@@ -119,10 +119,27 @@ class AppController extends ChangeNotifier {
     return commit((draft, _) => draft.simulatorKind = kind);
   }
 
+  /// Why "Check this service" cannot start now, or null when it can. It
+  /// touches nothing real, but it must not run beside a real service.
+  String? get serviceCheckUnavailable => !ready || corrupt
+      ? 'The app is not ready yet.'
+      : pairing.joined || !pairing.localControl
+      ? 'Take back control to check a service.'
+      : state.session.active
+      ? 'End the current service before checking one.'
+      : null;
+
+  /// Remembers what the stage simulator shows under the time.
+  Future<bool> setSimulatorLayout(String layout) async {
+    if (!stageLayouts.containsKey(layout)) return false;
+    if (state.simulatorLayout == layout) return true;
+    return commit((draft, _) => draft.simulatorLayout = layout);
+  }
+
   /// What a stage screen would show now, for the Simulator standing in
-  /// for one: the timer only, as a new stage screen starts.
+  /// for one, with what it is set to show under the time.
   Json stageSimulatorSnapshot() =>
-      stageWindowSnapshot()..['stageLayout'] = 'timer';
+      stageWindowSnapshot()..['stageLayout'] = state.simulatorLayout;
   late final quickMessages = QuickMessageController(this);
   late final practice = PracticeController(this);
   late final stageRequests = StageRequestController(this);
@@ -397,7 +414,7 @@ class AppController extends ChangeNotifier {
 
   /// The time a cue showing now has in all and has left, for a countdown
   /// bar on screens; null for a cue shown until cleared, or none.
-  ({int total, int left})? _cueTime(Session s) {
+  ({int total, int left})? _cueTime(Session s, Stamp now) {
     if (s.hasAutomaticCue(now)) {
       return (
         total: s.automaticCueDurationMs,
@@ -411,11 +428,15 @@ class AppController extends ChangeNotifier {
     return null;
   }
 
-  Json pairedSnapshot(bool privateNotes) {
+  /// What stage screens are sent. With [session] and [at], what they
+  /// would show of that session instead, as "Check this service" draws
+  /// it on the stage simulator; no message is added to it.
+  Json pairedSnapshot(bool privateNotes, {Session? session, Stamp? at}) {
     if (!ready) return {};
-    final s = state.session, t = state.session.timeline;
+    final s = session ?? state.session, t = s.timeline;
+    final now = at ?? this.now;
     final display = s.intended(now);
-    final quick = quickMessages.forStage;
+    final quick = session == null ? quickMessages.forStage : null;
     // A banner needs a countdown or clock to sit over; otherwise, and on
     // paired screens from before banners, the cue fills the screen.
     final banner = display != null && display.bannerOnScreens && s.active;
@@ -428,6 +449,8 @@ class AppController extends ChangeNotifier {
       'nextSegment': t != null && s.index + 1 < t.segments.length
           ? t.segments[s.index + 1].name
           : '',
+      // Who and what comes next, for stage screens set to show it.
+      'upNext': stageUpNextLine(t, s.index, quick: s.quickTimer),
       'displayIsTimer':
           s.active &&
           !s.showClock &&
@@ -448,7 +471,7 @@ class AppController extends ChangeNotifier {
       'displayText': s.outputBlank ? '' : display?.text ?? '',
       'outputMode': s.outputMode(now),
       'clockBlink': s.clockBlink,
-      ...stageEffectFields(display, time: _cueTime(s)),
+      ...stageEffectFields(display, time: _cueTime(s, now)),
       // The LED sign's speed, which older paired screens keep following.
       'speed': display?.speed ?? 12,
       'screenSpeed': ?display?.screenSpeed,

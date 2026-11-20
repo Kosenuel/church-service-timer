@@ -644,6 +644,20 @@ extension SettingsViews on HomeState {
                 checker: c.port.updateChecker,
                 installed: c.appVersion,
                 openPage: c.port.openWebPage,
+                installer: c.port.updateInstaller,
+                installBlocker: () => c.liveSession.active
+                    ? 'Finish or end the service first. Installing closes the app, which would stop the timer.'
+                    : c.reportSavePending
+                    ? 'Wait for the service report to be saved, then try again.'
+                    : null,
+                saveFirst: () async {
+                  await c.flushEditDrafts();
+                  await c.pendingWrite;
+                  return c.draftError == null
+                      ? null
+                      : 'A draft could not be saved, so the app was not closed. Try again in a moment.';
+                },
+                confirm: (title, body, button) => confirm(title, body, button),
               ),
             ),
           ),

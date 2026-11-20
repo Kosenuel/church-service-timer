@@ -5,7 +5,7 @@ Run after `flutter build windows --release`, from the repository root:
 
     pwsh scripts/Package-Windows.ps1
 
-It writes two files to dist/:
+It writes two files to dist/, each with a .sha256 checksum file beside it:
 
   Church-Service-Timer-<version>-windows-x64.zip   unzip anywhere and run
   Church-Service-Timer-<version>-windows-setup.exe installer (needs Inno Setup)
@@ -71,7 +71,12 @@ if (-not $SkipInstaller) {
   if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE." }
 }
 
-Get-ChildItem $dist -Filter "Church-Service-Timer-$Version-windows-*" | ForEach-Object {
+# A checksum beside each file, in the form sha256sum writes, so people
+# and the app's Check for updates can tell the download is complete.
+Get-ChildItem $dist -Filter "Church-Service-Timer-$Version-windows-*" |
+  Where-Object { $_.Extension -ne '.sha256' } | ForEach-Object {
   $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
-  "$hash  $($_.Name)"
+  $line = "$hash  $($_.Name)"
+  [IO.File]::WriteAllText("$($_.FullName).sha256", "$line`n")
+  $line
 }

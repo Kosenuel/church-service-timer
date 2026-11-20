@@ -36,6 +36,7 @@ Be clear about this when reading the rest of the page.
 | Countdown when another program is in front | Ongoing notification | An icon in the notification area while a service or quick timer runs (`Shell_NotifyIconW` through `dart:ffi`; `lib/windows/tray_countdown.dart` decides when, `win32_api.dart` makes the calls). Its tooltip is the countdown, changed only when the text changes, about once a second. A click brings the window forward: Windows sends the click to the app window as `WM_APP + 0x3C7`, answered by one case in `win32_window.cpp`. It has no menu and cannot change a service. It is removed when the service ends, when the setting **Show the countdown in the notification area** is turned off, and when the window closes; after a crash Windows removes it the first time the mouse passes over it. If Explorer restarts, the icon comes back within about ten seconds while the countdown runs (when paused, at the next change of text); `TaskbarCreated` is not listened for. Windows 11 puts a new icon in the overflow behind the arrow until it is dragged out. |
 | Camera QR scanning | `mobile_scanner` | Not available; the button is hidden. Join with the six-digit code. The PC can still show a QR for phones to scan. |
 | Battery optimisation | Settings screen | Does not apply; hidden. |
+| Check for updates | Opens the download page | Also **Download and install**: the installer is downloaded, checked and started after the operator confirms, then the app closes (`lib/app/update_installer.dart`, `lib/windows/windows_updates.dart`). |
 | Feedback email | Email app | The PC's email program through a `mailto:` link. A long message is put on the clipboard with a note to paste it. |
 
 Only one copy of the app runs per Windows user; starting it again brings the first to the front.
@@ -125,7 +126,7 @@ Every key is listed once, in `lib/live/shortcuts.dart`. The shortcuts sheet, the
 Two rules hold for all of them: every timer action asks to confirm before anything changes, and **Lock controls** blocks every key until it is held to unlock (Ctrl+L locks and cannot unlock).
 
 - **When they work.** The keys from Space down to M work on Live while a service is running, with no question or other page on top; the cue numbers and M also need a display connected. Ctrl+Z needs a segment change to undo and J a later segment to jump to. Ctrl+K and ? or F1 work on any tab of the home screen, but not under a dialog or another page. Ctrl+M works whenever a service is running, whatever page is showing. F11 does too, and in full screen the keys from Space down to M work as they do on Live. None of them does anything while typing in a field, so ? typed into a field is a question mark.
-- **Clicker keys.** Space, B, Page Down and → are the keys a clicker or pedal sends. On a computer they work without turning on **Clicker and foot pedal**, and holding Ctrl makes no difference to them. On a phone or tablet they need that setting, and a clicker's Space or B pauses at once, because there is no screen in the hand to confirm on; the other keys in the table need a computer.
+- **Clicker keys.** Space, B, Page Down and → are the keys a clicker or pedal sends. They work only while **Clicker and foot pedal** is on (it is on to begin with), on a computer as well as a phone or tablet: a computer cannot tell a clicker from its keyboard, so switching it off turns them off on the keyboard too, and the buttons, key labels and shortcuts sheet stop offering them. The other keys in the table do not depend on it. Holding Ctrl makes no difference to them. On a phone or tablet they need that setting, and a clicker's Space or B pauses at once, because there is no screen in the hand to confirm on; the other keys in the table need a computer.
 - **Other spellings.** The + key works without Shift (the = key), the number pad's + and − open Adjust time, and its 1 to 9 send cues. The number of the cue that is showing goes back to the timer.
 - **In a question.** Space or Enter presses the confirming button and Esc cancels, except for End service and the other destructive questions, which must be clicked.
 - **Key labels.** On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
@@ -141,6 +142,16 @@ Two rules hold for all of them: every timer action asks to confirm before anythi
 ## Commands
 
 **Ctrl+K**, or **Commands** in the Live ⋮ menu, opens a searchable list of what can be done now (`lib/live/command_palette.dart`). It works on any tab of the home screen, but not under a dialog, while typing in a field or with the controls locked. Each command calls the same function as its button, so timer changes still ask to confirm, and a command is listed only while its button would be enabled.
+
+## Updating from the app
+
+Settings › About › **Check for updates** asks GitHub's public API for the latest release of the guide repository, only when pressed. When it is newer, a PC offers **Download and install** beside **Open release page**; a phone offers only the page, as before.
+
+- **Which file.** Only `Church-Service-Timer-<version>-windows-setup.exe` from that release, with exactly the version offered, downloaded from the guide repository's releases. A release with only the zip, or no Windows file, gets **Open release page** and a line saying why: a zip cannot be installed by the app.
+- **Checks.** The download goes to a new folder in the Windows temporary folder with a progress bar and **Cancel download**. It must be exactly the size GitHub lists. When the release has `<installer>.sha256` (written by `scripts/Package-Windows.ps1`) or GitHub lists a SHA-256 for the file, the download must match it, and the two must agree. A file that fails is deleted. With no checksum at all only the size is checked, and the question says so.
+- **Asking.** Nothing is installed without a question: "The app will close to install version X…". A running service blocks it ("Finish or end the service first"), checked before downloading and again after the question, as does a service report still being saved. Drafts being edited are saved first; they are kept in the saved state and offered again when the app reopens.
+- **Installing.** The installer is started as it would be by a double-click, with no arguments, so it shows every step; then the app closes as if its window had been closed. If Windows will not start it, the app stays open and says where the file is.
+- **Where it comes from.** `publish-to-guide.yml` copies the Windows installer and its `.sha256` to the guide release along with the APK, after the Windows build has finished. A release made before this change has no installer there, so a check against it falls back to the release page; run **Actions › Publish to the guide site** with that tag to add it.
 
 ## Building
 
@@ -187,3 +198,10 @@ Nothing is code-signed. Windows SmartScreen shows "Windows protected your PC" th
     3. *Second monitor.* Drag the app to another monitor, F11: it should cover that monitor, not the first.
     4. *Close while full screen.* F11, then Alt+F4 and confirm; start the app again: the normal window at its usual place.
     5. *With the stage window and the mini timer.* Show the second screen, then F11 and Esc: the stage window keeps following. Open and leave the mini timer afterwards: it should behave as in step 13.
+16. **Download and install.** None of it has run on a real PC. Install an older version with the installer, with a newer release on the guide site that has the Windows installer and its `.sha256`.
+    1. *Check.* Settings › About › Check for updates: **Download and install** and **Open release page**. With no newer version: "You have the latest version".
+    2. *Cancel.* Press Download and install, watch the bar and the megabytes, press **Cancel download**: "Download cancelled". The `church-service-timer-update-…` folder in `%TEMP%` should be gone.
+    3. *During a service.* Start a service and press Download and install: "Finish or end the service first", and nothing downloads.
+    4. *Install.* End the service, leave a program edit unsaved in another tab, press Download and install, then **Close and install**. The app should close and the installer open (SmartScreen may warn first). Finish it, start the app: the new version in About, and the program edit offered again.
+    5. *Wrong file.* Replace the `.sha256` on a test release with a wrong hash: the download should be refused with "does not match the checksum" and no question asked.
+    6. *Zip only.* A release with only the zip: no Download and install, a line explaining why, and **Open release page** opens the browser.
