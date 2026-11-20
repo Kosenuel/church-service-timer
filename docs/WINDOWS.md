@@ -151,7 +151,7 @@ Settings › About › **Check for updates** asks GitHub's public API for the la
 - **Checks.** The download goes to a new folder in the Windows temporary folder with a progress bar and **Cancel download**. It must be exactly the size GitHub lists. When the release has `<installer>.sha256` (written by `scripts/Package-Windows.ps1`) or GitHub lists a SHA-256 for the file, the download must match it, and the two must agree. A file that fails is deleted. With no checksum at all only the size is checked, and the question says so.
 - **Asking.** Nothing is installed without a question: "The app will close to install version X…". A running service blocks it ("Finish or end the service first"), checked before downloading and again after the question, as does a service report still being saved. Drafts being edited are saved first; they are kept in the saved state and offered again when the app reopens.
 - **Installing.** The installer is started as it would be by a double-click, with no arguments, so it shows every step; then the app closes as if its window had been closed. If Windows will not start it, the app stays open and says where the file is.
-- **Not yet published.** `publish-to-guide.yml` copies only the APK and its checksum to the guide repository, so until the Windows installer and its `.sha256` are added to the guide release, every check on a PC falls back to the release page.
+- **Where it comes from.** `publish-to-guide.yml` copies the Windows installer and its `.sha256` to the guide release along with the APK, after the Windows build has finished. A release made before this change has no installer there, so a check against it falls back to the release page; run **Actions › Publish to the guide site** with that tag to add it.
 
 ## Building
 
