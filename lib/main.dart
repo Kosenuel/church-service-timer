@@ -1250,6 +1250,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
               floatingActionButtonLocation: programsFillWindow
                   ? programsButtonLocation
                   : null,
+              // Opening Programs changes the location as the button
+              // appears; animating that move showed it first at the right
+              // edge, over the summary, before it jumped to the list.
+              floatingActionButtonAnimator:
+                  FloatingActionButtonAnimator.noAnimation,
               bottomNavigationBar:
                   !focused &&
                       ((page == 1 && programsPage.selecting) ||
