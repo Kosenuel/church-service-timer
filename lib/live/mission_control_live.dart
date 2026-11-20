@@ -154,7 +154,10 @@ extension MissionControlLive on HomeState {
           color: colors.surface,
           child: timelineStrip(enabled, rich: richTimeline),
         ),
-        if (showKeyHints && s.active) ...[rule, const KeyLegend()],
+        if (showKeyHints && s.active) ...[
+          rule,
+          KeyLegend(clicker: clickerKeysOn),
+        ],
       ],
     );
   }
@@ -1134,6 +1137,9 @@ class KeyLegend extends StatelessWidget {
   /// Also lists the number keys that send cues.
   final bool cues;
 
+  /// Also lists Space and Page Down, which follow Clicker and foot pedal.
+  final bool clicker;
+
   /// A status line at the right, after a dot in [statusColour]. It keeps
   /// to one line, and when the two do not both fit it takes the place of
   /// the reminder about confirming.
@@ -1143,6 +1149,7 @@ class KeyLegend extends StatelessWidget {
     super.key,
     this.keys = true,
     this.cues = true,
+    this.clicker = true,
     this.status,
     this.statusColour,
   });
@@ -1197,8 +1204,7 @@ class KeyLegend extends StatelessWidget {
       child: Row(
         children: [
           if (keys) ...[
-            item('Space', 'Pause'),
-            item('PgDn PgDn', 'Next'),
+            if (clicker) ...[item('Space', 'Pause'), item('PgDn PgDn', 'Next')],
             item('+ −', 'Adjust time'),
             item('Ctrl Z', 'Undo'),
             if (cues) item('1 – 9', 'Cues'),

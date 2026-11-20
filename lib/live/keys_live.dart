@@ -122,6 +122,7 @@ extension KeysLive on HomeState {
         rule,
         KeyLegend(
           keys: showKeyHints,
+          clicker: clickerKeysOn,
           status: liveStatusText,
           statusColour: displayStatusColour,
         ),

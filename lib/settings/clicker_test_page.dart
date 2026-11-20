@@ -168,7 +168,7 @@ class _ClickerTestViewState extends State<ClickerTestView> {
                     Expanded(
                       child: Text(
                         c.port.isDesktop
-                            ? 'Clicker and foot pedal is switched off. On a computer the keyboard keys work on Live all the same.'
+                            ? 'Clicker and foot pedal is switched off, so Space, B, Page Down and → do nothing on Live, from a clicker or from the keyboard. The other keyboard shortcuts still work.'
                             : 'Clicker and foot pedal is switched off, so a clicker or pedal does nothing on Live.',
                         style: text.bodyMedium?.copyWith(height: 1.4),
                       ),

@@ -432,14 +432,17 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       return true;
     }
     // A PC keyboard adds its own keys on top of the clicker's; they open
-    // the same confirmations as the buttons on screen.
+    // the same confirmations as the buttons on screen. The clicker's keys
+    // follow Clicker and foot pedal on every device: a computer cannot
+    // tell a clicker from its keyboard, so switched off they do nothing
+    // from either, and the other keys still work.
     final desktopAction = c.port.isDesktop
         ? desktopLiveActionFor(
             event.logicalKey,
             control: HardwareKeyboard.instance.isControlPressed,
           )
         : null;
-    final action = c.state.clickerControls || c.port.isDesktop
+    final action = c.state.clickerControls
         ? clickerActionFor(event.logicalKey)
         : null;
     final cueIndex = c.port.isDesktop

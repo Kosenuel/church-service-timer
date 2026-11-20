@@ -291,9 +291,9 @@ void main() {
         await press(t, key);
       }
       expect(t.takeException(), isNull, reason: '$size');
-      // On a computer the keyboard works whatever the setting says.
+      // On a computer too, the setting turns the clicker's keys off.
       expect(
-        find.textContaining('On a computer the keyboard keys work on Live'),
+        find.textContaining('from a clicker or from the keyboard'),
         findsOneWidget,
       );
       expect(shownExplanation(t), unusedKeyExplanation);
@@ -361,6 +361,41 @@ void main() {
       await t.pumpAndSettle();
       expect(c.state.clickerControls, isTrue);
       expect(find.byKey(const ValueKey('clicker-test-off')), findsNothing);
+      await press(t, LogicalKeyboardKey.pageDown);
+      expect(shownExplanation(t), 'Next segment: press twice to confirm');
+      expect(service(c), before);
+    });
+
+    testWidgets('on a PC, says the clicker keys are off from the keyboard too', (
+      t,
+    ) async {
+      final c = await testing(t, clickerOn: false);
+      final before = service(c);
+      expect(
+        find.text(
+          'Clicker and foot pedal is switched off, so Space, B, Page Down and → do nothing on Live, from a clicker or from the keyboard. The other keyboard shortcuts still work.',
+        ),
+        findsOneWidget,
+      );
+      for (final key in [
+        LogicalKeyboardKey.pageDown,
+        LogicalKeyboardKey.arrowRight,
+        LogicalKeyboardKey.space,
+        LogicalKeyboardKey.keyB,
+      ]) {
+        await press(t, key);
+        expect(
+          shownExplanation(t),
+          'Nothing while Clicker and foot pedal is switched off',
+          reason: '$key',
+        );
+      }
+      // A computer's own shortcuts do not depend on it.
+      await press(t, LogicalKeyboardKey.keyM);
+      expect(shownExplanation(t), startsWith('Send message'));
+      expectUntouched(t, before, c);
+      await t.tap(find.byKey(const ValueKey('clicker-test-turn-on')));
+      await t.pumpAndSettle();
       await press(t, LogicalKeyboardKey.pageDown);
       expect(shownExplanation(t), 'Next segment: press twice to confirm');
       expect(service(c), before);
