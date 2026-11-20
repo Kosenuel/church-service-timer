@@ -81,7 +81,7 @@ String? stageScreenEffect(Json data) {
 /// from one another. The theme's accent is worked out by the host.
 const screenCueColors = <String, int>{
   'white': 0xffffff,
-  'amber': 0xffc247,
+  'amber': 0xffa833,
   'red': 0xff4d4d,
   'green': 0x4ade80,
 };

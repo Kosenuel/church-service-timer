@@ -109,9 +109,9 @@ class StageSurface extends StatelessWidget {
 }
 
 /// A cue's whole-screen flash: when a cue with the 'screenFlash' effect
-/// appears, [child]'s background is lit in the cue's colour (red for a
-/// white cue) for [duration], with the cue drawn in black over it, and
-/// then it is [base] again. With reduced motion there is no flash: the
+/// appears, [child]'s background glows with a deep tint of the cue's
+/// colour (red for a white cue) for [duration], with the cue still drawn
+/// in its own colour, and then it is [base] again. With reduced motion there is no flash: the
 /// edge stays in the cue's colour while the cue shows instead.
 class StageScreenFlash extends StatefulWidget {
   /// The cue's snapshot, or null where nothing here flashes.
@@ -191,7 +191,7 @@ class _StageScreenFlashState extends State<StageScreenFlash>
         return DecoratedBox(
           key: const ValueKey('stage-screen-flash'),
           decoration: BoxDecoration(
-            color: lit ? color : widget.base,
+            color: lit ? Color.lerp(Colors.black, color, .32) : widget.base,
             border: on && calm
                 ? Border.all(color: color!, width: edge)
                 : widget.border,

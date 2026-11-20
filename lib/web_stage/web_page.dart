@@ -53,20 +53,18 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 @keyframes fx-flash3 { 0% { opacity:1; } 16.667% { opacity:0; } 33.333% { opacity:1; } 50% { opacity:0; } 66.667% { opacity:1; } 83.333% { opacity:0; } 100% { opacity:1; } }
 @keyframes fx-up { from { transform:translateY(100vh); } to { transform:none; } }
 @keyframes fx-down { from { transform:translateY(-100vh); } to { transform:none; } }
-@keyframes fx-screen { from, to { background:var(--fx); } }
-@keyframes fx-ink { from, to { color:#000; } }
+@keyframes fx-screen { from, to { background:var(--fx-tint); } }
 #stage .fx-pulse { animation:fx-pulse 2s ease-in-out infinite; }
 #stage .fx-flashHold { animation:fx-flash3 3s step-end 1; }
 #stage .fx-slideIn { animation:fx-up .3s ease-out 1; }
 #stage .band.top .fx-slideIn { animation-name:fx-down; }
 #stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:fx-screen .6s step-end 1; }
-#stage.fx-screenFlash .text, #stage .band.fx-screenFlash > span { animation:fx-ink .6s step-end 1; }
 #stage .cuebar { position:absolute; left:10vw; right:10vw; bottom:7vh; height:1.4vh; border-radius:1vh; display:none; overflow:hidden; background:rgba(255,255,255,.14); }
 #stage .cuebar i { display:block; height:100%; width:100%; background:currentColor; border-radius:inherit; }
 #stage .band .cuebar { left:6vh; right:6vh; bottom:1.4vh; height:.8vh; display:block; }
 @media (prefers-reduced-motion: reduce) {
   #stage .fx-slideIn { animation:none; }
-  #stage.fx-screenFlash, #stage .band.fx-screenFlash, #stage.fx-screenFlash .text, #stage .band.fx-screenFlash > span { animation:none; }
+  #stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:none; }
   #stage.fx-screenFlash, #stage .band.fx-screenFlash { box-shadow:inset 0 0 0 1.2vh var(--fx); }
 }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
@@ -392,6 +390,12 @@ function setFx(node, fx, key) {
 }
 // A screen flash is in the cue's colour, or red for a white cue.
 const flashColour = (c) => !c || c.toLowerCase() === '#ffffff' ? '#ff4d4d' : c;
+// The flash's background: a deep tint of its colour, so the cue stays
+// in its own colour over it.
+const flashTint = (c) => {
+  const n = parseInt(flashColour(c).slice(1), 16);
+  return 'rgb(' + [16, 8, 0].map((s) => Math.round(((n >> s) & 255) * .32)).join(',') + ')';
+};
 // A countdown bar: set to the time left at each poll, then running down
 // smoothly until the next.
 function setBar(bar, time) {
@@ -448,6 +452,7 @@ function renderBand(s) {
   }
   // A screen flash lights the band only; the countdown stays as it is.
   band.style.setProperty('--fx', flashColour(b.color));
+  band.style.setProperty('--fx-tint', flashTint(b.color));
   setFx(band, fx === 'screenFlash' ? fx : null, key);
   if (fx === 'bar') { const bar = el('div', 'cuebar'); bar.append(el('i')); band.append(bar); setBar(bar, b.cueTime); }
   if (!m.step) return;
@@ -487,6 +492,7 @@ function renderStage(s) {
   const fxKey = [value, s.color, s.bold, s.italic].join('|');
   setFx(text, ['pulse', 'flashHold', 'slideIn'].includes(fx) ? fx : null, fxKey);
   stage.style.setProperty('--fx', flashColour(s.color));
+  stage.style.setProperty('--fx-tint', flashTint(s.color));
   setFx(stage, fx === 'screenFlash' ? fx : null, fxKey);
   const bar = $('stageBar'); bar.style.color = s.color || '#fff';
   setBar(bar, fx === 'bar' ? s.cueTime : null);

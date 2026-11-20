@@ -45,7 +45,7 @@ Json cue(String effect, {String? color, Json? more}) => {
 /// The same cue as a banner over a countdown.
 Json bannered(String effect, {String position = 'bottom', Json? more}) => cue(
   effect,
-  color: '#ffc247',
+  color: '#ffa833',
   more: {
     'cuePosition': position,
     'underText': '12:34',
@@ -377,7 +377,7 @@ void main() {
     testWidgets('a countdown bar empties over the cue’s time', (t) async {
       final data = cue(
         'bar',
-        color: '#ffc247',
+        color: '#ffa833',
         more: {'cueTotalMs': 10000, 'cueLeftMs': 10000},
       );
       await stage(t, data);
@@ -402,11 +402,11 @@ void main() {
                   )
                   .decoration
               as BoxDecoration;
-      expect(fill.color, const Color(0xffffc247));
+      expect(fill.color, const Color(0xffffa833));
     });
 
     testWidgets('a cue shown until cleared has no bar', (t) async {
-      await stage(t, cue('bar', color: '#ffc247'));
+      await stage(t, cue('bar', color: '#ffa833'));
       await t.pump(const Duration(milliseconds: 100));
       expect(find.byKey(const ValueKey('stage-cue-bar')), findsNothing);
       expect(find.text('WRAP UP'), findsOne);
@@ -415,9 +415,12 @@ void main() {
     testWidgets('screen flash lights the screen once', (t) async {
       await stage(t, cue('screenFlash', color: '#4ade80'));
       await t.pump(const Duration(milliseconds: 100));
-      expect(flashOf(t).color, const Color(0xff4ade80));
-      // The cue is black over the flash, so it can still be read.
-      expect(textColor(t), Colors.black);
+      // A deep tint of the cue's colour, with the cue in its own colour.
+      expect(
+        flashOf(t).color,
+        Color.lerp(Colors.black, const Color(0xff4ade80), .32),
+      );
+      expect(textColor(t), const Color(0xff4ade80));
       await t.pump(const Duration(milliseconds: 600));
       expect(flashOf(t).color, Colors.transparent);
       expect(textColor(t), const Color(0xff4ade80));
@@ -431,18 +434,21 @@ void main() {
     testWidgets('a white cue flashes red', (t) async {
       await stage(t, cue('screenFlash'));
       await t.pump(const Duration(milliseconds: 100));
-      expect(flashOf(t).color, const Color(0xffff4d4d));
+      expect(
+        flashOf(t).color,
+        Color.lerp(Colors.black, const Color(0xffff4d4d), .32),
+      );
     });
 
     testWidgets('screen flash with reduced motion is a coloured edge', (
       t,
     ) async {
-      await stage(t, cue('screenFlash', color: '#ffc247'), reducedMotion: true);
+      await stage(t, cue('screenFlash', color: '#ffa833'), reducedMotion: true);
       await t.pump(const Duration(milliseconds: 100));
       final box = flashOf(t);
       expect(box.color, Colors.transparent);
-      expect((box.border! as Border).top.color, const Color(0xffffc247));
-      expect(textColor(t), const Color(0xffffc247));
+      expect((box.border! as Border).top.color, const Color(0xffffa833));
+      expect(textColor(t), const Color(0xffffa833));
     });
 
     testWidgets('an older screen shows a newer effect steady', (t) async {
@@ -495,12 +501,15 @@ void main() {
 
       await stage(t, bannered('screenFlash'));
       await t.pump(const Duration(milliseconds: 100));
-      expect(flashOf(t, band: true).color, const Color(0xffffc247));
-      expect(textColor(t), Colors.black);
+      expect(
+        flashOf(t, band: true).color,
+        Color.lerp(Colors.black, const Color(0xffffa833), .32),
+      );
+      expect(textColor(t), const Color(0xffffa833));
       // The rest of the screen stays black.
       expect(flashOf(t).color, Colors.transparent);
       await t.pump(const Duration(milliseconds: 700));
-      expect(flashOf(t, band: true).color, isNot(const Color(0xffffc247)));
+      expect(flashOf(t, band: true).color, isNot(const Color(0xffffa833)));
 
       await stage(
         t,
@@ -704,7 +713,7 @@ void main() {
         t,
         cue(
           'bar',
-          color: '#ffc247',
+          color: '#ffa833',
           more: {'cueTotalMs': 10000, 'cueLeftMs': 6500},
         ),
       );
@@ -716,7 +725,7 @@ void main() {
     });
 
     testWidgets('the whole-screen flash', (t) async {
-      await stage(t, cue('screenFlash', color: '#ffc247'));
+      await stage(t, cue('screenFlash', color: '#ffa833'));
       await t.pump(const Duration(milliseconds: 200));
       await expectLater(
         find.byType(StageSurface),

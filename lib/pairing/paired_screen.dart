@@ -812,14 +812,13 @@ class _StageMessageState extends State<StageMessage>
         42.0,
         widget.fullscreen ? 260.0 : 130.0,
       );
-      final lit = StageFlashScope.of(context);
       final color = stageCueColor(widget.data);
       final style = TextStyle(
         // Start at screen height; static text then fits proportionally to width.
         // This keeps short cues large without cropping a long countdown.
         fontSize: fullHeight ? space.maxHeight * .9 : previewSize,
         height: fullHeight ? 1.1 : null,
-        color: lit ? Colors.black : color,
+        color: color,
         fontWeight: widget.data['bold'] == true
             ? FontWeight.bold
             : FontWeight.w500,
@@ -942,7 +941,7 @@ class _StageMessageState extends State<StageMessage>
                 height: thickness,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: lit ? 0 : .22),
+                    color: Colors.white.withValues(alpha: .14),
                     borderRadius: BorderRadius.circular(thickness),
                   ),
                   child: FractionallySizedBox(
@@ -951,7 +950,7 @@ class _StageMessageState extends State<StageMessage>
                     child: DecoratedBox(
                       key: const ValueKey('stage-cue-bar'),
                       decoration: BoxDecoration(
-                        color: lit ? Colors.black : color,
+                        color: color,
                         borderRadius: BorderRadius.circular(thickness),
                       ),
                     ),
