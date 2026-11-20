@@ -657,6 +657,9 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         if (color != null && position == null) 'color': stageColorHex(color),
         // "Wrap long text": up to 3 lines, as large as fits, not scrolling.
         if (position == null && stageWrapsText(s)) 'wrap': true,
+        // Flash or Pulse text too wide for the LED sign, a few words at a
+        // time as the sign shows it.
+        if (position == null) 'words': ?stageWordGroups(s),
         if (position != null)
           'banner': {
             'text': s['displayText'] ?? '',
@@ -666,6 +669,7 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
             'italic': s['italic'] == true,
             'effect': effectOf(s),
             if (stageWrapsText(s)) 'wrap': true,
+            'words': ?stageWordGroups(s),
             ...effectsOf(s),
           },
         'overtime': s['overtime'] == true,

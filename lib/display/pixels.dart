@@ -51,6 +51,58 @@ int textWidth(TextLayout l) {
       (l.italic ? 2 : 0);
 }
 
+/// [l] with only [text], drawn steady: one group of its words.
+TextLayout _part(TextLayout l, String text) => TextLayout(
+  text,
+  bold: l.bold,
+  italic: l.italic,
+  effect: 'static',
+  align: l.align,
+  speed: l.speed,
+  height: l.height,
+  font: l.font,
+);
+
+/// The texts the LED sign measures to split [l] into groups of words:
+/// each word, and each run of words that might share a group. A Tinos
+/// cue has each drawn ahead (see `NativeDisplayFonts.prepare`).
+Iterable<TextLayout> wordGroupCandidates(TextLayout l) sync* {
+  final words = l.text.trim().split(RegExp(r'\s+'));
+  for (var i = 0; i < words.length; i++) {
+    for (var j = i; j < words.length; j++) {
+      final part = _part(l, words.sublist(i, j + 1).join(' '));
+      yield part;
+      // Longer runs only get wider; a run is no use once past the sign.
+      try {
+        if (textWidth(part) > 32) break;
+      } catch (_) {
+        break;
+      }
+    }
+  }
+}
+
+/// The groups of words a Flash or Pulse cue too wide for the LED sign is
+/// shown in, one after another (see [groupWords]); null when it is shown
+/// as it is: another effect, it fits, it is longer than
+/// [wordGroupMaxLength] characters, or one of its words is too wide.
+List<String>? signWordGroups(TextLayout l) {
+  if (!wordGroupEffects.contains(l.effect) || textWidth(l) <= 32) return null;
+  if (l.text.trim().runes.length > wordGroupMaxLength) return null;
+  return groupWords(l.text, (text) => textWidth(_part(l, text)) <= 32);
+}
+
+/// [signWordGroups] for a stage snapshot: null, never an error, while a
+/// Tinos cue is still being drawn or the text cannot be shown.
+List<String>? stageWordGroupsOf(TextLayout? l) {
+  if (l == null) return null;
+  try {
+    return signWordGroups(l);
+  } catch (_) {
+    return null;
+  }
+}
+
 void validateLayout(TextLayout layout) {
   layout.validate();
   final unknown = layout.text.runes
@@ -60,10 +112,22 @@ void validateLayout(TextLayout layout) {
     unknown.isEmpty,
     'This pixel font does not support: ${unknown.map((r) => 'U+${r.toRadixString(16).toUpperCase().padLeft(4, '0')}').join(', ')}. Use basic Latin letters, numbers and supported punctuation.',
   );
+  final width = textWidth(layout);
+  if (layout.effect == 'scroll' || width <= 32) return;
+  // Flash and Pulse show text too wide for the sign a few words at a time.
+  if (wordGroupEffects.contains(layout.effect)) {
+    final length = layout.text.trim().runes.length;
+    require(
+      length <= wordGroupMaxLength,
+      'This text has $length characters. Flash and Pulse show long text a few words at a time, up to $wordGroupMaxLength characters. Choose Scroll long text, or make it shorter.',
+    );
+    if (signWordGroups(layout) != null) return;
+  }
+  // Every other effect but scrolling says "(must fit)" in the editor's
+  // list; a single word too wide for the sign does not fit either.
   require(
-    layout.effect == 'scroll' || textWidth(layout) <= 32,
-    // Every effect but scrolling says "(must fit)" in the editor's list.
-    'This text is ${textWidth(layout)} pixels wide and must fit the LED sign’s 32 pixels. Choose Scroll long text, or make it shorter.',
+    false,
+    'This text is $width pixels wide and must fit the LED sign’s 32 pixels. Choose Scroll long text, or make it shorter.',
   );
 }
 
@@ -81,6 +145,20 @@ void validateTimelinePixels(Timeline timeline) {
 List<bool> renderPixels(TextLayout? layout, int elapsedMs) {
   final pixels = List<bool>.filled(512, false);
   if (layout == null) return pixels;
+  // Too wide for the sign: a few words at a time, a frame at a time, as
+  // the controller's loop plays it (see [wordGroupAt]).
+  final groups = signWordGroups(layout);
+  if (groups != null) {
+    final at = wordGroupAt(
+      layout.effect,
+      groups.length,
+      elapsedMs ~/ wordGroupFrameMs * wordGroupFrameMs,
+    );
+    final lit = layout.effect == 'flash'
+        ? at.opacity > .5
+        : at.opacity >= wordGroupSignPulseLevel;
+    return lit ? renderPixels(_part(layout, groups[at.index]), 0) : pixels;
+  }
   if (layout.effect == 'flash' && (elapsedMs ~/ 500).isOdd) return pixels;
   // Three flashes, then steady, as the controller's loop plays it.
   if (layout.effect == 'flashHold') {

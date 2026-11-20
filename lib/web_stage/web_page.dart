@@ -420,6 +420,11 @@ function startMotion(text, value, s, key) {
     const speed = (Number(s.speed) || 12) * 6 * (size / Math.min(260, Math.max(42, w / 7)));
     motion = m; startScroll('stage', run, value.replace(/\n/g, ' '), w, speed);
     return;
+  } else if (s.group) {
+    const longest = s.group.words.reduce((a, b) => (b.length > a.length ? b : a));
+    fit(text, longest);
+    fitWords(text, s.group.words, parseFloat(text.style.fontSize), w * 0.92);
+    stepWords(m, text, s.group);
   } else {
     text.textContent = value;
     if (s.wrapAt) text.style.fontSize = s.wrapAt + 'px'; else fit(text, value || ' ');
@@ -441,6 +446,39 @@ function setFx(node, fx, key) {
   node.dataset.fx = k;
   for (const f of FX) node.classList.remove('fx-' + f);
   if (fx) { void node.offsetWidth; node.classList.add('fx-' + fx); }
+}
+// Flash or Pulse text too wide for the LED sign, a few words at a time as
+// the sign shows it: which of [count] groups shows [ms] after the cue
+// appears, and how brightly. The same timing as the app's screens.
+function wordAt(kind, count, ms) {
+  const cycle = count * 2000 + (kind === 'flash' ? 300 : 0);
+  const t = ((Math.floor(ms) % cycle) + cycle) % cycle;
+  const index = Math.min(Math.floor(t / 2000), count - 1), within = t - index * 2000;
+  if (kind === 'flash') return { index, opacity: within < 500 || (within >= 1000 && within < 1500) ? 1 : 0 };
+  const v = Math.sin(Math.PI * within / 2000);
+  return { index, opacity: v * v };
+}
+// The groups of words [s] steps through, and with which effect, or null
+// when it shows its text whole (wrapped text flashes or pulses whole).
+function wordsOf(s, wrap) {
+  const ok = Array.isArray(s.words) && s.words.length > 0 && s.words.every((w) => typeof w === 'string');
+  if (!ok || wrap) return null;
+  const kind = s.effect === 'flash' ? 'flash' : s.screenEffect === 'pulse' ? 'pulse' : null;
+  return kind ? { kind, words: s.words } : null;
+}
+// Sets [node] to the size at which the widest of [words] fits [room] px
+// across, from [size] px at most, so every group is the same size.
+function fitWords(node, words, size, room) {
+  node.style.whiteSpace = 'nowrap'; node.style.fontSize = size + 'px';
+  for (const w of words) { node.textContent = w; if (node.offsetWidth > room) { size = size * room / node.offsetWidth; node.style.fontSize = size + 'px'; } }
+}
+// Steps [node] through the groups as time passes in motion [m].
+function stepWords(m, node, g) {
+  m.step = () => {
+    const at = wordAt(g.kind, g.words.length, m.elapsed * 1000);
+    if (node.textContent !== g.words[at.index]) node.textContent = g.words[at.index];
+    node.style.opacity = String(at.opacity);
+  };
 }
 // A coloured full-screen cue's words: warm white for amber, otherwise the
 // cue's own colour (the host lightens a dark theme colour before sending).
@@ -505,7 +543,8 @@ function renderBand(s) {
   if (!b) { stop(); stopScroll('band', true); band.style.display = 'none'; band.dataset.key = ''; setFx(band, null, ''); clear(band); return; }
   const h = window.innerHeight, w = window.innerWidth;
   const fx = b.screenEffect || '';
-  const key = [b.text, b.position, b.color, b.bold, b.italic, b.effect, b.wrap, fx, s.speed, w, h].join('|');
+  const bandGroup = wordsOf(b, b.wrap === true);
+  const key = [b.text, b.position, b.color, b.bold, b.italic, b.effect, b.wrap, fx, bandGroup ? bandGroup.words.join('\n') : '', s.speed, w, h].join('|');
   // The same banner as the last poll: leave it running.
   if (band.dataset.key === key) { const bar = band.querySelector('.cuebar'); if (bar) setBar(bar, b.cueTime); return; }
   stop(); clear(band); band.dataset.key = key;
@@ -540,12 +579,19 @@ function renderBand(s) {
   } else {
     const wrapped = !!label;
     if (!label) { label = el('span', '', value); band.append(label); }
-    // A long cue is made smaller until it fits the band's width.
-    if (!wrapped && label.offsetWidth > room) band.style.fontSize = Math.max(12, size * room / label.offsetWidth) + 'px';
-    if (effect === 'flash') m.step = () => { label.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
-    // The band's text pulses, flashes three times or slides in from its
-    // edge; wrapped text does so as one block.
-    if (['pulse', 'flashHold', 'slideIn'].includes(fx)) label.classList.add('fx-' + fx);
+    if (bandGroup && !wrapped) {
+      // A few words at a time, every group the same size.
+      label.style.fontSize = size + 'px';
+      fitWords(label, bandGroup.words, size, room);
+      stepWords(m, label, bandGroup);
+    } else {
+      // A long cue is made smaller until it fits the band's width.
+      if (!wrapped && label.offsetWidth > room) band.style.fontSize = Math.max(12, size * room / label.offsetWidth) + 'px';
+      if (effect === 'flash') m.step = () => { label.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
+      // The band's text pulses, flashes three times or slides in from its
+      // edge; wrapped text does so as one block.
+      if (['pulse', 'flashHold', 'slideIn'].includes(fx)) label.classList.add('fx-' + fx);
+    }
   }
   // A screen flash lights the band only; the countdown stays as it is.
   band.style.setProperty('--fx', flashColour(b.color));
@@ -582,9 +628,11 @@ function renderStage(s) {
   const h = window.innerHeight, w = window.innerWidth;
   // "Wrap long text": wrapped onto up to 3 lines, as large as fits.
   const wrap = s.wrap === true && value.trim() !== '';
+  // A few words at a time, when the text is too wide for the LED sign.
+  const group = s.sharing && !s.message && !s.blank && value ? wordsOf(s, wrap) : null;
   // Wrapped text too long for 3 lines scrolls, so it may be moving too.
-  const moving = s.sharing && !s.message && !s.blank && value && (s.effect === 'scroll' || s.effect === 'flash' || wrap);
-  const key = moving ? [s.effect, wrap, value, s.speed, s.bold, s.italic, s.overtime, s.color, w, h].join('|') : '';
+  const moving = s.sharing && !s.message && !s.blank && value && (s.effect === 'scroll' || s.effect === 'flash' || wrap || !!group);
+  const key = moving ? [s.effect, s.screenEffect, wrap, value, group ? group.words.join('\n') : '', s.speed, s.bold, s.italic, s.overtime, s.color, w, h].join('|') : '';
   // The same moving text as the last poll: leave it running.
   if (moving && motion && motion.key === key) { note.textContent = s.paused ? 'PAUSED' : ''; return; }
   // Scrolling text started again carries on where it was.
@@ -592,7 +640,7 @@ function renderStage(s) {
   // A full-screen cue's newer effect, if it has one; nothing otherwise.
   const fx = s.sharing && !s.message && !s.blank && !s.banner && value ? (s.screenEffect || null) : null;
   const fxKey = [value, s.color, s.bold, s.italic].join('|');
-  setFx(text, ['pulse', 'flashHold', 'slideIn'].includes(fx) ? fx : null, fxKey);
+  setFx(text, ['pulse', 'flashHold', 'slideIn'].includes(fx) && !group ? fx : null, fxKey);
   stage.style.setProperty('--fx', flashColour(s.color));
   stage.style.setProperty('--fx-tint', flashTint(s.color));
   setFx(stage, fx === 'screenFlash' ? fx : null, fxKey);
@@ -604,7 +652,7 @@ function renderStage(s) {
   const card = s.sharing && !s.message && !s.blank && !s.banner && value.trim() !== '' && !!s.color && s.color.toLowerCase() !== '#ffffff';
   stage.classList.toggle('coloured', card);
   const rule = $('stageRule'); rule.style.display = card ? 'block' : 'none'; rule.style.background = card ? s.color : '';
-  clear(text); note.textContent = ''; stage.style.background = card ? '#1a1712' : '#000'; stage.style.textAlign = 'center'; text.style.width = ''; text.style.position = ''; text.style.top = ''; text.classList.remove('wrapped');
+  clear(text); note.textContent = ''; stage.style.background = card ? '#1a1712' : '#000'; stage.style.textAlign = 'center'; text.style.width = ''; text.style.position = ''; text.style.top = ''; text.style.opacity = ''; text.style.whiteSpace = ''; text.classList.remove('wrapped');
   if (!s.sharing) { text.textContent = 'Waiting for the host. On the host, tap Show on stage screens on Live.'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {
     renderMessage(stage, text, s.message); return;
@@ -627,6 +675,7 @@ function renderStage(s) {
     // screens do; a screen flash still plays.
     if (wrapAt) { if (effect !== 'flash') { placeBar(bar, text); return; } } else { text.classList.remove('wrapped'); clear(text); effect = 'scroll'; setFx(text, null, ''); setBar(bar, null); }
   }
+  if (group) { startMotion(text, value, Object.assign({}, s, { effect: 'words', group }), key); return; }
   if (moving && (effect === 'scroll' || effect === 'flash')) { startMotion(text, value, Object.assign({}, s, { effect, wrapAt }), key); return; }
   if (s.ticking && value.includes(':')) {
     // Each colon is its own span, so only its brightness changes.

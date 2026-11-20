@@ -1,6 +1,7 @@
 /// Styled text for the sign and screens, and a program's display settings.
 library;
 
+import 'dart:math' as math;
 import 'package:church_service_timer/domain/domain.dart';
 
 /// The fastest a cue may scroll on screens: twice the LED sign's fastest.
@@ -18,7 +19,8 @@ const classicEffects = {'static', 'scroll', 'flash'};
 
 /// The newer effects. Each is drawn on screens; on the LED sign only
 /// 'flashHold' moves (the sign cannot dim, slide or colour) and the rest
-/// show steady. Stage snapshots carry them beside a classic effect, so an
+/// show steady, except 'pulse' text too wide for the sign, which it shows
+/// a few words at a time (see [wordGroupEffects]). Stage snapshots carry them beside a classic effect, so an
 /// older paired screen shows the cue steady (see [TextLayout.screenEffect]).
 const screenEffects = {'pulse', 'flashHold', 'slideIn', 'bar', 'screenFlash'};
 
@@ -44,6 +46,73 @@ const flashHoldMs = 3000;
 /// On the LED sign a 'flashHold' cue is a loop the controller plays by
 /// itself, so its three flashes come again once each cycle this long.
 const flashHoldCycleMs = 300000;
+
+/// The effects that show text too wide for the LED sign a few words at a
+/// time: the text is split into the largest groups of whole words that fit
+/// the sign (see [groupWords]), shown one after another, over and over.
+const wordGroupEffects = {'flash', 'pulse'};
+
+/// The most characters shown a few words at a time; longer text scrolls.
+const wordGroupMaxLength = 60;
+
+/// How long each group of words takes: Flash shows it twice at its
+/// half-second rhythm (a second in view in all), Pulse fades it in and out.
+const wordGroupMs = 2000;
+
+/// After the last group Flash leaves a pause this long, in place of its
+/// usual half second off, so the start of the message stands out.
+const wordGroupPauseMs = 800;
+
+/// The LED sign's frames for a few words at a time, and the step screens
+/// and the simulator keep to so that they match it.
+const wordGroupFrameMs = 100;
+
+/// One round of [count] groups of words for [effect], in milliseconds.
+int wordGroupCycleMs(String effect, int count) =>
+    count * wordGroupMs + (effect == 'flash' ? wordGroupPauseMs - 500 : 0);
+
+/// Which of [count] groups of words [effect] shows [elapsedMs] after the
+/// cue appears, and how brightly, from 0 (blank) to 1. Flash is on for
+/// half a second, off for half a second, on and off again, then the next
+/// group; after the last group it stays off for [wordGroupPauseMs]. Pulse
+/// fades each group in and out over [wordGroupMs].
+({int index, double opacity}) wordGroupAt(
+  String effect,
+  int count,
+  int elapsedMs,
+) {
+  final cycle = wordGroupCycleMs(effect, count);
+  final t = ((elapsedMs % cycle) + cycle) % cycle;
+  final index = math.min(t ~/ wordGroupMs, count - 1);
+  final within = t - index * wordGroupMs;
+  if (effect == 'flash') {
+    final on = within < 500 || (within >= 1000 && within < 1500);
+    return (index: index, opacity: on ? 1.0 : 0.0);
+  }
+  final s = math.sin(math.pi * within / wordGroupMs);
+  return (index: index, opacity: s * s);
+}
+
+/// Pulse on the LED sign, which cannot dim: a group is lit while a screen
+/// shows it at least this bright, about 1.3 seconds of its two.
+const wordGroupSignPulseLevel = .25;
+
+/// [text] split into the largest groups of consecutive whole words, in
+/// order, that each [fits]; null when a word does not fit on its own.
+/// "PLEASE WRAP UP NOW" may become "PLEASE", "WRAP UP", "NOW".
+List<String>? groupWords(String text, bool Function(String text) fits) {
+  final words = text.trim().split(RegExp(r'\s+'));
+  final groups = <String>[];
+  for (var i = 0; i < words.length;) {
+    if (!fits(words[i])) return null;
+    var group = words[i++];
+    while (i < words.length && fits('$group ${words[i]}')) {
+      group = '$group ${words[i++]}';
+    }
+    groups.add(group);
+  }
+  return groups;
+}
 
 class TextLayout {
   final String text, effect, align, font;
@@ -79,7 +148,8 @@ class TextLayout {
   String? get screenEffect => screenEffects.contains(effect) ? effect : null;
 
   /// Whether the LED sign shows the cue without moving: the newer effects
-  /// it cannot draw, as well as static text.
+  /// it cannot draw, as well as static text. Pulse text too wide for the
+  /// sign is shown a few words at a time all the same.
   bool get steadyOnSign =>
       effect == 'static' || (effect != 'flashHold' && screenEffect != null);
   const TextLayout(

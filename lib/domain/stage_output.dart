@@ -111,6 +111,31 @@ String? stageBannerPosition(Json data) {
       : null;
 }
 
+/// The groups of words a snapshot's Flash or Pulse cue steps through on
+/// screens, as the LED sign does with text too wide for it (see
+/// [groupWords]); null when it sent none, or they are not words. An older
+/// version leaves them out, and a screen then shows the whole text.
+List<String>? stageWordGroups(Json data) {
+  final words = data['screenWords'];
+  if (words is! List ||
+      words.isEmpty ||
+      words.length > wordGroupMaxLength ||
+      words.any((w) => w is! String || w.trim().isEmpty)) {
+    return null;
+  }
+  return List<String>.from(words);
+}
+
+/// The effect a snapshot steps its groups of words with, 'flash' or
+/// 'pulse', or null when it shows its text whole: no groups, another
+/// effect, or wrapped onto lines (wrapped text flashes or pulses whole).
+String? stageWordEffect(Json data) {
+  if (stageWordGroups(data) == null || stageWrapsText(data)) return null;
+  if (data['effect'] == 'flash') return 'flash';
+  if (stageScreenEffect(data) == 'pulse') return 'pulse';
+  return null;
+}
+
 /// The snapshot of what stays in view under a banner: the countdown or
 /// the clock, plain and white, as if no cue were showing.
 Json stageUnderBanner(Json data) {
@@ -131,6 +156,7 @@ Json stageUnderBanner(Json data) {
       'underMode',
       'screenSpeed',
       'screenWrap',
+      'screenWords',
       // The countdown under a banner never takes the cue's effect.
       'screenEffect',
       'cueTotalMs',

@@ -641,7 +641,7 @@ void main() {
         expect(find.text(option.label), findsWidgets, reason: option.label);
         expect(find.text(option.hint!), findsOne, reason: option.hint);
       }
-      for (final effect in ['pulse', 'slideIn', 'bar', 'screenFlash']) {
+      for (final effect in ['slideIn', 'bar', 'screenFlash']) {
         expect(
           effectChoices.firstWhere((o) => o.value == effect).hint,
           contains('steady on the LED sign'),

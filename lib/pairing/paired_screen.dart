@@ -934,12 +934,52 @@ class _StageMessageState extends State<StageMessage>
           paused: widget.stale,
         );
       }
+      // Flash or Pulse text too wide for the LED sign steps through the
+      // same groups of words as the sign, in time with it, unless it is
+      // wrapped, when the whole block flashes or pulses.
+      final wordEffect = stageWordEffect(widget.data);
+      final groups = wordEffect == null ? null : stageWordGroups(widget.data);
+      final step = groups == null
+          ? null
+          : wordGroupAt(wordEffect!, groups.length, (elapsed * 1000).floor());
       final hidden =
-          (effect == 'flash' && (elapsed * 2).floor() % 2 == 1) ||
+          step == null &&
+              (effect == 'flash' && (elapsed * 2).floor() % 2 == 1) ||
           (screenEffect == 'flashHold' &&
               elapsed < flashHoldMs / 1000 &&
               (elapsed * 2).floor() % 2 == 1);
-      Widget body = wrapped != null
+      Widget body = groups != null
+          // Every group at the size the widest fits at, so the words stay
+          // the same size as they change.
+          ? FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  for (final group in groups)
+                    ExcludeSemantics(
+                      child: Opacity(
+                        opacity: 0,
+                        child: Text(
+                          group,
+                          style: style,
+                          softWrap: false,
+                          textScaler: TextScaler.noScaling,
+                        ),
+                      ),
+                    ),
+                  Text(
+                    groups[step!.index],
+                    key: const ValueKey('stage-word-group'),
+                    style: style,
+                    softWrap: false,
+                    textAlign: TextAlign.center,
+                    textScaler: TextScaler.noScaling,
+                  ),
+                ],
+              ),
+            )
+          : wrapped != null
           ? Center(
               child: Text(
                 text,
@@ -995,7 +1035,9 @@ class _StageMessageState extends State<StageMessage>
                       textAlign: TextAlign.center,
                     ),
             );
-      final opacity = hidden
+      final opacity = step != null
+          ? step.opacity
+          : hidden
           ? 0.0
           : screenEffect == 'pulse'
           ? stagePulseOpacity(elapsed)

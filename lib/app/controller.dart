@@ -458,6 +458,9 @@ class AppController extends ChangeNotifier {
         ),
       // Wrapped onto lines on screens; older paired screens ignore it.
       if (display != null && display.screenWrap) 'screenWrap': true,
+      // Flash or Pulse text too wide for the LED sign, a few words at a
+      // time as the sign shows it; older paired screens show it whole.
+      if (!s.outputBlank) 'screenWords': ?stageWordGroupsOf(display),
       if (banner) ...{
         'cuePosition': display.screenPosition,
         'underText': s.showClock
