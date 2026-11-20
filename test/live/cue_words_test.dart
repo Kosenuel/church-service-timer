@@ -582,7 +582,7 @@ void main() {
             font: 'i-proton_sq_matrix',
             screenColor: 'red',
           ),
-          more: {'cueColor': '#ff4d4d', 'bold': true},
+          more: {'cueColor': '#ff7979', 'bold': true},
         ),
       );
       await t.pump(const Duration(milliseconds: 4250));

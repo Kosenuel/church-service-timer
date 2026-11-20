@@ -708,7 +708,7 @@ void main() {
 
   group('Goldens', () {
     testWidgets('a stage screen mid-pulse', (t) async {
-      await stage(t, cue('pulse', color: '#ff4d4d'));
+      await stage(t, cue('pulse', color: '#ff7979'));
       await t.pump();
       await t.pump(const Duration(milliseconds: 700));
       await expectLater(

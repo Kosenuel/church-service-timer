@@ -76,13 +76,14 @@ String? stageScreenEffect(Json data) {
   return (total: total, left: left);
 }
 
-/// The fixed colours a cue can have on screens, as RGB. Each is bright
-/// enough to read on the black stage background and they are far apart
-/// from one another. The theme's accent is worked out by the host.
+/// The fixed colours a cue can have on screens, as RGB. Each reads at
+/// 7:1 or better on a coloured cue's charcoal (and so on the black stage
+/// background), red lightened only as far as that needs, and they are far
+/// apart from one another. The theme's accent is worked out by the host.
 const screenCueColors = <String, int>{
   'white': 0xffffff,
   'amber': 0xffa833,
-  'red': 0xff4d4d,
+  'red': 0xff7979,
   'green': 0x4ade80,
 };
 

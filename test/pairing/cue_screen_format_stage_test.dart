@@ -73,16 +73,16 @@ void main() {
       'displayIsTimer': false,
       'outputMode': 'Cue',
       'bold': true,
-      'cueColor': '#ff4d4d',
+      'cueColor': '#ff7979',
     });
     // Red words on charcoal, with the cue's colour in a rule along the
     // bottom of the screen too.
     expect(
       t.widget<Text>(find.text("TIME'S UP")).style!.color,
-      const Color(0xffff4d4d),
+      const Color(0xffff7979),
     );
     final rule = find.byKey(const ValueKey('stage-card-rule'));
-    expect(t.widget<ColoredBox>(rule).color, const Color(0xffff4d4d));
+    expect(t.widget<ColoredBox>(rule).color, const Color(0xffff7979));
     expect(t.getRect(rule), const Rect.fromLTWH(0, 1062, 1920, 18));
     expect(find.byKey(const ValueKey('stage-banner')), findsNothing);
     expect(t.takeException(), isNull);
@@ -280,10 +280,10 @@ void main() {
         t.widget<Text>(find.text(text)).style!.color;
 
     test('is told apart from white cues, banners and the time', () {
-      expect(stageColouredCard(coloured('#ff4d4d')), isTrue);
+      expect(stageColouredCard(coloured('#ff7979')), isTrue);
       expect(stageColouredCard(coloured('#ffffff')), isFalse);
       expect(
-        stageColouredCard({...coloured('#ff4d4d'), 'cueColor': null}),
+        stageColouredCard({...coloured('#ff7979'), 'cueColor': null}),
         false,
       );
       expect(stageColouredCard(banner('bottom')), isFalse);
@@ -292,17 +292,17 @@ void main() {
         stageColouredCard({...banner('bottom'), 'underText': null}),
         isTrue,
       );
-      expect(stageColouredCard(coloured('#ff4d4d', more: countdown)), false);
+      expect(stageColouredCard(coloured('#ff7979', more: countdown)), false);
       expect(
-        stageColouredCard(coloured('#ff4d4d', more: {'outputMode': 'Clock'})),
+        stageColouredCard(coloured('#ff7979', more: {'outputMode': 'Clock'})),
         isFalse,
       );
       expect(
-        stageColouredCard(coloured('#ff4d4d', more: {'blank': true})),
+        stageColouredCard(coloured('#ff7979', more: {'blank': true})),
         false,
       );
       expect(
-        stageColouredCard(coloured('#ff4d4d', more: {'displayText': ' '})),
+        stageColouredCard(coloured('#ff7979', more: {'displayText': ' '})),
         isFalse,
       );
       expect(stageCardRule(1080), 18);
@@ -332,10 +332,10 @@ void main() {
       expect(rule, findsNothing);
       expect(background(t), Colors.transparent);
       expect(ink(t), Colors.white);
-      await stage(t, banner('bottom', color: '#ff4d4d'));
+      await stage(t, banner('bottom', color: '#ff7979'));
       expect(rule, findsNothing);
       expect(background(t), Colors.transparent);
-      expect(ink(t), const Color(0xffff4d4d));
+      expect(ink(t), const Color(0xffff7979));
     });
 
     testWidgets('pulse and slide in move the words, not the rule', (t) async {
@@ -361,7 +361,7 @@ void main() {
 
     testWidgets('a countdown bar fills in the cue colour on grey', (t) async {
       await stage(t, {
-        ...coloured('#ff4d4d'),
+        ...coloured('#ff7979'),
         ...stageEffectFields(
           const TextLayout('WRAP UP', effect: 'bar'),
           time: (total: 60000, left: 30000),
@@ -371,7 +371,7 @@ void main() {
       final fill = find.byKey(const ValueKey('stage-cue-bar'));
       expect(
         (t.widget<DecoratedBox>(fill).decoration as BoxDecoration).color,
-        const Color(0xffff4d4d),
+        const Color(0xffff7979),
       );
       final track = find
           .ancestor(of: fill, matching: find.byType(DecoratedBox))
@@ -381,7 +381,7 @@ void main() {
         Colors.white.withValues(alpha: .14),
       );
       expect(t.getRect(fill).bottom, lessThan(t.getRect(rule).top));
-      expect(ink(t), const Color(0xffff4d4d));
+      expect(ink(t), const Color(0xffff7979));
     });
 
     testWidgets('amber words stay warm white; the theme colour is its own', (
@@ -411,21 +411,27 @@ void main() {
           expect(accent, Color(0xff000000 | (base.toARGB32() & 0xffffff)));
         }
       }
-      // Red and green, at the size cues are drawn, read clearly too;
-      // amber's words are warm white.
+      // Red and green read at 7:1 or better too, red lightened only as
+      // far as that needs; amber's words are warm white.
       for (final name in ['red', 'green']) {
         final ink = Color(0xff000000 | stageCardInkFor(screenCueColors[name]!));
-        expect(contrast(ink, card), greaterThan(5), reason: name);
+        expect(contrast(ink, card), greaterThanOrEqualTo(7), reason: name);
       }
+      final red = Color(0xff000000 | screenCueColors['red']!);
+      final darker = Color.lerp(red, Colors.black, .02)!;
+      expect(contrast(darker, card), lessThan(7));
+      // Still clearly red: no green or blue to speak of beside its red.
+      expect(red.r, 1.0);
+      expect(red.g, red.b);
       expect(stageCardInkFor(screenCueColors['amber']!), stageCardInk);
-      expect(stageCardInkFor(screenCueColors['red']!), 0xff4d4d);
+      expect(stageCardInkFor(screenCueColors['red']!), 0xff7979);
     });
 
     testWidgets('wrapped text is in the cue colour too', (t) async {
       await stage(
         t,
         coloured(
-          '#ff4d4d',
+          '#ff7979',
           more: {
             'displayText': 'PLEASE COME FORWARD FOR PRAYER',
             'screenWrap': true,
@@ -433,7 +439,7 @@ void main() {
         ),
       );
       final wrapped = find.byKey(const ValueKey('stage-wrapped'));
-      expect(t.widget<Text>(wrapped).style!.color, const Color(0xffff4d4d));
+      expect(t.widget<Text>(wrapped).style!.color, const Color(0xffff7979));
       expect(t.getRect(wrapped).bottom, lessThan(t.getRect(rule).top));
     });
 

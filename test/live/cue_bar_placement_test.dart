@@ -165,7 +165,7 @@ void main() {
   });
 
   testWidgets('on a coloured cue, clear of the rule', (t) async {
-    await show(t, barCue('WRAP UP', more: {'cueColor': '#ff4d4d'}));
+    await show(t, barCue('WRAP UP', more: {'cueColor': '#ff7979'}));
     final rule = t.getRect(find.byKey(const ValueKey('stage-card-rule')));
     expect(t.getRect(track).bottom, lessThan(rule.top));
     expectUnder(t, 'WRAP UP', Rect.fromLTRB(12, 30, 1908, 1050));
