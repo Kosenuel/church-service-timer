@@ -265,6 +265,78 @@ const defaultEndScreen = TextLayout(
   height: 2,
 );
 
+/// The stage cues a new install starts with, in the order of keys 1–7.
+///
+/// None of them fits the LED sign's 32 columns in bold (the shortest,
+/// SEE ME, is 39), and every effect but scrolling must fit, so each
+/// scrolls on the sign, in the tall 14-pixel letters that read best from
+/// a distance. On screens they wrap instead, which holds short text still
+/// and as large as it fits; the colour and position say how urgent it is.
+const defaultStageCues = [
+  TextLayout(
+    'WRAP UP',
+    bold: true,
+    height: 2,
+    screenColor: 'amber',
+    screenPosition: 'bottom',
+    screenWrap: true,
+  ),
+  TextLayout(
+    "TIME'S UP",
+    bold: true,
+    height: 2,
+    speed: 14,
+    screenColor: 'red',
+    screenWrap: true,
+  ),
+  TextLayout(
+    'SPEAK UP',
+    bold: true,
+    height: 2,
+    screenPosition: 'top',
+    screenWrap: true,
+  ),
+  TextLayout(
+    'SLOW DOWN',
+    bold: true,
+    height: 2,
+    speed: 10,
+    screenPosition: 'top',
+    screenWrap: true,
+  ),
+  TextLayout(
+    'MIC OFF?',
+    bold: true,
+    height: 2,
+    screenColor: 'amber',
+    screenPosition: 'top',
+    screenWrap: true,
+  ),
+  TextLayout(
+    'FINAL SONG',
+    bold: true,
+    height: 2,
+    screenColor: 'green',
+    screenPosition: 'bottom',
+    screenWrap: true,
+  ),
+  TextLayout(
+    'SEE ME',
+    bold: true,
+    height: 2,
+    screenColor: 'accent',
+    screenWrap: true,
+  ),
+];
+
+/// The stage cues installs started with before [defaultStageCues], which
+/// saved state from then is upgraded from.
+const legacyDefaultStageCues = [
+  TextLayout('WRAP UP'),
+  TextLayout("TIME'S UP"),
+  TextLayout('MIC LOW'),
+];
+
 class DisplaySettings {
   final TextLayout? zero;
   final TextLayout end;
@@ -276,14 +348,7 @@ class DisplaySettings {
     List<TextLayout>? cues,
     List<WarningRule>? warnings,
   }) : warnings = List.unmodifiable(warnings ?? defaultWarnings),
-       cues = List.unmodifiable(
-         cues ??
-             const [
-               TextLayout('WRAP UP'),
-               TextLayout("TIME'S UP"),
-               TextLayout('MIC LOW'),
-             ],
-       );
+       cues = List.unmodifiable(cues ?? defaultStageCues);
   factory DisplaySettings.fromJson(Json j) {
     keys(j, {'zero', 'end', 'cues', 'warnings'}, 'Display settings');
     require(
@@ -293,7 +358,7 @@ class DisplaySettings {
     final c = (j['cues'] as List)
         .map((e) => TextLayout.fromJson(Map<String, dynamic>.from(e)))
         .toList();
-    require(c.length <= 6, 'Configure at most 6 program cues.');
+    require(c.length <= 9, 'Configure at most 9 program cues.');
     return DisplaySettings(
       zero: j['zero'] == null
           ? null

@@ -22,7 +22,7 @@ Future<AppController> running([FakePort? port]) async {
   await c.initialize(startTicker: false);
   await c.act(
     'load',
-    value: Timeline('Service', const [Segment('Talk', 5)], DisplaySettings()),
+    value: Timeline('Service', const [Segment('Talk', 10)], DisplaySettings()),
   );
   await c.act('start');
   return c;

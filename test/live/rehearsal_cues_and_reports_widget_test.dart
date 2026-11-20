@@ -67,7 +67,7 @@ void main() {
         find.widgetWithText(TextField, 'Display text'),
         'FINISH NOW',
       );
-      await tester.tap(find.text('Bold'));
+      // WRAP UP starts bold and tall; add italic and the square font.
       await tester.tap(find.text('Italic'));
       await tester.tap(find.text('I-Proton Matrix'));
       await tester.pump();
@@ -76,8 +76,6 @@ void main() {
       await tester.tap(find.text('I-Proton Sq-Matrix').last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      await tester.ensureVisible(find.text('Tall · 14 px'));
-      await tester.tap(find.text('Tall · 14 px'));
       await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save cue'));
       await tester.pump();
       await tester.tap(find.widgetWithText(FilledButton, 'Save cue'));
@@ -138,9 +136,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('warning-save')));
       await tester.pumpAndSettle();
-      expect(c.state.defaults.warnings.first.destination, 'operator');
+      // 2 MIN LEFT comes after 5 MIN LEFT.
+      expect(c.state.defaults.warnings[1].destination, 'operator');
       expect(
-        c.state.session.timeline!.display.warnings.first.destination,
+        c.state.session.timeline!.display.warnings[1].destination,
         'operator',
       );
       expect(tester.takeException(), isNull);

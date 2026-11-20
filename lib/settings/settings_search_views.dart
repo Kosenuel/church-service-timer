@@ -5,9 +5,11 @@ import 'package:church_service_timer/live/shortcuts_sheet.dart';
 import 'package:church_service_timer/settings/clicker_test_page.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/layout_device.dart';
 
 extension SettingsSearchViews on HomeState {
   Widget settingsSearchResults() {
+    final wideLayouts = wideLayoutDevice(context, desktop: c.port.isDesktop);
     final entries = <(String, String, IconData, VoidCallback)>[
       (
         'Clock format',
@@ -52,12 +54,14 @@ extension SettingsSearchViews on HomeState {
         Icons.palette_outlined,
         openAppearance,
       ),
-      (
-        'Desktop layout',
-        'layout wide window computer three panes mission control dial keys classic saved looks reset keyboard keys buttons',
-        Icons.dashboard_customize_outlined,
-        () => openAppearance(tab: 1),
-      ),
+      // A phone never has a window large enough for a desktop layout.
+      if (wideLayouts != WideLayoutDevice.none)
+        (
+          wideLayoutSettingName(wideLayouts),
+          'layout desktop tablet landscape wide window computer three panes mission control dial keys classic saved looks reset keyboard keys buttons',
+          Icons.dashboard_customize_outlined,
+          () => openAppearance(tab: 1),
+        ),
       (
         'Church profile',
         'church name image banner',
@@ -162,6 +166,7 @@ extension SettingsSearchViews on HomeState {
       'Keyboard shortcuts': 'Every key and what it does',
       'Appearance': 'Theme, spacing and motion',
       'Desktop layout': 'How Live is arranged in a wide window',
+      'Tablet layout': 'How Live is arranged in landscape',
       'Church profile': 'Logo, church name and banner',
       'Display settings': 'Connection, profile, end screens, fonts and LEDs',
       'LED preview shape': 'Square or round LEDs in the simulator',
