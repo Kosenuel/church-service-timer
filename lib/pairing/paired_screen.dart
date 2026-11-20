@@ -711,6 +711,11 @@ class StageMessage extends StatefulWidget {
 
   /// The most lines a cue with "Wrap long text" may use here.
   final int wrapLines;
+
+  /// The text's colour in place of the cue's own, as on a coloured
+  /// full-screen cue (see [stageColouredCard]); a countdown bar keeps the
+  /// cue's colour.
+  final Color? ink;
   const StageMessage({
     super.key,
     required this.data,
@@ -718,6 +723,7 @@ class StageMessage extends StatefulWidget {
     this.fullscreen = false,
     this.fromTop = false,
     this.wrapLines = stageWrapLines,
+    this.ink,
   });
   @override
   State<StageMessage> createState() => _StageMessageState();
@@ -869,7 +875,7 @@ class _StageMessageState extends State<StageMessage>
         // This keeps short cues large without cropping a long countdown.
         fontSize: fullHeight ? space.maxHeight * .9 : previewSize,
         height: fullHeight ? 1.1 : null,
-        color: color,
+        color: widget.ink ?? color,
         fontWeight: widget.data['bold'] == true
             ? FontWeight.bold
             : FontWeight.w500,

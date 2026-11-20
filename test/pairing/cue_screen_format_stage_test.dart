@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/web_stage/web_page.dart';
 import '../support/widget_setup.dart';
 
 /// A stage screen showing [data], as a paired screen, the second screen
@@ -73,10 +74,15 @@ void main() {
       'bold': true,
       'cueColor': '#ff4d4d',
     });
+    // Warm white on charcoal, with the cue's colour in a rule along the
+    // bottom of the screen.
     expect(
       t.widget<Text>(find.text("TIME'S UP")).style!.color,
-      const Color(0xffff4d4d),
+      const Color(0xfffff4dc),
     );
+    final rule = find.byKey(const ValueKey('stage-card-rule'));
+    expect(t.widget<ColoredBox>(rule).color, const Color(0xffff4d4d));
+    expect(t.getRect(rule), const Rect.fromLTWH(0, 1062, 1920, 18));
     expect(find.byKey(const ValueKey('stage-banner')), findsNothing);
     expect(t.takeException(), isNull);
     await expectLater(
@@ -248,5 +254,160 @@ void main() {
     expect(find.byKey(const ValueKey('stage-banner')), findsNothing);
     expect(find.text('WRAP UP'), findsNothing);
     expect(t.takeException(), isNull);
+  });
+
+  group('A full-screen cue in a colour', () {
+    Json coloured(String color, {Json? more}) => {
+      ...countdown,
+      'displayText': 'WRAP UP',
+      'displayIsTimer': false,
+      'outputMode': 'Cue',
+      'bold': true,
+      'cueColor': color,
+      ...?more,
+    };
+    final rule = find.byKey(const ValueKey('stage-card-rule'));
+    Color? background(WidgetTester t) =>
+        (t
+                    .widget<DecoratedBox>(
+                      find.byKey(const ValueKey('stage-screen-flash')).first,
+                    )
+                    .decoration
+                as BoxDecoration)
+            .color;
+    Color? ink(WidgetTester t, [String text = 'WRAP UP']) =>
+        t.widget<Text>(find.text(text)).style!.color;
+
+    test('is told apart from white cues, banners and the time', () {
+      expect(stageColouredCard(coloured('#ff4d4d')), isTrue);
+      expect(stageColouredCard(coloured('#ffffff')), isFalse);
+      expect(
+        stageColouredCard({...coloured('#ff4d4d'), 'cueColor': null}),
+        false,
+      );
+      expect(stageColouredCard(banner('bottom')), isFalse);
+      // A banner after the service has ended fills the screen.
+      expect(
+        stageColouredCard({...banner('bottom'), 'underText': null}),
+        isTrue,
+      );
+      expect(stageColouredCard(coloured('#ff4d4d', more: countdown)), false);
+      expect(
+        stageColouredCard(coloured('#ff4d4d', more: {'outputMode': 'Clock'})),
+        isFalse,
+      );
+      expect(
+        stageColouredCard(coloured('#ff4d4d', more: {'blank': true})),
+        false,
+      );
+      expect(
+        stageColouredCard(coloured('#ff4d4d', more: {'displayText': ' '})),
+        isFalse,
+      );
+      expect(stageCardRule(1080), 18);
+      expect(stageCardRule(100), 4);
+    });
+
+    testWidgets('is warm white on charcoal with a rule at the bottom', (
+      t,
+    ) async {
+      await stage(t, coloured('#4ade80'));
+      expect(background(t), const Color(0xff1a1712));
+      expect(ink(t), const Color(0xfffff4dc));
+      expect(t.widget<ColoredBox>(rule).color, const Color(0xff4ade80));
+      expect(t.getRect(rule), const Rect.fromLTWH(0, 1062, 1920, 18));
+      // The words stay clear of the rule.
+      expect(t.getRect(find.text('WRAP UP')).bottom, lessThan(1062));
+    });
+
+    testWidgets('a rule at least 4 px on a small screen', (t) async {
+      await stage(t, coloured('#4ade80'), size: const Size(320, 180));
+      expect(t.getSize(rule).height, 4);
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('a white cue and a banner are as they were', (t) async {
+      await stage(t, coloured('#ffffff'));
+      expect(rule, findsNothing);
+      expect(background(t), Colors.transparent);
+      expect(ink(t), Colors.white);
+      await stage(t, banner('bottom', color: '#ff4d4d'));
+      expect(rule, findsNothing);
+      expect(background(t), Colors.transparent);
+      expect(ink(t), const Color(0xffff4d4d));
+    });
+
+    testWidgets('pulse and slide in move the words, not the rule', (t) async {
+      for (final effect in ['pulse', 'slideIn', 'flashHold']) {
+        await stage(t, {
+          ...coloured('#ffa833'),
+          ...stageEffectFields(TextLayout('WRAP UP', effect: effect)),
+        });
+        await t.pump(const Duration(milliseconds: 100));
+        expect(rule, findsOne, reason: effect);
+        for (final moving in ['stage-cue-opacity', 'stage-cue-slide']) {
+          expect(
+            find.ancestor(of: rule, matching: find.byKey(ValueKey(moving))),
+            findsNothing,
+            reason: effect,
+          );
+        }
+        expect(t.getRect(rule).top, 1062, reason: effect);
+        expect(ink(t), const Color(0xfffff4dc), reason: effect);
+        await t.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('a countdown bar fills in the cue colour on grey', (t) async {
+      await stage(t, {
+        ...coloured('#ff4d4d'),
+        ...stageEffectFields(
+          const TextLayout('WRAP UP', effect: 'bar'),
+          time: (total: 60000, left: 30000),
+        ),
+      });
+      await t.pump(const Duration(milliseconds: 100));
+      final fill = find.byKey(const ValueKey('stage-cue-bar'));
+      expect(
+        (t.widget<DecoratedBox>(fill).decoration as BoxDecoration).color,
+        const Color(0xffff4d4d),
+      );
+      final track = find
+          .ancestor(of: fill, matching: find.byType(DecoratedBox))
+          .first;
+      expect(
+        (t.widget<DecoratedBox>(track).decoration as BoxDecoration).color,
+        Colors.white.withValues(alpha: .14),
+      );
+      expect(t.getRect(fill).bottom, lessThan(t.getRect(rule).top));
+      expect(ink(t), const Color(0xfffff4dc));
+    });
+
+    testWidgets('wrapped text is warm white too', (t) async {
+      await stage(
+        t,
+        coloured(
+          '#ff4d4d',
+          more: {
+            'displayText': 'PLEASE COME FORWARD FOR PRAYER',
+            'screenWrap': true,
+          },
+        ),
+      );
+      final wrapped = find.byKey(const ValueKey('stage-wrapped'));
+      expect(t.widget<Text>(wrapped).style!.color, const Color(0xfffff4dc));
+      expect(t.getRect(wrapped).bottom, lessThan(t.getRect(rule).top));
+    });
+
+    test('the web page draws the same', () {
+      for (final part in [
+        "'#1a1712'",
+        "'#fff4dc'",
+        'id="stageRule"',
+        'height:max(4px, 1.667vh)',
+      ]) {
+        expect(webStagePage, contains(part), reason: part);
+      }
+    });
   });
 }

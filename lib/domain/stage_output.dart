@@ -167,3 +167,30 @@ bool stageWrapsText(Json data) =>
     data['displayIsTimer'] != true &&
     data['outputMode'] != 'Clock' &&
     const {'static', 'scroll', 'flash', null}.contains(data['effect']);
+
+/// A full-screen cue in a colour other than white is shown as warm white
+/// text on a warm charcoal screen, with a rule in its colour along the
+/// bottom edge: the colour marks the cue without tinting every letter.
+/// White cues, banners, the countdown and the clock are as they were.
+const stageCardBackground = 0x1a1712, stageCardInk = 0xfff4dc;
+
+/// Whether [data] shows its cue full screen in a colour (see
+/// [stageCardBackground]).
+bool stageColouredCard(Json data) {
+  final rgb = stageCueRgb(data);
+  final text = data['displayText'];
+  return rgb != null &&
+      rgb != 0xffffff &&
+      data['blank'] != true &&
+      data['quickMessage'] == null &&
+      data['displayIsTimer'] != true &&
+      data['outputMode'] != 'Clock' &&
+      stageBannerPosition(data) == null &&
+      text is String &&
+      text.trim().isNotEmpty;
+}
+
+/// The coloured rule along the bottom of a screen [height] tall: 18 px on
+/// a 1080-line screen, and never thinner than 4 px.
+double stageCardRule(double height) =>
+    (height * 18 / 1080).clamp(4.0, double.infinity).toDouble();

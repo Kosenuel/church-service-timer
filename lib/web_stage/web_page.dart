@@ -69,6 +69,7 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
   #stage.fx-screenFlash, #stage .band.fx-screenFlash { animation:none; }
   #stage.fx-screenFlash, #stage .band.fx-screenFlash { box-shadow:inset 0 0 0 1.2vh var(--fx); }
 }
+#stage .rule { position:absolute; left:0; right:0; bottom:0; height:max(4px, 1.667vh); display:none; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
@@ -92,7 +93,7 @@ body.stale #app { opacity:.6; }
 </head>
 <body>
 <div id="app" class="wrap"></div>
-<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="note" id="stageNote"></div></div>
+<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="rule" id="stageRule"></div><div class="note" id="stageNote"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
 <div id="req"><span id="reqNote"></span><button class="chip" id="reqBtn">Request</button></div>
@@ -534,14 +535,19 @@ function renderStage(s) {
   setFx(stage, fx === 'screenFlash' ? fx : null, fxKey);
   const bar = $('stageBar'); bar.style.color = s.color || '#fff';
   setBar(bar, fx === 'bar' ? s.cueTime : null);
-  clear(text); note.textContent = ''; stage.style.background = '#000'; stage.style.textAlign = 'center'; text.style.width = ''; text.classList.remove('wrapped');
+  // A full-screen cue in a colour: warm white on warm charcoal, with a
+  // rule in its colour along the bottom edge. White cues stay as they are.
+  const card = s.sharing && !s.message && !s.blank && !s.banner && value.trim() !== '' && !!s.color && s.color.toLowerCase() !== '#ffffff';
+  const rule = $('stageRule'); rule.style.display = card ? 'block' : 'none'; rule.style.background = card ? s.color : '';
+  clear(text); note.textContent = ''; stage.style.background = card ? '#1a1712' : '#000'; stage.style.textAlign = 'center'; text.style.width = ''; text.classList.remove('wrapped');
   if (!s.sharing) { text.textContent = 'Waiting for the host. On the host, tap Show on stage screens on Live.'; text.style.fontSize = '4vh'; text.style.color = '#888'; return; }
   if (s.message) {
     renderMessage(stage, text, s.message); return;
   }
   if (s.blank) return;
-  // A cue in its own colour; otherwise white, or red in overtime.
-  text.style.color = s.color || (s.overtime ? '#ff4d4d' : '#fff');
+  // A coloured full-screen cue in warm white, its colour in the rule;
+  // otherwise white, or red in overtime.
+  text.style.color = card ? '#fff4dc' : s.color || (s.overtime ? '#ff4d4d' : '#fff');
   text.style.fontWeight = s.bold ? '800' : '500';
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
   if (s.paused) note.textContent = 'PAUSED';

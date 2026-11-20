@@ -95,7 +95,7 @@ const banner = <String, dynamic>{
   'cuePosition': 'bottom',
   'underText': '12:34',
   'underMode': 'Countdown',
-  'cueColor': '#ffc247',
+  'cueColor': '#ffa833',
 };
 
 final wrapped = find.byKey(const ValueKey('stage-wrapped'));
@@ -481,7 +481,7 @@ void main() {
     });
 
     testWidgets('a wrapped cue sliding in, at full HD', (t) async {
-      await show(t, effectCue('slideIn', more: {'cueColor': '#ffc247'}));
+      await show(t, effectCue('slideIn', more: {'cueColor': '#ffa833'}));
       await t.pump(const Duration(milliseconds: 500));
       expect(t.takeException(), isNull);
       await expectLater(
