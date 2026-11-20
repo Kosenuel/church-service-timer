@@ -18,6 +18,7 @@ import 'package:church_service_timer/live/keys_live.dart';
 import 'package:church_service_timer/live/mission_control_live.dart';
 import 'package:church_service_timer/live/quick_timer_sheet.dart';
 import 'package:church_service_timer/live/second_screen_control.dart';
+import 'package:church_service_timer/live/service_check.dart';
 import 'package:church_service_timer/live/simulator_choice.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
@@ -816,6 +817,8 @@ extension LivePage on HomeState {
                   Icons.close,
                   c.busy ? null : () => c.act('cancelReady'),
                 ),
+                // A quick run-through on the Simulator before the day.
+                if (t != null) checkServiceButton(t),
               ],
             ),
           ],

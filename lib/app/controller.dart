@@ -119,6 +119,16 @@ class AppController extends ChangeNotifier {
     return commit((draft, _) => draft.simulatorKind = kind);
   }
 
+  /// Why "Check this service" cannot start now, or null when it can. It
+  /// touches nothing real, but it must not run beside a real service.
+  String? get serviceCheckUnavailable => !ready || corrupt
+      ? 'The app is not ready yet.'
+      : pairing.joined || !pairing.localControl
+      ? 'Take back control to check a service.'
+      : state.session.active
+      ? 'End the current service before checking one.'
+      : null;
+
   /// Remembers what the stage simulator shows under the time.
   Future<bool> setSimulatorLayout(String layout) async {
     if (!stageLayouts.containsKey(layout)) return false;
@@ -402,11 +412,15 @@ class AppController extends ChangeNotifier {
     ready ? state.themeId : 'midnight_lime',
   );
 
-  Json pairedSnapshot(bool privateNotes) {
+  /// What stage screens are sent. With [session] and [at], what they
+  /// would show of that session instead, as "Check this service" draws
+  /// it on the stage simulator; no message is added to it.
+  Json pairedSnapshot(bool privateNotes, {Session? session, Stamp? at}) {
     if (!ready) return {};
-    final s = state.session, t = state.session.timeline;
+    final s = session ?? state.session, t = s.timeline;
+    final now = at ?? this.now;
     final display = s.intended(now);
-    final quick = quickMessages.forStage;
+    final quick = session == null ? quickMessages.forStage : null;
     // A banner needs a countdown or clock to sit over; otherwise, and on
     // paired screens from before banners, the cue fills the screen.
     final banner = display != null && display.bannerOnScreens && s.active;

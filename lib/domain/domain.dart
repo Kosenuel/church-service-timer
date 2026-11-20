@@ -24,6 +24,7 @@ export 'package:church_service_timer/domain/core.dart';
 export 'package:church_service_timer/domain/text_layout.dart';
 export 'package:church_service_timer/domain/timeline.dart';
 export 'package:church_service_timer/domain/session.dart';
+export 'package:church_service_timer/domain/service_check.dart';
 export 'package:church_service_timer/domain/app_state.dart';
 export 'package:church_service_timer/domain/program_files.dart';
 export 'package:church_service_timer/domain/quick_timer.dart';
