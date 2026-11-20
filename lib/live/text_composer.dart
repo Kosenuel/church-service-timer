@@ -38,6 +38,7 @@ class _TextComposerState extends State<TextComposer> {
   String? fontRequest, fontError;
   late int height, speed;
   int? screenSpeed;
+  late String screenColor, screenPosition;
   final watch = Stopwatch()..start();
   final previewTick = ValueNotifier<int>(0);
   Timer? ticker;
@@ -53,6 +54,8 @@ class _TextComposerState extends State<TextComposer> {
     height = l.height;
     speed = l.speed;
     screenSpeed = l.screenSpeed;
+    screenColor = l.screenColor;
+    screenPosition = l.screenPosition;
     font = l.font;
     ticker = Timer.periodic(const Duration(milliseconds: 80), (_) {
       if (mounted) previewTick.value++;
@@ -77,6 +80,8 @@ class _TextComposerState extends State<TextComposer> {
     speed: speed,
     // Only scrolling text has a speed; nothing is kept for other effects.
     screenSpeed: effect == 'scroll' ? screenSpeed : null,
+    screenColor: screenColor,
+    screenPosition: screenPosition,
     font: font,
   );
   @override
@@ -231,13 +236,18 @@ class _TextComposerState extends State<TextComposer> {
                       fontSize: 12,
                     ),
                   ),
-                const SizedBox(height: 12),
-                ScreenSpeedControl(
-                  ledSpeed: speed,
-                  screenSpeed: screenSpeed,
-                  onChanged: (v) => setState(() => screenSpeed = v),
-                ),
               ],
+              const SizedBox(height: 16),
+              ScreenCueControls(
+                color: screenColor,
+                position: screenPosition,
+                scrolls: effect == 'scroll',
+                ledSpeed: speed,
+                screenSpeed: screenSpeed,
+                onColor: (v) => setState(() => screenColor = v),
+                onPosition: (v) => setState(() => screenPosition = v),
+                onSpeed: (v) => setState(() => screenSpeed = v),
+              ),
               if (error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),

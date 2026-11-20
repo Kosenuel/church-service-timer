@@ -43,6 +43,11 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .run { position:absolute; left:0; top:50%; white-space:pre; line-height:1.1; will-change:transform; }
 #stage .colon { transition: opacity .1s; }
 #stage .colon.dim { opacity: .2; }
+#stage .band { position:absolute; left:0; right:0; height:20vh; display:none; align-items:center; justify-content:center; overflow:hidden; padding:0 6vh; white-space:nowrap; line-height:1; font-size:14vh; z-index:2; }
+#stage .band.top { top:0; border-bottom:.7vh solid currentColor; }
+#stage .band.bottom { bottom:0; border-top:.7vh solid currentColor; }
+#stage .band .run { top:50%; }
+#stage.stale .band { opacity:.35; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
@@ -66,7 +71,7 @@ body.stale #app { opacity:.6; }
 </head>
 <body>
 <div id="app" class="wrap"></div>
-<div id="stage"><div class="text" id="stageText"></div><div class="note" id="stageNote"></div></div>
+<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="note" id="stageNote"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
 <div id="req"><span id="reqNote"></span><button class="chip" id="reqBtn">Request</button></div>
@@ -261,10 +266,12 @@ function setLost(lost) {
   setLost.buzzed = lost;
 }
 
-function fit(node, text) {
+// [room] is the share of the screen's height the text may use: less while
+// a banner cue takes a band at the top or bottom.
+function fit(node, text, room) {
   const lines = text.split('\n'); const longest = Math.max(1, ...lines.map((l) => l.length));
   const byWidth = (window.innerWidth * 0.92) / (longest * 0.58);
-  const byHeight = (window.innerHeight * 0.8) / (lines.length * 1.02);
+  const byHeight = (window.innerHeight * 0.8 * (room || 1)) / (lines.length * 1.02);
   node.style.fontSize = Math.max(16, Math.min(byWidth, byHeight)) + 'px';
 }
 
@@ -272,7 +279,7 @@ function render(s) {
   lastState = s;
   showRequests(s);
   if (s.role === 'stage') return renderStage(s);
-  stopMotion();
+  stopMotion(); renderBand(null);
   $('stage').style.display = 'none';
   const app = $('app'); app.style.display = 'block'; clear(app);
   const head = el('div', 'bar');
@@ -352,6 +359,52 @@ function startMotion(text, value, s, key) {
   motion = m; m.step(); m.raf = requestAnimationFrame(frame);
 }
 
+// A banner cue: the cue in a band across the top or bottom of the screen,
+// in its colour, while the countdown or clock stays in view behind it.
+let bandMotion = null;
+function renderBand(s) {
+  const band = $('stageBand');
+  const b = s && s.sharing && !s.message && !s.blank ? s.banner : null;
+  const stop = () => { if (bandMotion) cancelAnimationFrame(bandMotion.raf); bandMotion = null; };
+  if (!b) { stop(); band.style.display = 'none'; band.dataset.key = ''; clear(band); return; }
+  const h = window.innerHeight, w = window.innerWidth;
+  const key = [b.text, b.position, b.color, b.bold, b.italic, b.effect, s.speed, w, h].join('|');
+  // The same banner as the last poll: leave it running.
+  if (band.dataset.key === key) return;
+  stop(); clear(band); band.dataset.key = key;
+  band.className = 'band ' + (b.position === 'top' ? 'top' : 'bottom');
+  band.style.display = 'flex';
+  // The cue's colour, on a dark tint of the same colour.
+  band.style.color = b.color; band.style.background = b.color + '29';
+  band.style.fontWeight = b.bold ? '800' : '500';
+  band.style.fontStyle = b.italic ? 'italic' : 'normal';
+  const value = (b.text || '').replace(/\n/g, ' ');
+  const size = h * 0.14;
+  band.style.fontSize = size + 'px';
+  const m = { elapsed: 0, last: performance.now(), raf: 0, step: null };
+  if (b.effect === 'scroll') {
+    const run = el('span', 'run', value); band.append(run);
+    const speed = (Number(s.speed) || 12) * 6 * (size / Math.min(260, Math.max(42, w / 7)));
+    m.step = () => {
+      const travel = w + run.offsetWidth;
+      run.style.transform = 'translate(' + (w - (m.elapsed * speed) % travel) + 'px, -50%)';
+    };
+    run.style.left = '0';
+  } else {
+    const label = el('span', '', value); band.append(label);
+    // A long cue is made smaller until it fits the band's width.
+    const room = w - h * 0.12;
+    if (label.offsetWidth > room) band.style.fontSize = Math.max(12, size * room / label.offsetWidth) + 'px';
+    if (b.effect === 'flash') m.step = () => { label.style.visibility = Math.floor(m.elapsed * 2) % 2 === 1 ? 'hidden' : 'visible'; };
+  }
+  if (!m.step) return;
+  const frame = (now) => {
+    if (!$('stage').classList.contains('stale')) m.elapsed += (now - m.last) / 1000;
+    m.last = now; m.step(); m.raf = requestAnimationFrame(frame);
+  };
+  bandMotion = m; m.step(); m.raf = requestAnimationFrame(frame);
+}
+
 // The blinking colon: lit as each new second arrives, dimmed for the second
 // half, steady while paused or lost. The new second is the moment the time
 // text changes, so screens follow the host's seconds.
@@ -365,9 +418,14 @@ function renderStage(s) {
   $('app').style.display = 'none';
   const stage = $('stage'); stage.style.display = 'flex';
   const text = $('stageText'); const note = $('stageNote');
+  renderBand(s);
+  // With a banner, the countdown keeps to the middle of the screen and is
+  // a little smaller at most, so its digits stay clear of the band.
+  const room = s.banner ? 0.88 : 1;
+  note.style.bottom = s.banner && s.banner.position !== 'top' ? '23vh' : '';
   const value = s.displayText || '';
   const moving = s.sharing && !s.message && !s.blank && value && (s.effect === 'scroll' || s.effect === 'flash');
-  const key = moving ? [s.effect, value, s.speed, s.bold, s.italic, s.overtime, window.innerWidth, window.innerHeight].join('|') : '';
+  const key = moving ? [s.effect, value, s.speed, s.bold, s.italic, s.overtime, s.color, window.innerWidth, window.innerHeight].join('|') : '';
   // The same moving text as the last poll: leave it running.
   if (moving && motion && motion.key === key) { note.textContent = s.paused ? 'PAUSED' : ''; return; }
   stopMotion(); text.style.visibility = 'visible';
@@ -377,7 +435,8 @@ function renderStage(s) {
     renderMessage(stage, text, s.message); return;
   }
   if (s.blank) return;
-  text.style.color = s.overtime ? '#ff4d4d' : '#fff';
+  // A cue in its own colour; otherwise white, or red in overtime.
+  text.style.color = s.color || (s.overtime ? '#ff4d4d' : '#fff');
   text.style.fontWeight = s.bold ? '800' : '500';
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
   if (s.paused) note.textContent = 'PAUSED';
@@ -389,7 +448,7 @@ function renderStage(s) {
   } else {
     text.textContent = value;
   }
-  fit(text, value || ' ');
+  fit(text, value || ' ', room);
 }
 // The quick message's palette and style, as the paired screens show it.
 const PALETTES = { white: ['#ffffff', '#10151c'], amber: ['#ffdc8b', '#261b09'], sky: ['#c4e6ff', '#071b2c'], mint: ['#bcf4da', '#08271c'] };

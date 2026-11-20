@@ -349,6 +349,16 @@ AppPalette paletteFor(String id) {
   );
 }
 
+/// A theme's accent as a cue colour on screens, as RGB: the accent itself,
+/// lightened where needed until it reads clearly on the black background.
+int stageAccentRgb(String themeId) {
+  var accent = paletteFor(themeId).accent;
+  for (var i = 0; i < 24 && contrast(accent, Colors.black) < 7; i++) {
+    accent = Color.lerp(accent, Colors.white, .12)!;
+  }
+  return accent.toARGB32() & 0xffffff;
+}
+
 AppPalette appColors(BuildContext context) =>
     Theme.of(context).extension<AppPalette>() ?? appPalettes.first;
 

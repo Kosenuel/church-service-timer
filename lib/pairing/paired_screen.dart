@@ -672,6 +672,13 @@ class _PairedScreenState extends State<PairedScreen> {
   }
 }
 
+/// The colour of the text a stage snapshot shows: the cue's colour when the
+/// host sent one, otherwise white.
+Color stageCueColor(Json data) {
+  final rgb = stageCueRgb(data);
+  return rgb == null ? Colors.white : Color(0xff000000 | rgb);
+}
+
 /// Smooth local animation between host snapshots; freezes when the link is stale.
 class StageMessage extends StatefulWidget {
   final Json data;
@@ -747,7 +754,7 @@ class _StageMessageState extends State<StageMessage>
         // This keeps short cues large without cropping a long countdown.
         fontSize: fullHeight ? space.maxHeight * .9 : previewSize,
         height: fullHeight ? 1.1 : null,
-        color: Colors.white,
+        color: stageCueColor(widget.data),
         fontWeight: widget.data['bold'] == true
             ? FontWeight.bold
             : FontWeight.w500,

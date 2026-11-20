@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/diagnostics/service_metrics.dart';
 import 'package:church_service_timer/diagnostics/performance_report.dart';
 import 'package:church_service_timer/web_stage/web_stage_server.dart';
@@ -375,6 +376,9 @@ class AppController extends ChangeNotifier {
     final s = state.session, t = state.session.timeline;
     final display = s.intended(now);
     final quick = quickMessages.forStage;
+    // A banner needs a countdown or clock to sit over; otherwise, and on
+    // paired screens from before banners, the cue fills the screen.
+    final banner = display != null && display.bannerOnScreens && s.active;
     return {
       'revision': s.revision,
       'session': s.id,
@@ -408,6 +412,17 @@ class AppController extends ChangeNotifier {
       // The LED sign's speed, which older paired screens keep following.
       'speed': display?.speed ?? 12,
       'screenSpeed': ?display?.screenSpeed,
+      if (display != null && display.screenColor != 'white')
+        'cueColor': stageColorHex(
+          screenCueColors[display.screenColor] ?? stageAccentRgb(state.themeId),
+        ),
+      if (banner) ...{
+        'cuePosition': display.screenPosition,
+        'underText': s.showClock
+            ? stageClockText(now.wall, s.clockFormat)
+            : s.formatted(now),
+        'underMode': s.showClock ? 'Clock' : 'Countdown',
+      },
       'bold': display?.bold ?? false,
       'italic': display?.italic ?? false,
       'connection': displayConnection.label,
