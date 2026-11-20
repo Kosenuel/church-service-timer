@@ -57,6 +57,9 @@ class ServiceDial extends StatelessWidget {
         : '';
     final geometry = DialGeometry(size);
     final cross = geometry.cross;
+    // Past the largest dial the layout drew before, the lettering grows
+    // with it.
+    final grow = (size / 640).clamp(1.0, 2.2);
     return Semantics(
       label:
           '${operatorTimeDescription(balance)}, ${formatTime(s.allocatedMs)} allocated',
@@ -91,6 +94,7 @@ class ServiceDial extends StatelessWidget {
                     label:
                         Theme.of(context).textTheme.bodySmall ??
                         const TextStyle(),
+                    grow: grow,
                   ),
                 ),
               ),
@@ -108,14 +112,17 @@ class ServiceDial extends StatelessWidget {
             if (s.active && run != null)
               Positioned(
                 left: cross.dx + size * .045,
-                top: cross.dy - 16,
+                top: cross.dy - 16 * grow,
                 child: ExcludeSemantics(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'ends',
-                        style: TextStyle(fontSize: 11, color: colors.muted),
+                        style: TextStyle(
+                          fontSize: 11 * grow,
+                          color: colors.muted,
+                        ),
                       ),
                       Text(
                         clockLabel(
@@ -126,7 +133,7 @@ class ServiceDial extends StatelessWidget {
                         ),
                         key: const ValueKey('dial-ends'),
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 14 * grow,
                           fontWeight: FontWeight.w700,
                           color: colors.text,
                           fontFeatures: const [FontFeature.tabularFigures()],
@@ -146,8 +153,8 @@ class ServiceDial extends StatelessWidget {
                       Text(
                         balance < 0 ? 'OVERTIME' : 'REMAINING',
                         style: TextStyle(
-                          fontSize: 11,
-                          letterSpacing: 1.1,
+                          fontSize: 11 * grow,
+                          letterSpacing: 1.1 * grow,
                           color: balance < 0 ? colors.error : colors.muted,
                         ),
                       ),
@@ -175,7 +182,7 @@ class ServiceDial extends StatelessWidget {
                         'of ${formatTime(s.allocatedMs)} allocated',
                         key: const ValueKey('allocated-time'),
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 14 * grow,
                           color: colors.muted,
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
@@ -186,7 +193,7 @@ class ServiceDial extends StatelessWidget {
                           child: Text(
                             notice,
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: lit, fontSize: 12),
+                            style: TextStyle(color: lit, fontSize: 12 * grow),
                           ),
                         ),
                     ],
@@ -245,10 +252,13 @@ class DialGeometry {
     String text,
     TextStyle style, {
     Color? disc,
+    double discRadius = 9,
   }) {
     final where =
         centre + Offset(math.cos(at), math.sin(at)) * (outer + stroke / 2 + 13);
-    if (disc != null) canvas.drawCircle(where, 9, Paint()..color = disc);
+    if (disc != null) {
+      canvas.drawCircle(where, discRadius, Paint()..color = disc);
+    }
     final number = TextPainter(
       text: TextSpan(text: text, style: style),
       textDirection: TextDirection.ltr,
@@ -355,6 +365,9 @@ class ServiceDialPainter extends CustomPainter {
 
   /// The app's text style, for the segment numbers.
   final TextStyle label;
+
+  /// How much larger than usual the segment numbers are drawn.
+  final double grow;
   const ServiceDialPainter({
     required this.pieces,
     required this.total,
@@ -373,6 +386,7 @@ class ServiceDialPainter extends CustomPainter {
     required this.surface,
     required this.border,
     required this.label,
+    this.grow = 1,
   });
 
   @override
@@ -422,11 +436,12 @@ class ServiceDialPainter extends CustomPainter {
           a0 + sweep / 2,
           '${p.index + 1}',
           label.copyWith(
-            fontSize: 11,
+            fontSize: 11 * grow,
             fontWeight: current ? FontWeight.w700 : FontWeight.w500,
             color: current ? surface : muted,
           ),
           disc: current ? ring : null,
+          discRadius: 9 * grow,
         );
       }
     }
@@ -470,6 +485,7 @@ class ServiceDialPainter extends CustomPainter {
       old.started != started ||
       old.active != active ||
       old.pieces.length != pieces.length ||
+      old.grow != grow ||
       old.ring != ring ||
       old.lit != lit ||
       old.track != track ||

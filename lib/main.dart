@@ -1182,8 +1182,10 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                 ),
                                 child: Center(
                                   child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 1200,
+                                    constraints: BoxConstraints(
+                                      maxWidth: page == 0
+                                          ? classicLiveWidth
+                                          : 1200,
                                     ),
                                     child: Column(
                                       crossAxisAlignment:

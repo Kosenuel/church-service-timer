@@ -20,7 +20,34 @@ import 'package:church_service_timer/live/quick_timer_sheet.dart';
 import 'package:church_service_timer/live/second_screen_control.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
+/// The widest Classic's Live page is usually laid out.
+const classicUsualWidth = 1200.0;
+
+/// The width it may use in a very wide window, where the rundown has a
+/// column of its own.
+const classicThreeColumnWidth = 2280.0;
+
+/// The window width from which it does.
+const classicThreeColumnsFromWindow = 1840.0;
+
 extension LivePage on HomeState {
+  /// The widest Classic's Live page is laid out. A very wide window gives
+  /// it more while there is a rundown for the third column; everything
+  /// else keeps the usual width, so nothing is stretched.
+  double get classicLiveWidth {
+    final s = c.liveSession;
+    final rundown =
+        s.timeline != null &&
+        s.phase != 'idle' &&
+        s.phase != 'ended' &&
+        !c.reportSavePending &&
+        !focused;
+    return rundown &&
+            MediaQuery.sizeOf(context).width >= classicThreeColumnsFromWindow
+        ? classicThreeColumnWidth
+        : classicUsualWidth;
+  }
+
   Widget live() => AnimatedBuilder(
     animation: c.liveClock,
     builder: (context, _) => liveContent(),
@@ -1368,6 +1395,8 @@ extension LivePage on HomeState {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 760;
+        // A very wide window has a column for the rundown.
+        final threeColumns = constraints.maxWidth > classicUsualWidth;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1511,13 +1540,17 @@ extension LivePage on HomeState {
                           const SizedBox(height: 16),
                           quickMessagePanel(),
                         ],
-                        if (showRundown) ...[
+                        if (showRundown && !threeColumns) ...[
                           const SizedBox(height: 16),
                           rundownPanel(),
                         ],
                       ],
                     ),
                   ),
+                  if (showRundown && threeColumns) ...[
+                    const SizedBox(width: 20),
+                    Expanded(flex: 4, child: rundownPanel()),
+                  ],
                 ],
               ),
             ] else ...[

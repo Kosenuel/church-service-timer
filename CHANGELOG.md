@@ -4,6 +4,11 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Live makes better use of a large screen.** On a big monitor the Live page used to keep the countdown ring small and leave the rest of the window empty. A 1366 × 768 laptop window, and phones and tablets, look the same as before; the Keys layout is unchanged.
+  - **Three panes and The dial.** From about a 1920 × 1080 window the ring grows to fill the height, with the buttons straight under it. In a wider window, such as 2560 × 1440, the ring sits at the left with the segment name, Pause, Next segment, the time adjustments, the private note and End service in a column at its right.
+  - **Mission control.** In a tall window the timer, the display preview and the cues fill the height above the timeline, with a larger ring and up to 24 lines of activity. Pause and Next segment keep a sensible width. The timeline is taller and each block adds the speaker, the planned time and how long the segment took or when it should start. A block too narrow for that shows less, so nothing is cut off mid-word.
+  - **Classic.** In a window about 1840 wide or more, the rundown has a column of its own beside the timer and the display, so the whole service is in view without scrolling.
+  - The warning line and a long overtime figure stay inside a large ring, and a long segment name no longer pushes End service off the bottom.
 - **Mission control is the layout a new install starts in.** In a wide window, a fresh install and **Reset** now give Mission control with Midnight Lime, and it is listed first in Settings › Desktop layout. If you already use the app, your layout stays as it is; choose Mission control there if you want it.
 - **Click the service name to go back to Live.** On Programs, Reports or Settings, the name of the loaded or running service at the top left returns to Live. With no service loaded it is the app's name and does nothing.
 - **Mission control with large text.** With Windows or Android set to larger text, the names in the rundown timeline were cut off at the bottom. The timeline now grows to fit.

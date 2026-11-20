@@ -49,11 +49,16 @@ class SegmentGauge extends StatelessWidget {
 
   /// The widest the dial is drawn; the desktop layouts make it larger.
   final double maxWidth;
+
+  /// Puts the warning line in the opening at the foot of the ring, not in
+  /// a band under it, so a large ring sits close to what follows.
+  final bool noticeInside;
   const SegmentGauge({
     super.key,
     required this.session,
     required this.now,
     this.maxWidth = 306,
+    this.noticeInside = false,
   });
   @override
   Widget build(BuildContext context) {
@@ -81,12 +86,12 @@ class SegmentGauge extends StatelessWidget {
         : warning
         ? 'Warning · ${formatTime(balance)} left'
         : '';
-    Widget label(String value) => Text(
+    Widget label(String value, [double grow = 1]) => Text(
       value.toUpperCase(),
       textAlign: TextAlign.center,
       style: TextStyle(
-        fontSize: 11,
-        letterSpacing: 1.1,
+        fontSize: 11 * grow,
+        letterSpacing: 1.1 * grow,
         color: value == 'Overtime'
             ? appColors(context).error
             : appColors(context).muted,
@@ -112,8 +117,31 @@ class SegmentGauge extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = math.min(maxWidth, constraints.maxWidth);
+        // Past the largest dial the layouts drew before, the lettering
+        // and the ring's stroke grow with it.
+        final grow = (width / 460).clamp(1.0, 2.6);
         final outsideLabels =
             MediaQuery.textScalerOf(context).scale(14) > 21 || width < 230;
+        final noticeLine = notice.isEmpty
+            ? const SizedBox()
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 17 * grow,
+                    color: color,
+                  ),
+                  SizedBox(width: 6 * grow),
+                  Flexible(
+                    child: Text(
+                      notice,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: color, fontSize: 12 * grow),
+                    ),
+                  ),
+                ],
+              );
         return SizedBox(
           width: constraints.maxWidth,
           child: Semantics(
@@ -124,14 +152,24 @@ class SegmentGauge extends StatelessWidget {
                 if (outsideLabels) label(labelText),
                 SizedBox(
                   width: width,
-                  height: width * 260 / 300,
+                  height: width * (noticeInside ? 250 : 260) / 300,
                   child: Stack(
                     children: [
+                      if (noticeInside)
+                        Positioned(
+                          left: width * .2,
+                          right: width * .2,
+                          // Under the ends of the ring.
+                          top: width * 224 / 300,
+                          bottom: 0,
+                          child: Center(child: noticeLine),
+                        ),
                       Positioned.fill(
                         child: CustomPaint(
                           painter: TimerArcPainter(
                             progress: progress,
                             color: color,
+                            stroke: 14 * grow,
                             track: appColors(context).track,
                             ticks: appColors(context).muted,
                           ),
@@ -145,13 +183,18 @@ class SegmentGauge extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (!outsideLabels) ...[
-                              label(labelText),
-                              const SizedBox(height: 4),
+                              label(labelText, grow),
+                              SizedBox(height: 4 * grow),
                             ],
                             // In a desktop layout the figures grow or
                             // shrink with the dial.
-                            SizedBox(
+                            Container(
                               height: maxWidth != 306 ? 74 * width / 306 : null,
+                              // A long overtime figure in a large ring
+                              // stays inside the tick marks.
+                              padding: EdgeInsets.symmetric(
+                                horizontal: noticeInside ? width * .06 : 0,
+                              ),
                               child: FittedBox(
                                 fit: maxWidth != 306
                                     ? BoxFit.contain
@@ -160,13 +203,13 @@ class SegmentGauge extends StatelessWidget {
                               ),
                             ),
                             if (!outsideLabels) ...[
-                              const SizedBox(height: 6),
+                              SizedBox(height: 6 * grow),
                               Text(
                                 'of ${formatTime(session.allocatedMs)} allocated',
                                 key: const ValueKey('allocated-time'),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 14 * grow,
                                   color: appColors(context).muted,
                                   fontFeatures: const [
                                     FontFeature.tabularFigures(),
@@ -190,32 +233,14 @@ class SegmentGauge extends StatelessWidget {
                       fontSize: 14,
                     ),
                   ),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 32),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: notice.isEmpty
-                        ? const SizedBox()
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.warning_amber_rounded,
-                                size: 17,
-                                color: color,
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  notice,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: color, fontSize: 12),
-                                ),
-                              ),
-                            ],
-                          ),
+                if (!noticeInside)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 32),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: noticeLine,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -228,9 +253,13 @@ class SegmentGauge extends StatelessWidget {
 class TimerArcPainter extends CustomPainter {
   final double progress;
   final Color color, track, ticks;
+
+  /// Width of the ring.
+  final double stroke;
   const TimerArcPainter({
     required this.progress,
     required this.color,
+    this.stroke = 14,
     this.track = const Color(0xff2b3a30),
     this.ticks = const Color(0xff829080),
   });
@@ -242,7 +271,7 @@ class TimerArcPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..strokeWidth = 14;
+      ..strokeWidth = stroke;
     canvas.drawArc(
       bounds,
       math.pi * .75,
@@ -268,7 +297,7 @@ class TimerArcPainter extends CustomPainter {
         point(98),
         Paint()
           ..color = major ? ticks : ticks.withValues(alpha: .65)
-          ..strokeWidth = major ? 1.6 : 1.3,
+          ..strokeWidth = (major ? 1.6 : 1.3) * stroke / 14,
       );
     }
   }
@@ -277,6 +306,7 @@ class TimerArcPainter extends CustomPainter {
   bool shouldRepaint(TimerArcPainter oldDelegate) =>
       progress != oldDelegate.progress ||
       color != oldDelegate.color ||
+      stroke != oldDelegate.stroke ||
       track != oldDelegate.track ||
       ticks != oldDelegate.ticks;
 }
