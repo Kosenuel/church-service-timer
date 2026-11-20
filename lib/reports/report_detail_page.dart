@@ -522,7 +522,7 @@ class ReviewNoteSection extends StatelessWidget {
             const SizedBox(height: 8),
             if (review == null) ...[
               Text(
-                'Add what to remember for next time, such as “Reduce welcome next week”. Notes never change the recorded timings.',
+                'Add what to remember for next time, such as “Reduce the Announcements time from next week”. Notes never change the recorded timings.',
                 style: TextStyle(color: colors.muted),
               ),
               const SizedBox(height: 12),
@@ -579,7 +579,7 @@ class _ReviewNoteDialogState extends State<ReviewNoteDialog> {
       maxLines: 8,
       maxLength: ReviewNote.maxLength,
       decoration: const InputDecoration(
-        hintText: 'For example: Reduce welcome next week.',
+        hintText: 'For example: Reduce the Announcements time from next week.',
       ),
     ),
     actions: [

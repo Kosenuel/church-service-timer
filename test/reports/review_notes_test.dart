@@ -24,11 +24,17 @@ void main() {
       final before = c.state.reports.single;
       final timings = jsonEncode({...before.toJson()}..remove('review'));
       expect(
-        await c.setReviewNote(before.id, '  Reduce welcome next week. '),
+        await c.setReviewNote(
+          before.id,
+          '  Reduce the Announcements time from next week. ',
+        ),
         isTrue,
       );
       final after = c.state.reports.single;
-      expect(after.review!.text, 'Reduce welcome next week.');
+      expect(
+        after.review!.text,
+        'Reduce the Announcements time from next week.',
+      );
       expect(jsonEncode({...after.toJson()}..remove('review')), timings);
     });
 
@@ -117,18 +123,24 @@ void main() {
       await tap(t, find.byKey(const ValueKey('add-review-note')));
       await t.enterText(
         find.byKey(const ValueKey('review-note-field')),
-        'Reduce welcome next week.',
+        'Reduce the Announcements time from next week.',
       );
       await tap(t, find.byKey(const ValueKey('save-review-note')));
       expect(find.byKey(const ValueKey('review-note-text')), findsOneWidget);
       expect(find.textContaining('Added after service'), findsOneWidget);
-      expect(c.state.reports.single.review!.text, 'Reduce welcome next week.');
+      expect(
+        c.state.reports.single.review!.text,
+        'Reduce the Announcements time from next week.',
+      );
       await t.pageBack();
       await t.pumpAndSettle();
       await c.act('load', value: timeline().renamed('Sunday'));
       await tap(t, find.text('Live').last);
       expect(find.byKey(const ValueKey('last-review-note')), findsOneWidget);
-      expect(find.text('Reduce welcome next week.'), findsOneWidget);
+      expect(
+        find.text('Reduce the Announcements time from next week.'),
+        findsOneWidget,
+      );
       await t.pumpWidget(const SizedBox());
     },
   );

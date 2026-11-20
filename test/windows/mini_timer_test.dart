@@ -357,6 +357,31 @@ void main() {
 
     Finder key(String name) => find.byKey(ValueKey(name));
 
+    testWidgets('a button on Live opens it, and not while locked', (t) async {
+      final (c, _, window) = await running(t);
+      // In the header while a service runs, where it can be seen.
+      expect(key('mini-timer-button'), findsOneWidget);
+      await t.tap(key('mini-timer-button'));
+      await t.pumpAndSettle();
+      expect(key('mini-timer'), findsOneWidget);
+      expect(window.calls, ['enter 380x150']);
+      await t.tap(key('mini-expand'));
+      await t.pumpAndSettle();
+      expect(key('mini-timer'), findsNothing);
+      // Lock controls blocks it like every other button.
+      await t.tap(key('control-lock'));
+      await t.pumpAndSettle();
+      expect(t.widget<IconButton>(key('mini-timer-button')).onPressed, isNull);
+      // No service, no button.
+      await t.longPress(key('unlock-controls'));
+      await t.pumpAndSettle();
+      await c.act('end');
+      await t.pumpAndSettle();
+      expect(key('mini-timer-button'), findsNothing);
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    });
+
     testWidgets('the menu opens it and Expand leaves it', (t) async {
       final (_, _, window) = await running(t);
       await openMini(t);
