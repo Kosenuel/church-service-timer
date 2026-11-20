@@ -395,6 +395,22 @@ class AppController extends ChangeNotifier {
     ready ? state.themeId : 'midnight_lime',
   );
 
+  /// The time a cue showing now has in all and has left, for a countdown
+  /// bar on screens; null for a cue shown until cleared, or none.
+  ({int total, int left})? _cueTime(Session s) {
+    if (s.hasAutomaticCue(now)) {
+      return (
+        total: s.automaticCueDurationMs,
+        left: s.automaticCueDurationMs - now.since(s.automaticCueAt!),
+      );
+    }
+    if (s.hasManualCue(now) && s.alertDurationSeconds > 0) {
+      final total = s.alertDurationSeconds * 1000;
+      return (total: total, left: total - now.since(s.alertAt!));
+    }
+    return null;
+  }
+
   Json pairedSnapshot(bool privateNotes) {
     if (!ready) return {};
     final s = state.session, t = state.session.timeline;
@@ -432,7 +448,7 @@ class AppController extends ChangeNotifier {
       'displayText': s.outputBlank ? '' : display?.text ?? '',
       'outputMode': s.outputMode(now),
       'clockBlink': s.clockBlink,
-      'effect': display?.effect ?? 'static',
+      ...stageEffectFields(display, time: _cueTime(s)),
       // The LED sign's speed, which older paired screens keep following.
       'speed': display?.speed ?? 12,
       'screenSpeed': ?display?.screenSpeed,

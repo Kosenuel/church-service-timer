@@ -180,7 +180,7 @@ void main() {
       }
       expect(stageColorHex(0x4ade80), '#4ade80');
       expect(stageColorHex(0x00000a), '#00000a');
-      expect(stageCueRgb({'cueColor': '#FFC247'}), 0xffc247);
+      expect(stageCueRgb({'cueColor': '#FFA833'}), 0xffa833);
       for (final bad in [null, 'red', '#fff', '#ggggggg', 7, 'url(x)']) {
         expect(stageCueRgb({'cueColor': bad}), isNull);
       }
@@ -221,7 +221,7 @@ void main() {
           expect(snapshot['effect'], 'flash');
           expect(snapshot['bold'], true);
           expect(snapshot['displayIsTimer'], false);
-          expect(snapshot['cueColor'], '#ffc247');
+          expect(snapshot['cueColor'], '#ffa833');
           expect(snapshot['cuePosition'], 'bottom');
           expect(snapshot['underText'], '05:00');
           expect(snapshot['underMode'], 'Countdown');
@@ -233,7 +233,7 @@ void main() {
           expect(under.containsKey('cueColor'), isFalse);
           final text = stageBannerText(snapshot);
           expect(text['displayText'], 'AMEN');
-          expect(text['cueColor'], '#ffc247');
+          expect(text['cueColor'], '#ffa833');
         }
         // The LED sign is sent the same cue as ever.
         final sign = c.state.session.intended(c.now)!;
@@ -320,7 +320,7 @@ void main() {
       // Nothing but a checked colour reaches the page.
       expect(view({'cueColor': 'red;x'}).containsKey('color'), isFalse);
       final banner = view({
-        'cueColor': '#ffc247',
+        'cueColor': '#ffa833',
         'cuePosition': 'bottom',
         'underText': '04:10',
         'underMode': 'Countdown',
@@ -334,7 +334,7 @@ void main() {
       expect(banner['banner'], {
         'text': 'WRAP UP',
         'position': 'bottom',
-        'color': '#ffc247',
+        'color': '#ffa833',
         'bold': true,
         'italic': false,
         'effect': 'scroll',
@@ -560,7 +560,7 @@ void main() {
       await c.tick();
       expect(c.state.session.automaticCueAt, isNotNull);
       final snapshot = c.stageWindowSnapshot();
-      expect(snapshot['cueColor'], '#ffc247');
+      expect(snapshot['cueColor'], '#ffa833');
       expect(snapshot['cuePosition'], 'bottom');
       expect(snapshot['screenSpeed'], 40);
       // The sign keeps its own speed.

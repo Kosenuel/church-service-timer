@@ -281,7 +281,6 @@ final List<Shortcut> shortcuts = List.unmodifiable([
     hint: 'Ctrl M',
     action: 'Mini timer',
     confirm: 'a small window on top; again to leave it',
-    condition: 'While a service is running.',
     presses: [KeyPress(LogicalKeyboardKey.keyM, control: true)],
   ),
   Shortcut(
