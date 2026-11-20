@@ -126,7 +126,14 @@ void main() {
               t.getRect(find.byType(DisplayConnectionBadge)).right,
               closeTo(header.right, .01),
             );
-            expect(find.text(connection.label), findsOneWidget);
+            expect(
+              find.text(
+                connection == DisplayConnection.simulator
+                    ? 'LED simulator'
+                    : connection.label,
+              ),
+              findsOneWidget,
+            );
             expect(t.takeException(), isNull);
           }
         }

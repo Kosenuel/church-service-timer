@@ -259,6 +259,18 @@ bool boolSetting(dynamic value) {
   return value as bool;
 }
 
+/// What the Simulator can stand in for, with the words for each choice.
+const simulatorKinds = {'led': 'LED sign', 'stage': 'Stage screen'};
+
+/// The saved Simulator choice; anything else is the LED sign it always
+/// was.
+String simulatorKindValue(dynamic value) =>
+    simulatorKinds.containsKey(value) ? value as String : 'led';
+
+/// The Simulator by the name of what it stands in for, as on its chips.
+String simulatorNameOf(String kind) =>
+    kind == 'stage' ? 'Stage simulator' : 'LED simulator';
+
 /// Portable saved data only. Active clocks, alarms, hardware and font bytes are
 /// deliberately excluded; restoring starts at an idle operator screen.
 String exportBackup(
@@ -279,6 +291,7 @@ String exportBackup(
     ..remove('settingsLock')
     ..remove('clickerControls')
     ..remove('fullScreenLayout')
+    ..remove('simulatorKind')
     ..remove('practisedWall')
     ..remove('practicePrompt')
     ..remove('stageRequests')

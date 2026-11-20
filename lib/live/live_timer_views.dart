@@ -5,6 +5,7 @@ import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
+import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/time_picker.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -316,10 +317,19 @@ class DisplayPreviewHeader extends StatelessWidget {
 
   /// The preview is a copy of the second screen, not the display.
   final bool secondScreen;
+
+  /// What the Simulator stands in for: 'led' or 'stage'.
+  final String simulatorKind;
+
+  /// Changes [simulatorKind] from the chip; null leaves the chip as words
+  /// only.
+  final ValueChanged<String>? onSimulatorKind;
   const DisplayPreviewHeader({
     super.key,
     required this.connection,
     this.secondScreen = false,
+    this.simulatorKind = 'led',
+    this.onSimulatorKind,
   });
   @override
   Widget build(BuildContext context) => Row(
@@ -350,6 +360,8 @@ class DisplayPreviewHeader extends StatelessWidget {
           child: DisplayConnectionBadge(
             connection: connection,
             secondScreen: secondScreen,
+            simulatorKind: simulatorKind,
+            onSimulatorKind: onSimulatorKind,
           ),
         ),
       ),
@@ -362,10 +374,19 @@ class DisplayConnectionBadge extends StatelessWidget {
 
   /// Names the second screen in place of the display.
   final bool secondScreen;
+
+  /// What the Simulator stands in for: 'led' or 'stage'.
+  final String simulatorKind;
+
+  /// Where given, the Simulator's chip opens a menu that changes
+  /// [simulatorKind].
+  final ValueChanged<String>? onSimulatorKind;
   const DisplayConnectionBadge({
     super.key,
     required this.connection,
     this.secondScreen = false,
+    this.simulatorKind = 'led',
+    this.onSimulatorKind,
   });
   @override
   Widget build(BuildContext context) {
@@ -378,7 +399,11 @@ class DisplayConnectionBadge extends StatelessWidget {
               connection == DisplayConnection.stageConnected
         ? appColors(context).accent
         : appColors(context).muted;
-    return Container(
+    final choose =
+        !secondScreen &&
+        connection == DisplayConnection.simulator &&
+        onSimulatorKind != null;
+    final badge = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .1),
@@ -395,14 +420,40 @@ class DisplayConnectionBadge extends StatelessWidget {
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              secondScreen ? 'Second screen' : connection.label,
+              secondScreen
+                  ? 'Second screen'
+                  : connection == DisplayConnection.simulator
+                  ? simulatorNameOf(simulatorKind)
+                  : connection.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: color, fontSize: 12),
             ),
           ),
+          if (choose) Icon(Icons.arrow_drop_down, size: 16, color: color),
         ],
       ),
+    );
+    if (!choose) return badge;
+    return PopupMenuButton<String>(
+      key: const ValueKey('simulator-kind-menu'),
+      tooltip: 'Choose what the Simulator shows',
+      padding: EdgeInsets.zero,
+      borderRadius: BorderRadius.circular(8),
+      onSelected: onSimulatorKind,
+      itemBuilder: (ctx) => appMenuEntries(ctx, [
+        AppMenuAction(
+          'led',
+          'Simulate an LED sign',
+          checked: simulatorKind == 'led',
+        ),
+        AppMenuAction(
+          'stage',
+          'Simulate a stage screen',
+          checked: simulatorKind == 'stage',
+        ),
+      ]),
+      child: badge,
     );
   }
 }

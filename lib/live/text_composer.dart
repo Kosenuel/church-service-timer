@@ -9,6 +9,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/live/cue_screen_controls.dart';
+import 'package:church_service_timer/live/cue_preview.dart';
 
 /// Whether two layouts look the same; layouts are compared by content, as
 /// a copy of the default end screen is still the default.
@@ -19,12 +20,18 @@ class TextComposer extends StatefulWidget {
   final TextLayout initial;
   final String title, button;
   final Future<bool> Function()? onDelete;
+
+  /// For a stage cue: the preview has a switch between the LED sign and a
+  /// stage screen, starting on the stage screen when this is true. Null
+  /// shows the LED sign only.
+  final bool? stagePreviewFirst;
   const TextComposer({
     super.key,
     required this.initial,
     required this.title,
     required this.button,
     this.onDelete,
+    this.stagePreviewFirst,
   });
   @override
   State<TextComposer> createState() => _TextComposerState();
@@ -108,6 +115,27 @@ class _TextComposerState extends State<TextComposer> {
       error = e.toString();
     }
     if (font == 'tinos' && fontError != null) error = fontError;
+    final ledPreview = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        RepaintBoundary(
+          child: ValueListenableBuilder<int>(
+            valueListenable: previewTick,
+            builder: (context, _, child) => LedMatrix(
+              pixels: error == null
+                  ? renderPixels(layout, watch.elapsedMilliseconds)
+                  : List.filled(512, false),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'NOT TESTED ON SIGN · simulator preview',
+          style: TextStyle(color: appColors(context).warning, fontSize: 11),
+        ),
+      ],
+    );
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
@@ -117,24 +145,14 @@ class _TextComposerState extends State<TextComposer> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              RepaintBoundary(
-                child: ValueListenableBuilder<int>(
-                  valueListenable: previewTick,
-                  builder: (context, _, child) => LedMatrix(
-                    pixels: error == null
-                        ? renderPixels(layout, watch.elapsedMilliseconds)
-                        : List.filled(512, false),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'NOT TESTED ON SIGN · simulator preview',
-                style: TextStyle(
-                  color: appColors(context).warning,
-                  fontSize: 11,
-                ),
-              ),
+              if (widget.stagePreviewFirst case final stageFirst?)
+                CuePreviewSwitch(
+                  cue: error == null ? layout : null,
+                  stageFirst: stageFirst,
+                  led: ledPreview,
+                )
+              else
+                ledPreview,
               const SizedBox(height: 16),
               TextField(
                 controller: text,
