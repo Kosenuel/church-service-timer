@@ -48,9 +48,24 @@ class _CuePreviewSwitchState extends State<CuePreviewSwitch> {
             key: const ValueKey('cue-preview-kind'),
             showSelectedIcon: false,
             style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            // Each name stays on one line, made smaller when a narrow
+            // phone with large text has no room for it.
             segments: [
-              ButtonSegment(value: false, label: Text(simulatorKinds['led']!)),
-              ButtonSegment(value: true, label: Text(simulatorKinds['stage']!)),
+              for (final (value, kind) in const [
+                (false, 'led'),
+                (true, 'stage'),
+              ])
+                ButtonSegment(
+                  value: value,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      simulatorKinds[kind]!,
+                      maxLines: 1,
+                      softWrap: false,
+                    ),
+                  ),
+                ),
             ],
             selected: {stage},
             onSelectionChanged: (kinds) {
