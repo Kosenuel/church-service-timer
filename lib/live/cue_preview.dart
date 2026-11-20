@@ -87,9 +87,12 @@ class CueStagePreview extends StatelessWidget {
                 'displayIsTimer': false,
                 'outputMode': 'Cue',
                 'displayText': cue?.text ?? '',
-                'effect': still && cue?.effect == 'scroll'
-                    ? 'static'
-                    : cue?.effect ?? 'static',
+                ...stageEffectFields(
+                  still && cue?.effect == 'scroll' ? null : cue,
+                ),
+                // A cue here has no time of its own, so a countdown bar
+                // shows a sample one that empties and starts again.
+                if (cue?.screenEffect == 'bar') 'cueBarSample': true,
                 'speed': cue?.speed ?? 12,
                 'screenSpeed': ?cue?.screenSpeed,
                 if (cue != null && cue.screenColor != 'white')

@@ -8,10 +8,14 @@ class ChoiceOption<T> {
 
   /// Shown but not choosable, e.g. a screen that has gone offline.
   final bool enabled;
+
+  /// One line under the label in the list, saying what the choice does.
+  final String? hint;
   const ChoiceOption({
     required this.value,
     required this.label,
     this.enabled = true,
+    this.hint,
   });
 }
 
@@ -178,6 +182,12 @@ class _ChoiceSheetState<T> extends State<_ChoiceSheet<T>> {
                     : FontWeight.w400,
               ),
             ),
+            subtitle: filtered[i].hint == null
+                ? null
+                : Text(
+                    filtered[i].hint!,
+                    style: TextStyle(color: colors.muted),
+                  ),
             trailing: filtered[i].value == widget.value
                 ? Icon(Icons.check_circle, color: colors.accent)
                 : null,
