@@ -5,6 +5,7 @@ import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/date_range_dialog.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/material.dart';
 
@@ -58,6 +59,8 @@ class MiniTimerFace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = session, colors = appColors(context);
+    // Before a service, and after one, the time of day.
+    if (!s.active) return _standingBy(colors);
     final t = s.timeline;
     if (t == null) return const SizedBox.expand();
     final balance = s.balance(now);
@@ -260,6 +263,175 @@ class MiniTimerFace extends StatelessWidget {
     );
   }
 
+  /// No service running: the time of day, and the loaded service's name
+  /// and start time with the pre-service countdown when there is one.
+  Widget _standingBy(AppPalette colors) {
+    final s = session, t = s.timeline;
+    final loaded = s.phase == 'ready' && t != null;
+    final at = loaded ? s.startsAtWall : null;
+    final left = at == null ? 0 : at - now.wall;
+    final title = loaded ? t.name : 'No service running';
+    final String detail;
+    if (!loaded) {
+      final day = DateTime.fromMillisecondsSinceEpoch(now.wall).toLocal();
+      detail = '${_weekdays[day.weekday - 1]} ${longDate(day, year: false)}';
+    } else if (at == null) {
+      detail = 'No start time set';
+    } else if (left > preServiceCountdownMs) {
+      detail = 'Starts at ${clockLabel(at)}';
+    } else if (left > 0) {
+      detail = 'Starts in ${formatTime(left)} · at ${clockLabel(at)}';
+    } else {
+      detail = 'Start time reached · ${clockLabel(at)}';
+    }
+    final clock = Semantics(
+      label: 'The time is ${clockLabel(now.wall)}',
+      excludeSemantics: true,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: Text(
+          clockLabel(now.wall),
+          key: const ValueKey('mini-clock'),
+          maxLines: 1,
+          textScaler: TextScaler.noScaling,
+          style: TextStyle(
+            fontSize: 64,
+            fontWeight: FontWeight.w300,
+            height: 1.05,
+            letterSpacing: -2,
+            color: colors.text,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ),
+    );
+    Widget name(double size) => Tooltip(
+      message: title,
+      child: Text(
+        title,
+        key: const ValueKey('mini-name'),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: size, fontWeight: FontWeight.w700),
+      ),
+    );
+    return LayoutBuilder(
+      key: const ValueKey('mini-standing-by'),
+      builder: (context, box) {
+        if (box.maxWidth < 120 || box.maxHeight < 56) {
+          return Padding(padding: const EdgeInsets.all(2), child: clock);
+        }
+        if (box.maxWidth < 260 || box.maxHeight < 120) {
+          return Padding(
+            key: const ValueKey('mini-compact'),
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                name(13),
+                Expanded(child: clock),
+              ],
+            ),
+          );
+        }
+        final details = LayoutBuilder(
+          builder: (context, side) => FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: side.maxWidth,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  name(15),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      detail,
+                      key: const ValueKey('mini-standing-by-detail'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12.5, color: colors.muted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        return Padding(
+          key: const ValueKey('mini-full'),
+          padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: clock,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 6, child: details),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 7),
+              SizedBox(
+                height: 36,
+                child: locked
+                    ? _lockRow(colors)
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              loaded
+                                  ? 'Start the service in the full window.'
+                                  : 'Load a service in the full window.',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: colors.muted,
+                              ),
+                            ),
+                          ),
+                          _expandButton,
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static const _weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  Widget get _expandButton => IconButton(
+    key: const ValueKey('mini-expand'),
+    tooltip: 'Expand to the full window',
+    onPressed: onExpand,
+    constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+    padding: EdgeInsets.zero,
+    iconSize: 20,
+    icon: const Icon(Icons.open_in_full),
+  );
+
   static const _shape = RoundedRectangleBorder(
     borderRadius: BorderRadius.all(Radius.circular(10)),
   );
@@ -391,15 +563,7 @@ class MiniTimerFace extends StatelessWidget {
         ),
       ],
       const SizedBox(width: 2),
-      IconButton(
-        key: const ValueKey('mini-expand'),
-        tooltip: 'Expand to the full window',
-        onPressed: onExpand,
-        constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-        padding: EdgeInsets.zero,
-        iconSize: 20,
-        icon: const Icon(Icons.open_in_full),
-      ),
+      _expandButton,
     ],
   );
 }
@@ -558,13 +722,12 @@ class _MiniDialogCardState extends State<MiniDialogCard> {
 
 /// The mini timer: a small window that stays above other programs.
 extension MiniTimerMode on HomeState {
-  /// Whether the mini timer can be opened now: on a computer, during a
-  /// service this device controls.
+  /// Whether the mini timer can be opened now: on a computer this device
+  /// controls, during a service or before one, when it shows the clock.
   bool get miniTimerAvailable =>
       c.ready &&
       c.port.isDesktop &&
       c.port.miniWindow != null &&
-      c.liveSession.active &&
       !c.pairing.joined;
 
   static final _buttonStyle = ButtonStyle(
