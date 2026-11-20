@@ -178,15 +178,28 @@ void main() {
 
     // Editing a warning's text starts on the stage screen's preview,
     // with the switch to see the LED sign's.
+    // The editor's stage preview plays by itself, so it never settles.
     await t.tap(find.byKey(const ValueKey('warning-rule-0')));
-    await t.pumpAndSettle();
-    await t.ensureVisible(find.text('Edit warning text'));
-    await t.tap(find.text('Edit warning text'));
+    for (var i = 0; i < 8; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byKey(const ValueKey('cue-stage-preview')), findsOneWidget);
+    await t.tap(find.text('Edit text and style'));
     for (var i = 0; i < 4; i++) {
       await t.pump(const Duration(milliseconds: 100));
     }
-    expect(find.byType(CuePreviewSwitch), findsOneWidget);
-    expect(find.byKey(const ValueKey('cue-stage-preview')), findsOneWidget);
+    final composer = find.byType(TextComposer);
+    expect(
+      find.descendant(of: composer, matching: find.byType(CuePreviewSwitch)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: composer,
+        matching: find.byKey(const ValueKey('cue-stage-preview')),
+      ),
+      findsOneWidget,
+    );
     expect(t.takeException(), isNull);
   });
 
