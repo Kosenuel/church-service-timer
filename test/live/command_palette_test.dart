@@ -312,8 +312,13 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.byType(TextField).first);
     await t.pumpAndSettle();
+    // A letter is typed, not a shortcut. Ctrl+K means nothing to a field,
+    // so it still opens Commands, rather than dying until the field is left.
+    await t.sendKeyEvent(LogicalKeyboardKey.keyJ);
+    await t.pumpAndSettle();
+    expect(find.text('Jump to segment'), findsNothing);
     await open(t);
-    expect(palette, findsNothing);
+    expect(palette, findsOneWidget);
     await t.pumpWidget(const SizedBox());
   });
 
