@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_port.dart';
 import '../support/waiting.dart';
+import '../support/steady_time.dart';
 import '../support/widget_setup.dart';
 import '../windows/second_screen_live_test.dart' show SecondPort;
 import 'desktop_layout_test.dart' show DesktopFakePort, sunday;
@@ -338,6 +339,54 @@ void main() {
   });
 
   group('the stage simulator on Live', () {
+    testWidgets('holds the time still as it counts, before and during a '
+        'service', (t) async {
+      setScreen(t, const Size(1366, 768));
+      final port = DesktopFakePort();
+      final c = await service(t, port, start: false);
+      // A service due to start in 48 minutes and 4 seconds.
+      await t.runAsync(
+        () => c.act('schedule', value: c.now.wall + (48 * 60 + 4) * 1000),
+      );
+      await show(t, c);
+      Future<void> at(int seconds) async {
+        port.at = after(seconds);
+        await t.runAsync(c.tick);
+        await t.pump();
+        await t.pump();
+      }
+
+      final pre = {'48:03': 1, '47:58': 6, '11:11': 2213, '20:01': 1683};
+      await expectTimeHoldsStill(
+        t,
+        find.byKey(stagePreview),
+        pre.keys.toList(),
+        (time) async {
+          await at(pre[time]!);
+          expect(shown(t)['outputMode'], 'Pre-service');
+        },
+      );
+      // The service starts; its first segment is five minutes long.
+      port.at = after(2884);
+      await t.runAsync(() => c.act('start'));
+      final running = {'04:44': 2884 + 16, '03:58': 2884 + 62};
+      running['03:11'] = 2884 + 109;
+      running['02:30'] = 2884 + 150;
+      await expectTimeHoldsStill(
+        t,
+        find.byKey(stagePreview),
+        running.keys.toList(),
+        (time) async {
+          await at(running[time]!);
+          expect(shown(t)['displayIsTimer'], true);
+        },
+      );
+      // In the face the app carries, as stage screens are.
+      expectBundledFont(t, find.byKey(stagePreview));
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    });
+
     testWidgets('follows the countdown, a cue and Blank', (t) async {
       setScreen(t, const Size(1366, 768));
       final port = DesktopFakePort();

@@ -44,6 +44,8 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .text.wrapped { white-space:normal; word-break:normal; overflow-wrap:normal; line-height:1.1; width:92vw; }
 #stage .colon { transition: opacity .1s; }
 #stage .colon.dim { opacity: .2; }
+#stage .dg { display:inline-block; text-align:center; width:var(--dg, .6em); }
+#stage .ap { display:inline-block; text-align:center; width:var(--ap, .7em); }
 #stage .band { position:absolute; left:0; right:0; height:20vh; display:none; align-items:center; justify-content:center; overflow:hidden; padding:0 6vh; white-space:nowrap; line-height:1; font-size:14vh; z-index:2; }
 #stage .band.top { top:0; border-bottom:.7vh solid currentColor; }
 #stage .band.bottom { bottom:0; border-top:.7vh solid currentColor; }
@@ -608,6 +610,24 @@ function renderBand(s) {
   bandMotion = m; m.step(); m.raf = requestAnimationFrame(frame);
 }
 
+// A time as the host sends it: "48:03", "+01:10" or "9:30 AM".
+const TIME = /^[+-]?\d{1,3}(:\d\d){1,2}( [AP]M)?$/;
+// The widest of [chars] in [node]'s font, weight and style, in em.
+const placeWidths = {};
+function placeWidth(node, chars, otherwise) {
+  const cs = getComputedStyle(node);
+  const font = cs.fontStyle + ' ' + cs.fontWeight + ' 100px ' + cs.fontFamily;
+  const k = font + '|' + chars;
+  if (!(k in placeWidths)) {
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.font = font;
+    let most = 0;
+    for (const c of chars) most = Math.max(most, ctx.measureText(c).width);
+    placeWidths[k] = most > 0 ? most / 100 : otherwise;
+  }
+  return placeWidths[k];
+}
+
 // The blinking colon: lit as each new second arrives, dimmed for the second
 // half, steady while paused or lost. The new second is the moment the time
 // text changes, so screens follow the host's seconds.
@@ -690,14 +710,30 @@ function renderStage(s) {
   }
   if (group) { startMotion(text, value, Object.assign({}, s, { effect: 'words', group }), key); return; }
   if (moving && (effect === 'scroll' || effect === 'flash')) { startMotion(text, value, Object.assign({}, s, { effect, wrapAt }), key); return; }
-  if (s.ticking && value.includes(':')) {
-    // Each colon is its own span, so only its brightness changes.
-    for (const part of value.split(/(:)/)) text.append(part === ':' ? el('span', 'colon', ':') : document.createTextNode(part));
-    if (value !== colon.text) { colon.text = value; colon.at = performance.now(); }
+  const time = TIME.test(value);
+  if (time) {
+    // A time: each digit in a place as wide as the widest digit (and A
+    // and P in one place as wide as either), so the time keeps its size
+    // and every digit its place as it counts, whatever the browser's font.
+    // Each colon is its own span, so only its brightness changes when it
+    // blinks. It stays on one line.
+    text.style.whiteSpace = 'nowrap';
+    text.style.setProperty('--dg', placeWidth(text, '0123456789', 0.6) + 'em');
+    text.style.setProperty('--ap', placeWidth(text, 'AP', 0.7) + 'em');
+    for (const char of value) text.append(/[0-9]/.test(char) ? el('span', 'dg', char) : /[AP]/.test(char) ? el('span', 'ap', char) : char === ':' && s.ticking ? el('span', 'colon', ':') : document.createTextNode(char));
+    if (s.ticking && value !== colon.text) { colon.text = value; colon.at = performance.now(); }
   } else {
+    text.style.removeProperty('--dg'); text.style.removeProperty('--ap');
     text.textContent = value;
   }
   fit(text, value || ' ', room);
+  if (time) {
+    // Narrower if its places are wider than the screen allows. They are
+    // set in em, so this depends only on the characters' kinds, not on
+    // which digits are showing.
+    const most = w * 0.92, wide = text.getBoundingClientRect().width;
+    if (wide > most) text.style.fontSize = parseFloat(text.style.fontSize) * most / wide + 'px';
+  }
   placeBar(bar, text);
 }
 // The quick message's palette and style, as the paired screens show it.
