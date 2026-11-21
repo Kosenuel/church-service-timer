@@ -86,6 +86,8 @@ class MiniTimerFace extends StatelessWidget {
           maxLines: 1,
           textScaler: TextScaler.noScaling,
           style: TextStyle(
+            // The bundled face on every device, not the system's own.
+            fontFamily: 'Roboto',
             fontSize: 64,
             fontWeight: FontWeight.w300,
             height: 1.05,
@@ -295,6 +297,8 @@ class MiniTimerFace extends StatelessWidget {
           maxLines: 1,
           textScaler: TextScaler.noScaling,
           style: TextStyle(
+            // The bundled face on every device, not the system's own.
+            fontFamily: 'Roboto',
             fontSize: 64,
             fontWeight: FontWeight.w300,
             height: 1.05,

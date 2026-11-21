@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../live/desktop_layout_test.dart' show DesktopFakePort, sunday;
 import '../support/fake_port.dart';
+import '../support/steady_time.dart';
 import '../support/waiting.dart';
 import '../support/widget_setup.dart';
 
@@ -405,6 +406,57 @@ void main() {
           );
         }
       }
+    });
+
+    testWidgets('its copy of the second screen holds the time still', (
+      t,
+    ) async {
+      final port = SecondPort();
+      setScreen(t, const Size(1366, 768));
+      final c = await ready(t, port);
+      // A service due to start in 48 minutes and 4 seconds.
+      await t.runAsync(
+        () => c.act('schedule', value: c.now.wall + (48 * 60 + 4) * 1000),
+      );
+      await t.pumpWidget(TimerApp(controller: c));
+      await rest(t, port);
+      await press(t, 'live-second-screen-show');
+      final feed = await window(t, port);
+      expect(find.byKey(preview), findsOneWidget);
+      Future<void> at(int seconds) async {
+        port.at = after(seconds);
+        await t.runAsync(c.tick);
+        await t.pump();
+        await t.pump();
+      }
+
+      final pre = {'48:03': 1, '47:58': 6, '11:11': 2213, '20:01': 1683};
+      await expectTimeHoldsStill(
+        t,
+        find.byKey(preview),
+        pre.keys.toList(),
+        (time) => at(pre[time]!),
+      );
+      // The service starts; its first segment is five minutes long.
+      port.at = after(2884);
+      await t.runAsync(() => c.act('start'));
+      final running = {
+        '04:44': 2884 + 16,
+        '03:58': 2884 + 62,
+        '03:11': 2884 + 109,
+        '02:30': 2884 + 150,
+      };
+      await expectTimeHoldsStill(
+        t,
+        find.byKey(preview),
+        running.keys.toList(),
+        (time) => at(running[time]!),
+      );
+      expect(c.stageWindowSnapshot()['displayIsTimer'], isTrue);
+      // In the face the app carries, as the window itself is.
+      expectBundledFont(t, find.byKey(preview));
+      expect(t.takeException(), isNull);
+      await finish(t, port, feed);
     });
 
     testWidgets('it takes the Simulator’s place, and Stop brings that back', (

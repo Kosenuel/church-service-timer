@@ -195,6 +195,28 @@ bool stageWrapsText(Json data) =>
     data['outputMode'] != 'Clock' &&
     const {'static', 'scroll', 'flash', null}.contains(data['effect']);
 
+/// A time as screens show it: "48:03", "+01:10", "123:00", "09:30" or
+/// "9:30 AM".
+final stageTimePattern = RegExp(r'^[+-]?\d{1,3}(:\d\d){1,2}( [AP]M)?$');
+
+/// Whether a snapshot shows a time that screens hold still as it changes,
+/// each digit in its own place: the countdown, the clock, and the clock
+/// or countdown shown before a scheduled service starts.
+bool stageShowsTime(Json data) =>
+    data['outputMode'] == 'Clock' ||
+    (data['displayIsTimer'] == true && data['effect'] == 'static') ||
+    (data['outputMode'] == 'Pre-service' &&
+        data['effect'] == 'static' &&
+        stageScreenEffect(data) == null &&
+        stageTimePattern.hasMatch('${data['displayText'] ?? ''}'));
+
+/// Whether a snapshot's time blinks its colons: the clock, and the
+/// countdown while it runs.
+bool stageTimeBlinks(Json data) =>
+    data['clockBlink'] != false &&
+    (data['outputMode'] == 'Clock' ||
+        (data['displayIsTimer'] == true && data['paused'] != true));
+
 /// A full-screen cue in a colour other than white is shown on a warm
 /// charcoal screen, with a rule in its colour along the bottom edge. Its
 /// words are in the cue's colour too, except amber, whose words are warm

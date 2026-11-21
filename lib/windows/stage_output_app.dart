@@ -46,7 +46,11 @@ class StageOutputScreen extends StatelessWidget {
                 child: data == null
                     ? const Text(
                         'Waiting for Church Service Timer…',
-                        style: TextStyle(color: Colors.white70, fontSize: 20),
+                        style: TextStyle(
+                          fontFamily: stageFontFamily,
+                          color: Colors.white70,
+                          fontSize: 20,
+                        ),
                       )
                     : StageSurface(data: data, stale: feed.stale),
               ),
@@ -58,6 +62,17 @@ class StageOutputScreen extends StatelessWidget {
   );
 }
 
+/// The stage window's theme: the app's, with all its text in the face the
+/// stage screens use, so nothing in the window falls back to the system's
+/// own font.
+ThemeData stageWindowTheme() {
+  final theme = appTheme('midnight_lime');
+  return theme.copyWith(
+    textTheme: theme.textTheme.apply(fontFamily: stageFontFamily),
+    primaryTextTheme: theme.primaryTextTheme.apply(fontFamily: stageFontFamily),
+  );
+}
+
 class StageOutputApp extends StatelessWidget {
   final StageFeed feed;
   final VoidCallback onClose;
@@ -66,7 +81,7 @@ class StageOutputApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'Stage output',
     debugShowCheckedModeBanner: false,
-    theme: appTheme('midnight_lime'),
+    theme: stageWindowTheme(),
     home: LedAppearance(
       shape: 'square',
       child: StageOutputScreen(feed: feed, onClose: onClose),
