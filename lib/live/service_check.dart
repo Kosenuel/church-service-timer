@@ -86,6 +86,8 @@ class ServiceCheckPageState extends State<ServiceCheckPage> {
   void initState() {
     super.initState();
     c.addListener(_appChanged);
+    // No automatic update check while a check of a service is open.
+    c.autoUpdate.serviceCheckOpened();
     _begin();
   }
 
@@ -134,6 +136,7 @@ class ServiceCheckPageState extends State<ServiceCheckPage> {
   void dispose() {
     _timer?.cancel();
     c.removeListener(_appChanged);
+    c.autoUpdate.serviceCheckClosed();
     super.dispose();
   }
 

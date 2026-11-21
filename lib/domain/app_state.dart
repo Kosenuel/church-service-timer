@@ -97,6 +97,10 @@ class AppState {
 
   /// The last few Quick timers, newest first. Local to this phone.
   List<QuickTimerChoice> recentQuickTimers;
+
+  /// Check for updates automatically, and what that last found. Local to
+  /// this device; not part of backups.
+  AutoUpdateSettings autoUpdate;
   AppState(
     this.templates,
     this.defaults,
@@ -124,6 +128,7 @@ class AppState {
     this.stageRequests = false,
     Set<String>? dismissedHints,
     List<QuickTimerChoice>? recentQuickTimers,
+    AutoUpdateSettings? autoUpdate,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -139,6 +144,7 @@ class AppState {
     Map<String, Json>? importMappings,
     Json? webStage,
   }) : webStage = webStage ?? {},
+       autoUpdate = autoUpdate ?? AutoUpdateSettings(),
        dismissedHints = dismissedHints ?? {},
        savedLooks = savedLooks ?? [],
        recentQuickTimers = recentQuickTimers ?? [],
@@ -325,6 +331,7 @@ class AppState {
         for (final r in (j['recentQuickTimers'] as List? ?? const []))
           ?QuickTimerChoice.tryRead(r),
       ].take(quickTimerRecentLimit).toList(),
+      autoUpdate: AutoUpdateSettings.fromJson(j['autoUpdate']),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -470,6 +477,7 @@ class AppState {
     'stageRequests': stageRequests,
     'dismissedHints': [...dismissedHints],
     'recentQuickTimers': [for (final r in recentQuickTimers) r.toJson()],
+    'autoUpdate': autoUpdate.toJson(),
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
     'fullScreenLayout': fullScreenLayout,
