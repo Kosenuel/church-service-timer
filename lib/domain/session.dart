@@ -215,7 +215,9 @@ class Session {
     if (hasAutomaticCue(now)) return automaticCue;
     if (hasManualCue(now)) return alert;
     if (showClock) return clockLayout(now.wall, clockFormat);
-    if (phase == 'ended') return timeline!.display.end;
+    // With no end screen, the clock.
+    if (phase == 'ended')
+      return timeline!.display.end ?? clockLayout(now.wall, clockFormat);
     if (remaining(now) == 0 && timeline!.display.zero != null)
       return timeline!.display.zero;
     return TextLayout(formatted(now), effect: 'static', height: 2);
@@ -234,7 +236,7 @@ class Session {
       ? 'Cue'
       : hasManualCue(now)
       ? (alertIsMessage ? 'Message' : 'Cue')
-      : showClock
+      : showClock || endsOnClock
       ? 'Clock'
       : phase == 'ended'
       ? 'End screen'
@@ -243,6 +245,10 @@ class Session {
       : phase == 'ready' && startsAtWall != null
       ? 'Pre-service'
       : 'Standby';
+
+  /// Whether the service has ended with no end screen, so stage outputs
+  /// show the clock in its place.
+  bool get endsOnClock => phase == 'ended' && timeline?.display.end == null;
 
   bool get rehearsal => rate > 1;
   bool hasAutomaticCue(Stamp now) =>
@@ -278,6 +284,8 @@ class Session {
 
   String get outputKind => outputBlank
       ? 'Blank'
+      : endsOnClock
+      ? 'Clock'
       : phase == 'ended'
       ? 'End screen'
       : alert != null

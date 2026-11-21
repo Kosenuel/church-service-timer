@@ -279,7 +279,7 @@ extension WarningSettingsViews on HomeState {
         ),
         const SizedBox(height: 8),
         Text(
-          'Choose what the stage display shows when a segment reaches 00:00. The operator’s timer continues into overtime, and the next segment starts only when you select Next segment. This setting applies to every service. Blank output and active cues take priority; an end screen applies when you end the whole service.',
+          'Choose what the stage display shows when a segment reaches 00:00. The operator’s timer continues into overtime, and the next segment starts only when you select Next segment. This setting applies to every service. Blank output and active cues take priority; when you end the whole service, the program’s end screen shows, or the clock if it has none.',
           style: TextStyle(color: appColors(context).muted),
         ),
         const SizedBox(height: 12),

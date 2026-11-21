@@ -138,7 +138,7 @@ extension ProgramEditActions on HomeState {
       for (final l in [
         ...candidate.display.cues,
         ...candidate.display.warnings.map((w) => w.cue),
-        candidate.display.end,
+        ?candidate.display.end,
         if (candidate.display.zero != null) candidate.display.zero!,
       ]) {
         await NativeDisplayFonts.prepare(l);
@@ -253,7 +253,11 @@ extension ProgramEditActions on HomeState {
                             ),
                             (
                               'End screen',
-                              [styleSummary(candidate.display.end)],
+                              [
+                                candidate.display.end == null
+                                    ? noEndScreenLine
+                                    : styleSummary(candidate.display.end!),
+                              ],
                             ),
                             (
                               'Warnings',

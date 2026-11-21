@@ -222,6 +222,10 @@ HardwareOutputPlan planHardwareOutput(
   if (session.phase == 'ended' &&
       !session.showClock &&
       !session.hasManualCue(now)) {
+    // No end screen: the sign shows the clock.
+    if (session.endsOnClock) {
+      return make(HardwareOutputKind.clock, HardwareOutputReason.endScreen);
+    }
     return make(
       HardwareOutputKind.text,
       HardwareOutputReason.endScreen,

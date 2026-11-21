@@ -91,7 +91,7 @@ extension SettingsSearchViews on HomeState {
       ),
       (
         'Default end screen',
-        'end screen hallelujah',
+        'end screen hallelujah clock finish',
         Icons.flag_outlined,
         () => openDisplaySection('end'),
       ),

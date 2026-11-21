@@ -1223,7 +1223,9 @@ extension LivePage on HomeState {
           (cue) => cue.text == sent.text,
         );
     }
-    final clockSwap = !s.outputBlank && mode == 'Clock';
+    // With no end screen the clock is what an ended service shows, so
+    // there is nothing to swap back to.
+    final clockSwap = !s.outputBlank && mode == 'Clock' && !s.endsOnClock;
     final messageSwap =
         !s.outputBlank && mode == 'Message' && c.currentQuickMessage == null;
     // Outputs that no swapped button represents (automatic warnings, quick
@@ -1231,11 +1233,16 @@ extension LivePage on HomeState {
     final needsReturn =
         (!s.outputBlank &&
             !const ['Countdown', 'Standby', 'End screen'].contains(mode) &&
+            !(mode == 'Clock' && s.endsOnClock) &&
             activeCueIndex < 0 &&
             !clockSwap &&
             !messageSwap) ||
         c.currentQuickMessage != null;
-    final returnLabel = s.phase == 'ended' ? 'Show end screen' : 'Show timer';
+    final returnLabel = s.endsOnClock
+        ? 'Back to clock'
+        : s.phase == 'ended'
+        ? 'Show end screen'
+        : 'Show timer';
     void returnToTimer() => c.act(s.phase == 'ended' ? 'endScreen' : 'timer');
     // A cue or message sits over whatever was showing; clearing it reveals
     // that output again (the clock, the countdown or the end screen).
@@ -1358,7 +1365,9 @@ extension LivePage on HomeState {
                 stackedButton(
                   'Show clock',
                   Icons.schedule,
-                  outputControlsEnabled ? () => c.act('clock') : null,
+                  outputControlsEnabled && !s.endsOnClock
+                      ? () => c.act('clock')
+                      : null,
                 ),
               if (messageSwap)
                 ShowTimerButton(
@@ -1614,7 +1623,11 @@ extension LivePage on HomeState {
                   runSpacing: 8,
                   children: [
                     button(
-                      s.phase == 'ended' ? 'Send end screen' : 'Resume output',
+                      s.endsOnClock
+                          ? 'Send clock'
+                          : s.phase == 'ended'
+                          ? 'Send end screen'
+                          : 'Resume output',
                       Icons.play_arrow,
                       c.busy ? null : () => c.act('release'),
                       primary: true,
