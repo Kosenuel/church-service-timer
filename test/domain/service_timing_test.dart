@@ -332,7 +332,7 @@ void main() {
         'x.csv',
         d,
       );
-      expect(t.display.end.text, 'Amen');
+      expect(t.display.end!.text, 'Amen');
       expect(
         () => t.display.cues.add(const TextLayout('NEW')),
         throwsUnsupportedError,

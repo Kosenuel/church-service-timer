@@ -266,6 +266,9 @@ class TextLayout {
   };
 }
 
+/// How summaries describe a program with no end screen.
+const noEndScreenLine = 'No end screen · shows the clock';
+
 const defaultEndScreen = TextLayout(
   'Hallelujah',
   bold: true,
@@ -414,7 +417,11 @@ const legacyDefaultStageCues = [
 
 class DisplaySettings {
   final TextLayout? zero;
-  final TextLayout end;
+
+  /// What stage outputs show when the service ends, or null for no end
+  /// screen: they show the clock instead. Saved as `"end": null`, which
+  /// versions before this one refuse, as they need an end screen.
+  final TextLayout? end;
   final List<TextLayout> cues;
   final List<WarningRule> warnings;
   DisplaySettings({
@@ -427,7 +434,10 @@ class DisplaySettings {
   factory DisplaySettings.fromJson(Json j) {
     keys(j, {'zero', 'end', 'cues', 'warnings'}, 'Display settings');
     require(
-      j.containsKey('zero') && j['end'] is Map && j['cues'] is List,
+      j.containsKey('zero') &&
+          j.containsKey('end') &&
+          (j['end'] == null || j['end'] is Map) &&
+          j['cues'] is List,
       'Display settings are incomplete.',
     );
     final c = (j['cues'] as List)
@@ -438,7 +448,9 @@ class DisplaySettings {
       zero: j['zero'] == null
           ? null
           : TextLayout.fromJson(Map<String, dynamic>.from(j['zero'])),
-      end: TextLayout.fromJson(Map<String, dynamic>.from(j['end'])),
+      end: j['end'] == null
+          ? null
+          : TextLayout.fromJson(Map<String, dynamic>.from(j['end'])),
       cues: c,
       warnings: readWarnings(j['warnings']),
     );
@@ -449,11 +461,11 @@ class DisplaySettings {
       DisplaySettings(zero: zero, end: end, cues: cues, warnings: value);
   DisplaySettings withZero(TextLayout? value) =>
       DisplaySettings(zero: value, end: end, cues: cues, warnings: warnings);
-  DisplaySettings withEnd(TextLayout value) =>
+  DisplaySettings withEnd(TextLayout? value) =>
       DisplaySettings(zero: zero, end: value, cues: cues, warnings: warnings);
   Json toJson() => {
     'zero': zero?.toJson(),
-    'end': end.toJson(),
+    'end': end?.toJson(),
     'cues': cues.map((e) => e.toJson()).toList(),
     'warnings': warnings.map((e) => e.toJson()).toList(),
   };

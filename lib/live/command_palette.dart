@@ -90,8 +90,15 @@ extension CommandPalette on HomeState {
     final cueShowing =
         !s.outputBlank && (s.hasManualCue(c.now) || s.hasAutomaticCue(c.now));
     final quickShowing = c.currentQuickMessage != null;
-    final clockShowing = !s.outputBlank && s.outputMode(c.now) == 'Clock';
-    final returnLabel = s.phase == 'ended' ? 'Show end screen' : 'Show timer';
+    // With no end screen an ended service shows the clock, with nothing
+    // to swap back to.
+    final clockShowing =
+        !s.outputBlank && s.outputMode(c.now) == 'Clock' && !s.endsOnClock;
+    final returnLabel = s.endsOnClock
+        ? 'Back to clock'
+        : s.phase == 'ended'
+        ? 'Show end screen'
+        : 'Show timer';
     final keys = c.port.isDesktop;
     return [
       // Timer.
@@ -283,7 +290,7 @@ extension CommandPalette on HomeState {
                 words: 'send stage',
                 run: () => sendPreparedCue(cue),
               ),
-        if (!clockShowing)
+        if (!clockShowing && !s.endsOnClock)
           PaletteCommand(
             id: 'clock',
             label: 'Show clock',

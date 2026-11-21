@@ -435,7 +435,7 @@ extension ProgramsDesktop on HomeState {
         label('End screen'),
         const SizedBox(height: 10),
         Text(
-          t.display.end.text,
+          endScreenTitle(t),
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 2),

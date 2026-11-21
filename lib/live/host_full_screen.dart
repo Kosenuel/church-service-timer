@@ -337,17 +337,9 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
     if (home.mounted && !home.hostFullScreenStays) leave();
   }
 
-  /// End service from the tray: full screen stays, showing the end screen;
-  /// with no end screen text, the clock.
-  Future<void> _endService() async {
-    final c = home.c;
-    await home.confirmEndService();
-    final s = c.liveSession;
-    if (!mounted || s.phase != 'ended' || s.outputBlank) return;
-    if (s.timeline?.display.end.text.trim().isEmpty ?? false) {
-      await c.act('clock');
-    }
-  }
+  /// End service from the tray: full screen stays, showing the end screen,
+  /// or the clock for a program with no end screen.
+  Future<void> _endService() => home.confirmEndService();
 
   void leave() => unawaited(home.setHostFullScreen(false));
 
@@ -675,7 +667,9 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
     final c = home.c, s = c.liveSession;
     final enabled = _enabled;
     final output = home.outputControlsEnabled && !c.hardware.sending;
-    final clockShowing = !s.outputBlank && s.outputMode(c.now) == 'Clock';
+    // With no end screen an ended service already shows the clock.
+    final clockShowing =
+        !s.outputBlank && s.outputMode(c.now) == 'Clock' && !s.endsOnClock;
     final blank =
         (s.active || s.phase == 'ended') &&
         !c.busy &&
@@ -736,7 +730,7 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
         'full-screen-tray-clock',
         clockShowing ? Icons.timer_outlined : Icons.schedule,
         clockShowing ? 'Timer' : 'Clock',
-        output
+        output && !s.endsOnClock
             ? () => c.act(
                 clockShowing
                     ? (s.phase == 'ended' ? 'endScreen' : 'timer')
@@ -754,7 +748,7 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
       ),
       _divider(colors),
       // Ends the service, after the same question as End service on Live;
-      // full screen stays, on the end screen.
+      // full screen stays, on the end screen or the clock.
       _item(
         'full-screen-tray-end',
         Icons.stop_circle_outlined,
