@@ -32,6 +32,7 @@ import 'package:church_service_timer/app/simulator.dart';
 import 'package:church_service_timer/app/web_stage_coordinator.dart';
 import 'package:church_service_timer/app/metrics_tracker.dart';
 import 'package:church_service_timer/app/backup_controller.dart';
+import 'package:church_service_timer/app/auto_update_check.dart';
 import 'package:church_service_timer/app/settings_pin_controller.dart';
 import 'package:church_service_timer/app/service_notification_controller.dart';
 
@@ -336,6 +337,10 @@ class AppController extends ChangeNotifier {
 
   /// Hooks for the feature controllers this class owns.
   bool get disposed => _disposed;
+
+  /// The app is in front (always, on a PC); false while a phone has it
+  /// in the background.
+  bool get foreground => _foreground;
   Future<void>? get pendingWrite => _writeDone?.future;
   void notifyChanged() {
     if (!_disposed) notifyListeners();
@@ -754,6 +759,7 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     if (startTicker)
       _timer = Timer.periodic(const Duration(milliseconds: 100), (_) => tick());
+    autoUpdate.start();
   }
 
   Future<void> tick() async {
@@ -1130,6 +1136,9 @@ class AppController extends ChangeNotifier {
 
   /// Backups; these delegates keep callers unchanged.
   late final backups = BackupController(this);
+
+  /// Settings › About › Check for updates automatically.
+  late final autoUpdate = AutoUpdateCheck(this);
   Future<bool> restoreBackup(AppState restored) => backups.restore(restored);
   Future<Map<String, dynamic>> backupSecrets() => backups.secrets();
   bool hasBackupSecrets(Map<String, dynamic> secrets) =>
@@ -1481,6 +1490,7 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
+    autoUpdate.dispose();
     metricsTracker.frameTimings(false);
     web.stop();
     editDrafts.dispose();
