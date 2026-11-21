@@ -758,10 +758,10 @@ extension LivePage on HomeState {
   /// Timing has not started yet, and what the display shows meanwhile.
   Widget readyNotStartedLine({bool compact = false}) => Text(
     // With a pre-service start time the display counts down to it, so
-    // "keeps its previous output" would contradict the row above.
+    // "keeps its previous output" would contradict the pre-service row.
     c.state.session.startsAtWall == null
         ? 'Timing has not started. The display keeps its current output.'
-        : 'Timing has not started. The display follows the pre-service start time above.',
+        : 'Timing has not started. The display shows the pre-service countdown until you start the first segment.',
     key: const ValueKey('ready-not-started'),
     style: TextStyle(
       color: appColors(context).muted,
