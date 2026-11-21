@@ -68,6 +68,13 @@ extension HostFullScreenMode on HomeState {
   bool get hostFullScreenAvailable =>
       c.ready && c.liveSession.active && !c.pairing.joined;
 
+  /// Full screen, once open, stays after the service ends, showing its end
+  /// screen; it closes when the next service is set up or Live is left.
+  bool get hostFullScreenStays =>
+      c.ready &&
+      !c.pairing.joined &&
+      (c.liveSession.active || c.liveSession.phase == 'ended');
+
   /// The header has room for the Full screen button from this width; a
   /// narrower screen would lose the service's name to it.
   static const _headerWidth = 600.0;
@@ -142,8 +149,8 @@ extension HostFullScreenMode on HomeState {
     } finally {
       state.changing = false;
     }
-    // The service may have ended while the window was changing.
-    if (mounted && state.showing && !hostFullScreenAvailable) {
+    // The service may have gone while the window was changing.
+    if (mounted && state.showing && !hostFullScreenStays) {
       return setHostFullScreen(false);
     }
     return state.showing;
@@ -324,9 +331,22 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
     super.dispose();
   }
 
-  /// Full screen is for a running service: when it ends, Live comes back.
+  /// Full screen is for a service: it stays on the end screen once the
+  /// service ends, and Live comes back when another is set up.
   void _follow() {
-    if (home.mounted && !home.hostFullScreenAvailable) leave();
+    if (home.mounted && !home.hostFullScreenStays) leave();
+  }
+
+  /// End service from the tray: full screen stays, showing the end screen;
+  /// with no end screen text, the clock.
+  Future<void> _endService() async {
+    final c = home.c;
+    await home.confirmEndService();
+    final s = c.liveSession;
+    if (!mounted || s.phase != 'ended' || s.outputBlank) return;
+    if (s.timeline?.display.end.text.trim().isEmpty ?? false) {
+      await c.act('clock');
+    }
   }
 
   void leave() => unawaited(home.setHostFullScreen(false));
@@ -734,12 +754,12 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
       ),
       _divider(colors),
       // Ends the service, after the same question as End service on Live;
-      // full screen then closes by itself.
+      // full screen stays, on the end screen.
       _item(
         'full-screen-tray-end',
         Icons.stop_circle_outlined,
         s.quickTimer ? 'End timer' : 'End service',
-        enabled ? home.confirmEndService : null,
+        enabled ? _endService : null,
         foreground: _endColor,
       ),
       _item(
