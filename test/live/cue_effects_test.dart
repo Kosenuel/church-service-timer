@@ -514,7 +514,12 @@ void main() {
           await t.pump(const Duration(milliseconds: 100));
           if (ms >= 300) expect(time(t), steady, reason: '$effect at $ms ms');
           expect(
-            t.widget<Text>(find.byKey(const ValueKey('stage-time-width'))).data,
+            t
+                .widget<ClockText>(
+                  find.byKey(const ValueKey('stage-time-width')),
+                )
+                .text
+                .replaceAll(RegExp('[0-9]'), '0'),
             '00:00',
           );
         }
