@@ -112,7 +112,8 @@ class UpdateUnknown extends UpdateResult {
 typedef FetchText = Future<String?> Function(String url);
 
 /// Asks GitHub which version is the newest, when the person asks for it in
-/// Settings › About. Nothing here runs on its own, and nothing about the
+/// Settings › About, or once a day when they have switched on Check for
+/// updates automatically (auto_update_check.dart). Nothing about the
 /// device or the church is sent: it is one plain GET. Downloading a new
 /// version, on a PC, is update_installer.dart, and only when asked.
 class UpdateChecker {

@@ -192,8 +192,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   String quickAudience = 'all';
   String? previewScreenId;
   void refreshHome(VoidCallback change) {
+    final locked = c.uiLocked;
     setState(change);
     settingsRefresh.value++;
+    // Unlocking the controls is coming back to standing by, for the
+    // automatic update check.
+    if (locked != c.uiLocked) c.autoUpdate.lockChanged();
   }
 
   bool focused = false, controlsLocked = false;
