@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
+## Unreleased
+
+- **Release notes say how to install on Windows.** Below each release's notes, the install lines now cover the Windows installer as well as the Android app: which file to download, what to do if Windows says "Windows protected your PC", and that a PC on 0.34.0 or later can use **Download and install** instead. The checksum line says it is the APK's; the Windows files keep their own `.sha256` files.
+
 ## 0.34.0, 21/November/2026
 
 - **No warning the moment a segment starts.** An automatic warning set for as long as a segment, or longer, used to fire as soon as that segment started: **5 MIN LEFT** at the start of every 5-minute segment, for example. A warning now fires only when the countdown comes down to its time during the segment, so a 5-minute segment no longer starts with 5 MIN LEFT, and a 6-minute one shows it at 5:00 as before. **TIME'S UP** at 0:00 still fires at zero. Each warning still fires at most once in each segment: if you add time so that more is left than a warning's time, a warning that has not yet fired in this segment fires when the countdown comes down to it again, and one that has fired does not fire again. Removing time past a warning's time still fires it. Rehearsal speeds, phone notifications and **Check this service** follow the same rule; the check's list now says a warning set for the whole of a segment cannot fire, as it already did for one set for longer. Settings › Warnings & alerts and the warning editor now say a warning fires once in each segment when the countdown reaches its time.
