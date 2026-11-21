@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:async';
 import 'package:church_service_timer/shared/app_pickers.dart';
 import 'package:church_service_timer/live/host_full_screen.dart';
@@ -25,6 +26,11 @@ import 'package:church_service_timer/live/simulator_choice.dart';
 import 'package:church_service_timer/live/simulator_matrix.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
+/// Classic puts the controls beside the ring in a window at least this
+/// wide and less than [classicBesideBelowHeight] tall.
+const classicBesideFromWidth = 1000.0;
+const classicBesideBelowHeight = 1000.0;
+
 /// The widest Classic's Live page is usually laid out.
 const classicUsualWidth = 1200.0;
 
@@ -292,7 +298,10 @@ extension LivePage on HomeState {
 
   /// Optional scheduled start: the stage shows the clock, then a countdown to
   /// the start, then "Starting soon". The service still starts only on tap.
-  Widget preServiceRow() {
+  /// [compact] is the smaller row under the ring of a desktop layout: no
+  /// icon, and no reminder to start, which the Start first segment button
+  /// under it already gives.
+  Widget preServiceRow({bool compact = false}) {
     final colors = appColors(context);
     final at = c.state.session.startsAtWall;
     final left = at == null ? 0 : at - c.now.wall;
@@ -307,22 +316,99 @@ extension LivePage on HomeState {
     final preServiceHint = outputHeld
         ? 'Output is held, so the display does not show it yet.'
         : deviceText('Tap Start first segment when the service begins.');
+    final hint = compact && !outputHeld ? '' : '\n$preServiceHint';
+    // Under a desktop ring the line under it says what the display
+    // shows meanwhile.
     final summary = at == null
-        ? 'Off · the display keeps its current output'
+        ? (compact ? 'Off' : 'Off · the display keeps its current output')
         : left > preServiceCountdownMs
-        ? 'Starts ${wallTime(at)} · clock now, countdown from ${wallTime(at - preServiceCountdownMs - 1000)}\n$preServiceHint'
+        ? 'Starts ${wallTime(at)} · clock now, countdown from ${wallTime(at - preServiceCountdownMs - 1000)}$hint'
         : left > 0
-        ? 'Starts ${wallTime(at)} · counting down on the display\n$preServiceHint'
-        : 'Start time reached · display shows “Starting soon”\n$preServiceHint';
+        ? 'Starts ${wallTime(at)} · counting down on the display$hint'
+        : 'Start time reached · display shows “Starting soon”$hint';
+    final trailing = at == null
+        ? TextButton(
+            style: compact
+                ? TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    minimumSize: const Size(0, 36),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  )
+                : null,
+            onPressed: c.busy ? null : pickServiceStart,
+            child: const Text('Set time'),
+          )
+        : outputHeld
+        ? TextButton(
+            key: const ValueKey('show-pre-service'),
+            onPressed: c.busy
+                ? null
+                : () async {
+                    if (!await c.showPreService() && mounted)
+                      await showError(
+                        c.error ?? 'Connect the display, then try again.',
+                      );
+                  },
+            child: const Text('Show on display'),
+          )
+        : IconButton(
+            tooltip: 'Turn off pre-service countdown',
+            visualDensity: compact ? VisualDensity.compact : null,
+            onPressed: c.busy ? null : () => c.act('schedule', value: null),
+            icon: const Icon(Icons.close),
+          );
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+      side: BorderSide(color: colors.border),
+    );
+    if (compact) {
+      return Material(
+        key: const ValueKey('pre-service-row'),
+        color: colors.background,
+        shape: shape,
+        child: InkWell(
+          customBorder: shape,
+          onTap: c.busy ? null : pickServiceStart,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Tooltip(
+                    message: summary,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Pre-service countdown',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          summary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: colors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                trailing,
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Material(
       key: const ValueKey('pre-service-row'),
       color: colors.background,
       borderRadius: BorderRadius.circular(12),
       child: ListTile(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: colors.border),
-        ),
+        shape: shape,
         leading: Icon(Icons.schedule, color: colors.accent),
         title: const Text(
           'Pre-service countdown',
@@ -332,31 +418,234 @@ extension LivePage on HomeState {
           summary,
           style: TextStyle(fontSize: 12, color: colors.muted),
         ),
-        trailing: at == null
-            ? TextButton(
-                onPressed: c.busy ? null : pickServiceStart,
-                child: const Text('Set time'),
-              )
-            : outputHeld
-            ? TextButton(
-                key: const ValueKey('show-pre-service'),
-                onPressed: c.busy
-                    ? null
-                    : () async {
-                        if (!await c.showPreService() && mounted)
-                          await showError(
-                            c.error ?? 'Connect the display, then try again.',
-                          );
-                      },
-                child: const Text('Show on display'),
-              )
-            : IconButton(
-                tooltip: 'Turn off pre-service countdown',
-                onPressed: c.busy ? null : () => c.act('schedule', value: null),
-                icon: const Icon(Icons.close),
-              ),
+        trailing: trailing,
         onTap: c.busy ? null : pickServiceStart,
       ),
+    );
+  }
+
+  /// What Ready adds to the timer before the first segment starts: the
+  /// program, the readiness row, the pre-service countdown, the service
+  /// mode, and the buttons to start, cancel or check the service.
+  ///
+  /// [compact] is the arrangement a desktop layout puts where Pause and
+  /// Next segment go once the service runs, so the ring above keeps its
+  /// size and place: two to a row where there is room. A layout that puts
+  /// the buttons, Check this service or the readiness row elsewhere
+  /// passes [buttons], [check] or [inline] false.
+  Widget readyControls({
+    bool compact = false,
+    bool buttons = true,
+    bool check = true,
+    bool inline = true,
+    double pairsFrom = 500,
+  }) {
+    final colors = appColors(context);
+    final s = c.liveSession, t = s.timeline;
+    final review = t == null ? null : c.state.latestReviewFor(t);
+    final reviewNote = review == null
+        ? null
+        : Material(
+            key: const ValueKey('last-review-note'),
+            color: colors.info.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: EdgeInsets.all(compact ? 8 : 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.rate_review_outlined,
+                    size: 20,
+                    color: colors.info,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: compact
+                        // One line under the ring; the whole note on
+                        // hover.
+                        ? Tooltip(
+                            message: review.note.text,
+                            child: Text(
+                              'Last time · ${serviceDateLabel(review.report.startedWall ?? review.report.endedWall)} · ${review.note.text}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Last time · ${serviceDateLabel(review.report.startedWall ?? review.report.endedWall)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(review.note.text),
+                            ],
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          );
+    final mode = readyModeField(compact: compact);
+    if (!compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (reviewNote != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: reviewNote,
+            ),
+          if (t != null) ...[readyProgramRow(t), const SizedBox(height: 8)],
+          readyInline(),
+          const SizedBox(height: 10),
+          preServiceRow(),
+          const SizedBox(height: 12),
+          mode,
+          const SizedBox(height: 12),
+          readyNotStartedLine(),
+          const SizedBox(height: 12),
+          readyButtons(),
+        ],
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, box) {
+        // Two to a row while each half has room for its words.
+        final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
+        final pairs = box.maxWidth >= pairsFrom * scale;
+        Widget pair(Widget a, Widget b) => pairs
+            ? Row(
+                children: [
+                  Expanded(child: a),
+                  const SizedBox(width: 12),
+                  Expanded(child: b),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [a, const SizedBox(height: 8), b],
+              );
+        return Column(
+          key: const ValueKey('ready-controls'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (reviewNote != null) ...[reviewNote, const SizedBox(height: 8)],
+            if (t != null && inline)
+              pair(readyProgramRow(t, compact: true), readyInline())
+            else if (t != null)
+              readyProgramRow(t, compact: true)
+            else if (inline)
+              readyInline(),
+            const SizedBox(height: 8),
+            pair(preServiceRow(compact: true), mode),
+            if (buttons) ...[
+              const SizedBox(height: 8),
+              readyNotStartedLine(compact: true),
+              const SizedBox(height: 8),
+              readyButtons(compact: true, check: check),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  /// Live timing or a fast rehearsal.
+  Widget readyModeField({bool compact = false}) {
+    final s = c.liveSession;
+    return ChoiceField<int>(
+      key: ValueKey('speed-${s.id}'),
+      value: s.rate,
+      decoration: InputDecoration(
+        labelText: 'Service mode',
+        isDense: compact,
+        contentPadding: compact
+            ? const EdgeInsets.fromLTRB(14, 11, 8, 11)
+            : null,
+      ),
+      options: [1, 5, 10, 30, 60]
+          .map(
+            (rate) => ChoiceOption(
+              value: rate,
+              label: rate == 1 ? 'Live timing · 1×' : 'Fast rehearsal · $rate×',
+            ),
+          )
+          .toList(),
+      onChanged: c.busy ? null : (v) => c.act('rate', value: v),
+    );
+  }
+
+  /// Timing has not started yet, and what the display shows meanwhile.
+  Widget readyNotStartedLine({bool compact = false}) => Text(
+    // With a pre-service start time the display counts down to it, so
+    // "keeps its previous output" would contradict the row above.
+    c.state.session.startsAtWall == null
+        ? 'Timing has not started. The display keeps its current output.'
+        : 'Timing has not started. The display follows the pre-service start time above.',
+    key: const ValueKey('ready-not-started'),
+    style: TextStyle(
+      color: appColors(context).muted,
+      fontSize: compact ? 13 : null,
+    ),
+  );
+
+  /// Start first segment, Cancel setup and Check this service. [check]
+  /// false leaves out Check this service, for a layout that puts it
+  /// elsewhere. [compact] buttons have less padding, so the three fit on
+  /// one line under a desktop ring.
+  Widget readyButtons({
+    bool check = true,
+    bool compact = false,
+    double? height,
+  }) {
+    final t = c.liveSession.timeline;
+    final buttons = Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        practiceSpot(
+          'start',
+          button(
+            'Start first segment',
+            Icons.play_arrow,
+            c.busy ? null : startFirst,
+            primary: true,
+          ),
+        ),
+        button(
+          'Cancel setup',
+          Icons.close,
+          c.busy ? null : () => c.act('cancelReady'),
+        ),
+        // A quick run-through on the Simulator before the day.
+        if (check && t != null) checkServiceButton(t),
+      ],
+    );
+    if (!compact) return buttons;
+    final theme = Theme.of(context);
+    const padding = WidgetStatePropertyAll(
+      EdgeInsets.symmetric(horizontal: 16),
+    );
+    final size = height == null
+        ? null
+        : WidgetStatePropertyAll(Size(0, height));
+    return Theme(
+      data: theme.copyWith(
+        filledButtonTheme: FilledButtonThemeData(
+          style: (theme.filledButtonTheme.style ?? const ButtonStyle())
+              .copyWith(padding: padding, minimumSize: size),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: (theme.outlinedButtonTheme.style ?? const ButtonStyle())
+              .copyWith(padding: padding, minimumSize: size),
+        ),
+      ),
+      child: buttons,
     );
   }
 
@@ -544,6 +833,18 @@ extension LivePage on HomeState {
       ),
       radius: 12,
     );
+    // A wide window less than 1000 tall, such as a laptop: Classic puts
+    // the controls beside the ring, so they stay in view without
+    // scrolling.
+    final screen = MediaQuery.sizeOf(context);
+    final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
+    final shortWide =
+        !liveFillsWindow &&
+        !focused &&
+        t != null &&
+        (s.active || s.phase == 'ready') &&
+        screen.width >= classicBesideFromWidth &&
+        screen.height < classicBesideBelowHeight;
     Widget timerPanelOf({required bool wide}) => panel(
       child: Column(
         key: const ValueKey('timer-card-content'),
@@ -620,7 +921,7 @@ extension LivePage on HomeState {
                 key: ValueKey('${s.id}-${s.index}'),
                 notes: t.segments[s.index].notes,
               ),
-            SegmentGauge(session: s, now: c.now),
+            if (!(wide && shortWide)) SegmentGauge(session: s, now: c.now),
           ] else
             const SizedBox(height: 18),
           if (!s.active && s.phase != 'ready' && !c.reportSavePending)
@@ -733,102 +1034,58 @@ extension LivePage on HomeState {
                 ),
               ),
             ),
-          if (s.phase == 'ready' && t != null)
-            if (c.state.latestReviewFor(t) case final last?)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Material(
-                  key: const ValueKey('last-review-note'),
-                  color: appColors(context).info.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.rate_review_outlined,
-                          size: 20,
-                          color: appColors(context).info,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Last time · ${serviceDateLabel(last.report.startedWall ?? last.report.endedWall)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
+          if (wide && shortWide)
+            LayoutBuilder(
+              builder: (context, box) {
+                // As large as the height under the title allows, leaving
+                // the controls beside it room for Pause and Next segment.
+                final ring = math
+                    .min(
+                      (screen.height - 380 * scale) * 300 / 260,
+                      box.maxWidth - 400 * scale,
+                    )
+                    .clamp(200.0, 440.0)
+                    .toDouble();
+                return Row(
+                  key: const ValueKey('classic-beside'),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: ring,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SegmentGauge(session: s, now: c.now, maxWidth: ring),
+                          // Under the ring, so Start and Cancel setup have
+                          // a line of their own.
+                          if (s.phase == 'ready')
+                            Center(child: checkServiceButton(t)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: s.active
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                liveControls(enabled),
+                                const SizedBox(height: 16),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: endServiceButton(compact: true),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(last.note.text),
-                            ],
-                          ),
-                        ),
-                      ],
+                              ],
+                            )
+                          : readyControls(compact: true, check: false),
                     ),
-                  ),
-                ),
-              ),
-          if (s.phase == 'ready') ...[
-            if (t != null) ...[readyProgramRow(t), const SizedBox(height: 8)],
-            readyInline(),
-            const SizedBox(height: 10),
-            preServiceRow(),
-            const SizedBox(height: 12),
-            ChoiceField<int>(
-              key: ValueKey('speed-${s.id}'),
-              value: s.rate,
-              decoration: const InputDecoration(labelText: 'Service mode'),
-              options: [1, 5, 10, 30, 60]
-                  .map(
-                    (rate) => ChoiceOption(
-                      value: rate,
-                      label: rate == 1
-                          ? 'Live timing · 1×'
-                          : 'Fast rehearsal · $rate×',
-                    ),
-                  )
-                  .toList(),
-              onChanged: c.busy ? null : (v) => c.act('rate', value: v),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              // With a pre-service start time the display counts down to
-              // it, so "keeps its previous output" would contradict the row
-              // above.
-              s.startsAtWall == null
-                  ? 'Timing has not started. The display keeps its current output.'
-                  : 'Timing has not started. The display follows the pre-service start time above.',
-              style: TextStyle(color: appColors(context).muted),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                practiceSpot(
-                  'start',
-                  button(
-                    'Start first segment',
-                    Icons.play_arrow,
-                    c.busy ? null : startFirst,
-                    primary: true,
-                  ),
-                ),
-                button(
-                  'Cancel setup',
-                  Icons.close,
-                  c.busy ? null : () => c.act('cancelReady'),
-                ),
-                // A quick run-through on the Simulator before the day.
-                if (t != null) checkServiceButton(t),
-              ],
-            ),
-          ],
-          if (s.active) ...[
+                  ],
+                );
+              },
+            )
+          else if (s.phase == 'ready')
+            readyControls()
+          else if (s.active) ...[
             liveControls(enabled),
             // Set apart from the time adjustments above, so a slip doesn't
             // land on End service.
@@ -1390,9 +1647,11 @@ extension LivePage on HomeState {
       );
     }
     if (liveFillsWindow) {
-      // Keys is for a running service; Ready and a report still saving
-      // use the panes, which have room for their forms.
-      if (desktopLayout == 'keys' && s.active) {
+      // Ready draws each layout's own timer, with the Ready form where
+      // the timer controls go once the service runs. A report still saving
+      // keeps the card's own content in the panes.
+      final ownTimer = s.active || s.phase == 'ready';
+      if (desktopLayout == 'keys' && ownTimer) {
         return keysLive(
           notices: liveNotices,
           header: timerHeader,
@@ -1409,8 +1668,7 @@ extension LivePage on HomeState {
       return arrange(
         notices: liveNotices,
         header: timerHeader,
-        // Ready and a report still saving keep the card's own content.
-        timer: s.active ? null : FlatPanels(child: timerPanelOf(wide: true)),
+        timer: ownTimer ? null : FlatPanels(child: timerPanelOf(wide: true)),
         endService: endServiceButton(compact: true),
         display: displayPanel,
         cues: cuePanel,
@@ -1557,10 +1815,13 @@ extension LivePage on HomeState {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 5, child: timerPanelOf(wide: true)),
+                  Expanded(
+                    flex: shortWide ? 7 : 5,
+                    child: timerPanelOf(wide: true),
+                  ),
                   const SizedBox(width: 20),
                   Expanded(
-                    flex: 5,
+                    flex: shortWide ? 3 : 5,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [

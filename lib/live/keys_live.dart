@@ -7,6 +7,10 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 
+/// The height of Pause, Next and the time adjustments in the Keys strip,
+/// which Ready's buttons keep in their place.
+const keysControlsHeight = 124.0;
+
 /// The Keys desktop layout: dense, and made to be run from the keyboard.
 /// The running segment and its controls are one strip across the top; the
 /// rundown is a table with every figure in a column; the stage preview and
@@ -154,6 +158,9 @@ extension KeysLive on HomeState {
     final projected = s.projectedTotal(c.now);
     final variance = projected - s.plannedMs;
     final muted = TextStyle(color: colors.muted, fontSize: 13);
+    // Ready shows the first segment's full time, not counting.
+    final ready = s.phase == 'ready';
+    final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
     return Padding(
       key: const ValueKey('now-strip'),
       padding: const EdgeInsets.fromLTRB(20, 8, 16, 10),
@@ -223,7 +230,35 @@ extension KeysLive on HomeState {
                 ),
               ),
               const SizedBox(width: 28),
-              if (run != null)
+              if (ready)
+                // Where how the service is doing goes once it runs.
+                SizedBox(
+                  width: 176,
+                  child: Column(
+                    key: const ValueKey('keys-ready-status'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Ready',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: colors.accent,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('Not started', style: muted),
+                      Text(
+                        'Planned ${durationLabel(s.plannedMs)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: muted,
+                      ),
+                    ],
+                  ),
+                )
+              else if (run != null)
                 SizedBox(
                   width: 176,
                   child: Column(
@@ -257,7 +292,23 @@ extension KeysLive on HomeState {
                   ),
                 ),
               const SizedBox(width: 20),
-              SizedBox(width: 408, child: liveControls(enabled)),
+              SizedBox(
+                width: 408,
+                child: ready
+                    // Start, Cancel setup and Check this service where
+                    // the timer controls go, as tall, so the countdown
+                    // keeps its place when the service starts.
+                    ? ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: keysControlsHeight * scale,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: readyButtons(compact: true),
+                        ),
+                      )
+                    : liveControls(enabled),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -402,7 +453,7 @@ extension KeysLive on HomeState {
                       ),
                       cell(
                         text(
-                          current
+                          current && s.active
                               ? '${formatTime(s.currentElapsed(c.now))} so far'
                               : actual == null
                               ? '—'
@@ -435,6 +486,8 @@ extension KeysLive on HomeState {
                               ? 'Skipped'
                               : done
                               ? 'Done'
+                              : current && !s.active
+                              ? 'Ready'
                               : current
                               ? (s.paused ? 'Paused' : 'Running')
                               : i == s.index + 1
@@ -452,53 +505,88 @@ extension KeysLive on HomeState {
           ),
         ),
         Divider(height: 1, color: colors.border),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 16, 10),
-          child: Row(
-            children: [
-              // One line when there is room. In a narrow window, such as
-              // 1200 wide, the rundown is too narrow for all of them beside
-              // End service, so Recover time and Print go under Edit
-              // upcoming.
-              Expanded(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: enabled ? editUpcoming : null,
-                      icon: const Icon(Icons.edit_calendar_outlined, size: 18),
-                      label: keyLabel('Edit upcoming', 'E'),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+        if (s.phase == 'ready')
+          // The Ready form where the planning actions and End service go
+          // once the service runs.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        OutlinedButton.icon(
-                          onPressed: enabled ? recoverTime : null,
-                          icon: const Icon(
-                            Icons.auto_fix_high_outlined,
-                            size: 18,
-                          ),
-                          label: keyLabel('Recover time', 'R'),
-                        ),
-                        IconButton(
-                          key: const ValueKey('print-rundown'),
-                          tooltip: 'Print order of service',
-                          onPressed: controlsLocked
-                              ? null
-                              : () => printServiceSheet(t),
-                          icon: const Icon(Icons.print_outlined, size: 20),
-                        ),
+                        readyControls(compact: true, buttons: false),
+                        const SizedBox(height: 8),
+                        readyNotStartedLine(compact: true),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              endService,
-            ],
+                const SizedBox(width: 8),
+                IconButton(
+                  key: const ValueKey('print-rundown'),
+                  tooltip: 'Print order of service',
+                  onPressed: controlsLocked ? null : () => printServiceSheet(t),
+                  icon: const Icon(Icons.print_outlined, size: 20),
+                ),
+              ],
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 16, 10),
+            child: Row(
+              children: [
+                // One line when there is room. In a narrow window, such as
+                // 1200 wide, the rundown is too narrow for all of them beside
+                // End service, so Recover time and Print go under Edit
+                // upcoming.
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: enabled ? editUpcoming : null,
+                        icon: const Icon(
+                          Icons.edit_calendar_outlined,
+                          size: 18,
+                        ),
+                        label: keyLabel('Edit upcoming', 'E'),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: enabled ? recoverTime : null,
+                            icon: const Icon(
+                              Icons.auto_fix_high_outlined,
+                              size: 18,
+                            ),
+                            label: keyLabel('Recover time', 'R'),
+                          ),
+                          IconButton(
+                            key: const ValueKey('print-rundown'),
+                            tooltip: 'Print order of service',
+                            onPressed: controlsLocked
+                                ? null
+                                : () => printServiceSheet(t),
+                            icon: const Icon(Icons.print_outlined, size: 20),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                endService,
+              ],
+            ),
           ),
-        ),
         if (segment.notes.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),

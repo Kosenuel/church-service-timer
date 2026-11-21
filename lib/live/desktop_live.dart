@@ -15,6 +15,14 @@ const keyLegendFromHeight = 800.0;
 /// The keys line and the rule above it.
 const keyLegendHeight = 29.0;
 
+/// The height of the middle pane of Three panes and The dial above the
+/// ring: the padding, the header, a one-line title and the line under it.
+const desktopTimerAbove = 139.0;
+
+/// The height under the ring: Pause, Next segment, the time adjustments
+/// and End service, or the Ready form in their place, and the padding.
+const desktopTimerBelow = 220.0;
+
 /// Live in a wide window: the desktop layouts chosen in Settings ›
 /// Appearance. They arrange the same timer, cues, stage preview and rundown
 /// as the phone, so a change to one of those shows in every layout.
@@ -142,11 +150,14 @@ extension DesktopLive on HomeState {
         final tall = space.maxHeight >= 900;
         // A tall window lists the keys along the bottom of the middle
         // pane; the timer has the height that is left.
-        final legend =
+        // Ready leaves its room, so the ring keeps its size when the
+        // service starts.
+        final legendRoom =
             showKeyHints &&
-            s.active &&
+            (s.active || s.phase == 'ready') &&
             MediaQuery.sizeOf(context).height >= keyLegendFromHeight;
-        final paneHeight = space.maxHeight - (legend ? keyLegendHeight : 0);
+        final legend = legendRoom && s.active;
+        final paneHeight = space.maxHeight - (legendRoom ? keyLegendHeight : 0);
         // A large window gives the ring more of the pane.
         final paneWidth = space.maxWidth - side - stage - 2;
         final large = timer == null
@@ -206,12 +217,7 @@ extension DesktopLive on HomeState {
                                           endService: endService,
                                           enabled: enabled,
                                           canJump: canJump,
-                                          // What is left of the window once the title,
-                                          // controls and End service have their room.
-                                          gauge: math.min(
-                                            space.maxWidth - side - stage - 120,
-                                            paneHeight - 470,
-                                          ),
+                                          paneWidth: paneWidth,
                                           paneHeight: paneHeight,
                                         ),
                                   ],
@@ -317,18 +323,42 @@ extension DesktopLive on HomeState {
     );
   }
 
+  /// How much more height than one line a segment title of [size] takes
+  /// in a pane [width] wide, for the ring to give up.
+  double extraTitleHeight(String name, double width, {double size = 34}) {
+    final title = TextPainter(
+      text: TextSpan(
+        text: name,
+        style: (Theme.of(context).textTheme.bodyMedium ?? const TextStyle())
+            .copyWith(
+              fontSize: size,
+              fontWeight: FontWeight.w700,
+              height: 1.15,
+            ),
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout(maxWidth: math.max(120, width - 48));
+    final extra = title.height - title.preferredLineHeight;
+    title.dispose();
+    return math.max(0, extra);
+  }
+
   /// The running segment in the middle pane: name, countdown, controls,
-  /// private note and End service.
+  /// private note and End service. In Ready the same ring, at the same
+  /// size, shows the first segment's full time, and the Ready form takes
+  /// the place of the controls and End service.
   Widget desktopTimer({
     required Widget header,
     required Widget endService,
     required bool enabled,
     required bool canJump,
-    required double gauge,
+    required double paneWidth,
     required double paneHeight,
   }) {
     final colors = appColors(context);
     final s = c.liveSession, t = s.timeline!;
+    final ready = s.phase == 'ready';
     final segment = t.segments[s.index];
     final next = s.index + 1 < t.segments.length
         ? t.segments[s.index + 1]
@@ -337,7 +367,48 @@ extension DesktopLive on HomeState {
     // height, so in a short window the private note takes one line under
     // the title instead of its own block.
     final dial = desktopLayout == 'dial';
-    final noteInline = dial && paneHeight < 820 && segment.notes.isNotEmpty;
+    // Three panes does the same in a very short window.
+    final noteInline =
+        segment.notes.isNotEmpty && paneHeight < (dial ? 820 : 680);
+    final noteBelow = segment.notes.isNotEmpty && !noteInline;
+    // The ring has the height the rest leaves: the header, title and next
+    // line above it, and under it the controls and End service, or the
+    // Ready form in their place, which is about as tall. Both are counted
+    // in Ready and while running, so the ring keeps its size when the
+    // service starts.
+    final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
+    final inner = math.min(620.0, paneWidth - 56);
+    final room =
+        paneHeight -
+        (desktopTimerAbove + desktopTimerBelow) * scale -
+        extraTitleHeight(segment.name, inner) -
+        (noteInline ? 20 * scale : 0) -
+        (noteBelow ? 96 * scale : 0);
+    final note = <Widget>[
+      if (noteBelow) ...[
+        const SizedBox(height: 16),
+        const AppDivider(indent: 0, endIndent: 0),
+        const SizedBox(height: 12),
+        Text(
+          'Private note',
+          style: TextStyle(
+            color: colors.muted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Tooltip(
+          message: segment.notes,
+          child: Text(
+            segment.notes,
+            key: const ValueKey('desktop-private-note'),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    ];
     return Column(
       key: const ValueKey('timer-card-content'),
       children: [
@@ -377,9 +448,7 @@ extension DesktopLive on HomeState {
             child: ServiceDial(
               session: s,
               now: c.now,
-              size: math
-                  .min(gauge + 120, paneHeight - (noteInline ? 372 : 444))
-                  .clamp(280.0, 640.0),
+              size: math.min(room - 10, inner).clamp(280.0, 640.0),
               onSegment: showSegmentDetails,
             ),
           )
@@ -387,34 +456,26 @@ extension DesktopLive on HomeState {
           SegmentGauge(
             session: s,
             now: c.now,
-            maxWidth: gauge.clamp(270.0, 460.0),
+            // The gauge is a little wider than tall, with a line under it
+            // for the warning.
+            maxWidth: math
+                .min((room - 32) * 300 / 260, inner)
+                .clamp(270.0, 620.0),
           ),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              liveControls(enabled),
-              if (segment.notes.isNotEmpty && !noteInline) ...[
-                const SizedBox(height: 16),
-                const AppDivider(indent: 0, endIndent: 0),
+              if (ready)
+                readyControls(compact: true)
+              else
+                liveControls(enabled),
+              ...note,
+              if (!ready) ...[
                 const SizedBox(height: 12),
-                Text(
-                  'Private note',
-                  style: TextStyle(
-                    color: colors.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  segment.notes,
-                  key: const ValueKey('desktop-private-note'),
-                ),
+                Align(alignment: Alignment.centerRight, child: endService),
               ],
-              const SizedBox(height: 12),
-              Align(alignment: Alignment.centerRight, child: endService),
             ],
           ),
         ),

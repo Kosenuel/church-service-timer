@@ -22,6 +22,10 @@ enum LargePane {
 /// is below it; a 1920 × 1080 one and a tall laptop window are above.
 const largePaneFromHeight = 800.0;
 
+/// The height kept under a large ring for Pause, Next segment, the time
+/// adjustments and End service, or the Ready form in their place.
+const largePaneControlsHeight = 210.0;
+
 /// The middle pane width from which the controls sit beside the ring.
 const largePaneBesideFromWidth = 1240.0;
 
@@ -56,6 +60,8 @@ extension LargeScreenPanes on HomeState {
         ? t.segments[s.index + 1]
         : null;
     final dial = desktopLayout == 'dial';
+    // Ready has the same ring, with the Ready form where the controls go.
+    final ready = s.phase == 'ready';
     final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
     const padding = EdgeInsets.fromLTRB(28, 10, 28, 16);
     final innerWidth = width - padding.horizontal;
@@ -162,12 +168,17 @@ extension LargeScreenPanes on HomeState {
                       child: Text(line, style: TextStyle(color: colors.muted)),
                     ),
                   const SizedBox(height: 28),
-                  liveControls(enabled),
+                  if (ready)
+                    readyControls(compact: true)
+                  else
+                    liveControls(enabled),
                   if (hasNote) note(),
                   // Set apart from the time adjustments, so a slip does
                   // not land on End service.
-                  const SizedBox(height: 28),
-                  Align(alignment: Alignment.centerRight, child: endService),
+                  if (!ready) ...[
+                    const SizedBox(height: 28),
+                    Align(alignment: Alignment.centerRight, child: endService),
+                  ],
                 ],
               ),
             ),
@@ -233,14 +244,24 @@ extension LargeScreenPanes on HomeState {
               child: ring(size),
             ),
             ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: controls),
+              // The Ready form and the controls take the same height, so
+              // the ring keeps its place when the service starts.
+              constraints: BoxConstraints(
+                maxWidth: controls,
+                minHeight: largePaneControlsHeight * scale,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  liveControls(enabled),
+                  if (ready)
+                    readyControls(compact: true)
+                  else
+                    liveControls(enabled),
                   if (hasNote) note(),
-                  const SizedBox(height: 12),
-                  Align(alignment: Alignment.centerRight, child: endService),
+                  if (!ready) ...[
+                    const SizedBox(height: 12),
+                    Align(alignment: Alignment.centerRight, child: endService),
+                  ],
                 ],
               ),
             ),
