@@ -1242,6 +1242,7 @@ void main() {
         'cues',
         'clock',
         'blank',
+        'end',
       ]) {
         expect(key('full-screen-tray-$name'), findsOneWidget, reason: name);
       }
@@ -1296,6 +1297,14 @@ void main() {
       await t.pumpAndSettle();
       expect(c.state.session.outputBlank, isFalse);
 
+      // End service asks first, as on Live; Cancel keeps the service.
+      await t.tap(key('full-screen-tray-end'));
+      await t.pumpAndSettle();
+      expect(find.textContaining('End Sunday'), findsOneWidget);
+      await t.tap(key('mini-confirm-cancel'));
+      await t.pumpAndSettle();
+      expect(c.state.session.active, isTrue);
+
       // The clock, and back, as on Live: no question.
       await t.tap(key('full-screen-tray-clock'));
       await t.pumpAndSettle();
@@ -1335,6 +1344,22 @@ void main() {
       await t.pumpAndSettle();
       expect(stage, findsNothing);
       await done(t);
+    });
+
+    testWidgets('End service in the tray ends it and leaves full screen', (
+      t,
+    ) async {
+      final (c, _) = await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      await swipeUp(t);
+      await t.tap(key('full-screen-tray-end'));
+      await t.pumpAndSettle();
+      await t.tap(key('mini-confirm-action'));
+      await t.pumpAndSettle();
+      expect(c.state.session.phase, 'ended');
+      expect(home(t).hostFullScreen.showing, isFalse);
+      expect(t.takeException(), isNull);
     });
 
     testWidgets('the tray goes after six seconds untouched', (t) async {

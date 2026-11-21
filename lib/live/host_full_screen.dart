@@ -733,6 +733,15 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
         tooltip: s.outputBlank ? 'Unblank screen' : 'Blank screen',
       ),
       _divider(colors),
+      // Ends the service, after the same question as End service on Live;
+      // full screen then closes by itself.
+      _item(
+        'full-screen-tray-end',
+        Icons.stop_circle_outlined,
+        s.quickTimer ? 'End timer' : 'End service',
+        enabled ? home.confirmEndService : null,
+        foreground: _endColor,
+      ),
       _item(
         'full-screen-exit',
         Icons.fullscreen_exit,
@@ -742,6 +751,10 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
       ),
     ];
   }
+
+  /// End service in the tray: a light red that reads on the dark tray,
+  /// so it stands apart from the other controls.
+  static const _endColor = Color(0xffff7979);
 
   Widget _divider(AppPalette colors) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -757,6 +770,7 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
     String label,
     Future<void> Function()? action, {
     String? tooltip,
+    Color? foreground,
   }) => Tooltip(
     message: tooltip ?? label,
     child: TextButton(
@@ -765,7 +779,7 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
       style: TextButton.styleFrom(
         minimumSize: const Size(64, 56),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        foregroundColor: appColors(context).text,
+        foregroundColor: foreground ?? appColors(context).text,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: Column(
