@@ -89,11 +89,13 @@ jobs:
           {
             echo
             echo "---"
-            echo "**Install:** download \`Church-Service-Timer-$version.apk\` on the phone and open it (Android 7.0 or newer)."
+            echo "**Android:** download \`Church-Service-Timer-$version.apk\` on the phone and open it (Android 7.0 or newer)."
+            echo
+            echo "**Windows:** download \`Church-Service-Timer-$version-windows-setup.exe\` on the PC and open it (64-bit Windows 10 or 11). It is not code-signed, so Windows may say \"Windows protected your PC\" the first time: choose **More info**, then **Run anyway**. A PC with 0.34.0 or later can instead use Settings › About › **Check for updates** › **Download and install**."
             echo
             echo "The \`.aab\` file is the bundle uploaded to Google Play; it can't be installed directly."
             echo
-            echo "SHA-256: \`$(cut -d' ' -f1 "dist/Church-Service-Timer-$version.apk.sha256")\`"
+            echo "APK SHA-256: \`$(cut -d' ' -f1 "dist/Church-Service-Timer-$version.apk.sha256")\`"
           } >> "$RUNNER_TEMP/notes.md"
 
       - name: Publish the GitHub Release
