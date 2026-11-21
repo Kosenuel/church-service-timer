@@ -61,6 +61,7 @@ class AutoUpdateCheck {
     _serviceChecks++;
     _changed();
   }
+
   void serviceCheckClosed() {
     if (_serviceChecks > 0) _serviceChecks--;
     _changed();
