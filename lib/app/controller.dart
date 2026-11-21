@@ -685,6 +685,10 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  /// Whether a saved state existed when the app started; false on a new
+  /// install, after the app's data was cleared, or when it could not be read.
+  bool hadSavedState = false;
+
   Future<void> initialize({bool startTicker = true}) async {
     now = await port.clock();
     try {
@@ -695,6 +699,7 @@ class AppController extends ChangeNotifier {
               Map<String, dynamic>.from(jsonDecode(data)),
               now: now,
             );
+      hadSavedState = data != null;
       loadingChurchName = state.churchName;
       themeSelection.value = state.themeId;
       appearanceSelection.value = state.appearance;
@@ -717,6 +722,7 @@ class AppController extends ChangeNotifier {
       await syncPhoneWarnings(previous: previous);
     } catch (e) {
       state = AppState.fresh(now);
+      hadSavedState = false;
       state.session.held = true;
       corrupt = true;
       error = 'Saved state could not be recovered. Output is held. $e';

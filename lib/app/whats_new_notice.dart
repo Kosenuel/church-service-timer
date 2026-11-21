@@ -13,12 +13,16 @@ class WhatsNewNotice {
   SemanticVersion? get _running => SemanticVersion.tryParse(app.appVersion);
 
   /// Called once the app is ready: records the running version when
-  /// nothing was seen yet, or when this version is older than the one seen.
+  /// there is no saved state at all (a new install), or when this version
+  /// is older than the one seen. A saved state with nothing seen comes from
+  /// a version before this notice existed, so the notice shows once.
   Future<void> start() async {
     final now = _running;
     if (now == null || app.corrupt || app.disposed) return;
     final seen = SemanticVersion.tryParse(app.state.seenVersion);
-    if (seen == null || now.compareTo(seen) < 0) await markSeen();
+    if (seen == null ? !app.hadSavedState : now.compareTo(seen) < 0) {
+      await markSeen();
+    }
   }
 
   /// The running version for the notice, or null when it was seen or is
@@ -26,8 +30,11 @@ class WhatsNewNotice {
   String? get notice {
     final now = _running;
     final seen = SemanticVersion.tryParse(app.state.seenVersion);
-    if (now == null || seen == null || now.compareTo(seen) <= 0) return null;
-    return now.toString();
+    if (now == null || app.corrupt) return null;
+    // Nothing seen on an existing install: it was updated from a version
+    // before this notice.
+    if (seen == null) return app.hadSavedState ? now.toString() : null;
+    return now.compareTo(seen) > 0 ? now.toString() : null;
   }
 
   /// Marks the running version as seen.

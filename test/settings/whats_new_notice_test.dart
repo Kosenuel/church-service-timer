@@ -36,11 +36,39 @@ Future<(AppController, VersionPort)> started(
 }
 
 void main() {
+  setUpAll(loadAppFonts);
   group('rules', () {
     test('a new install shows nothing and records the version', () async {
       final (c, _) = await started('0.36.0 (40)');
       expect(c.whatsNew.notice, isNull);
       expect(c.state.seenVersion, '0.36.0');
+      c.dispose();
+    });
+
+    test('an existing install with nothing seen shows once', () async {
+      final port = VersionPort('0.36.0 (40)');
+      final first = AppController(port);
+      await first.initialize(startTicker: false);
+      first.dispose();
+      // The saved state has no seenVersion, as from the previous release.
+      final json = jsonDecode(port.data!) as Map<String, dynamic>
+        ..remove('seenVersion');
+      port.data = jsonEncode(json);
+      final c = AppController(port);
+      await c.initialize(startTicker: false);
+      expect(c.hadSavedState, isTrue);
+      expect(c.whatsNew.notice, '0.36.0');
+      await c.whatsNew.markSeen();
+      expect(c.whatsNew.notice, isNull);
+      c.dispose();
+    });
+
+    test('a restore on a new install does not show it', () async {
+      final (c, _) = await started('0.36.0');
+      expect(c.hadSavedState, isFalse);
+      final backup = exportBackup(c.state, start);
+      expect(await c.restoreBackup(importBackup(backup, start)), isTrue);
+      expect(c.whatsNew.notice, isNull);
       c.dispose();
     });
 
@@ -94,10 +122,10 @@ void main() {
       for (final bad in ['soon', 3, '1.2', '0.35.0 (7)', '', true]) {
         expect(readSeenVersion(bad), isNull, reason: '$bad');
       }
-      // Nothing seen: treated as a new install, so nothing shows.
+      // Nothing seen on an existing install: it shows once.
       final (c, _) = await started('0.36.0', seen: 'garbage');
-      expect(c.whatsNew.notice, isNull);
-      expect(c.state.seenVersion, '0.36.0');
+      expect(c.whatsNew.notice, '0.36.0');
+      expect(c.state.seenVersion, isNull);
       c.dispose();
     });
 
