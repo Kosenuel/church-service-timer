@@ -14,7 +14,7 @@ final revision06Cases = <String, void Function()>{
     equal(a.groupTemplates, true);
     equal(a.templates.first.type, 'service');
     equal(a.templates.last.type, 'rehearsal');
-    equal(a.templates.first.display.end.bold, true);
+    equal(a.templates.first.display.end!.bold, true);
     equal(a.toJson()['version'], 16);
   },
   'Template group and list preference survive restart and JSON import': () {
@@ -80,7 +80,7 @@ final revision06Cases = <String, void Function()>{
     rejects(() => a.deleteTemplate(original));
     rejects(() => a.duplicateTemplate(original));
     equal(a.templates.length, 2);
-    equal(a.templates.first.display.end.text, 'AMEN');
+    equal(a.templates.first.display.end!.text, 'AMEN');
   },
   'Invalid template groups and unsupported versions are rejected': () {
     final t = AppState.fresh(epoch).templates.first.toJson();

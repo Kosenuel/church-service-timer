@@ -27,7 +27,9 @@ extension HardwareViews on HomeState {
       if (seconds == null) return;
     } else if (!await confirm(
       s.phase == 'ended' ? 'Restore end output?' : 'Restore current timer?',
-      s.phase == 'ended'
+      s.endsOnClock
+          ? 'Replace the sign’s current output with the clock, as this service has no end screen. A brief blink is expected.'
+          : s.phase == 'ended'
           ? 'Replace the sign’s current output with this service’s end screen. Scrolling plays on the controller; a brief blink is expected.'
           : '${s.timeline!.segments[s.index].name} · ${s.formatted(c.now)} remaining${s.paused ? ' · paused' : ''}.\n\nReplace any cue on the sign. The current remaining time will be sent; the segment will not restart. A brief blink is expected.',
       'Restore output',

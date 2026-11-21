@@ -93,11 +93,12 @@ class DesktopPort extends FakePort {
 
 String shown(WindowPlace? p) => '${p?.frame} ${p?.maximised}';
 
-Timeline sunday() => Timeline('Sunday Service', const [
+/// The Sunday service; with [noEnd], it has no end screen.
+Timeline sunday({bool noEnd = false}) => Timeline('Sunday Service', const [
   Segment('Welcome', 5),
   Segment('Sermon', 40),
   Segment('Response', 10),
-], DisplaySettings());
+], noEnd ? DisplaySettings(end: null) : DisplaySettings());
 
 void main() {
   group('the window', () {
@@ -189,6 +190,7 @@ void main() {
       bool desktop = true,
       Size size = const Size(1366, 768),
       bool start = true,
+      bool noEnd = false,
     }) async {
       desktopWording = desktop;
       addTearDown(() => desktopWording = false);
@@ -198,7 +200,7 @@ void main() {
       await c.initialize(startTicker: false);
       await c.commit((draft, _) => draft.themeId = 'graphite');
       if (start) {
-        await c.act('load', value: sunday());
+        await c.act('load', value: sunday(noEnd: noEnd));
         await c.act('start');
         port.at = after(340);
         await c.tick();
@@ -1386,7 +1388,7 @@ void main() {
       expect(c.state.session.outputMode(c.now), 'End screen');
       expect(
         home(t).hostStageSnapshot().toString(),
-        contains(sunday().display.end.text),
+        contains(sunday().display.end!.text),
       );
       // The timer controls are greyed out; cues, the clock, blank and exit
       // still work.
@@ -1406,6 +1408,40 @@ void main() {
       await t.tap(key('full-screen-exit'));
       await step(t);
       expect(home(t).hostFullScreen.showing, isFalse);
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('with no end screen, End service says the clock will show, '
+        'and full screen shows it', (t) async {
+      final (c, _) = await running(t, noEnd: true);
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      await swipeUp(t);
+      await t.tap(key('full-screen-tray-end'));
+      await t.pumpAndSettle();
+      expect(find.textContaining('show the clock'), findsOneWidget);
+      expect(find.textContaining('Hallelujah'), findsNothing);
+      await t.tap(key('mini-confirm-action'));
+      await step(t);
+      expect(c.state.session.phase, 'ended');
+      expect(home(t).hostFullScreen.showing, isTrue);
+      expect(c.state.session.outputMode(c.now), 'Clock');
+      final snapshot = home(t).hostStageSnapshot();
+      expect(snapshot['outputMode'], 'Clock');
+      expect(
+        snapshot['displayText'],
+        stageClockText(c.now.wall, c.state.session.clockFormat),
+      );
+      expect(snapshot.toString(), isNot(contains('Hallelujah')));
+      expect(find.byType(ClockText), findsOneWidget);
+      // The clock is already showing: the tray's Clock has nothing to do.
+      await t.dragFrom(const Offset(683, 748), const Offset(0, -150));
+      await step(t);
+      bool on(String k) => t.widget<TextButton>(key(k)).onPressed != null;
+      expect(on('full-screen-tray-clock'), isFalse);
+      expect(on('full-screen-tray-blank'), isTrue);
+      await t.tap(key('full-screen-exit'));
+      await step(t);
       expect(t.takeException(), isNull);
     });
 

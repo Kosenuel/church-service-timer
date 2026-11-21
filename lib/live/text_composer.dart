@@ -12,9 +12,10 @@ import 'package:church_service_timer/live/cue_screen_controls.dart';
 import 'package:church_service_timer/live/cue_preview.dart';
 
 /// Whether two layouts look the same; layouts are compared by content, as
-/// a copy of the default end screen is still the default.
-bool sameLayout(TextLayout a, TextLayout b) =>
-    jsonEncode(a.toJson()) == jsonEncode(b.toJson());
+/// a copy of the default end screen is still the default. Null, as for no
+/// end screen, is the same only as null.
+bool sameLayout(TextLayout? a, TextLayout? b) =>
+    jsonEncode(a?.toJson()) == jsonEncode(b?.toJson());
 
 /// The effects a cue may have, as the editor lists them, each with a line
 /// saying what it does. "On the LED sign: steady, or scrolls if too wide"

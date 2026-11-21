@@ -125,8 +125,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Save end screen'));
     await tester.pumpAndSettle();
-    expect(c.state.defaults.end.text, 'Amen');
-    expect(c.state.session.timeline!.display.end.text, 'Hallelujah');
+    expect(c.state.defaults.end!.text, 'Amen');
+    expect(c.state.session.timeline!.display.end!.text, 'Hallelujah');
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

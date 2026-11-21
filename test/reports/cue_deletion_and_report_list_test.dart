@@ -78,7 +78,7 @@ void main() {
       await c.act('start');
       port.at = at(61);
       await c.tick();
-      final end = c.state.session.timeline!.display.end.toJson();
+      final end = c.state.session.timeline!.display.end!.toJson();
       port.fail = true;
       expect(await c.setSharedZero(const TextLayout('DONE')), false);
       expect(c.state.defaults.zero, isNull);
@@ -90,7 +90,7 @@ void main() {
         c.state.templates.every((v) => v.display.zero!.text == 'DONE'),
         true,
       );
-      expect(c.state.session.timeline!.display.end.toJson(), end);
+      expect(c.state.session.timeline!.display.end!.toJson(), end);
       c.dispose();
       final restored = AppController(port);
       await restored.initialize(startTicker: false);
@@ -167,12 +167,12 @@ void main() {
       );
       await t.tap(find.text('Save changes'));
       await t.pumpAndSettle();
-      expect(c.state.templates.first.display.end.text, 'AMEN');
-      expect(c.state.templates.first.display.end.bold, true);
-      expect(c.state.templates.first.display.end.height, 2);
-      expect(c.state.templates.last.display.end.text, 'Hallelujah');
-      expect(c.state.defaults.end.text, 'Hallelujah');
-      expect(c.state.session.timeline!.display.end.text, 'Hallelujah');
+      expect(c.state.templates.first.display.end!.text, 'AMEN');
+      expect(c.state.templates.first.display.end!.bold, true);
+      expect(c.state.templates.first.display.end!.height, 2);
+      expect(c.state.templates.last.display.end!.text, 'Hallelujah');
+      expect(c.state.defaults.end!.text, 'Hallelujah');
+      expect(c.state.session.timeline!.display.end!.text, 'Hallelujah');
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
     },

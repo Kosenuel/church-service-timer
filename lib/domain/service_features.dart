@@ -739,7 +739,7 @@ String? serviceActionDescription(
   'clock' => 'Current clock requested',
   'message' => 'Stage message requested: ${s.alert!.text}',
   'clearCue' => 'Stage message cleared',
-  'endScreen' => 'End screen restored',
+  'endScreen' => s.endsOnClock ? 'Clock restored' : 'End screen restored',
   'undo' => 'Previous segment restored',
   'pause' => s.paused ? 'Timer paused' : 'Timer resumed',
   'adjust' =>

@@ -352,17 +352,25 @@ extension LiveActions on HomeState {
       title: s.quickTimer ? 'End the timer?' : 'End ${t!.name}?',
       action: s.quickTimer ? 'End timer' : 'End service',
       destructive: true,
-      content: () => Text(
-        s.quickTimer
-            ? s.noReport
-                  ? 'Stop the timer and show the end screen. Nothing is saved.'
-                  : 'Stop the timer, show the end screen and save it in Reports as a quick timer.'
-            : c.hardware.enabled
-            ? c.hardware.held || !c.hardware.connected
-                  ? 'Finish this service and save its report. The sign will keep its last program until you reconnect and restore output.'
-                  : 'Finish this service and save its report. The sign will show this service’s end screen, including its scrolling effect. A brief blink is expected.'
-            : 'Finish this service, save its report, clear the active cue and show “${t!.display.end.text}”.',
-      ),
+      content: () {
+        // With no end screen, the stage shows the clock.
+        final end = t!.display.end;
+        return Text(
+          s.quickTimer
+              ? s.noReport
+                    ? 'Stop the timer and show ${end == null ? 'the clock' : 'the end screen'}. Nothing is saved.'
+                    : 'Stop the timer, show ${end == null ? 'the clock' : 'the end screen'} and save it in Reports as a quick timer.'
+              : c.hardware.enabled
+              ? c.hardware.held || !c.hardware.connected
+                    ? 'Finish this service and save its report. The sign will keep its last program until you reconnect and restore output.'
+                    : end == null
+                    ? 'Finish this service and save its report. This service has no end screen, so the sign will show the clock. A brief blink is expected.'
+                    : 'Finish this service and save its report. The sign will show this service’s end screen, including its scrolling effect. A brief blink is expected.'
+              : end == null
+              ? 'Finish this service, save its report, clear the active cue and show the clock. This service has no end screen.'
+              : 'Finish this service, save its report, clear the active cue and show “${end.text}”.',
+        );
+      },
     ))
       await c.act('end', revision: rev);
   }
@@ -377,7 +385,7 @@ extension LiveActions on HomeState {
       action: s.outputBlank ? 'Confirm unblank' : 'Confirm blank',
       content: () => Text(
         s.outputBlank
-            ? 'Show the current cue, countdown or service end screen again.'
+            ? 'Show the current cue, countdown, clock or service end screen again.'
             : deviceText(
                 'Blank the screen. Timing and phone warnings continue; tap Unblank screen to restore the current output.',
               ),

@@ -119,7 +119,7 @@ extension RefinedSettings on HomeState {
       'Content & preview',
       Icons.flag_outlined,
       'Default end screen',
-      '${c.state.defaults.end.text} · for new programs',
+      '${c.state.defaults.end?.text ?? 'No end screen'} · for new programs',
       defaultEndSettings,
     ),
   ];
@@ -173,44 +173,85 @@ extension RefinedSettings on HomeState {
     return openSettingsDetail(section.title, section.content);
   }
 
-  Widget defaultEndSettings() => panel(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        LedMatrix(pixels: renderPixels(c.state.defaults.end, 0)),
-        const SizedBox(height: 16),
-        Text(styleSummary(c.state.defaults.end)),
-        const SizedBox(height: 12),
-        const Text(
-          'Used when creating a new program. Existing programs and the loaded service retain their end screens.',
-        ),
-        const SizedBox(height: 16),
-        ordinarySize(
-          context,
-          button(
-            'Edit end screen',
-            Icons.edit_outlined,
-            c.busy
-                ? null
-                : () async {
-                    final next = await compose(
-                      c.state.defaults.end,
-                      'End screen',
-                      'Save end screen',
-                    );
-                    if (next != null &&
-                        !await c.commit(
-                          (draft, _) =>
-                              draft.defaults = draft.defaults.withEnd(next),
-                        ) &&
-                        mounted)
-                      await showError(c.error ?? 'Could not save end screen.');
-                  },
+  /// Saves the end screen new programs get; null for no end screen.
+  Future<void> saveDefaultEnd(TextLayout? next) async {
+    if (!await c.commit(
+          (draft, _) => draft.defaults = draft.defaults.withEnd(next),
+        ) &&
+        mounted)
+      await showError(c.error ?? 'Could not save end screen.');
+  }
+
+  Widget defaultEndSettings() {
+    final end = c.state.defaults.end;
+    return panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          label('When the service ends'),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SegmentedButton<bool>(
+              key: const ValueKey('default-end-choice'),
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: true,
+                  label: Text('End screen'),
+                  icon: Icon(Icons.flag_outlined),
+                ),
+                ButtonSegment(
+                  value: false,
+                  label: Text('Clock'),
+                  icon: Icon(Icons.schedule),
+                ),
+              ],
+              selected: {end != null},
+              onSelectionChanged: c.busy
+                  ? null
+                  : (values) =>
+                        saveDefaultEnd(values.single ? defaultEndScreen : null),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 16),
+          if (end != null) ...[
+            LedMatrix(pixels: renderPixels(end, 0)),
+            const SizedBox(height: 16),
+            Text(styleSummary(end)),
+          ] else
+            Text(
+              'No end screen. When you end the service, the sign and stage screens show the clock.',
+              style: TextStyle(color: appColors(context).muted),
+            ),
+          const SizedBox(height: 12),
+          const Text(
+            'Used when creating a new program, and for quick timers. Existing programs and the loaded service keep their own.',
+          ),
+          if (end != null) ...[
+            const SizedBox(height: 16),
+            ordinarySize(
+              context,
+              button(
+                'Edit end screen',
+                Icons.edit_outlined,
+                c.busy
+                    ? null
+                    : () async {
+                        final next = await compose(
+                          end,
+                          'End screen',
+                          'Save end screen',
+                        );
+                        if (next != null) await saveDefaultEnd(next);
+                      },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   Widget displayProfile() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -51,7 +51,7 @@ final revision04Cases = <String, void Function()>{
         final a = AppState.fresh(epoch);
         equal(a.defaults.zero, null);
         equal(
-          a.defaults.end.toJson(),
+          a.defaults.end!.toJson(),
           const TextLayout(
             'Hallelujah',
             bold: true,
@@ -63,14 +63,14 @@ final revision04Cases = <String, void Function()>{
           ).toJson(),
         );
         a.defaults = a.defaults.withEnd(const TextLayout('DEFAULT'));
-        equal(a.templates.first.display.end.text, 'Hallelujah');
+        equal(a.templates.first.display.end!.text, 'Hallelujah');
         a.templates[0] = Timeline(
           'Sunday Service',
           a.templates.first.segments,
           a.templates.first.display.withEnd(const TextLayout('AMEN')),
         );
-        equal(a.templates.last.display.end.text, 'Hallelujah');
-        equal(a.defaults.end.text, 'DEFAULT');
+        equal(a.templates.last.display.end!.text, 'Hallelujah');
+        equal(a.defaults.end!.text, 'DEFAULT');
       },
   '0.3 migration upgrades untouched ends, preserves custom and loaded ends, shares zero':
       () {
@@ -97,14 +97,14 @@ final revision04Cases = <String, void Function()>{
           value: a.templates.first,
         );
         final migrated = AppState.fromJson(a.toJson()..['version'] = 3);
-        equal(migrated.defaults.end.toJson(), defaultEndScreen.toJson());
+        equal(migrated.defaults.end!.toJson(), defaultEndScreen.toJson());
         equal(
-          migrated.templates.first.display.end.toJson(),
+          migrated.templates.first.display.end!.toJson(),
           defaultEndScreen.toJson(),
         );
-        equal(migrated.templates.last.display.end.speed, 20);
+        equal(migrated.templates.last.display.end!.speed, 20);
         equal(
-          migrated.session.timeline!.display.end.toJson(),
+          migrated.session.timeline!.display.end!.toJson(),
           const TextLayout('Hallelujah').toJson(),
         );
         equal(migrated.session.timeline!.display.zero!.text, 'SHARED');
@@ -139,7 +139,7 @@ final revision04Cases = <String, void Function()>{
         a.applySharedZero();
         equal(a.session.prior!.timeline!.display.zero, null);
         equal(
-          a.session.timeline!.display.end.toJson(),
+          a.session.timeline!.display.end!.toJson(),
           defaultEndScreen.toJson(),
         );
       },
@@ -159,7 +159,7 @@ final revision04Cases = <String, void Function()>{
           DisplaySettings(zero: const TextLayout('GLOBAL')),
         );
         equal(imported.display.zero!.text, 'GLOBAL');
-        equal(imported.display.end.toJson(), t.display.end.toJson());
+        equal(imported.display.end!.toJson(), t.display.end!.toJson());
         equal(
           importTemplate(
             exportJson(t),

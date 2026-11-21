@@ -584,8 +584,14 @@ extension TemplateViews on HomeState {
   );
 
   /// The end screen and shared warnings lines under a program's rundown.
-  String endScreenLine(Timeline t) =>
-      'End screen · ${styleSummary(t.display.end).substring(t.display.end.text.length + 3)}';
+  /// With no end screen, the clock shows when the service ends.
+  String endScreenTitle(Timeline t) => t.display.end?.text ?? 'No end screen';
+  String endScreenLine(Timeline t) {
+    final end = t.display.end;
+    if (end == null) return 'Shows the clock when the service ends';
+    return 'End screen · ${styleSummary(end).substring(end.text.length + 3)}';
+  }
+
   String get programWarningsLine =>
       '${plural(c.state.defaults.warnings.where((w) => w.enabled).length, 'shared warning')} apply. Edits take effect the next time you load this program; your current service stays unchanged.';
 
@@ -732,11 +738,13 @@ extension TemplateViews on HomeState {
                         child: ListTile(
                           contentPadding: appLayout(pageContext).tileInsets,
                           leading: Icon(
-                            Icons.flag_outlined,
+                            t.display.end == null
+                                ? Icons.schedule
+                                : Icons.flag_outlined,
                             color: colors.muted,
                           ),
                           title: Text(
-                            t.display.end.text,
+                            endScreenTitle(t),
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           subtitle: Text(
