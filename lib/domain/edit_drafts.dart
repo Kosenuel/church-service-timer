@@ -21,7 +21,12 @@ Timeline programFromDraft(Json raw, DisplaySettings defaults) => Timeline(
   (raw['segments'] as List)
       .map((v) => Segment.fromJson(Map<String, dynamic>.from(v)))
       .toList(),
-  defaults.withEnd(TextLayout.fromJson(Map<String, dynamic>.from(raw['end']))),
+  // A draft's end screen is null when the program has none.
+  defaults.withEnd(
+    raw['end'] == null
+        ? null
+        : TextLayout.fromJson(Map<String, dynamic>.from(raw['end'])),
+  ),
   type: raw['type'] as String,
 );
 

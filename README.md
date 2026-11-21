@@ -19,7 +19,7 @@ The same app runs on a Windows 10 or 11 PC, with the same programs, backups and 
 2. **Run the service.** Pause/Resume and **Next segment** are the main controls. −2 / +2 / Custom adjust time, and Undo reverses the last change. Every action asks for confirmation. Tap the segment title to jump, or the timing line for the full overview.
 3. **Cue the stage.** Tap a prepared cue such as WRAP UP. Its button becomes **Show timer** until you return to the countdown. **Show clock**, **Send message** and **Blank screen** sit alongside. Manage cues in **Settings → Stage cues**.
 4. **Choose the display.** The chip in the header shows where output goes (Simulator, LED sign, Stage screens or Disconnected). Tap it to switch or see connection details.
-5. **Finish.** **End service** shows the end screen and saves a report. Reports have a segment breakdown, graphs, CSV/JSON export and printing.
+5. **Finish.** **End service** shows the end screen, or the clock for a program with no end screen, and saves a report. Reports have a segment breakdown, graphs, CSV/JSON export and printing.
 6. **Plan and personalise.** Build programs in **Programs**, with speakers and private notes. Set warnings in **Settings → Warnings & alerts**, and set your church name, banner and theme in Settings.
 
 **Focused operator view** and **Ready for service** are in the Live ⋮ menu. **Lock controls** (the header padlock) prevents accidental taps; press and hold **Hold to unlock**.

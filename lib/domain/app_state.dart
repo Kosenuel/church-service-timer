@@ -408,7 +408,7 @@ class AppState {
     }
     if ((j['version'] as int) < 4) {
       DisplaySettings upgradeEnd(DisplaySettings d) =>
-          jsonEncode(d.end.toJson()) ==
+          jsonEncode(d.end?.toJson()) ==
               jsonEncode(const TextLayout('Hallelujah').toJson())
           ? d.withEnd(defaultEndScreen)
           : d;

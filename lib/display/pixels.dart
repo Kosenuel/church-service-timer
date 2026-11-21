@@ -155,7 +155,7 @@ void validateTimelinePixels(Timeline timeline) {
   for (final l in [
     ...timeline.display.cues,
     ...timeline.display.warnings.map((w) => w.cue),
-    timeline.display.end,
+    ?timeline.display.end,
     if (timeline.display.zero != null) timeline.display.zero!,
   ]) {
     validateLayout(l);

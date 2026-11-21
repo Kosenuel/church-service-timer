@@ -16,7 +16,9 @@ import 'package:church_service_timer/shared/wide_layout.dart';
 class TemplateEditor extends StatefulWidget {
   final Timeline initial;
   final Set<String> existingNames;
-  final TextLayout defaultEnd;
+
+  /// The end screen new programs get, or null for no end screen.
+  final TextLayout? defaultEnd;
   final bool upcomingOnly;
   final bool? creating;
   final ValueChanged<Json>? onDraftChanged;
@@ -40,7 +42,13 @@ class TemplateEditor extends StatefulWidget {
 class TemplateEditorState extends State<TemplateEditor> {
   late TextEditingController name;
   late List<Segment> segments;
-  late TextLayout endScreen;
+
+  /// The program's end screen, or null for none: the clock shows.
+  TextLayout? endScreen;
+
+  /// The end screen to bring back when End screen is chosen again after
+  /// Clock, while the editor is open.
+  late TextLayout lastEndScreen;
   late String templateType;
   String? error;
 
@@ -55,7 +63,7 @@ class TemplateEditorState extends State<TemplateEditor> {
     'name': name.text,
     'type': templateType,
     'segments': [for (final s in segments) s.toJson()],
-    'end': endScreen.toJson(),
+    'end': endScreen?.toJson(),
   });
   void change(VoidCallback action) {
     setState(action);
@@ -68,6 +76,7 @@ class TemplateEditorState extends State<TemplateEditor> {
     name = TextEditingController(text: widget.initial.name);
     segments = [...widget.initial.segments];
     endScreen = widget.initial.display.end;
+    lastEndScreen = endScreen ?? widget.defaultEnd ?? defaultEndScreen;
     templateType = widget.initial.type;
     name.addListener(saveDraft);
   }
@@ -315,12 +324,137 @@ class TemplateEditorState extends State<TemplateEditor> {
           ? AnimationStyle.noAnimation
           : null,
       builder: (_) => TextComposer(
-        initial: endScreen,
+        initial: endScreen ?? lastEndScreen,
         title: 'Program end screen',
         button: 'Use end screen',
       ),
     );
-    if (next != null && mounted) change(() => endScreen = next);
+    if (next != null && mounted) {
+      change(() => endScreen = lastEndScreen = next);
+    }
+  }
+
+  /// End screen or Clock: what the stage shows when the service ends.
+  void chooseEndScreen(bool show) {
+    if (show == (endScreen != null)) return;
+    change(() {
+      if (show) {
+        endScreen = lastEndScreen;
+      } else {
+        lastEndScreen = endScreen!;
+        endScreen = null;
+      }
+    });
+  }
+
+  /// The program editor's card for what the stage shows when the service
+  /// ends: End screen, with its text and preview, or Clock.
+  Widget endScreenCard(BuildContext context) {
+    final colors = appColors(context);
+    final muted = TextStyle(fontSize: 12, color: colors.muted);
+    final end = endScreen;
+    final isDefault = sameLayout(end, widget.defaultEnd);
+    return Material(
+      color: colors.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(
+              children: [
+                Icon(Icons.flag_outlined, color: colors.muted),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Text(
+                    'When the service ends',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SegmentedButton<bool>(
+                key: const ValueKey('end-screen-choice'),
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: true,
+                    label: Text('End screen'),
+                    icon: Icon(Icons.flag_outlined),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    label: Text('Clock'),
+                    icon: Icon(Icons.schedule),
+                  ),
+                ],
+                selected: {end != null},
+                onSelectionChanged: (values) => chooseEndScreen(values.single),
+              ),
+            ),
+          ),
+          if (end != null) ...[
+            ListTile(
+              key: const ValueKey('edit-end-screen'),
+              title: Text(
+                'End screen · ${end.text}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                isDefault
+                    ? deviceText('Uses the current default · tap to edit')
+                    : deviceText('This program’s own end screen · tap to edit'),
+                style: muted,
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: editEndScreen,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: 168,
+                  child: LedMatrix(pixels: renderPixels(end, 0)),
+                ),
+              ),
+            ),
+          ] else
+            Padding(
+              key: const ValueKey('no-end-screen'),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+              child: Text(
+                'No end screen. When you end the service, the sign and stage screens show the clock.',
+                style: muted,
+              ),
+            ),
+          if (!isDefault)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                child: TextButton(
+                  onPressed: () => change(() {
+                    endScreen = widget.defaultEnd;
+                    if (endScreen != null) lastEndScreen = endScreen!;
+                  }),
+                  child: const Text('Use current default'),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -559,59 +693,7 @@ class TemplateEditorState extends State<TemplateEditor> {
       }(),
       if (!widget.upcomingOnly) ...[
         const SizedBox(height: 16),
-        Material(
-          color: colors.surface,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: colors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ListTile(
-                key: const ValueKey('edit-end-screen'),
-                leading: Icon(Icons.flag_outlined, color: colors.muted),
-                title: Text(
-                  'End screen · ${endScreen.text}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  sameLayout(endScreen, widget.defaultEnd)
-                      ? deviceText('Uses the current default · tap to edit')
-                      : deviceText(
-                          'This program’s own end screen · tap to edit',
-                        ),
-                  style: muted,
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: editEndScreen,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: SizedBox(
-                    width: 168,
-                    child: LedMatrix(pixels: renderPixels(endScreen, 0)),
-                  ),
-                ),
-              ),
-              if (!sameLayout(endScreen, widget.defaultEnd))
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                    child: TextButton(
-                      onPressed: () =>
-                          change(() => endScreen = widget.defaultEnd),
-                      child: const Text('Use current default'),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        endScreenCard(context),
         const SizedBox(height: 10),
         Text('Program edits apply the next time you load it.', style: muted),
       ],

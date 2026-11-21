@@ -89,7 +89,7 @@ class NativeDisplayFonts {
     Iterable<TextLayout> display(DisplaySettings d) sync* {
       yield* d.cues;
       yield* d.warnings.map((w) => w.cue);
-      yield d.end;
+      if (d.end != null) yield d.end!;
       if (d.zero != null) yield d.zero!;
     }
 

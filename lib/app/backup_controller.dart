@@ -27,7 +27,7 @@ class BackupController {
       for (final cue in restored.stageCues) {
         validateLayout(cue);
       }
-      validateLayout(restored.defaults.end);
+      if (restored.defaults.end != null) validateLayout(restored.defaults.end!);
       for (final cue in restored.defaults.cues) {
         validateLayout(cue);
       }

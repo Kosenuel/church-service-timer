@@ -76,7 +76,7 @@ final revision10Cases = <String, void Function()>{
           state.defaults,
         );
         equal(imported.display.warnings.single.cue.text, 'GLOBAL');
-        equal(imported.display.end.text, 'AMEN');
+        equal(imported.display.end!.text, 'AMEN');
         state.saveTemplate(imported);
         equal(
           AppState.fromJson(
@@ -215,8 +215,8 @@ final revision10Cases = <String, void Function()>{
     state.applySharedZero();
     final restored = importBackup(exportBackup(state, epoch), epoch);
     equal(restored.templates.first.display.zero!.text, 'STOP');
-    equal(restored.templates.first.display.end.text, 'AMEN');
-    equal(restored.templates.last.display.end.text, 'Hallelujah');
+    equal(restored.templates.first.display.end!.text, 'AMEN');
+    equal(restored.templates.last.display.end!.text, 'Hallelujah');
     equal(restored.toJson()['version'], 16);
     equal(restored.templates.first.toJson()['schemaVersion'], 4);
     equal(jsonDecode(exportBackup(state, epoch))['schemaVersion'], 7);
