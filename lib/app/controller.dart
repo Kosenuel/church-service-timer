@@ -33,6 +33,7 @@ import 'package:church_service_timer/app/web_stage_coordinator.dart';
 import 'package:church_service_timer/app/metrics_tracker.dart';
 import 'package:church_service_timer/app/backup_controller.dart';
 import 'package:church_service_timer/app/auto_update_check.dart';
+import 'package:church_service_timer/app/whats_new_notice.dart';
 import 'package:church_service_timer/app/settings_pin_controller.dart';
 import 'package:church_service_timer/app/service_notification_controller.dart';
 
@@ -760,6 +761,7 @@ class AppController extends ChangeNotifier {
     if (startTicker)
       _timer = Timer.periodic(const Duration(milliseconds: 100), (_) => tick());
     autoUpdate.start();
+    await whatsNew.start();
   }
 
   Future<void> tick() async {
@@ -1139,6 +1141,7 @@ class AppController extends ChangeNotifier {
 
   /// Settings › About › Check for updates automatically.
   late final autoUpdate = AutoUpdateCheck(this);
+  late final whatsNew = WhatsNewNotice(this);
   Future<bool> restoreBackup(AppState restored) => backups.restore(restored);
   Future<Map<String, dynamic>> backupSecrets() => backups.secrets();
   bool hasBackupSecrets(Map<String, dynamic> secrets) =>
