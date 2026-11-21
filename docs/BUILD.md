@@ -62,15 +62,32 @@ For 0.12, follow `history/FEATURES-0.12.md`: scrolling warnings and return, lock
 
 For 0.13, follow `history/FEATURES-0.13.md`: paired-device approval, private-note isolation, handover/reclaim, loss/stale indication, stage cues, upcoming edits and Android print preview. Native administration builder checks are in `scripts/W2AdministrationChecks.kt`; codec tests do not replace an intentional setting-change/reconnection check. Do not reset sign networking during normal timer validation.
 
+## Versioning
+
+Church Service Timer uses [Semantic Versioning](https://semver.org): **MAJOR.MINOR.PATCH**, from 0.35.0 on. Choose the number from what the release contains since the last one:
+
+| Release contains | Bump | Example |
+| --- | --- | --- |
+| Bug fixes only: no new feature, and nothing that an earlier version can no longer open or pair with | **PATCH** | 0.35.0 → 0.35.1 |
+| New features or changes that keep working with the previous version | **MINOR**, PATCH back to 0 | 0.35.1 → 0.36.0 |
+| An incompatible change | **MAJOR**, MINOR and PATCH back to 0 | 1.4.2 → 2.0.0 |
+
+An incompatible change is one that breaks something saved or shared with the previous version. For example, saved data, backups or program files the previous version can no longer open, or a pairing or web screen change that a phone or tablet on the previous version cannot follow. The CHANGELOG already says when this happens ("needs this version or later to open"), so read the release's entries before choosing.
+
+- **Before 1.0.0.** While the version starts with 0, Semantic Versioning allows a MINOR release to include incompatible changes, and that is how 0.x releases are numbered: new features, compatible or not, make a MINOR release. Once the app is ready for general use, release 1.0.0. From then on an incompatible change always means a new MAJOR version.
+- **The build number** after the `+` in `pubspec.yaml` (and in brackets in `appVersion`) goes up by exactly one with every release, whatever the bump. Android uses it to accept the update, so it never goes down or repeats.
+- **One version for every platform.** Android and Windows are released together from the same tag with the same number.
+- **Pre-releases** use a hyphen if ever needed, for example `0.36.0-beta.1`. A tag with a hyphen is not yet handled by the release workflow, so check it before using one.
+
 ## Publishing a release
 
-1. Update the version in `pubspec.yaml` (for example `0.24.0+24`) and `appVersion` in `lib/domain/app_settings.dart` (`0.24.0 (24)`).
-2. In `CHANGELOG.md`, rename `## Unreleased` to `## 0.24.0, <date>` and start a new empty `## Unreleased` above it.
+1. Choose the version as described under [Versioning](#versioning). Update it in `pubspec.yaml` (for example `0.36.0+41`), `appVersion` in `lib/domain/app_settings.dart` (`0.36.0 (41)`) and the example in the comment at the top of `windows/installer/church-service-timer.iss`.
+2. In `CHANGELOG.md`, rename `## Unreleased` to `## 0.36.0, <date>` and start a new empty `## Unreleased` above it.
 3. Merge those changes to `main`, then tag and push:
 
    ```sh
-   git tag v0.24.0
-   git push origin v0.24.0
+   git tag v0.36.0
+   git push origin v0.36.0
    ```
 
 The [Release workflow](../.github/workflows/release.yml) checks that the tag matches both version strings, runs analysis and tests, builds the APK signed with the release key (it refuses to publish without the `CST_KEYSTORE_*` secrets), and publishes a GitHub Release with the APK, its SHA-256 checksum, the signed App Bundle for Google Play (`Church-Service-Timer-<version>.aab`) and that version's changelog section. Build and test also builds the bundle (a debug bundle on pull requests, the signed one on pushes to `main`), so a broken bundle shows up before tagging.

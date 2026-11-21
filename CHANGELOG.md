@@ -1,6 +1,6 @@
 # Changelog
 
-Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
+Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built. From 0.35.0, version numbers follow [Semantic Versioning](https://semver.org) (MAJOR.MINOR.PATCH); see [Versioning](docs/BUILD.md#versioning) for how each release's number is chosen.
 
 ## 0.35.0, 21/November/2026
 
