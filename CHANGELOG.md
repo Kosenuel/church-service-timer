@@ -2,7 +2,7 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built.
 
-## Unreleased
+## 0.35.0, 21/November/2026
 
 - **The Ready line no longer points at the wrong place.** With a pre-service start time set, the line under Ready said the display "follows the pre-service start time above", but in Mission control and some other layouts the pre-service countdown is not above it. It now reads "Timing has not started. The display shows the pre-service countdown until you start the first segment." in every layout.
 - **The keys line shows on laptop screens too.** Three panes and The dial listed the keys along the bottom of the middle pane only in a window at least 800 high, so a 1366 × 768 laptop, or a 1920 × 1200 screen at 150% display scaling (about 1270 × 790), had none even with room for it. It now shows whenever key labels are on and the ring still has room above the controls with the line taken out; the ring gives up a little height for it. That is every common screen from 1280 × 720 up, to ultrawide and 4K, in Three panes, The dial, Mission control and Keys. A segment's private note takes one line under the title where a block of its own would leave the ring too little room, as in a 1366 × 768 window. Only a window 600 high, too short for the panes anyway, leaves the line out. Classic shows each key on its button, as before.

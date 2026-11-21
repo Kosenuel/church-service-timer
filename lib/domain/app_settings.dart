@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:church_service_timer/domain/domain.dart';
 
 const appName = 'Church Service Timer';
-const appVersion = '0.34.0 (39)';
+const appVersion = '0.35.0 (40)';
 
 /// The privacy policy on the guide website, opened from Settings › About.
 const privacyPolicyUrl =
