@@ -178,14 +178,20 @@ void main() {
       );
       await t.pumpWidget(clock());
       final bounds = t.getRect(find.byKey(const ValueKey('clock-text')));
+      // The colon is the third character, in a place of its own.
       Color? colonColor() =>
-          ((t.widget<RichText>(find.byKey(const ValueKey('clock-text'))).text
-                          as TextSpan)
-                      .children![2]
+          (t
+                      .widget<RichText>(
+                        find.descendant(
+                          of: find.byKey(const ValueKey('clock-char-2')),
+                          matching: find.byType(RichText),
+                        ),
+                      )
+                      .text
                   as TextSpan)
               .style
               ?.color;
-      expect(colonColor(), isNull);
+      expect(colonColor(), Colors.white);
       // Lit for the first half second, then a short fade to 20%.
       await t.pump(const Duration(milliseconds: 500));
       await t.pump(const Duration(milliseconds: 150));
@@ -194,19 +200,19 @@ void main() {
       expect(find.bySemanticsLabel('12:59 PM'), findsOneWidget);
       await t.pump(const Duration(milliseconds: 350));
       await t.pump(const Duration(milliseconds: 150));
-      expect(colonColor(), isNull);
+      expect(colonColor(), Colors.white);
       // A new second (the time changes) lights the colon at once.
       await t.pump(const Duration(milliseconds: 500));
       await t.pump(const Duration(milliseconds: 150));
-      expect(colonColor(), isNotNull);
+      expect(colonColor(), isNot(Colors.white));
       await t.pumpWidget(clock(text: '12:58 PM'));
-      expect(colonColor(), isNull);
+      expect(colonColor(), Colors.white);
       await t.pumpWidget(clock(stale: true));
       await t.pump(const Duration(milliseconds: 500));
-      expect(colonColor(), isNull);
+      expect(colonColor(), Colors.white);
       await t.pumpWidget(clock(blink: false));
       await t.pump(const Duration(seconds: 2));
-      expect(colonColor(), isNull);
+      expect(colonColor(), Colors.white);
       await t.pumpWidget(const SizedBox());
     },
   );

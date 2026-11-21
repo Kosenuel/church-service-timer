@@ -874,6 +874,9 @@ class _StageMessageState extends State<StageMessage>
       );
       final color = stageCueColor(widget.data);
       final style = TextStyle(
+        // Roboto, the face the app carries, on every device: not the
+        // system's own font, such as Segoe UI on Windows.
+        fontFamily: stageFontFamily,
         // Start at screen height; static text then fits proportionally to width.
         // This keeps short cues large without cropping a long countdown.
         fontSize: fullHeight ? space.maxHeight * .9 : previewSize,
@@ -890,10 +893,8 @@ class _StageMessageState extends State<StageMessage>
             ? FontStyle.italic
             : FontStyle.normal,
       );
-      // The time is set in Roboto on every device: its digits are all the
-      // same width, which Windows' own font does not promise.
+      // The time in the same face, with its digits the same width.
       final steady = style.copyWith(
-        fontFamily: 'Roboto',
         fontFeatures: const [FontFeature.tabularFigures()],
       );
       final height = fullHeight ? space.maxHeight : 170.0;
@@ -994,38 +995,16 @@ class _StageMessageState extends State<StageMessage>
               fit: BoxFit.scaleDown,
               // The clock and the countdown blink their colons; the countdown
               // stays steady while paused, so a steady colon means stopped.
-              child:
-                  widget.data['outputMode'] == 'Clock' ||
-                      (widget.data['displayIsTimer'] == true &&
-                          effect == 'static')
-                  // Sized for the widest the time can be ("00:00"), with
-                  // every digit the same width, so the numbers hold still
-                  // as they count instead of being refitted each second.
-                  ? Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ExcludeSemantics(
-                          child: Opacity(
-                            opacity: 0,
-                            child: Text(
-                              text.replaceAll(RegExp(r'[0-9]'), '0'),
-                              key: const ValueKey('stage-time-width'),
-                              style: steady,
-                              softWrap: false,
-                              textScaler: TextScaler.noScaling,
-                            ),
-                          ),
-                        ),
-                        ClockText(
-                          text: text,
-                          style: steady,
-                          blink:
-                              widget.data['clockBlink'] != false &&
-                              (widget.data['outputMode'] == 'Clock' ||
-                                  widget.data['paused'] != true),
-                          stale: widget.stale,
-                        ),
-                      ],
+              child: stageShowsTime(widget.data)
+                  // Every digit in a place as wide as the widest digit,
+                  // so the time keeps one size and each digit its place
+                  // as it counts instead of being refitted each second.
+                  ? ClockText(
+                      key: const ValueKey('stage-time-width'),
+                      text: text,
+                      style: steady,
+                      blink: stageTimeBlinks(widget.data),
+                      stale: widget.stale,
                     )
                   : Text(
                       text,

@@ -4,12 +4,22 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 
+/// The face every stage screen is drawn in: Roboto, which the app carries,
+/// so a screen looks the same on Windows (whose own font is Segoe UI),
+/// Android and in the previews.
+const stageFontFamily = 'Roboto';
+
 class StageSurface extends StatelessWidget {
   final Json data;
   final bool stale;
   const StageSurface({super.key, required this.data, required this.stale});
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => DefaultTextStyle.merge(
+    style: const TextStyle(fontFamily: stageFontFamily),
+    child: Builder(builder: picture),
+  );
+
+  Widget picture(BuildContext context) {
     if (data['stageSharing'] == false)
       return const ColoredBox(
         color: Colors.black,
@@ -55,6 +65,7 @@ class StageSurface extends StatelessWidget {
           textAlign: TextAlign.center,
           textScaler: TextScaler.noScaling,
           style: TextStyle(
+            fontFamily: stageFontFamily,
             color: Colors.white70,
             fontSize: height * .72,
             height: 1.15,
@@ -424,14 +435,14 @@ class RichStageMessage extends StatelessWidget {
     // One fixed-aspect canvas is shared by the composer, operator preview and stage.
     // Fit the canvas uniformly; never distort individual text or auto-scroll it.
     TextStyle headlineStyle(double fit) => TextStyle(
-      fontFamily: 'Roboto',
+      fontFamily: stageFontFamily,
       color: colors.$1,
       fontSize: 42 * message.scale * fit,
       fontWeight: FontWeight.w700,
       height: 1.15,
     );
     TextStyle bodyStyle(double fit) => TextStyle(
-      fontFamily: 'Roboto',
+      fontFamily: stageFontFamily,
       color: colors.$1,
       fontSize: (message.length > 100 ? 38 : 48) * message.scale * fit,
       height: 1.2,
