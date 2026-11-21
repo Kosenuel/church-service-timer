@@ -12,6 +12,7 @@ import 'package:church_service_timer/shared/screen_orientation.dart';
 import 'package:church_service_timer/windows/atomic_store.dart';
 import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/window_memory.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -235,6 +236,14 @@ void main() {
       await t.pumpAndSettle();
     }
 
+    /// A single tap or click on the stage: it waits to be sure it is not
+    /// the first of two.
+    Future<void> tapStage(WidgetTester t, Offset at) async {
+      await t.tapAt(at);
+      await t.pump(kDoubleTapTimeout + const Duration(milliseconds: 20));
+      await t.pumpAndSettle();
+    }
+
     Future<void> done(WidgetTester t) async {
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
@@ -336,27 +345,32 @@ void main() {
       expect(find.text('Exit full screen'), findsOneWidget);
       await settleControl(t);
       expect(key('full-screen-exit'), findsNothing);
-      // A click anywhere brings it back; that click changes nothing.
-      await t.tapAt(const Offset(300, 500));
-      await t.pumpAndSettle();
-      expect(stage, findsOneWidget);
-      expect(key('full-screen-exit'), findsOneWidget);
-      expect(find.byTooltip('Exit full screen (Esc)'), findsOneWidget);
       // Small, in a corner, clear of the countdown.
+      await press(t, LogicalKeyboardKey.escape);
+      await press(t, LogicalKeyboardKey.f11);
       final control = t.getRect(key('full-screen-exit'));
       expect(control.height, lessThan(60));
       expect(control.right, greaterThan(1366 - 40));
       expect(control.top, lessThan(40));
       await settleControl(t);
       expect(key('full-screen-exit'), findsNothing);
-      await t.tapAt(const Offset(300, 500));
+      // A click anywhere brings up the tray, with Exit at its end; that
+      // click changes nothing.
+      await tapStage(t, const Offset(300, 500));
+      expect(stage, findsOneWidget);
+      expect(key('full-screen-tray'), findsOneWidget);
+      expect(key('full-screen-exit'), findsOneWidget);
+      expect(find.byTooltip('Exit full screen (Esc)'), findsOneWidget);
+      await t.pump(HostFullScreenView.trayTime);
       await t.pumpAndSettle();
+      expect(key('full-screen-exit'), findsNothing);
+      await tapStage(t, const Offset(300, 500));
       await t.tap(key('full-screen-exit'));
       await t.pumpAndSettle();
       expect(stage, findsNothing);
       expect(home(t).hostFullScreen.showing, isFalse);
       expect(key('live-menu'), findsOneWidget);
-      expect(window.calls.length, 6);
+      expect(window.calls.length, 8);
       await done(t);
     });
 
@@ -720,8 +734,7 @@ void main() {
       // The system bars are hidden while it shows.
       expect(modes, ['SystemUiMode.immersiveSticky']);
       await settleControl(t);
-      await t.tapAt(const Offset(200, 600));
-      await t.pumpAndSettle();
+      await tapStage(t, const Offset(200, 600));
       expect(find.byTooltip('Exit full screen'), findsOneWidget);
       await t.tap(key('full-screen-exit'));
       await t.pumpAndSettle();
@@ -810,8 +823,7 @@ void main() {
       // Exit.
       await open();
       await settleControl(t);
-      await t.tapAt(const Offset(200, 600));
-      await t.pumpAndSettle();
+      await tapStage(t, const Offset(200, 600));
       await t.tap(key('full-screen-exit'));
       await t.pumpAndSettle();
       expect(asked, [landscape, 'any']);
@@ -1031,13 +1043,422 @@ void main() {
         // Locked, the control still fits.
         home(t).lockControls();
         await t.pumpAndSettle();
-        await t.tapAt(size.center(Offset.zero));
-        await t.pumpAndSettle();
+        await tapStage(t, size.center(Offset.zero));
         final locked = t.getRect(key('full-screen-locked'));
         expect(window.intersect(locked), locked, reason: '$size');
         expect(t.takeException(), isNull, reason: 'locked at $size');
         await done(t);
       }
+    });
+
+    /// Two quick taps, or two clicks with [kind] mouse, at [at].
+    Future<void> doubleTap(
+      WidgetTester t,
+      Offset at, {
+      PointerDeviceKind kind = PointerDeviceKind.touch,
+    }) async {
+      await t.tapAt(at, kind: kind);
+      await t.pump(const Duration(milliseconds: 60));
+      await t.tapAt(at, kind: kind);
+      await t.pumpAndSettle();
+    }
+
+    /// The left, middle and right thirds of a 1366 × 768 window.
+    const left = Offset(200, 400),
+        middle = Offset(683, 400),
+        right = Offset(1160, 400);
+
+    /// A swipe up from the bottom edge of a window [size].
+    Future<void> swipeUp(
+      WidgetTester t, {
+      Size size = const Size(1366, 768),
+    }) async {
+      await t.dragFrom(
+        Offset(size.width / 2, size.height - 20),
+        const Offset(0, -150),
+      );
+      await t.pumpAndSettle();
+    }
+
+    final tray = find.byKey(const ValueKey('full-screen-tray'));
+
+    testWidgets('a double click on the right asks for the next segment', (
+      t,
+    ) async {
+      final (c, _) = await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      expect(stageThird(1000, 1366), StageThird.right);
+      await doubleTap(t, right, kind: PointerDeviceKind.mouse);
+      // The same question as Next segment on Live, in the card over the
+      // stage; nothing has changed yet.
+      expect(key('mini-dialog'), findsOneWidget);
+      expect(find.text('Start Response?'), findsOneWidget);
+      expect(c.state.session.index, 1);
+      // Two clicks are not a click: no tray.
+      expect(tray, findsNothing);
+      await t.tap(key('mini-confirm-cancel'));
+      await t.pumpAndSettle();
+      expect(c.state.session.index, 1);
+      // A double tap too; confirming goes on.
+      await doubleTap(t, right);
+      await t.tap(key('mini-confirm-action'));
+      await t.pumpAndSettle();
+      expect(c.state.session.index, 2);
+      expect(time(t), '10:00');
+      expect(stage, findsOneWidget);
+      // On the last segment there is nowhere to go: a hint, no question.
+      await doubleTap(t, right);
+      expect(key('mini-dialog'), findsNothing);
+      expect(find.text('This is the last segment'), findsOneWidget);
+      await t.pump(HostFullScreenView.hintTime);
+      await t.pumpAndSettle();
+      expect(key('full-screen-hint'), findsNothing);
+      await done(t);
+    });
+
+    testWidgets('a double tap in the middle asks to pause, then to resume', (
+      t,
+    ) async {
+      final (c, _) = await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      await doubleTap(t, middle);
+      expect(find.text('Pause Sermon?'), findsOneWidget);
+      expect(find.text('Confirm pause'), findsOneWidget);
+      expect(c.state.session.paused, isFalse);
+      await t.tap(key('mini-confirm-action'));
+      await t.pumpAndSettle();
+      expect(c.state.session.paused, isTrue);
+      await doubleTap(t, middle);
+      expect(find.text('Resume Sermon?'), findsOneWidget);
+      // Cancel leaves it paused.
+      await t.tap(key('mini-confirm-cancel'));
+      await t.pumpAndSettle();
+      expect(c.state.session.paused, isTrue);
+      await doubleTap(t, middle);
+      await t.tap(key('mini-confirm-action'));
+      await t.pumpAndSettle();
+      expect(c.state.session.paused, isFalse);
+      await done(t);
+    });
+
+    testWidgets('a double tap on the left asks to undo, if there is any', (
+      t,
+    ) async {
+      final (c, _) = await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      // Going from Welcome to Sermon can be undone.
+      expect(c.state.session.undo, isNotNull);
+      await doubleTap(t, left);
+      expect(find.text('Undo segment change?'), findsOneWidget);
+      expect(c.state.session.index, 1);
+      await t.tap(find.text('Restore previous segment'));
+      await t.pumpAndSettle();
+      expect(c.state.session.index, 0);
+      // Nothing left to undo: a small hint that fades, and no question.
+      expect(c.state.session.undo, isNull);
+      await doubleTap(t, left);
+      expect(key('mini-dialog'), findsNothing);
+      expect(key('full-screen-hint'), findsOneWidget);
+      expect(find.text('Nothing to undo'), findsOneWidget);
+      expect(c.state.session.index, 0);
+      await t.pump(HostFullScreenView.hintTime);
+      await t.pumpAndSettle();
+      expect(find.text('Nothing to undo'), findsNothing);
+      await done(t);
+    });
+
+    testWidgets('locked controls block the gestures and the tray', (t) async {
+      final (c, _) = await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      home(t).lockControls();
+      await t.pumpAndSettle();
+      final before = c.state.session.toJson().toString();
+      for (final at in [left, middle, right]) {
+        await doubleTap(t, at);
+        expect(key('mini-dialog'), findsNothing, reason: '$at');
+        expect(key('full-screen-hint'), findsNothing, reason: '$at');
+      }
+      await swipeUp(t);
+      expect(tray, findsNothing);
+      final mouse = await t.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: const Offset(683, 300));
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(const Offset(683, 767));
+      await t.pumpAndSettle();
+      expect(tray, findsNothing);
+      await tapStage(t, middle);
+      expect(tray, findsNothing);
+      expect(c.state.session.toJson().toString(), before);
+      // Only the way to unlock is offered.
+      expect(key('full-screen-locked'), findsOneWidget);
+      await t.longPress(key('full-screen-unlock'));
+      await t.pumpAndSettle();
+      expect(home(t).controlsLocked, isFalse);
+      await swipeUp(t);
+      expect(tray, findsOneWidget);
+      // Locking again puts the tray away.
+      await control(t, LogicalKeyboardKey.keyL);
+      expect(tray, findsNothing);
+      await done(t);
+    });
+
+    testWidgets('a swipe up brings the tray; each action asks first', (
+      t,
+    ) async {
+      final (c, _) = await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      // A swipe up the middle of the stage is not from the bottom.
+      await t.dragFrom(middle, const Offset(0, -220));
+      await t.pumpAndSettle();
+      expect(tray, findsNothing);
+      await swipeUp(t);
+      expect(tray, findsOneWidget);
+      for (final name in [
+        'pause',
+        'next',
+        'minus',
+        'plus',
+        'undo',
+        'cues',
+        'clock',
+        'blank',
+      ]) {
+        expect(key('full-screen-tray-$name'), findsOneWidget, reason: name);
+      }
+      expect(key('full-screen-exit'), findsOneWidget);
+      // Along the bottom, small, inside the window.
+      final rect = t.getRect(tray);
+      expect(rect.bottom, closeTo(768, 1));
+      expect(rect.height, lessThan(110));
+      expect((Offset.zero & const Size(1366, 768)).intersect(rect), rect);
+      // The stage picture is what it was: the tray is not part of it.
+      expect(home(t).hostStageSnapshot(), isNot(contains('tray')));
+
+      await t.tap(key('full-screen-tray-pause'));
+      await t.pumpAndSettle();
+      expect(find.text('Pause Sermon?'), findsOneWidget);
+      expect(c.state.session.paused, isFalse);
+      await t.tap(key('mini-confirm-action'));
+      await t.pumpAndSettle();
+      expect(c.state.session.paused, isTrue);
+      // Still there, now offering Resume.
+      expect(find.text('Resume'), findsOneWidget);
+
+      await t.tap(key('full-screen-tray-next'));
+      await t.pumpAndSettle();
+      expect(find.text('Start Response?'), findsOneWidget);
+      await t.tap(key('mini-confirm-cancel'));
+      await t.pumpAndSettle();
+      expect(c.state.session.index, 1);
+
+      await t.tap(key('full-screen-tray-plus'));
+      await t.pumpAndSettle();
+      expect(find.byType(TimeAdjustmentDialog), findsOneWidget);
+      await press(t, LogicalKeyboardKey.escape);
+      expect(find.byType(TimeAdjustmentDialog), findsNothing);
+
+      await t.tap(key('full-screen-tray-undo'));
+      await t.pumpAndSettle();
+      expect(find.text('Undo segment change?'), findsOneWidget);
+      await t.tap(key('mini-confirm-cancel'));
+      await t.pumpAndSettle();
+
+      await t.tap(key('full-screen-tray-blank'));
+      await t.pumpAndSettle();
+      expect(find.text('Blank the screen?'), findsOneWidget);
+      await t.tap(key('mini-confirm-action'));
+      await t.pumpAndSettle();
+      expect(c.state.session.outputBlank, isTrue);
+      expect(find.text('Unblank'), findsOneWidget);
+      await t.tap(key('full-screen-tray-blank'));
+      await t.pumpAndSettle();
+      await t.tap(key('mini-confirm-action'));
+      await t.pumpAndSettle();
+      expect(c.state.session.outputBlank, isFalse);
+
+      // The clock, and back, as on Live: no question.
+      await t.tap(key('full-screen-tray-clock'));
+      await t.pumpAndSettle();
+      expect(c.state.session.outputMode(c.now), 'Clock');
+      expect(find.byTooltip('Show timer'), findsOneWidget);
+      await t.tap(key('full-screen-tray-clock'));
+      await t.pumpAndSettle();
+      expect(c.state.session.outputMode(c.now), isNot('Clock'));
+
+      // A cue from the list, and the same cue again goes back.
+      await t.tap(key('full-screen-tray-cues'));
+      await t.pumpAndSettle();
+      await t.tap(key('full-screen-tray-cue-0'));
+      // WRAP UP pulses on the stage, so it never settles.
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 500));
+      expect(c.state.session.alert?.text, 'WRAP UP');
+      await t.tap(key('full-screen-tray-cues'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 500));
+      await t.tap(key('full-screen-tray-cue-0'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 500));
+      await t.pumpAndSettle();
+      expect(c.state.session.hasManualCue(c.now), isFalse);
+
+      // A swipe down puts it away; Esc does too, before it leaves.
+      await t.dragFrom(t.getCenter(tray), const Offset(0, 200));
+      await t.pumpAndSettle();
+      expect(tray, findsNothing);
+      await swipeUp(t);
+      await press(t, LogicalKeyboardKey.escape);
+      expect(tray, findsNothing);
+      expect(stage, findsOneWidget);
+      await swipeUp(t);
+      await t.tap(key('full-screen-exit'));
+      await t.pumpAndSettle();
+      expect(stage, findsNothing);
+      await done(t);
+    });
+
+    testWidgets('the tray goes after six seconds untouched', (t) async {
+      await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      expect(HostFullScreenView.trayTime, const Duration(seconds: 6));
+      await swipeUp(t);
+      expect(tray, findsOneWidget);
+      await t.pump(const Duration(seconds: 5));
+      expect(tray, findsOneWidget);
+      // A touch in it starts the six seconds again.
+      await t.tapAt(t.getTopLeft(tray) + const Offset(20, 4));
+      await t.pump(const Duration(seconds: 5));
+      expect(tray, findsOneWidget);
+      await t.pump(const Duration(milliseconds: 1100));
+      await t.pumpAndSettle();
+      expect(tray, findsNothing);
+      // So does a question opened from it, until it is answered.
+      await swipeUp(t);
+      await t.tap(key('full-screen-tray-pause'));
+      await t.pumpAndSettle();
+      await t.pump(const Duration(seconds: 10));
+      expect(tray, findsOneWidget);
+      await t.tap(key('mini-confirm-cancel'));
+      await t.pumpAndSettle();
+      await t.pump(const Duration(seconds: 5));
+      expect(tray, findsOneWidget);
+      await t.pump(const Duration(seconds: 1));
+      await t.pumpAndSettle();
+      expect(tray, findsNothing);
+      await done(t);
+    });
+
+    testWidgets('on a computer the mouse at the bottom brings the tray', (
+      t,
+    ) async {
+      await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      final mouse = await t.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: const Offset(683, 300));
+      addTearDown(mouse.removePointer);
+      // Moving about the stage does nothing.
+      await mouse.moveTo(const Offset(900, 600));
+      await t.pumpAndSettle();
+      expect(tray, findsNothing);
+      await mouse.moveTo(const Offset(683, 767));
+      await t.pumpAndSettle();
+      expect(tray, findsOneWidget);
+      // It stays while the mouse is on it.
+      await mouse.moveTo(t.getCenter(key('full-screen-tray-pause')));
+      await t.pump(const Duration(seconds: 10));
+      expect(tray, findsOneWidget);
+      // Then goes six seconds after the mouse leaves it.
+      await mouse.moveTo(const Offset(683, 300));
+      await t.pump(const Duration(seconds: 5));
+      expect(tray, findsOneWidget);
+      await t.pump(const Duration(milliseconds: 1100));
+      await t.pumpAndSettle();
+      expect(tray, findsNothing);
+      // A single click brings it too, once it is sure it was not two.
+      await mouse.down(const Offset(683, 300));
+      await mouse.up();
+      await t.pump();
+      expect(tray, findsNothing);
+      await t.pump(kDoubleTapTimeout);
+      await t.pumpAndSettle();
+      expect(tray, findsOneWidget);
+      // The keys still work with it showing.
+      await press(t, LogicalKeyboardKey.space);
+      expect(find.text('Pause Sermon?'), findsOneWidget);
+      await press(t, LogicalKeyboardKey.escape);
+      await done(t);
+    });
+
+    testWidgets('with Reduced motion the tray appears at once', (t) async {
+      final (c, _) = await running(t);
+      await c.commit(
+        (draft, _) =>
+            draft.appearance = const AppearancePreferences(reducedMotion: true),
+      );
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      await t.dragFrom(const Offset(683, 748), const Offset(0, -220));
+      await t.pump();
+      expect(tray, findsOneWidget);
+      expect(t.getRect(tray).bottom, closeTo(768, 1));
+      await done(t);
+    });
+
+    testWidgets('the tray fits from a small phone to a large monitor', (
+      t,
+    ) async {
+      for (final (size, desktop, scale) in const [
+        (Size(568, 320), false, 1.6),
+        (Size(844, 390), false, 1.0),
+        (Size(1920, 1080), true, 1.3),
+      ]) {
+        t.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
+        await running(t, desktop: desktop, size: size);
+        unawaited(home(t).setHostFullScreen(true));
+        await t.pumpAndSettle();
+        await settleControl(t);
+        await swipeUp(t, size: size);
+        expect(tray, findsOneWidget, reason: '$size');
+        final rect = t.getRect(tray);
+        expect((Offset.zero & size).intersect(rect), rect, reason: '$size');
+        expect(t.takeException(), isNull, reason: '$size');
+        await done(t);
+      }
+    });
+
+    testWidgets('looks right with the tray on a phone', (t) async {
+      await running(t, desktop: false, size: const Size(844, 390));
+      unawaited(home(t).setHostFullScreen(true));
+      await t.pumpAndSettle();
+      await settleControl(t);
+      await swipeUp(t, size: const Size(844, 390));
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/host-full-screen-tray-phone.png'),
+      );
+      await done(t);
+    });
+
+    testWidgets('looks right with the tray in a full HD window', (t) async {
+      await running(t, size: const Size(1920, 1080));
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      await swipeUp(t, size: const Size(1920, 1080));
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/desktop-host-full-screen-tray.png'),
+      );
+      await done(t);
     });
 
     testWidgets('looks right in a full HD window', (t) async {
