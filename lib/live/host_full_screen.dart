@@ -7,6 +7,7 @@ import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/screen_orientation.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -24,6 +25,10 @@ class HostFullScreenState {
 
   /// Shows the Exit control for a few seconds; set by the view.
   VoidCallback? reveal;
+
+  /// Puts the control tray away if it is showing, and says whether it
+  /// was; set by the view. Esc and Back close the tray first.
+  bool Function()? closeTray;
 }
 
 /// Makes the screen itself full: on a computer the window loses its frame
@@ -163,6 +168,12 @@ extension HostFullScreenMode on HomeState {
       return false;
     }
     if (!showing && (!hostFullScreenAvailable || miniTimer)) return false;
+    // Esc puts the control tray away before it leaves full screen.
+    if (showing &&
+        key == LogicalKeyboardKey.escape &&
+        (hostFullScreen.closeTray?.call() ?? false)) {
+      return true;
+    }
     unawaited(setHostFullScreen(!showing));
     return true;
   }
@@ -223,15 +234,44 @@ extension HostFullScreenMode on HomeState {
   }
 }
 
-/// The stage on black, filling the window, with a small control that a
-/// tap or click reveals for a few seconds: Exit full screen, or Hold to
-/// unlock while the controls are locked.
+/// Which part of the stage a double tap or double click was on: the left
+/// third asks to undo, the middle to pause or resume, the right third to
+/// go to the next segment.
+enum StageThird { left, middle, right }
+
+/// The third of a stage [width] wide that [dx] falls in.
+StageThird stageThird(double dx, double width) => dx < width / 3
+    ? StageThird.left
+    : dx < width * 2 / 3
+    ? StageThird.middle
+    : StageThird.right;
+
+/// The stage on black, filling the window. Over it, never on any stage
+/// screen:
+///
+/// * a double tap or double click asks, in the usual card, to undo (left
+///   third), pause or resume (middle) or go to the next segment (right);
+/// * a tap or click, a swipe up from the bottom edge, or the mouse at the
+///   bottom edge brings up a small control tray, which goes after
+///   [trayTime] untouched, on Esc or on a swipe down;
+/// * a small control in the corner, shown at first, offers Exit full
+///   screen, or Hold to unlock while the controls are locked. Locked, the
+///   gestures and the tray do nothing else.
 class HostFullScreenView extends StatefulWidget {
   final HomeState home;
   const HostFullScreenView({super.key, required this.home});
 
-  /// How long the control stays after a tap or click.
+  /// How long the corner control stays.
   static const controlTime = Duration(seconds: 4);
+
+  /// How long the control tray stays untouched.
+  static const trayTime = Duration(seconds: 6);
+
+  /// How long a hint such as "Nothing to undo" shows.
+  static const hintTime = Duration(milliseconds: 1600);
+
+  /// How close to the bottom the mouse opens the tray.
+  static const mouseEdge = 24.0;
   @override
   State<HostFullScreenView> createState() => _HostFullScreenViewState();
 }
@@ -241,10 +281,26 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
   bool _control = false;
   Timer? _hide;
 
+  bool _tray = false;
+  Timer? _trayHide;
+
+  /// A question or list opened from the tray is on top, or the mouse is
+  /// over the tray: the tray waits.
+  int _trayBusy = 0;
+  bool _mouseInTray = false;
+
+  String? _hint;
+  Timer? _hintHide;
+
+  Offset? _doubleAt;
+  double _dragFrom = 0, _dragBy = 0;
+
   @override
   void initState() {
     super.initState();
-    home.hostFullScreen.reveal = reveal;
+    home.hostFullScreen
+      ..reveal = reveal
+      ..closeTray = closeTray;
     home.c.addListener(_follow);
     // Shown at first, so the way out is seen once.
     _control = true;
@@ -254,9 +310,12 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
   @override
   void dispose() {
     _hide?.cancel();
+    _trayHide?.cancel();
+    _hintHide?.cancel();
     home.c.removeListener(_follow);
     final state = home.hostFullScreen;
     if (state.reveal == reveal) state.reveal = null;
+    if (state.closeTray == closeTray) state.closeTray = null;
     // Closed some other way than Exit: the screen still goes back.
     if (state.showing && !state.changing) {
       state.showing = false;
@@ -282,50 +341,516 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
     if (mounted && !_control) setState(() => _control = true);
   }
 
+  /// The same conditions as the timer buttons on Live.
+  bool get _enabled {
+    final c = home.c, s = c.liveSession;
+    return s.active &&
+        !c.reportSavePending &&
+        !c.busy &&
+        !c.corrupt &&
+        !home.controlsLocked &&
+        c.pairing.localControl;
+  }
+
+  bool get _canAdvance {
+    final s = home.c.liveSession;
+    return _enabled &&
+        s.timeline != null &&
+        s.index + 1 < s.timeline!.segments.length;
+  }
+
+  /// Brings up the control tray; locked, shows Hold to unlock instead.
+  void openTray() {
+    if (!mounted) return;
+    if (home.controlsLocked) return reveal();
+    _hide?.cancel();
+    setState(() {
+      _tray = true;
+      // The tray has its own Exit.
+      _control = false;
+    });
+    _waitThenHideTray();
+  }
+
+  /// Puts the tray away; false if it was not showing.
+  bool closeTray() {
+    _trayHide?.cancel();
+    if (!mounted || !_tray) return false;
+    setState(() => _tray = false);
+    return true;
+  }
+
+  /// Starts the tray's time again, unless something keeps it.
+  void _waitThenHideTray() {
+    _trayHide?.cancel();
+    if (!_tray || _trayBusy > 0 || _mouseInTray) return;
+    _trayHide = Timer(HostFullScreenView.trayTime, closeTray);
+  }
+
+  /// Runs what a gesture or the tray asked for. The tray stays while its
+  /// question is open, then has its full time again.
+  Future<void> _run(Future<void> Function() action) async {
+    _trayBusy++;
+    _trayHide?.cancel();
+    try {
+      await action();
+    } finally {
+      _trayBusy--;
+      if (mounted) _waitThenHideTray();
+    }
+  }
+
+  void _showHint(String text) {
+    _hintHide?.cancel();
+    setState(() => _hint = text);
+    _hintHide = Timer(HostFullScreenView.hintTime, () {
+      if (mounted) setState(() => _hint = null);
+    });
+  }
+
+  void _doubleTap(Size size) {
+    final at = _doubleAt;
+    _doubleAt = null;
+    if (at == null) return;
+    if (home.controlsLocked) return reveal();
+    if (!_enabled) return;
+    final s = home.c.liveSession;
+    switch (stageThird(at.dx, size.width)) {
+      case StageThird.left:
+        if (s.undo == null) return _showHint('Nothing to undo');
+        unawaited(_run(home.undo));
+      case StageThird.middle:
+        unawaited(_run(home.confirmPause));
+      case StageThird.right:
+        if (!_canAdvance) return _showHint('This is the last segment');
+        unawaited(_run(home.advance));
+    }
+  }
+
+  void _dragEnd(DragEndDetails details, Size size) {
+    if (home.controlsLocked) return;
+    final velocity = details.primaryVelocity ?? 0;
+    final up = _dragBy < -40 || velocity < -300;
+    final down = _dragBy > 40 || velocity > 300;
+    // From the bottom fifth, and at least the last 96 points.
+    final edge = size.height - (size.height * .2).clamp(96.0, size.height);
+    if (up && _dragFrom >= edge) {
+      openTray();
+    } else if (down) {
+      closeTray();
+    }
+  }
+
+  void _hover(PointerHoverEvent event, Size size) {
+    if (event.kind != PointerDeviceKind.mouse || home.controlsLocked) return;
+    if (event.localPosition.dy >= size.height - HostFullScreenView.mouseEdge) {
+      if (_tray) {
+        _waitThenHideTray();
+      } else {
+        openTray();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = home.c;
+    final locked = home.controlsLocked;
+    if (locked && _tray) {
+      // Lock controls puts the tray away with everything else.
+      _tray = false;
+      _trayHide?.cancel();
+    }
+    final motion = reduceAppMotion(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 200);
     return PopScope(
-      // Android Back leaves full screen, never the app.
+      // Android Back puts the tray away, then leaves full screen, never
+      // the app.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && !home.controlsLocked) leave();
-        if (home.controlsLocked) reveal();
+        if (didPop) return;
+        if (home.controlsLocked) return reveal();
+        if (!closeTray()) leave();
       },
       child: Scaffold(
         key: const ValueKey('host-full-screen'),
         backgroundColor: Colors.black,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            GestureDetector(
-              key: const ValueKey('full-screen-stage'),
-              behavior: HitTestBehavior.opaque,
-              onTap: reveal,
-              child: SafeArea(
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([c, c.liveClock]),
-                  builder: (context, _) => StageSurface(
-                    data: home.hostStageSnapshot(),
-                    stale: false,
+        body: LayoutBuilder(
+          builder: (context, space) {
+            final size = space.biggest;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                MouseRegion(
+                  onHover: (event) => _hover(event, size),
+                  child: GestureDetector(
+                    key: const ValueKey('full-screen-stage'),
+                    behavior: HitTestBehavior.opaque,
+                    // A single tap waits just long enough to tell it from
+                    // a double tap.
+                    onTap: openTray,
+                    onDoubleTapDown: (details) =>
+                        _doubleAt = details.localPosition,
+                    onDoubleTap: () => _doubleTap(size),
+                    onVerticalDragStart: (details) {
+                      _dragFrom = details.localPosition.dy;
+                      _dragBy = 0;
+                    },
+                    onVerticalDragUpdate: (details) =>
+                        _dragBy += details.primaryDelta ?? 0,
+                    onVerticalDragEnd: (details) => _dragEnd(details, size),
+                    child: SafeArea(
+                      child: AnimatedBuilder(
+                        animation: Listenable.merge([c, c.liveClock]),
+                        builder: (context, _) => StageSurface(
+                          data: home.hostStageSnapshot(),
+                          stale: false,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (_control)
+                  SafeArea(
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: locked ? _unlock(context) : _exit(),
+                      ),
+                    ),
+                  ),
+                SafeArea(
+                  child: Align(
+                    alignment: const Alignment(0, .55),
+                    child: IgnorePointer(
+                      child: AnimatedSwitcher(
+                        duration: motion,
+                        child: _hint == null
+                            ? const SizedBox.shrink()
+                            : _hintView(context, _hint!),
+                      ),
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: AnimatedSwitcher(
+                      duration: motion,
+                      transitionBuilder: (child, animation) => SlideTransition(
+                        position: Tween(
+                          begin: const Offset(0, 1.2),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: FadeTransition(opacity: animation, child: child),
+                      ),
+                      child: _tray && !locked
+                          ? _trayView(context, size)
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _hintView(BuildContext context, String text) {
+    final colors = appColors(context);
+    return DecoratedBox(
+      key: const ValueKey('full-screen-hint'),
+      decoration: BoxDecoration(
+        color: colors.surface.withValues(alpha: .9),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Text(
+          text,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: colors.text),
+        ),
+      ),
+    );
+  }
+
+  /// Every control Live has for the timer and the stage, small, along the
+  /// bottom. Each timer action asks first, as on Live.
+  Widget _trayView(BuildContext context, Size size) {
+    final colors = appColors(context);
+    final c = home.c;
+    return Padding(
+      key: const ValueKey('full-screen-tray'),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: MouseRegion(
+        onEnter: (event) {
+          if (event.kind != PointerDeviceKind.mouse) return;
+          _mouseInTray = true;
+          _trayHide?.cancel();
+        },
+        onExit: (event) {
+          if (!_mouseInTray) return;
+          _mouseInTray = false;
+          _waitThenHideTray();
+        },
+        child: Listener(
+          // Any touch or wheel in it starts its time again.
+          onPointerDown: (_) => _waitThenHideTray(),
+          onPointerSignal: (_) => _waitThenHideTray(),
+          child: Focus(
+            skipTraversal: true,
+            onKeyEvent: (_, _) {
+              _waitThenHideTray();
+              return KeyEventResult.ignored;
+            },
+            child: GestureDetector(
+              // A swipe down puts it away.
+              onVerticalDragStart: (_) => _dragBy = 0,
+              onVerticalDragUpdate: (details) =>
+                  _dragBy += details.primaryDelta ?? 0,
+              onVerticalDragEnd: (details) {
+                if (_dragBy > 40 || (details.primaryVelocity ?? 0) > 300) {
+                  closeTray();
+                }
+              },
+              child: Material(
+                color: colors.surface,
+                elevation: 6,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: colors.border),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: size.width - 24),
+                  // On one line where it fits; on a narrow screen in two,
+                  // so every control stays in view.
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: AnimatedBuilder(
+                      animation: Listenable.merge([c, c.liveClock]),
+                      builder: (context, _) => Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: _trayItems(context),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-            if (_control)
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: home.controlsLocked ? _unlock(context) : _exit(),
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  List<Widget> _trayItems(BuildContext context) {
+    final c = home.c, s = c.liveSession;
+    final enabled = _enabled;
+    final output = home.outputControlsEnabled && !c.hardware.sending;
+    final clockShowing = !s.outputBlank && s.outputMode(c.now) == 'Clock';
+    final blank =
+        (s.active || s.phase == 'ended') &&
+        !c.busy &&
+        !c.corrupt &&
+        !home.controlsLocked &&
+        c.pairing.localControl;
+    final desktop = c.port.isDesktop;
+    final colors = appColors(context);
+    return [
+      _item(
+        'full-screen-tray-pause',
+        s.paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+        s.paused ? 'Resume' : 'Pause',
+        enabled ? home.confirmPause : null,
+      ),
+      _item(
+        'full-screen-tray-next',
+        Icons.skip_next_rounded,
+        'Next',
+        _canAdvance ? home.advance : null,
+        tooltip: 'Next segment',
+      ),
+      _item(
+        'full-screen-tray-minus',
+        Icons.remove,
+        '−2 min',
+        enabled && s.remaining(c.now) > 0
+            ? () => home.adjustTime(fixedSeconds: -120)
+            : null,
+      ),
+      _item(
+        'full-screen-tray-plus',
+        Icons.add,
+        '+2 min',
+        enabled && s.balance(c.now) + 120000 <= supportedCountdownMs
+            ? () => home.adjustTime(fixedSeconds: 120)
+            : null,
+      ),
+      _item(
+        'full-screen-tray-undo',
+        Icons.undo,
+        'Undo',
+        enabled && s.undo != null ? home.undo : null,
+        tooltip: desktop ? 'Undo (Ctrl+Z)' : 'Undo',
+      ),
+      _divider(colors),
+      if (c.state.stageCues.isNotEmpty)
+        Builder(
+          builder: (context) => _item(
+            'full-screen-tray-cues',
+            Icons.chat_bubble_outline,
+            'Cues',
+            output ? () => _cues(context) : null,
+            tooltip: 'Show a cue',
+          ),
+        ),
+      _item(
+        'full-screen-tray-clock',
+        clockShowing ? Icons.timer_outlined : Icons.schedule,
+        clockShowing ? 'Timer' : 'Clock',
+        output
+            ? () => c.act(
+                clockShowing
+                    ? (s.phase == 'ended' ? 'endScreen' : 'timer')
+                    : 'clock',
+              )
+            : null,
+        tooltip: clockShowing ? 'Show timer' : 'Show clock',
+      ),
+      _item(
+        'full-screen-tray-blank',
+        s.outputBlank ? Icons.tv_outlined : Icons.tv_off_outlined,
+        s.outputBlank ? 'Unblank' : 'Blank',
+        blank ? home.confirmBlank : null,
+        tooltip: s.outputBlank ? 'Unblank screen' : 'Blank screen',
+      ),
+      _divider(colors),
+      // Ends the service, after the same question as End service on Live;
+      // full screen then closes by itself.
+      _item(
+        'full-screen-tray-end',
+        Icons.stop_circle_outlined,
+        s.quickTimer ? 'End timer' : 'End service',
+        enabled ? home.confirmEndService : null,
+        foreground: _endColor,
+      ),
+      _item(
+        'full-screen-exit',
+        Icons.fullscreen_exit,
+        'Exit',
+        () async => leave(),
+        tooltip: desktop ? 'Exit full screen (Esc)' : 'Exit full screen',
+      ),
+    ];
+  }
+
+  /// End service in the tray: a light red that reads on the dark tray,
+  /// so it stands apart from the other controls.
+  static const _endColor = Color(0xffff7979);
+
+  Widget _divider(AppPalette colors) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+    child: SizedBox(
+      height: 40,
+      child: VerticalDivider(width: 1, color: colors.border),
+    ),
+  );
+
+  Widget _item(
+    String key,
+    IconData icon,
+    String label,
+    Future<void> Function()? action, {
+    String? tooltip,
+    Color? foreground,
+  }) => Tooltip(
+    message: tooltip ?? label,
+    child: TextButton(
+      key: ValueKey(key),
+      onPressed: action == null ? null : () => unawaited(_run(action)),
+      style: TextButton.styleFrom(
+        minimumSize: const Size(64, 56),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        foregroundColor: foreground ?? appColors(context).text,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 22),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  /// The saved cues, as Live has them: one sends it, and the one showing
+  /// goes back to the timer.
+  Future<void> _cues(BuildContext button) async {
+    final c = home.c, s = c.liveSession;
+    final box = button.findRenderObject()! as RenderBox;
+    final overlay = Overlay.of(button).context.findRenderObject()! as RenderBox;
+    final rect = box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
+    bool showing(TextLayout cue) =>
+        !s.outputBlank &&
+        s.hasManualCue(c.now) &&
+        !s.alertIsMessage &&
+        s.alert!.text == cue.text;
+    final cues = c.state.stageCues;
+    final choice = await showMenu<int>(
+      context: button,
+      position: RelativeRect.fromRect(rect, Offset.zero & overlay.size),
+      popUpAnimationStyle: reduceAppMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
+      items: [
+        for (final (i, cue) in cues.indexed)
+          PopupMenuItem(
+            key: ValueKey('full-screen-tray-cue-$i'),
+            value: i,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 28,
+                  child: showing(cue)
+                      ? const Icon(Icons.check, size: 18)
+                      : null,
+                ),
+                Flexible(
+                  child: Text(
+                    cue.text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (choice == null || !mounted || choice >= c.state.stageCues.length) {
+      return;
+    }
+    final cue = c.state.stageCues[choice];
+    if (!home.outputControlsEnabled || c.hardware.sending) return;
+    if (showing(cue)) {
+      await c.act('clearCue');
+    } else {
+      await home.sendPreparedCue(cue);
+    }
   }
 
   Widget _exit() => Tooltip(
