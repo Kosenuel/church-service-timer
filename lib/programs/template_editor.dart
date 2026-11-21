@@ -24,6 +24,9 @@ class TemplateEditor extends StatefulWidget {
   final ValueChanged<Json>? onDraftChanged;
   final AppController? draftController;
   final List<ServiceReport> reports;
+
+  /// Whether the end screen's preview starts as a stage screen shows it.
+  final bool stagePreviewFirst;
   const TemplateEditor({
     super.key,
     required this.initial,
@@ -34,6 +37,7 @@ class TemplateEditor extends StatefulWidget {
     this.onDraftChanged,
     this.draftController,
     this.reports = const [],
+    this.stagePreviewFirst = false,
   });
   @override
   State<TemplateEditor> createState() => TemplateEditorState();
@@ -327,6 +331,7 @@ class TemplateEditorState extends State<TemplateEditor> {
         initial: endScreen ?? lastEndScreen,
         title: 'Program end screen',
         button: 'Use end screen',
+        stagePreviewFirst: widget.stagePreviewFirst,
       ),
     );
     if (next != null && mounted) {

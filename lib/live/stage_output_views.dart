@@ -24,6 +24,7 @@ extension StageOutputViews on HomeState {
       c.state.session.alert ?? const TextLayout('Thank you'),
       'Send message',
       'Continue',
+      switchPreview: true,
     );
     if (layout == null || !mounted) return;
     var duration = 0;

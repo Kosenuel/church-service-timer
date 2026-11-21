@@ -43,7 +43,7 @@ extension OperatorSettings on HomeState {
       old ?? const TextLayout(''),
       index == null ? 'Create stage cue' : 'Edit stage cue',
       'Save cue',
-      cue: true,
+      switchPreview: true,
     );
     if (result == null) return;
     final ok = await c.commit((draft, _) {

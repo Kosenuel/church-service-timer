@@ -2,6 +2,11 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built. From 0.35.0, version numbers follow [Semantic Versioning](https://semver.org) (MAJOR.MINOR.PATCH); see [Versioning](docs/BUILD.md#versioning) for how each release's number is chosen.
 
+## Unreleased
+
+- **Send message, the end screen and the zero screen follow the simulator.** The Send message window below the stage cues always showed the LED sign, even with the Simulator set to Stage screen. It now has the same **LED sign | Stage screen** switch as the cue editor, starting on the display in use: Stage screen with the Stage simulator or stage screens, LED sign otherwise. Only the settings for the display you are looking at show: colour, position, speed and Wrap long text for Stage screen; display font, Tall, alignment and LED speed for LED sign. The text, Bold, Italic and Effect show on both. What is sent is the same as before, so a message set up on either side reaches the sign and screens exactly as it did, and older paired screens are unaffected.
+  - The same switch is now on **Edit end screen** in Settings › Display settings, **At zero** in Settings › Display settings (Custom text), and the program editor's end screen, including Edit upcoming. They start on the display in use, and what they save is unchanged. Cues and warnings work as before. The Clock choice for **When the service ends** is untouched.
+
 ## 0.35.0, 21/November/2026
 
 - **The Ready line no longer points at the wrong place.** With a pre-service start time set, the line under Ready said the display "follows the pre-service start time above", but in Mission control and some other layouts the pre-service countdown is not above it. It now reads "Timing has not started. The display shows the pre-service countdown until you start the first segment." in every layout.

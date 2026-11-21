@@ -263,6 +263,7 @@ extension WarningSettingsViews on HomeState {
       c.state.defaults.zero ?? const TextLayout("TIME'S UP"),
       'Zero-time screen · all services',
       'Save zero screen',
+      switchPreview: true,
     );
     if (next != null) await c.setSharedZero(next);
   }
