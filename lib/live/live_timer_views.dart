@@ -312,6 +312,12 @@ class TimerArcPainter extends CustomPainter {
       ticks != oldDelegate.ticks;
 }
 
+/// The app's text style, for measuring words before they are drawn: the
+/// theme's, as the style around a widget may not be set yet.
+TextStyle measureBase(BuildContext context) =>
+    Theme.of(context).textTheme.bodyMedium ??
+    DefaultTextStyle.of(context).style;
+
 class DisplayPreviewHeader extends StatelessWidget {
   final DisplayConnection connection;
 
@@ -332,40 +338,82 @@ class DisplayPreviewHeader extends StatelessWidget {
     this.onSimulatorKind,
   });
   @override
-  Widget build(BuildContext context) => Row(
-    key: const ValueKey('display-preview-header'),
-    children: [
-      // Both stay on one line ("Stage screen · Connected" used to wrap);
-      // the badge gets the larger share and shortens with "…" only on the
-      // narrowest screens.
-      Expanded(
-        flex: 2,
-        child: Text(
-          'DISPLAY PREVIEW',
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final style = TextStyle(
+        color: appColors(context).muted,
+        letterSpacing: 1.6,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+      );
+      final scaler = MediaQuery.textScalerOf(context);
+      double width(String text, TextStyle style) {
+        final painter = TextPainter(
+          text: TextSpan(text: text, style: measureBase(context).merge(style)),
+          textDirection: TextDirection.ltr,
+          textScaler: scaler,
           maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: appColors(context).muted,
-            letterSpacing: 1.6,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+        )..layout();
+        final w = painter.width;
+        painter.dispose();
+        return w;
+      }
+
+      // The badge at its full width: its words, icon, arrow and padding.
+      final choose =
+          !secondScreen &&
+          connection == DisplayConnection.simulator &&
+          onSimulatorKind != null;
+      final badge =
+          width(
+            DisplayConnectionBadge.labelOf(
+              connection,
+              secondScreen: secondScreen,
+              simulatorKind: simulatorKind,
+            ),
+            const TextStyle(fontSize: 12),
+          ) +
+          20 +
+          22 +
+          (choose ? 16 : 0) +
+          2;
+      // Both on one line, at opposite edges ("Stage screen · Connected"
+      // used to wrap). Where the heading and the badge do not both fit in
+      // full, the heading shortens to "PREVIEW"; only on the narrowest
+      // screens does either end with "…".
+      String? title;
+      for (final text in const ['DISPLAY PREVIEW', 'PREVIEW']) {
+        if (width(text, style) + 12 + badge <= box.maxWidth) {
+          title = text;
+          break;
+        }
+      }
+      final heading = Text(
+        title ?? 'PREVIEW',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
+      return Row(
+        key: const ValueKey('display-preview-header'),
+        children: [
+          if (title == null) Expanded(flex: 2, child: heading) else heading,
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: DisplayConnectionBadge(
+                connection: connection,
+                secondScreen: secondScreen,
+                simulatorKind: simulatorKind,
+                onSimulatorKind: onSimulatorKind,
+              ),
+            ),
           ),
-        ),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        flex: 3,
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: DisplayConnectionBadge(
-            connection: connection,
-            secondScreen: secondScreen,
-            simulatorKind: simulatorKind,
-            onSimulatorKind: onSimulatorKind,
-          ),
-        ),
-      ),
-    ],
+        ],
+      );
+    },
   );
 }
 
@@ -388,6 +436,17 @@ class DisplayConnectionBadge extends StatelessWidget {
     this.simulatorKind = 'led',
     this.onSimulatorKind,
   });
+
+  /// The words on the badge.
+  static String labelOf(
+    DisplayConnection connection, {
+    bool secondScreen = false,
+    String simulatorKind = 'led',
+  }) => secondScreen
+      ? 'Second screen'
+      : connection == DisplayConnection.simulator
+      ? simulatorNameOf(simulatorKind)
+      : connection.label;
   @override
   Widget build(BuildContext context) {
     final color = secondScreen
@@ -420,11 +479,11 @@ class DisplayConnectionBadge extends StatelessWidget {
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              secondScreen
-                  ? 'Second screen'
-                  : connection == DisplayConnection.simulator
-                  ? simulatorNameOf(simulatorKind)
-                  : connection.label,
+              labelOf(
+                connection,
+                secondScreen: secondScreen,
+                simulatorKind: simulatorKind,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: color, fontSize: 12),
@@ -749,6 +808,44 @@ extension LiveViewActions on HomeState {
     if (delta != null) await c.act('adjust', value: delta, revision: revision);
   }
 
+  /// Whether [text] in [style] and its [keys] fit on one line [width]
+  /// wide.
+  bool keyFits(String text, String keys, TextStyle? style, double width) {
+    final scaler = MediaQuery.textScalerOf(context);
+    double measure(String text, TextStyle? style) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: measureBase(context).merge(style)),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final w = painter.width;
+      painter.dispose();
+      return w;
+    }
+
+    const hint = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      letterSpacing: .4,
+    );
+    return measure(text, style) + 10 + measure(keys, hint) + 4 <= width;
+  }
+
+  /// Whether "Custom" has room for its key beside it in a row of time
+  /// adjustments [width] wide, with Undo at its end. Where it does not,
+  /// the key is left out, so the word keeps to one line; the keys line
+  /// and the tooltip still name it.
+  bool customKeyFits(double width) {
+    if (!showKeyHints) return false;
+    final label = (Theme.of(context).textTheme.labelLarge ?? const TextStyle())
+        .copyWith(fontSize: 14);
+    // Three equal parts and their dividers, then the gap and Undo; the
+    // button's padding at each side, and a little to spare.
+    final part = (width - 2 - 10 - appLayout(context).controlHeight) / 3;
+    return keyFits('Custom', '+ −', label, part - 28);
+  }
+
   Widget liveControls(bool enabled) {
     final s = c.state.session;
     final canAdvance = enabled && s.index + 1 < s.timeline!.segments.length;
@@ -764,6 +861,18 @@ extension LiveViewActions on HomeState {
           fontSize: 17,
           fontWeight: FontWeight.w700,
         );
+        // Pause and Next segment side by side show their keys while each
+        // has room for its word beside the key; otherwise the word keeps
+        // to one line and the keys line still names the key.
+        final primaryKeys =
+            large ||
+            constraints.maxWidth < 300 ||
+            keyFits(
+              s.paused ? 'Resume' : 'Pause',
+              'Space',
+              primaryText,
+              (constraints.maxWidth - 10) / 2 - 26 - 8 - 40,
+            );
         final pause = practiceSpot(
           'pause',
           Tooltip(
@@ -786,7 +895,7 @@ extension LiveViewActions on HomeState {
                 ),
                 label: keyLabel(
                   s.paused ? 'Resume' : 'Pause',
-                  clickerKeysOn ? 'Space' : null,
+                  clickerKeysOn && primaryKeys ? 'Space' : null,
                 ),
               ),
             ),
@@ -822,7 +931,7 @@ extension LiveViewActions on HomeState {
                 icon: const Icon(Icons.skip_next_rounded, size: 26),
                 label: keyLabel(
                   nextLabel,
-                  clickerKeysOn ? 'PgDn' : null,
+                  clickerKeysOn && primaryKeys ? 'PgDn' : null,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -864,7 +973,12 @@ extension LiveViewActions on HomeState {
                 ? () => adjustTime(fixedSeconds: 120)
                 : null,
           ),
-          segment('Custom', enabled ? adjustTime : null, keys: '+ −'),
+          segment(
+            'Custom',
+            enabled ? adjustTime : null,
+            // A large text size gives each its own line.
+            keys: large || customKeyFits(constraints.maxWidth) ? '+ −' : null,
+          ),
         ];
         final adjustGroup = Semantics(
           container: true,

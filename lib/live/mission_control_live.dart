@@ -1217,8 +1217,8 @@ class TimelineBlock extends StatelessWidget {
 typedef KeyLegendEntry = ({String keys, String action, int rank});
 
 /// The keys that work on Live, along the bottom of the window: Mission
-/// control and Keys, and the middle pane of Three panes and The dial in a
-/// tall window. It keeps to one line: when the keys are wider than the
+/// control and Keys, and the middle pane of Three panes and The dial
+/// wherever the ring has room for it. It keeps to one line: when the keys are wider than the
 /// room, the least needed ones are left out rather than wrapped.
 class KeyLegend extends StatelessWidget {
   /// Whether to list the keys at all. Off, only [status] shows.
