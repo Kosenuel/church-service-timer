@@ -576,6 +576,35 @@ extension SettingsViews on HomeState {
     }
   }
 
+  /// The page behind Settings › About › Check for updates, also opened
+  /// by See update on Live's notice.
+  Future<void> openCheckForUpdates() => openSettingsDetail(
+    'Check for updates',
+    () => SettingsWide(
+      main: panel(
+        child: UpdateNotice(
+          checker: c.port.updateChecker,
+          installed: c.appVersion,
+          openPage: c.port.openWebPage,
+          installer: c.port.updateInstaller,
+          installBlocker: () => c.liveSession.active
+              ? 'Finish or end the service first. Installing closes the app, which would stop the timer.'
+              : c.reportSavePending
+              ? 'Wait for the service report to be saved, then try again.'
+              : null,
+          saveFirst: () async {
+            await c.flushEditDrafts();
+            await c.pendingWrite;
+            return c.draftError == null
+                ? null
+                : 'A draft could not be saved, so the app was not closed. Try again in a moment.';
+          },
+          confirm: (title, body, button) => confirm(title, body, button),
+        ),
+      ),
+    ),
+  );
+
   Widget aboutSettings() {
     final colors = appColors(context);
     // The release notes sit beside the page in a wide window, so the row
@@ -636,33 +665,33 @@ extension SettingsViews on HomeState {
         Icons.system_update_alt_outlined,
         'Check for updates',
         'Contacts GitHub to look for a newer version',
-        () => openSettingsDetail(
-          'Check for updates',
-          () => SettingsWide(
-            main: panel(
-              child: UpdateNotice(
-                checker: c.port.updateChecker,
-                installed: c.appVersion,
-                openPage: c.port.openWebPage,
-                installer: c.port.updateInstaller,
-                installBlocker: () => c.liveSession.active
-                    ? 'Finish or end the service first. Installing closes the app, which would stop the timer.'
-                    : c.reportSavePending
-                    ? 'Wait for the service report to be saved, then try again.'
-                    : null,
-                saveFirst: () async {
-                  await c.flushEditDrafts();
-                  await c.pendingWrite;
-                  return c.draftError == null
-                      ? null
-                      : 'A draft could not be saved, so the app was not closed. Try again in a moment.';
-                },
-                confirm: (title, body, button) => confirm(title, body, button),
-              ),
-            ),
-          ),
-        ),
+        openCheckForUpdates,
         key: const ValueKey('about-check-updates'),
+      ),
+      SwitchListTile.adaptive(
+        key: const ValueKey('about-auto-update'),
+        contentPadding: appLayout(context).tileInsets,
+        secondary: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: colors.accent.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(Icons.update, size: 19, color: colors.accent),
+        ),
+        title: const Text(
+          'Check for updates automatically',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          'Once a day, when no service is running. Nothing is downloaded or installed without asking.',
+          style: TextStyle(fontSize: 13, color: colors.muted),
+        ),
+        value: c.state.autoUpdate.enabled,
+        onChanged: c.busy || c.corrupt
+            ? null
+            : (on) => c.autoUpdate.setEnabled(on),
       ),
       row(
         Icons.storage_outlined,
@@ -673,7 +702,7 @@ extension SettingsViews on HomeState {
           () => detail(
             'Your data',
             deviceText(
-              'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone. Pairings are never included in backups; saved sign passwords are included only if you choose, encrypted with a passphrase. Check for updates in About contacts GitHub, only when you press it, to read the latest version number. Nothing about you, your church or your services is sent; GitHub sees this device’s internet address, as any website does.',
+              'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone. Pairings are never included in backups; saved sign passwords are included only if you choose, encrypted with a passphrase. Check for updates in About contacts GitHub to read the latest version number: when you press it and, only if you switch on Check for updates automatically, once a day. Nothing about you, your church or your services is sent; GitHub sees this device’s internet address, as any website does.',
             ),
           ),
         ),

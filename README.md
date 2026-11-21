@@ -40,7 +40,7 @@ The same app runs on a Windows 10 or 11 PC, with the same programs, backups and 
 
 ## Data and privacy
 
-Everything is stored on the phone. Backups include programs, cues, reports, preferences and the church banner, but never active clocks, permissions, credentials or pairings. **Settings → Feedback Center** prepares an email draft to immanuelproton@gmail.com. Optional diagnostics are shown for review before sending and exclude church content, notes, credentials and raw error text.
+Everything is stored on the phone. Backups include programs, cues, reports, preferences and the church banner, but never active clocks, permissions, credentials or pairings. **Settings → Feedback Center** prepares an email draft to immanuelproton@gmail.com. Optional diagnostics are shown for review before sending and exclude church content, notes, credentials and raw error text. **Settings → About → Check for updates** contacts GitHub to read the latest version number when pressed and, only if **Check for updates automatically** is switched on (it is off to begin with), once a day. Nothing about you, your church or your services is sent.
 
 ## Build and test
 
