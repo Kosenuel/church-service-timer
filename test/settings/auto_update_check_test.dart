@@ -409,8 +409,14 @@ void main() {
         final toggle = find.byKey(const ValueKey('about-auto-update'));
         expect(t.widget<SwitchListTile>(toggle).value, isFalse);
         expect(t.takeException(), isNull);
+        // In a wide window only the rows, not the release notes beside
+        // them, which change with every release.
         await expectLater(
-          find.byType(TimerApp),
+          name == 'phone'
+              ? find.byType(TimerApp)
+              : find
+                    .ancestor(of: toggle, matching: find.byType(AppPanel))
+                    .first,
           matchesGoldenFile('../goldens/auto-update-about-$name.png'),
         );
         await t.tap(toggle);
