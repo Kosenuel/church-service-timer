@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_port.dart';
 import '../support/live_helpers.dart';
+import '../support/steady_time.dart';
 import '../support/widget_setup.dart';
 import '../windows/second_screen_live_test.dart' show SecondPort;
 
@@ -427,6 +428,20 @@ void main() {
         home(t).hostStageSnapshot()..remove('stageLayout'),
         c.stageWindowSnapshot()..remove('stageLayout'),
       );
+      await done(t);
+    });
+
+    testWidgets('its time holds still as the digits change', (t) async {
+      final (c, port) = await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      final times = {'12:38': 0, '12:11': 27, '10:58': 100, '08:47': 231};
+      await expectTimeHoldsStill(t, stage, times.keys.toList(), (time) async {
+        port.at = after(340 + 1642 + times[time]!);
+        await c.tick();
+        await t.pump();
+      });
+      // In the face the app carries, as stage screens are.
+      expectBundledFont(t, stage);
       await done(t);
     });
 

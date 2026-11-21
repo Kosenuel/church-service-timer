@@ -861,6 +861,8 @@ void main() {
       final colors = appColors(t.element(key('mini-clock')));
       Color clock() => t.widget<Text>(key('mini-clock')).style!.color!;
       expect(clock(), colors.text);
+      // In the face the app carries, not the system's own.
+      expect(t.widget<Text>(key('mini-clock')).style!.fontFamily, 'Roboto');
 
       // Inside the last minutes of the segment.
       port.at = after(340 + 40 * 60 - 20);

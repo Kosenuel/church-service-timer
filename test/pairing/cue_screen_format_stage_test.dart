@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:church_service_timer/display/clock_text.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -107,7 +108,10 @@ void main() {
     // The countdown is still there, white, and clear of the band.
     expect(digits(t).bottom, lessThan(band.top - 16));
     expect(
-      t.widget<Text>(find.byKey(const ValueKey('stage-time-width'))).data,
+      t
+          .widget<ClockText>(find.byKey(const ValueKey('stage-time-width')))
+          .text
+          .replaceAll(RegExp('[0-9]'), '0'),
       '00:00',
     );
     await expectLater(
