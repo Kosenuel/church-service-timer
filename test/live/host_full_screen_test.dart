@@ -212,6 +212,14 @@ void main() {
     }
 
     HomeState home(WidgetTester t) => t.state<HomeState>(find.byType(Home));
+
+    /// The end screen scrolls, so it never settles: step through time.
+    Future<void> step(WidgetTester t) async {
+      for (var i = 0; i < 8; i++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
+    }
+
     Finder key(String name) => find.byKey(ValueKey(name));
     final stage = find.byKey(const ValueKey('host-full-screen'));
 
@@ -445,15 +453,23 @@ void main() {
       await done(t);
     });
 
-    testWidgets('it leaves by itself when the service ends', (t) async {
+    testWidgets('it stays on the end screen when the service ends, and '
+        'leaves when the next is set up', (t) async {
       final (c, port) = await running(t);
       await press(t, LogicalKeyboardKey.f11);
       expect(stage, findsOneWidget);
       await c.act('end');
-      await t.pumpAndSettle();
+      await step(t);
+      expect(stage, findsOneWidget);
+      expect(home(t).hostFullScreen.showing, isTrue);
+      expect(c.state.session.outputMode(c.now), 'End screen');
+      expect((port as DesktopPort).window.calls, ['enter']);
+      // Setting up the next service brings Live back.
+      await c.act('load', value: sunday());
+      await step(t);
       expect(stage, findsNothing);
       expect(home(t).hostFullScreen.showing, isFalse);
-      expect((port as DesktopPort).window.calls, ['enter', 'leave']);
+      expect(port.window.calls, ['enter', 'leave']);
       expect(key('live-menu'), findsOneWidget);
       await done(t);
     });
@@ -903,9 +919,13 @@ void main() {
         DeviceOrientation.landscapeLeft,
       ]);
       expect(asked, [landscape]);
-      // The service ends: it leaves by itself.
+      // The service ends: it stays on the end screen until it is left.
       await c.act('end');
-      await t.pumpAndSettle();
+      await step(t);
+      expect(stage, findsOneWidget);
+      expect(asked, [landscape]);
+      await home(t).setHostFullScreen(false);
+      await step(t);
       expect(stage, findsNothing);
       expect(asked, [landscape, 'portraitUp landscapeLeft']);
       await ScreenOrientation.setApp(const []);
@@ -1346,18 +1366,45 @@ void main() {
       await done(t);
     });
 
-    testWidgets('End service in the tray ends it and leaves full screen', (
-      t,
-    ) async {
-      final (c, _) = await running(t);
-      await press(t, LogicalKeyboardKey.f11);
-      await settleControl(t);
+    Future<void> endFromTray(WidgetTester t) async {
       await swipeUp(t);
       await t.tap(key('full-screen-tray-end'));
       await t.pumpAndSettle();
       await t.tap(key('mini-confirm-action'));
-      await t.pumpAndSettle();
+      await step(t);
+    }
+
+    testWidgets('End service in the tray ends it and stays on the end screen, '
+        'with only the stage controls left', (t) async {
+      final (c, _) = await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      await endFromTray(t);
       expect(c.state.session.phase, 'ended');
+      expect(home(t).hostFullScreen.showing, isTrue);
+      expect(stage, findsOneWidget);
+      expect(c.state.session.outputMode(c.now), 'End screen');
+      expect(
+        home(t).hostStageSnapshot().toString(),
+        contains(sunday().display.end.text),
+      );
+      // The timer controls are greyed out; cues, the clock, blank and exit
+      // still work.
+      await t.dragFrom(const Offset(683, 748), const Offset(0, -150));
+      await step(t);
+      bool on(String k) => t.widget<TextButton>(key(k)).onPressed != null;
+      for (final name in ['pause', 'next', 'minus', 'plus', 'undo', 'end']) {
+        expect(on('full-screen-tray-$name'), isFalse, reason: name);
+      }
+      for (final name in ['cues', 'clock', 'blank']) {
+        expect(on('full-screen-tray-$name'), isTrue, reason: name);
+      }
+      expect(on('full-screen-exit'), isTrue);
+      await t.tap(key('full-screen-tray-clock'));
+      await step(t);
+      expect(c.state.session.outputMode(c.now), 'Clock');
+      await t.tap(key('full-screen-exit'));
+      await step(t);
       expect(home(t).hostFullScreen.showing, isFalse);
       expect(t.takeException(), isNull);
     });
