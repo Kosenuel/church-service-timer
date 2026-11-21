@@ -398,7 +398,8 @@ class ServiceDialPainter extends CustomPainter {
     for (final p in pieces) {
       final (a0, sweep) = g.arc(p.startMs, p.lengthMs, total);
       final done = started && p.index < index;
-      final current = active && p.index == index;
+      // In Ready the first segment is marked as it will be once it starts.
+      final current = (active || !started) && p.index == index;
       canvas.drawArc(
         outer,
         a0,
@@ -466,7 +467,8 @@ class ServiceDialPainter extends CustomPainter {
       false,
       stroke(border, width, round: true),
     );
-    if (active && left > 0)
+    // Ready shows the first segment's full time, as when it starts.
+    if ((active || !started) && left > 0)
       canvas.drawArc(
         inner,
         math.pi * 1.5 * (1 - left),

@@ -67,27 +67,71 @@ extension LiveActions on HomeState {
       });
   }
 
-  /// The loaded program's name with a one-tap way to switch it.
-  Widget readyProgramRow(Timeline t) => Row(
+  /// The loaded program's name with a one-tap way to switch it. [compact]
+  /// keeps it to one line, beside the readiness row under a desktop ring;
+  /// [narrow] also leaves out the icon and has Change as an icon, for a
+  /// column beside a ring.
+  Widget readyProgramRow(
+    Timeline t, {
+    bool compact = false,
+    bool narrow = false,
+  }) => Row(
     key: const ValueKey('ready-program'),
     children: [
-      Icon(Icons.event_note_outlined, color: appColors(context).muted),
-      const SizedBox(width: 10),
+      if (!narrow) ...[
+        Icon(Icons.event_note_outlined, color: appColors(context).muted),
+        const SizedBox(width: 10),
+      ],
       Expanded(
-        child: Text(
-          t.name,
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+        child: compact || narrow
+            ? Tooltip(
+                message: t.name,
+                child: Text(
+                  t.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              )
+            : Text(
+                t.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+      ),
+      if (narrow)
+        IconButton(
+          key: const ValueKey('change-program'),
+          tooltip: 'Change program',
+          visualDensity: VisualDensity.compact,
+          onPressed:
+              c.busy || controlsLocked || !c.pairing.localControl || c.corrupt
+              ? null
+              : changeProgram,
+          icon: const Icon(Icons.swap_horiz),
+        )
+      else
+        TextButton.icon(
+          key: const ValueKey('change-program'),
+          style: compact
+              ? TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                )
+              : null,
+          onPressed:
+              c.busy || controlsLocked || !c.pairing.localControl || c.corrupt
+              ? null
+              : changeProgram,
+          icon: const Icon(Icons.swap_horiz),
+          label: const Text('Change'),
         ),
-      ),
-      TextButton.icon(
-        key: const ValueKey('change-program'),
-        onPressed:
-            c.busy || controlsLocked || !c.pairing.localControl || c.corrupt
-            ? null
-            : changeProgram,
-        icon: const Icon(Icons.swap_horiz),
-        label: const Text('Change'),
-      ),
     ],
   );
 

@@ -271,9 +271,25 @@ void main() {
     });
   }
 
+  /// Whether every main control is on screen without scrolling in a
+  /// [size] window: all but the desktop layouts with panes in a window
+  /// 600 tall, which is too short for them.
+  bool inReach(String layout, Size size) =>
+      size.height >= 720 ||
+      size.width < 1200 ||
+      const {'classic', 'keys'}.contains(layout);
+
+  // With the sizes Windows display scaling gives the app: 1920 × 1080 at
+  // 150% and 125%, and 1920 × 1200 at 150%.
   const windows = [
+    // 1366 × 768 at 125%: too narrow for the desktop layouts, so Classic.
+    (Size(1093, 614), 1.0),
     (Size(1200, 600), 1.0),
+    (Size(1280, 720), 1.0),
+    (Size(1270, 790), 1.0),
     (Size(1366, 768), 1.0),
+    (Size(1536, 864), 1.0),
+    (Size(1440, 900), 1.0),
     (Size(1366, 900), 1.0),
     (Size(1920, 1080), 1.0),
     (Size(2560, 1440), 1.0),
@@ -297,10 +313,10 @@ void main() {
         for (final key in ['pause-resume', 'next-segment', 'end-service']) {
           final button = find.byKey(ValueKey(key));
           expect(button, findsOneWidget, reason: '$key, $where');
-          // The desktop layouts fill the window: no scrolling to reach a
-          // timer control at the usual text size. Classic is a page that
-          // scrolls.
-          if (layout != 'classic' && scale == 1 && size.height >= 768) {
+          // No scrolling to reach a timer control at the usual text size.
+          // A window 600 tall is too short for the panes; a window under
+          // 1200 wide has Classic, whatever the choice.
+          if (scale == 1 && inReach(layout, size)) {
             expect(
               button.hitTestable(),
               findsOneWidget,
@@ -356,33 +372,246 @@ void main() {
     }
   });
 
-  testWidgets('the ring grows from a 1920 × 1080 window, not a laptop one', (
+  testWidgets('the ring grows with the height of the pane at every size', (
     t,
   ) async {
-    double ring() => ringWidth(t);
-    await running(t);
-    final laptop = ring();
+    // From the shortest pane to the tallest: a laptop, a laptop with
+    // display scaling, then larger screens.
+    const sizes = [
+      Size(1366, 768),
+      Size(1270, 790),
+      Size(1600, 900),
+      Size(1920, 1080),
+    ];
+    for (final layout in ['three_panes', 'dial', 'mission_control']) {
+      final rings = <double>[];
+      for (final size in sizes) {
+        // The Welcome, which has no private note under the controls.
+        await running(
+          t,
+          layout: layout,
+          size: size,
+          advanceAfter: const [],
+          then: 2,
+        );
+        final where = '$layout at $size';
+        expect(t.takeException(), isNull, reason: where);
+        rings.add(
+          layout == 'dial'
+              ? t.getSize(find.byKey(const ValueKey('service-dial'))).width
+              : ringWidth(t),
+        );
+        // The ring never takes the room of the controls: nothing to
+        // scroll to.
+        for (final key in ['pause-resume', 'next-segment', 'end-service']) {
+          final button = find.byKey(ValueKey(key));
+          expect(button.hitTestable(), findsOneWidget, reason: '$key, $where');
+          expect(
+            t.getRect(button).bottom,
+            lessThanOrEqualTo(size.height),
+            reason: '$key, $where',
+          );
+        }
+        await t.pumpWidget(const SizedBox());
+      }
+      for (var i = 1; i < rings.length; i++) {
+        expect(
+          rings[i],
+          layout == 'mission_control'
+              ? greaterThanOrEqualTo(rings[i - 1])
+              : greaterThan(rings[i - 1]),
+          reason: '$layout: $rings',
+        );
+      }
+      expect(rings.last, greaterThan(rings.first + 60), reason: layout);
+    }
+    // A laptop window with display scaling has a ring that fills the
+    // middle pane, not one at its smallest.
+    await running(t, size: const Size(1270, 790), advanceAfter: const []);
+    expect(ringWidth(t), greaterThan(340));
     await t.pumpWidget(const SizedBox());
-    await running(t, size: const Size(1920, 1080));
-    final fullHd = ring();
-    // Too narrow for the controls beside the ring: they stay under it.
-    expect(
-      t.getRect(find.byKey(const ValueKey('pause-resume'))).top,
-      greaterThan(t.getRect(find.byType(SegmentGauge)).bottom - 1),
-    );
-    await t.pumpWidget(const SizedBox());
-    await running(t, size: const Size(2560, 1440));
-    final large = ring();
     // Wide enough: the controls sit at the ring's right.
+    await running(t, size: const Size(2560, 1440));
     expect(
       t.getRect(find.byKey(const ValueKey('pause-resume'))).left,
       greaterThan(t.getRect(find.byType(SegmentGauge)).right - 1),
     );
-    expect(laptop, lessThanOrEqualTo(460));
-    expect(fullHd, greaterThan(500));
-    expect(large, greaterThan(fullHd));
     await t.pumpWidget(const SizedBox());
   });
+
+  /// A service loaded and not yet started.
+  Future<AppController> readyFor(
+    WidgetTester t, {
+    required String layout,
+    required Size size,
+    String theme = 'midnight_lime',
+  }) async {
+    setScreen(t, size);
+    final port = DesktopFakePort();
+    final c = AppController(port);
+    await c.initialize(startTicker: false);
+    await c.commit((draft, _) {
+      draft.appearance = draft.appearance.copyWith(desktopLayout: layout);
+      draft.themeId = theme;
+    });
+    await c.act('load', value: sunday());
+    await t.pumpWidget(TimerApp(controller: c));
+    await t.pumpAndSettle();
+    return c;
+  }
+
+  /// The layout's own timer: the ring, the dial or the Keys countdown.
+  Finder ownTimer(String layout) => switch (layout) {
+    'dial' => find.byKey(const ValueKey('service-dial')),
+    'keys' => find.byKey(const ValueKey('operator-clock')),
+    _ =>
+      find
+          .descendant(
+            of: find.byType(SegmentGauge),
+            matching: find.byType(CustomPaint),
+          )
+          .first,
+  };
+
+  const readyWindows = [
+    Size(1093, 614),
+    Size(1200, 600),
+    Size(1280, 720),
+    Size(1270, 790),
+    Size(1366, 768),
+    Size(1536, 864),
+    Size(1440, 900),
+    Size(1920, 1080),
+    Size(2560, 1440),
+  ];
+  for (final layout in const [
+    'three_panes',
+    'dial',
+    'mission_control',
+    'keys',
+    'classic',
+  ]) {
+    testWidgets('$layout shows its own timer in Ready, with the Ready form', (
+      t,
+    ) async {
+      for (final size in readyWindows) {
+        final c = await readyFor(t, layout: layout, size: size);
+        final where = '$layout at $size';
+        // A window under 1200 wide has Classic, whatever the choice.
+        final shown = size.width < 1200 ? 'classic' : layout;
+        expect(t.takeException(), isNull, reason: where);
+        expect(c.state.session.phase, 'ready');
+        expect(ownTimer(shown), findsOneWidget, reason: where);
+        if (shown == 'keys') {
+          expect(find.byKey(const ValueKey('keys-live')), findsOneWidget);
+          expect(
+            t.widget<Text>(find.byKey(const ValueKey('operator-clock'))).data,
+            '05:00',
+            reason: where,
+          );
+        }
+        // Not counting: Pause and Next segment wait for the service.
+        expect(find.byKey(const ValueKey('pause-resume')), findsNothing);
+        final form = <Finder>[
+          find.byKey(const ValueKey('ready-program')),
+          find.byKey(const ValueKey('change-program')),
+          find.byKey(const ValueKey('ready-inline')),
+          find.byKey(const ValueKey('pre-service-row')),
+          find.byKey(ValueKey('speed-${c.state.session.id}')),
+          find.byKey(const ValueKey('ready-not-started')),
+          find.text('Start first segment'),
+          find.text('Cancel setup'),
+          find.byKey(const ValueKey('check-service')),
+        ];
+        for (final item in form) {
+          expect(item, findsOneWidget, reason: '$item, $where');
+          if (!inReach(shown, size)) continue;
+          expect(item.hitTestable(), findsOneWidget, reason: '$item, $where');
+          final rect = t.getRect(item);
+          expect(
+            rect.bottom,
+            lessThanOrEqualTo(size.height),
+            reason: '$item, $where',
+          );
+          expect(
+            rect.right,
+            lessThanOrEqualTo(size.width),
+            reason: '$item, $where',
+          );
+        }
+        // Starting keeps the timer where it was, at the same size. Classic
+        // adds the service's status line above it.
+        final before = t.getRect(ownTimer(shown));
+        await c.act('start');
+        await t.pumpAndSettle();
+        expect(t.takeException(), isNull, reason: where);
+        expect(ownTimer(shown), findsOneWidget, reason: where);
+        final after = t.getRect(ownTimer(shown));
+        expect(after.size, before.size, reason: where);
+        if (shown != 'classic') {
+          expect(after.topLeft, before.topLeft, reason: where);
+        }
+        await t.pumpWidget(const SizedBox());
+      }
+    });
+  }
+
+  // Ready in each layout, to compare with the running goldens: the same
+  // timer, with the Ready form where the controls go.
+  for (final (name, layout) in const [
+    ('three-panes', 'three_panes'),
+    ('dial', 'dial'),
+    ('mission-control', 'mission_control'),
+    ('keys', 'keys'),
+    ('classic', 'classic'),
+  ]) {
+    testWidgets('$name in Ready at full HD', (t) async {
+      await readyFor(t, layout: layout, size: const Size(1920, 1080));
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/desktop-$name-ready-1080.png'),
+      );
+      await t.pumpWidget(const SizedBox());
+    });
+  }
+
+  // Laptop windows, running just after the start and in Ready: 1920 × 1200
+  // at 150% (about 1270 × 790), 1366 × 768, and 1920 × 1080 at 125%.
+  for (final (name, layout) in const [
+    ('three-panes', 'three_panes'),
+    ('mission-control', 'mission_control'),
+  ]) {
+    for (final size in const [
+      Size(1270, 790),
+      Size(1366, 768),
+      Size(1536, 864),
+    ]) {
+      final width = size.width.round();
+      testWidgets('$name in a $size window, running and Ready', (t) async {
+        await running(
+          t,
+          layout: layout,
+          size: size,
+          advanceAfter: const [],
+          then: 2,
+        );
+        expect(t.takeException(), isNull);
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile('../goldens/desktop-$name-$width.png'),
+        );
+        await t.pumpWidget(const SizedBox());
+        await readyFor(t, layout: layout, size: size);
+        expect(t.takeException(), isNull);
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile('../goldens/desktop-$name-ready-$width.png'),
+        );
+        await t.pumpWidget(const SizedBox());
+      });
+    }
+  }
 
   testWidgets(
     'a large window keeps warning, overtime and a long title in view',
@@ -655,12 +884,16 @@ void main() {
     await c.act('load', value: sunday());
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
-    // Ready keeps the start controls; the dial waits for the service.
+    // Ready shows the dial the service will have, at the same size and
+    // place, with the start controls where Pause and Next segment go.
     expect(find.text('Start first segment'), findsOneWidget);
-    expect(find.byKey(const ValueKey('service-dial')), findsNothing);
+    expect(find.byKey(const ValueKey('service-dial')), findsOneWidget);
+    expect(find.byKey(const ValueKey('dial-ends')), findsNothing);
+    final readyDial = t.getRect(find.byKey(const ValueKey('service-dial')));
     await c.act('start');
     await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('service-dial')), findsOneWidget);
+    expect(t.getRect(find.byKey(const ValueKey('service-dial'))), readyDial);
     expect(find.byKey(const ValueKey('dial-ends')), findsOneWidget);
     expect(find.text('REMAINING'), findsOneWidget);
     // Six minutes into a five-minute Welcome.
@@ -784,7 +1017,9 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Keys uses the panes before the start and is Compact', (t) async {
+  testWidgets('Keys has its own strip before the start and is Compact', (
+    t,
+  ) async {
     setScreen(t, const Size(1366, 768));
     final c = AppController(DesktopFakePort());
     await c.initialize(startTicker: false);
@@ -795,13 +1030,12 @@ void main() {
     await c.act('load', value: sunday());
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
-    expect(find.byKey(const ValueKey('keys-live')), findsNothing);
-    expect(find.byKey(const ValueKey('three-pane-live')), findsOneWidget);
+    // Ready shows the countdown it will have, with Start where Pause goes.
+    expect(find.byKey(const ValueKey('keys-live')), findsOneWidget);
+    expect(find.byKey(const ValueKey('operator-clock')), findsOneWidget);
     expect(find.text('Start first segment'), findsOneWidget);
     expect(
-      appLayout(
-        t.element(find.byKey(const ValueKey('three-pane-live'))),
-      ).density,
+      appLayout(t.element(find.byKey(const ValueKey('keys-live')))).density,
       'compact',
     );
     await c.act('start');

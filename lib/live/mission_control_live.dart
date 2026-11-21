@@ -20,6 +20,10 @@ const missionFillFromHeight = 900.0;
 /// the speaker and planned against actual time.
 const missionRichTimelineFromHeight = 1200.0;
 
+/// The height kept under a large dial for Pause, Next segment and the time
+/// adjustments, or the Ready form in their place.
+const missionControlsHeight = 165.0;
+
 /// The widest Pause and Next segment are drawn beside a large dial.
 const missionPrimaryButtonWidth = 360.0;
 
@@ -40,20 +44,28 @@ extension MissionControlLive on HomeState {
     final rule = Divider(height: 1, thickness: 1, color: colors.border);
     // A large window has height to spare for a fuller timeline.
     final richTimeline =
-        s.active &&
+        (s.active || s.phase == 'ready') &&
         MediaQuery.sizeOf(context).height >= missionRichTimelineFromHeight;
     return Column(
       key: const ValueKey('mission-control-live'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Ready has a strip of the same height, so the ring keeps its
+        // place when the service starts.
         if (s.active) ...[missionStatus(endService), rule],
+        if (s.phase == 'ready') ...[missionReadyStatus(), rule],
         Expanded(
           child: LayoutBuilder(
             builder: (context, space) {
+              // Ready leaves room for the keys line the running service
+              // has along the bottom, so the ring keeps its size when the
+              // service starts.
+              final height =
+                  space.maxHeight -
+                  (showKeyHints && s.phase == 'ready' ? keyLegendHeight : 0);
               // The sections grow into a large window instead of leaving
               // a band above the timeline.
-              final fill =
-                  timer == null && space.maxHeight >= missionFillFromHeight;
+              final fill = timer == null && height >= missionFillFromHeight;
               final timerWidth = (space.maxWidth * (fill ? .4 : .37)).clamp(
                 440.0,
                 fill ? 1500.0 : 640.0,
@@ -85,7 +97,7 @@ extension MissionControlLive on HomeState {
                                 enabled: enabled,
                                 canJump: canJump,
                                 width: timerWidth - 40,
-                                height: space.maxHeight - 16,
+                                height: height - 16,
                                 fill: fill,
                               ),
                         ],
@@ -442,7 +454,39 @@ extension MissionControlLive on HomeState {
     );
   }
 
+  /// The strip across the top in Ready: the readiness row, timing has not
+  /// started, and the buttons to start, cancel or check the service where End service
+  /// goes once it runs.
+  Widget missionReadyStatus() => Padding(
+    key: const ValueKey('mission-ready-status'),
+    padding: const EdgeInsets.fromLTRB(20, 7, 16, 7),
+    child: Row(
+      children: [
+        Text(
+          'Ready',
+          style: TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w700,
+            color: appColors(context).accent,
+          ),
+        ),
+        const SizedBox(width: 28),
+        // The readiness row, where the figures go once the service runs.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 260),
+          child: readyInline(),
+        ),
+        const SizedBox(width: 16),
+        Expanded(child: readyNotStartedLine(compact: true)),
+        const SizedBox(width: 16),
+        readyButtons(compact: true, height: 44),
+      ],
+    ),
+  );
+
   /// The running segment: name, the dial beside its figures, the controls.
+  /// In Ready the same dial shows the first segment's full time, with the
+  /// Ready form where the controls go.
   Widget missionTimer({
     required Widget header,
     required bool enabled,
@@ -470,7 +514,11 @@ extension MissionControlLive on HomeState {
         ? math
               .min(width - 290, (height - 350 * scale - stacked) * 300 / 250)
               .clamp(232.0, 1000.0)
-        : math.min(width - 196, height - 250).clamp(232.0, 400.0);
+        // Otherwise it has what the title above and the controls, or the
+        // Ready form, under it leave, beside a column for the facts.
+        : math
+              .min(width - 196, (height - 285 * scale - stacked) * 300 / 260)
+              .clamp(232.0, 640.0);
     // In a short window the private note sits beside the dial.
     final noteBelow = height - (gauge * 260 / 300) > 360;
     // The facts beside a large dial are larger too.
@@ -522,6 +570,17 @@ extension MissionControlLive on HomeState {
       alignment: Alignment.centerLeft,
       child: segmentTitle(canJump, size: big ? 38 : 30, centred: false),
     );
+    final ready = s.phase == 'ready';
+    // A short window has no room under the dial for the whole Ready form:
+    // the program and the service mode take the place of the facts beside
+    // it, and the pre-service countdown is under it.
+    final formBeside =
+        ready && !fill && MediaQuery.sizeOf(context).height < 760;
+    final controls = !ready
+        ? liveControls(enabled)
+        : formBeside
+        ? preServiceRow(compact: true)
+        : readyControls(compact: true, buttons: false, inline: false);
     final dial = Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -535,33 +594,48 @@ extension MissionControlLive on HomeState {
           ),
         ),
         SizedBox(width: big ? 28 : 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              fact('Allocated', formatTime(s.allocatedMs)),
-              fact(
-                'Used',
-                formatTime(math.max(0, s.allocatedMs - s.balance(c.now))),
-              ),
-              if (segment.speaker.isNotEmpty) fact('Speaker', segment.speaker),
-              if (!s.quickTimer)
-                fact(
-                  'Next',
-                  next == null
-                      ? 'Final segment'
-                      : '${next.name} · ${next.durationText}',
-                ),
-              if (then != null)
-                fact('Then', '${then.name} · ${then.durationText}'),
-              if (segment.notes.isNotEmpty && !noteBelow) ...[
-                const SizedBox(height: 2),
-                note(lines: 3),
+        if (formBeside)
+          Expanded(
+            child: Column(
+              key: const ValueKey('ready-controls'),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                readyProgramRow(t, narrow: true),
+                const SizedBox(height: 10),
+                readyModeField(compact: true),
               ],
-            ],
+            ),
+          )
+        else
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                fact('Allocated', formatTime(s.allocatedMs)),
+                fact(
+                  'Used',
+                  formatTime(math.max(0, s.allocatedMs - s.balance(c.now))),
+                ),
+                if (segment.speaker.isNotEmpty)
+                  fact('Speaker', segment.speaker),
+                if (!s.quickTimer)
+                  fact(
+                    'Next',
+                    next == null
+                        ? 'Final segment'
+                        : '${next.name} · ${next.durationText}',
+                  ),
+                if (then != null)
+                  fact('Then', '${then.name} · ${then.durationText}'),
+                if (segment.notes.isNotEmpty && !noteBelow) ...[
+                  const SizedBox(height: 2),
+                  note(lines: 3),
+                ],
+              ],
+            ),
           ),
-        ),
       ],
     );
     final noteUnder = [
@@ -593,15 +667,19 @@ extension MissionControlLive on HomeState {
                 dial,
                 const SizedBox(height: 12),
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.topLeft,
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       // A quick timer has Pause alone.
                       maxWidth: s.quickTimer
                           ? missionPrimaryButtonWidth + 120
                           : missionPrimaryButtonWidth * 2 + 8,
+                      // The Ready form and the controls take the same
+                      // height, so the dial keeps its place when the
+                      // service starts.
+                      minHeight: missionControlsHeight * scale,
                     ),
-                    child: liveControls(enabled),
+                    child: controls,
                   ),
                 ),
                 ...noteUnder,
@@ -615,7 +693,7 @@ extension MissionControlLive on HomeState {
     return Column(
       key: const ValueKey('timer-card-content'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [header, title, dial, liveControls(enabled), ...noteUnder],
+      children: [header, title, dial, controls, ...noteUnder],
     );
   }
 
@@ -634,48 +712,53 @@ extension MissionControlLive on HomeState {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Text(
-                'Rundown',
-                style: TextStyle(
-                  color: colors.muted,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 16),
-              if (s.active) ...[
-                _swatch(colors.warning.withValues(alpha: .45)),
+          // As tall in Ready, without the planning buttons, as while the
+          // service runs, so the sections above keep their size.
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Row(
+              children: [
                 Text(
-                  '  Ran over',
-                  style: TextStyle(color: colors.muted, fontSize: 12),
+                  'Rundown',
+                  style: TextStyle(
+                    color: colors.muted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                if (s.active) ...[
+                  _swatch(colors.warning.withValues(alpha: .45)),
+                  Text(
+                    '  Ran over',
+                    style: TextStyle(color: colors.muted, fontSize: 12),
+                  ),
+                ],
+                const Spacer(),
+                if (s.active) ...[
+                  OutlinedButton.icon(
+                    style: small,
+                    onPressed: enabled ? editUpcoming : null,
+                    icon: const Icon(Icons.edit_calendar_outlined, size: 17),
+                    label: keyLabel('Edit upcoming', 'E'),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    style: small,
+                    onPressed: enabled ? recoverTime : null,
+                    icon: const Icon(Icons.auto_fix_high_outlined, size: 17),
+                    label: keyLabel('Recover time', 'R'),
+                  ),
+                ],
+                IconButton(
+                  key: const ValueKey('print-rundown'),
+                  tooltip: 'Print order of service',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: controlsLocked ? null : () => printServiceSheet(t),
+                  icon: const Icon(Icons.print_outlined, size: 20),
                 ),
               ],
-              const Spacer(),
-              if (s.active) ...[
-                OutlinedButton.icon(
-                  style: small,
-                  onPressed: enabled ? editUpcoming : null,
-                  icon: const Icon(Icons.edit_calendar_outlined, size: 17),
-                  label: keyLabel('Edit upcoming', 'E'),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  style: small,
-                  onPressed: enabled ? recoverTime : null,
-                  icon: const Icon(Icons.auto_fix_high_outlined, size: 17),
-                  label: keyLabel('Recover time', 'R'),
-                ),
-              ],
-              IconButton(
-                key: const ValueKey('print-rundown'),
-                tooltip: 'Print order of service',
-                visualDensity: VisualDensity.compact,
-                onPressed: controlsLocked ? null : () => printServiceSheet(t),
-                icon: const Icon(Icons.print_outlined, size: 20),
-              ),
-            ],
+            ),
           ),
           const SizedBox(height: 4),
           RundownTimeline(
