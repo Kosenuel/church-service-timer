@@ -118,10 +118,20 @@ void main() {
             final header = t.getRect(
               find.byKey(const ValueKey('display-preview-header')),
             );
-            expect(
-              t.getRect(find.text('DISPLAY PREVIEW')).left,
-              closeTo(header.left, .01),
+            // The heading shortens to "PREVIEW" rather than be cut short
+            // where both do not fit in full.
+            final heading = find.descendant(
+              of: find.byKey(const ValueKey('display-preview-header')),
+              matching: find.byWidgetPredicate(
+                (w) =>
+                    w is Text &&
+                    (w.data == 'DISPLAY PREVIEW' || w.data == 'PREVIEW'),
+              ),
             );
+            expect(t.getRect(heading).left, closeTo(header.left, .01));
+            if (width >= 350 && scale == 1) {
+              expect(find.text('DISPLAY PREVIEW'), findsOneWidget);
+            }
             expect(
               t.getRect(find.byType(DisplayConnectionBadge)).right,
               closeTo(header.right, .01),

@@ -8,12 +8,14 @@ import 'package:church_service_timer/live/service_dial.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 
-/// The window height from which Three panes and The dial list the keys
-/// under the middle pane. A 1366 × 768 laptop window has no room for them.
-const keyLegendFromHeight = 800.0;
-
 /// The keys line and the rule above it.
 const keyLegendHeight = 29.0;
+
+/// The least height the ring of Three panes and The dial is given. The
+/// keys line along the bottom of the middle pane shows whenever the ring
+/// still has this much with the line taken out, so a laptop window has
+/// it too, with the ring a little smaller.
+const desktopRingMinRoom = 240.0;
 
 /// The height of the middle pane of Three panes and The dial above the
 /// ring: the padding, the header, a one-line title and the line under it.
@@ -21,7 +23,7 @@ const desktopTimerAbove = 139.0;
 
 /// The height under the ring: Pause, Next segment, the time adjustments
 /// and End service, or the Ready form in their place, and the padding.
-const desktopTimerBelow = 220.0;
+const desktopTimerBelow = 208.0;
 
 /// Live in a wide window: the desktop layouts chosen in Settings ›
 /// Appearance. They arrange the same timer, cues, stage preview and rundown
@@ -148,18 +150,19 @@ extension DesktopLive on HomeState {
         // what has happened, as in Mission control. A laptop does not:
         // there the stage preview and cues fill the pane.
         final tall = space.maxHeight >= 900;
-        // A tall window lists the keys along the bottom of the middle
-        // pane; the timer has the height that is left.
-        // Ready leaves its room, so the ring keeps its size when the
-        // service starts.
+        // The keys line along the bottom of the middle pane, whenever the
+        // ring still has room above the controls with it taken out; the
+        // timer has the height that is left. Ready leaves its room, so the
+        // ring keeps its size when the service starts.
+        final paneWidth = space.maxWidth - side - stage - 2;
         final legendRoom =
             showKeyHints &&
             (s.active || s.phase == 'ready') &&
-            MediaQuery.sizeOf(context).height >= keyLegendFromHeight;
+            desktopRingRoom(paneWidth, space.maxHeight - keyLegendHeight) >=
+                desktopRingMinRoom;
         final legend = legendRoom && s.active;
         final paneHeight = space.maxHeight - (legendRoom ? keyLegendHeight : 0);
         // A large window gives the ring more of the pane.
-        final paneWidth = space.maxWidth - side - stage - 2;
         final large = timer == null
             ? largePaneMode(paneWidth, paneHeight)
             : LargePane.off;
@@ -344,6 +347,43 @@ extension DesktopLive on HomeState {
     return math.max(0, extra);
   }
 
+  /// Whether the private note takes one line under the title rather than
+  /// a block of its own, in a middle pane [paneWidth] by [paneHeight]. The
+  /// Dial layout draws the whole service as a ring and wants the height,
+  /// so it does this in a short window; Three panes in a very short one,
+  /// or wherever the block would leave the ring less than its least room.
+  bool desktopNoteInline(double paneWidth, double paneHeight) {
+    final s = c.liveSession;
+    if (s.timeline!.segments[s.index].notes.isEmpty) return false;
+    return paneHeight < (desktopLayout == 'dial' ? 820 : 680) ||
+        desktopRingRoom(paneWidth, paneHeight, noteInline: false) <
+            desktopRingMinRoom;
+  }
+
+  /// The height the ring has in a middle pane [paneWidth] by [paneHeight]:
+  /// what the rest leaves, the header, title and next line above it, and
+  /// under it the controls and End service, or the Ready form in their
+  /// place, which is about as tall. Both are counted in Ready and while
+  /// running, so the ring keeps its size when the service starts.
+  /// [noteInline] says where the private note goes, if not where
+  /// [desktopNoteInline] puts it.
+  double desktopRingRoom(
+    double paneWidth,
+    double paneHeight, {
+    bool? noteInline,
+  }) {
+    final s = c.liveSession;
+    final segment = s.timeline!.segments[s.index];
+    final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
+    final inline = noteInline ?? desktopNoteInline(paneWidth, paneHeight);
+    final below = segment.notes.isNotEmpty && !inline;
+    return paneHeight -
+        (desktopTimerAbove + desktopTimerBelow) * scale -
+        extraTitleHeight(segment.name, math.min(620.0, paneWidth - 56)) -
+        (inline && segment.notes.isNotEmpty ? 20 * scale : 0) -
+        (below ? 96 * scale : 0);
+  }
+
   /// The running segment in the middle pane: name, countdown, controls,
   /// private note and End service. In Ready the same ring, at the same
   /// size, shows the first segment's full time, and the Ready form takes
@@ -363,27 +403,11 @@ extension DesktopLive on HomeState {
     final next = s.index + 1 < t.segments.length
         ? t.segments[s.index + 1]
         : null;
-    // The Dial layout draws the whole service as a ring. It wants the
-    // height, so in a short window the private note takes one line under
-    // the title instead of its own block.
     final dial = desktopLayout == 'dial';
-    // Three panes does the same in a very short window.
-    final noteInline =
-        segment.notes.isNotEmpty && paneHeight < (dial ? 820 : 680);
+    final noteInline = desktopNoteInline(paneWidth, paneHeight);
     final noteBelow = segment.notes.isNotEmpty && !noteInline;
-    // The ring has the height the rest leaves: the header, title and next
-    // line above it, and under it the controls and End service, or the
-    // Ready form in their place, which is about as tall. Both are counted
-    // in Ready and while running, so the ring keeps its size when the
-    // service starts.
-    final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
     final inner = math.min(620.0, paneWidth - 56);
-    final room =
-        paneHeight -
-        (desktopTimerAbove + desktopTimerBelow) * scale -
-        extraTitleHeight(segment.name, inner) -
-        (noteInline ? 20 * scale : 0) -
-        (noteBelow ? 96 * scale : 0);
+    final room = desktopRingRoom(paneWidth, paneHeight);
     final note = <Widget>[
       if (noteBelow) ...[
         const SizedBox(height: 16),
@@ -448,7 +472,9 @@ extension DesktopLive on HomeState {
             child: ServiceDial(
               session: s,
               now: c.now,
-              size: math.min(room - 10, inner).clamp(280.0, 640.0),
+              size: math
+                  .min(room - 10, inner)
+                  .clamp(desktopRingMinRoom - 10, 640.0),
               onSegment: showSegmentDetails,
             ),
           )
@@ -460,7 +486,7 @@ extension DesktopLive on HomeState {
             // for the warning.
             maxWidth: math
                 .min((room - 32) * 300 / 260, inner)
-                .clamp(270.0, 620.0),
+                .clamp(desktopRingMinRoom, 620.0),
           ),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),

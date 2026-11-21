@@ -429,6 +429,7 @@ void main() {
     // middle pane, not one at its smallest.
     await running(t, size: const Size(1270, 790), advanceAfter: const []);
     expect(ringWidth(t), greaterThan(340));
+    expect(find.byKey(const ValueKey('key-legend')), findsOneWidget);
     await t.pumpWidget(const SizedBox());
     // Wide enough: the controls sit at the ring's right.
     await running(t, size: const Size(2560, 1440));
@@ -547,7 +548,10 @@ void main() {
         expect(t.takeException(), isNull, reason: where);
         expect(ownTimer(shown), findsOneWidget, reason: where);
         final after = t.getRect(ownTimer(shown));
-        expect(after.size, before.size, reason: where);
+        // To a hundredth: Classic's card moves down for the timing bar,
+        // and the move can round the last decimal place.
+        expect(after.width, closeTo(before.width, .01), reason: where);
+        expect(after.height, closeTo(before.height, .01), reason: where);
         if (shown != 'classic') {
           expect(after.topLeft, before.topLeft, reason: where);
         }
@@ -1284,7 +1288,18 @@ void main() {
   });
 
   testWidgets('the private note is in view, not folded away', (t) async {
+    // A laptop window gives it a line under the title, so the ring keeps
+    // its room with the keys line along the foot of the pane.
     await running(t);
+    expect(
+      find.text(
+        'Private note: Altar call follows. Band back on stage at 5:00 left.',
+      ),
+      findsOneWidget,
+    );
+    await t.pumpWidget(const SizedBox());
+    // A taller one, a block of its own under the controls.
+    await running(t, size: const Size(1440, 900));
     expect(
       find.text('Altar call follows. Band back on stage at 5:00 left.'),
       findsOneWidget,

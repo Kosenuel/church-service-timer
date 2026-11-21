@@ -173,7 +173,7 @@ void main() {
     });
 
     for (final layout in const ['three_panes', 'dial']) {
-      testWidgets('$layout has it in a tall window with key labels on', (
+      testWidgets('$layout has it wherever the ring has room for it', (
         t,
       ) async {
         Future<void> check(Size size, {String keyHints = 'automatic'}) async {
@@ -186,7 +186,9 @@ void main() {
           );
           final where = '$size, key labels $keyHints';
           expect(t.takeException(), isNull, reason: where);
-          final tall = size.height >= 800 && keyHints != 'off';
+          // With key labels on, in every window but one too short for
+          // the panes even without it.
+          final tall = size.height > 600 && keyHints != 'off';
           expect(
             key('pane-key-legend'),
             tall ? findsOneWidget : findsNothing,

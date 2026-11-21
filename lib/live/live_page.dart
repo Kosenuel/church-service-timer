@@ -26,10 +26,41 @@ import 'package:church_service_timer/live/simulator_choice.dart';
 import 'package:church_service_timer/live/simulator_matrix.dart';
 
 /// The Live page: standing by, Ready for service and the running service.
-/// Classic puts the controls beside the ring in a window at least this
-/// wide and less than [classicBesideBelowHeight] tall.
+/// Classic fits the ring and controls to a window at least this wide and
+/// less than [classicBesideBelowHeight] tall, or less than
+/// [classicUsualWidth] wide at any height (see [LivePage.classicFit]).
 const classicBesideFromWidth = 1000.0;
 const classicBesideBelowHeight = 1000.0;
+
+/// How Classic sets out the ring and the controls in such a window.
+enum ClassicArrangement {
+  /// The controls beside the ring, under the segment's name: a window
+  /// wide enough for both.
+  beside,
+
+  /// The ring centred under the segment's name and the controls across
+  /// the card under it: a narrow window with height to spare.
+  stacked,
+
+  /// The segment's name beside the ring and the controls across the card
+  /// under both: a narrow, shorter window.
+  titleBeside,
+}
+
+/// The arrangement, the width of the ring, and the width of the column
+/// for the display and cues (null for the usual share of the page).
+typedef ClassicFit = ({
+  ClassicArrangement arrangement,
+  double ring,
+  double? side,
+});
+
+/// The narrowest the display and cue column is made when the ring goes
+/// under the segment's name, so its headings and cues read in full.
+const classicSideMinWidth = 340.0;
+
+/// The card width from which the Ready form sets its rows in pairs.
+const classicReadyPairsFrom = 520.0;
 
 /// The widest Classic's Live page is usually laid out.
 const classicUsualWidth = 1200.0;
@@ -57,6 +88,150 @@ extension LivePage on HomeState {
             MediaQuery.sizeOf(context).width >= classicThreeColumnsFromWindow
         ? classicThreeColumnWidth
         : classicUsualWidth;
+  }
+
+  /// The width a cue button needs for the longest word of any cue on one
+  /// line: the word, the padding, and the icon and number key beside it.
+  /// [dense] buttons, in a desktop layout, have no icon and set the cue in
+  /// the stage face.
+  double cueWordRoom({required bool dense}) {
+    final style = dense
+        ? stageCueStyle
+        : (Theme.of(context).textTheme.labelLarge ?? const TextStyle());
+    var widest = 0.0;
+    for (final cue in c.state.stageCues) {
+      for (final word in cue.text.split(RegExp(r'\s+'))) {
+        if (word.isEmpty) continue;
+        final painter = TextPainter(
+          text: TextSpan(text: word, style: measureBase(context).merge(style)),
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+        )..layout();
+        widest = math.max(widest, painter.width);
+        painter.dispose();
+      }
+    }
+    // The padding at each side, the number key and the space before it,
+    // the icon and the space after it, and a pixel to spare.
+    return widest + 28 + (showKeyHints ? 14 : 0) + (dense ? 0 : 28) + 1;
+  }
+
+  /// The ring beside the controls in a timer card [width] wide inside:
+  /// as large as the height under the title allows, leaving the controls
+  /// room for Pause and Next segment. In the narrowest windows the ring
+  /// gives way, so the labels keep to one line.
+  double classicBesideRing(double width) {
+    final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
+    return math
+        .min(
+          (MediaQuery.sizeOf(context).height - 380 * scale) * 300 / 260,
+          width - 400 * scale,
+        )
+        .clamp(160.0, 440.0)
+        .toDouble();
+  }
+
+  /// How Classic sets out a running or Ready service in a window at least
+  /// [classicBesideFromWidth] wide and less than [classicBesideBelowHeight]
+  /// tall or [classicUsualWidth] wide, with [width] for the timer card and
+  /// the column beside it.
+  ///
+  /// A laptop window has the controls beside the ring. A narrower one,
+  /// such as 1366 × 768 or 1920 × 1200 at 125% or 150% display scaling,
+  /// has too little width for both: there the ring goes under the
+  /// segment's name, or beside it in a shorter window, with the controls
+  /// across the card, whichever gives the larger ring. The display and
+  /// cues then keep a column at least [classicSideMinWidth] wide.
+  ///
+  /// The heights are those of a running service, the tallest of running
+  /// and Ready, so the ring keeps its size when the service starts.
+  ClassicFit classicFit(double width) {
+    final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
+    final height = MediaQuery.sizeOf(context).height;
+    final s = c.liveSession, segment = s.timeline!.segments[s.index];
+    // The card's padding at each side, and the gap between the columns.
+    const padding = 56.0, gap = 20.0;
+    double ringFor(double gaugeHeight) => (gaugeHeight - 32) * 300 / 260;
+    double gaugeOf(double ring) => ring * 260 / 300 + 32;
+
+    // The controls beside the ring, with the usual share for the column,
+    // or enough for the display heading and its badge on one line.
+    final usualSide = (width - gap) * 3 / 10;
+    final narrowSide = 300 * scale > usualSide ? 300 * scale : null;
+    final usualInner = width - gap - (narrowSide ?? usualSide) - padding;
+    final beside = classicBesideRing(usualInner);
+    final besideFits =
+        usualInner - 20 - beside >= (showKeyHints ? 350 : 310) * scale;
+
+    // Under the title, with a column wide enough for the display and cues.
+    final side = math.max(usualSide, classicSideMinWidth * scale);
+    final inner = width - gap - side - padding;
+    final notes = segment.notes.isEmpty ? 0.0 : 56 * scale;
+    final speaker = segment.speaker.isEmpty ? 0.0 : 30 * scale;
+    // From the top of the window to the segment's name: the header, the
+    // timing bar, the card's padding and its first line.
+    final top = 234 * scale;
+    // The name, the next segment and the speaker.
+    double titleHeight(double across) =>
+        (72 * scale) +
+        speaker +
+        notes +
+        extraTitleHeight(segment.name, across + 48, size: 27);
+    // Under the ring: the controls and End service, or the Ready form,
+    // and the foot of the card and the page. Ready has no timing bar, so
+    // its card starts 62 higher.
+    final pairs = inner >= classicReadyPairsFrom * scale;
+    final under =
+        math.max(214.0, (pairs ? 196.0 : 252.0) + 16 - 62) * scale + 44;
+    final stacked = math.min(
+      ringFor(height - top - titleHeight(inner) - 8 - under),
+      math.min(inner, 440.0),
+    );
+    // The name, what follows and the speaker take a column beside it,
+    // with Check this service under them in Ready.
+    final titleWidth = 200 * scale;
+    final titleBesideRing = math.min(
+      ringFor(height - top - under),
+      math.min(inner - 24 - titleWidth, 440.0),
+    );
+    final titleBesideFits =
+        titleHeight(inner - 24 - titleBesideRing) + 64 * scale <=
+        gaugeOf(titleBesideRing) + 8;
+
+    final options = <ClassicFit>[
+      if (besideFits)
+        (
+          arrangement: ClassicArrangement.beside,
+          ring: beside,
+          side: narrowSide,
+        ),
+      // A ring under 230 wide moves its labels outside it; not worth it.
+      if (stacked >= 230)
+        (arrangement: ClassicArrangement.stacked, ring: stacked, side: side),
+      if (titleBesideFits && titleBesideRing >= 230)
+        (
+          arrangement: ClassicArrangement.titleBeside,
+          ring: titleBesideRing,
+          side: side,
+        ),
+    ];
+    if (options.isEmpty) {
+      return (
+        arrangement: ClassicArrangement.beside,
+        ring: beside,
+        side: narrowSide,
+      );
+    }
+    final best = options.reduce((a, b) => b.ring > a.ring ? b : a);
+    // The ring under the title fills the card down to the foot of the
+    // window, where beside the title it leaves a band empty: worth a
+    // ring a little smaller.
+    final ringFirst = options
+        .where((o) => o.arrangement == ClassicArrangement.stacked)
+        .firstOrNull;
+    return ringFirst != null && ringFirst.ring >= best.ring * .92
+        ? ringFirst
+        : best;
   }
 
   Widget live() => AnimatedBuilder(
@@ -833,268 +1008,345 @@ extension LivePage on HomeState {
       ),
       radius: 12,
     );
-    // A wide window less than 1000 tall, such as a laptop: Classic puts
-    // the controls beside the ring, so they stay in view without
-    // scrolling.
+    // A wide window less than 1000 tall, such as a laptop, or one too
+    // narrow for the desktop layouts at any height: Classic sizes the ring
+    // to the window and keeps the controls in view without scrolling,
+    // beside the ring or under it (see [classicFit]).
     final screen = MediaQuery.sizeOf(context);
-    final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
     final shortWide =
         !liveFillsWindow &&
         !focused &&
         t != null &&
         (s.active || s.phase == 'ready') &&
         screen.width >= classicBesideFromWidth &&
-        screen.height < classicBesideBelowHeight;
-    Widget timerPanelOf({required bool wide}) => panel(
-      child: Column(
-        key: const ValueKey('timer-card-content'),
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          timerHeader,
-          const SizedBox(height: 8),
-          if (t == null)
-            const Text(
-              'Ready when you are',
-              style: TextStyle(
-                fontSize: 27,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
-              ),
-            )
-          else
-            Semantics(
-              button: s.active,
-              enabled: canJump,
-              hint: s.active ? 'Jump to segment' : null,
-              child: InkWell(
-                key: const ValueKey('jump-to-segment'),
-                borderRadius: BorderRadius.circular(8),
-                onTap: s.active && canJump ? jumpToSegment : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          t.segments[s.index].name,
-                          style: const TextStyle(
-                            fontSize: 27,
-                            fontWeight: FontWeight.w600,
-                            height: 1.2,
-                          ),
-                        ),
-                      ),
-                      if (s.active && canJump) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.expand_more,
-                          color: appColors(context).muted,
-                          semanticLabel: 'Jump to segment',
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
+        (screen.height < classicBesideBelowHeight ||
+            screen.width < classicUsualWidth);
+    // Set from the width of the page before the timer card is built.
+    ClassicFit fit = (
+      arrangement: ClassicArrangement.beside,
+      ring: 0.0,
+      side: null,
+    );
+    Widget timerPanelOf({required bool wide}) {
+      final arranged = wide && shortWide;
+      final arrangement = arranged ? fit.arrangement : null;
+      final title = <Widget>[
+        if (t == null)
+          const Text(
+            'Ready when you are',
+            style: TextStyle(
+              fontSize: 27,
+              fontWeight: FontWeight.w600,
+              height: 1.2,
             ),
-          if (t != null) ...[
-            const SizedBox(height: 6),
-            if (!s.quickTimer)
-              Text(
-                s.index + 1 < t.segments.length
-                    ? 'Next · ${t.segments[s.index + 1].name} · ${t.segments[s.index + 1].durationText}'
-                    : 'Final segment',
-                style: TextStyle(color: appColors(context).muted),
-              ),
-            if (s.active && !wide) ...[
-              const SizedBox(height: 12),
-              timingStatusLine(),
-            ],
-            const SizedBox(height: 6),
-            if (t.segments[s.index].speaker.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Text('Speaker: ${t.segments[s.index].speaker}'),
-              ),
-            if (t.segments[s.index].notes.isNotEmpty)
-              OperatorNotes(
-                key: ValueKey('${s.id}-${s.index}'),
-                notes: t.segments[s.index].notes,
-              ),
-            if (!(wide && shortWide)) SegmentGauge(session: s, now: c.now),
-          ] else
-            const SizedBox(height: 18),
-          if (!s.active && s.phase != 'ready' && !c.reportSavePending)
-            // Side by side when they fit, stacked at large text sizes.
-            ControlGrid(
-              maxColumns: 2,
-              minWidth: 150,
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 54),
-                  child: button(
-                    'Start service',
-                    Icons.play_arrow,
-                    c.busy || c.corrupt ? null : chooseService,
-                    primary: true,
-                  ),
-                ),
-                // A single countdown with no program or Ready step.
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 54),
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('quick-timer-live'),
-                    onPressed: quickTimerAvailable ? openQuickTimer : null,
-                    icon: const Icon(Icons.timer_outlined),
-                    label: const Text(
-                      'Quick timer',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          if (standingBy) ...[
-            const SizedBox(height: 10),
-            ControlGrid(
-              maxColumns: 2,
-              children: [
-                OutlinedButton.icon(
-                  key: const ValueKey('share-service-live'),
-                  onPressed:
-                      c.busy ||
-                          c.corrupt ||
-                          c.reportSavePending ||
-                          controlsLocked
-                      ? null
-                      : shareServiceSetup,
-                  icon: const Icon(Icons.cast_connected),
-                  label: Text(
-                    c.pairing.hosting ? 'Manage sharing' : 'Share to screens',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed:
-                      c.busy ||
-                          c.corrupt ||
-                          c.reportSavePending ||
-                          controlsLocked ||
-                          !c.pairing.localControl
-                      ? null
-                      : joinAsStageScreen,
-                  icon: const Icon(Icons.tablet_mac_outlined),
-                  label: const Text(
-                    'Join a service',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          // Ready already counts battery in its "things to check" row.
-          if (standingBy &&
-              c.batteryUnrestricted == false &&
-              !batteryHintDismissed)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Material(
-                key: const ValueKey('battery-hint'),
-                color: appColors(context).warning.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: c.port.openBatterySettings,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.battery_alert_outlined,
-                          size: 20,
-                          color: appColors(context).warning,
-                        ),
-                        const SizedBox(width: 10),
-                        const Expanded(
-                          child: Text(
-                            'Battery optimisation may delay warnings with the screen off. Tap to fix.',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        IconButton(
-                          key: const ValueKey('battery-hint-dismiss'),
-                          tooltip: 'Hide until the app is next opened',
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: () =>
-                              refreshHome(() => batteryHintDismissed = true),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          if (wide && shortWide)
-            LayoutBuilder(
-              builder: (context, box) {
-                // As large as the height under the title allows, leaving
-                // the controls beside it room for Pause and Next segment.
-                final ring = math
-                    .min(
-                      (screen.height - 380 * scale) * 300 / 260,
-                      box.maxWidth - 400 * scale,
-                    )
-                    .clamp(200.0, 440.0)
-                    .toDouble();
-                return Row(
-                  key: const ValueKey('classic-beside'),
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          )
+        else
+          Semantics(
+            button: s.active,
+            enabled: canJump,
+            hint: s.active ? 'Jump to segment' : null,
+            child: InkWell(
+              key: const ValueKey('jump-to-segment'),
+              borderRadius: BorderRadius.circular(8),
+              onTap: s.active && canJump ? jumpToSegment : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
                   children: [
-                    SizedBox(
-                      width: ring,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SegmentGauge(session: s, now: c.now, maxWidth: ring),
-                          // Under the ring, so Start and Cancel setup have
-                          // a line of their own.
-                          if (s.phase == 'ready')
-                            Center(child: checkServiceButton(t)),
-                        ],
+                    Flexible(
+                      child: Text(
+                        t.segments[s.index].name,
+                        style: const TextStyle(
+                          fontSize: 27,
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: s.active
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                liveControls(enabled),
-                                const SizedBox(height: 16),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: endServiceButton(compact: true),
-                                ),
-                              ],
-                            )
-                          : readyControls(compact: true, check: false),
+                    if (s.active && canJump) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.expand_more,
+                        color: appColors(context).muted,
+                        semanticLabel: 'Jump to segment',
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        if (t != null) ...[
+          const SizedBox(height: 6),
+          if (!s.quickTimer)
+            Text(
+              s.index + 1 < t.segments.length
+                  // The time keeps to the end of the name, as "20 min", not
+                  // split over two lines.
+                  ? 'Next · ${t.segments[s.index + 1].name}\u00a0·\u00a0${t.segments[s.index + 1].durationText.replaceAll(' ', '\u00a0')}'
+                  : 'Final segment',
+              style: TextStyle(color: appColors(context).muted),
+            ),
+          if (s.active && !wide) ...[
+            const SizedBox(height: 12),
+            timingStatusLine(),
+          ],
+          const SizedBox(height: 6),
+          if (t.segments[s.index].speaker.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text('Speaker: ${t.segments[s.index].speaker}'),
+            ),
+          if (t.segments[s.index].notes.isNotEmpty)
+            OperatorNotes(
+              key: ValueKey('${s.id}-${s.index}'),
+              notes: t.segments[s.index].notes,
+            ),
+        ],
+      ];
+      final gauge = arranged
+          ? SegmentGauge(session: s, now: c.now, maxWidth: fit.ring)
+          : SegmentGauge(session: s, now: c.now);
+      // Under the ring and across the card: the controls and End service,
+      // or the Ready form in their place.
+      final under = <Widget>[
+        const SizedBox(height: 16),
+        if (s.active) ...[
+          liveControls(enabled),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: endServiceButton(compact: true),
+          ),
+        ] else
+          readyControls(
+            compact: true,
+            check: arrangement == ClassicArrangement.stacked,
+            pairsFrom: classicReadyPairsFrom,
+          ),
+      ];
+      return panel(
+        child: Column(
+          key: const ValueKey('timer-card-content'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            timerHeader,
+            const SizedBox(height: 8),
+            if (arrangement == ClassicArrangement.titleBeside) ...[
+              // The ring at the left with the segment's name, what follows
+              // and the speaker beside it, and the controls across the card
+              // under both: the most ring a short, narrow window allows.
+              Row(
+                key: const ValueKey('classic-title-beside'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(width: fit.ring, child: gauge),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ...title,
+                        if (s.phase == 'ready') ...[
+                          const SizedBox(height: 16),
+                          checkServiceButton(t!),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              ...under,
+            ] else if (arrangement == ClassicArrangement.stacked) ...[
+              // The ring centred under the title, as large as the height
+              // allows, and the controls across the card under it.
+              ...title,
+              Center(
+                key: const ValueKey('classic-stacked'),
+                child: SizedBox(width: fit.ring, child: gauge),
+              ),
+              ...under,
+            ] else ...[
+              ...title,
+              if (t != null && !arranged) gauge,
+              if (t == null) const SizedBox(height: 18),
+              if (!s.active && s.phase != 'ready' && !c.reportSavePending)
+                // Side by side when they fit, stacked at large text sizes.
+                ControlGrid(
+                  maxColumns: 2,
+                  minWidth: 150,
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 54),
+                      child: button(
+                        'Start service',
+                        Icons.play_arrow,
+                        c.busy || c.corrupt ? null : chooseService,
+                        primary: true,
+                      ),
+                    ),
+                    // A single countdown with no program or Ready step.
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 54),
+                      child: OutlinedButton.icon(
+                        key: const ValueKey('quick-timer-live'),
+                        onPressed: quickTimerAvailable ? openQuickTimer : null,
+                        icon: const Icon(Icons.timer_outlined),
+                        label: const Text(
+                          'Quick timer',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ),
                   ],
-                );
-              },
-            )
-          else if (s.phase == 'ready')
-            readyControls()
-          else if (s.active) ...[
-            liveControls(enabled),
-            // Set apart from the time adjustments above, so a slip doesn't
-            // land on End service.
-            const SizedBox(height: 28),
-            endServiceButton(),
+                ),
+              if (standingBy) ...[
+                const SizedBox(height: 10),
+                ControlGrid(
+                  maxColumns: 2,
+                  children: [
+                    OutlinedButton.icon(
+                      key: const ValueKey('share-service-live'),
+                      onPressed:
+                          c.busy ||
+                              c.corrupt ||
+                              c.reportSavePending ||
+                              controlsLocked
+                          ? null
+                          : shareServiceSetup,
+                      icon: const Icon(Icons.cast_connected),
+                      label: Text(
+                        c.pairing.hosting
+                            ? 'Manage sharing'
+                            : 'Share to screens',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed:
+                          c.busy ||
+                              c.corrupt ||
+                              c.reportSavePending ||
+                              controlsLocked ||
+                              !c.pairing.localControl
+                          ? null
+                          : joinAsStageScreen,
+                      icon: const Icon(Icons.tablet_mac_outlined),
+                      label: const Text(
+                        'Join a service',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              // Ready already counts battery in its "things to check" row.
+              if (standingBy &&
+                  c.batteryUnrestricted == false &&
+                  !batteryHintDismissed)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Material(
+                    key: const ValueKey('battery-hint'),
+                    color: appColors(context).warning.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: c.port.openBatterySettings,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.battery_alert_outlined,
+                              size: 20,
+                              color: appColors(context).warning,
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Battery optimisation may delay warnings with the screen off. Tap to fix.',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                            ),
+                            IconButton(
+                              key: const ValueKey('battery-hint-dismiss'),
+                              tooltip: 'Hide until the app is next opened',
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () => refreshHome(
+                                () => batteryHintDismissed = true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              if (arranged)
+                LayoutBuilder(
+                  builder: (context, box) {
+                    // As large as the height under the title allows, leaving
+                    // the controls beside it room for Pause and Next segment.
+                    final ring = classicBesideRing(box.maxWidth);
+                    return Row(
+                      key: const ValueKey('classic-beside'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: ring,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SegmentGauge(
+                                session: s,
+                                now: c.now,
+                                maxWidth: ring,
+                              ),
+                              // Under the ring, so Start and Cancel setup have
+                              // a line of their own; with them under a ring
+                              // too small for it.
+                              if (s.phase == 'ready' && ring >= 200)
+                                Center(child: checkServiceButton(t)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: s.active
+                              ? Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    liveControls(enabled),
+                                    const SizedBox(height: 16),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: endServiceButton(compact: true),
+                                    ),
+                                  ],
+                                )
+                              : readyControls(compact: true, check: ring < 200),
+                        ),
+                      ],
+                    );
+                  },
+                )
+              else if (s.phase == 'ready')
+                readyControls()
+              else if (s.active) ...[
+                liveControls(enabled),
+                // Set apart from the time adjustments above, so a slip doesn't
+                // land on End service.
+                const SizedBox(height: 28),
+                endServiceButton(),
+              ],
+            ],
           ],
-        ],
-      ),
-    );
+        ),
+      );
+    }
+
     final dense = liveFillsWindow;
     final displayPanel = c.destination == 'mobile'
         ? panel(
@@ -1277,8 +1529,9 @@ extension LivePage on HomeState {
           ControlGrid(
             maxColumns: 3,
             // A desktop layout's narrow cue pane still takes three, as
-            // its buttons have no icon.
-            minWidth: dense ? 96 : 118,
+            // its buttons have no icon. Never so narrow that a word of a
+            // cue breaks across lines.
+            minWidth: math.max(dense ? 96 : 118, cueWordRoom(dense: dense)),
             fillLastRow: true,
             children: c.state.stageCues.asMap().entries.map((e) {
               final active = e.key == activeCueIndex;
@@ -1694,6 +1947,23 @@ extension LivePage on HomeState {
         final wide = constraints.maxWidth >= 760;
         // A very wide window has a column for the rundown.
         final threeColumns = constraints.maxWidth > classicUsualWidth;
+        if (wide && shortWide) fit = classicFit(constraints.maxWidth);
+        Widget sideColumn() => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            displayPanel,
+            const SizedBox(height: 16),
+            cuePanel,
+            if (c.destination == 'mobile') ...[
+              const SizedBox(height: 16),
+              quickMessagePanel(),
+            ],
+            if (showRundown && !threeColumns) ...[
+              const SizedBox(height: 16),
+              rundownPanel(),
+            ],
+          ],
+        );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1833,25 +2103,13 @@ extension LivePage on HomeState {
                     child: timerPanelOf(wide: true),
                   ),
                   const SizedBox(width: 20),
-                  Expanded(
-                    flex: shortWide ? 3 : 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        displayPanel,
-                        const SizedBox(height: 16),
-                        cuePanel,
-                        if (c.destination == 'mobile') ...[
-                          const SizedBox(height: 16),
-                          quickMessagePanel(),
-                        ],
-                        if (showRundown && !threeColumns) ...[
-                          const SizedBox(height: 16),
-                          rundownPanel(),
-                        ],
-                      ],
-                    ),
-                  ),
+                  // A narrow window gives the display and cues a column of
+                  // their own width, so their headings and cues read in
+                  // full.
+                  if (shortWide && fit.side != null)
+                    SizedBox(width: fit.side, child: sideColumn())
+                  else
+                    Expanded(flex: shortWide ? 3 : 5, child: sideColumn()),
                   if (showRundown && threeColumns) ...[
                     const SizedBox(width: 20),
                     Expanded(flex: 4, child: rundownPanel()),
