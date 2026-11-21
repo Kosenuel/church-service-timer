@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built. From 0.35.0, version numbers follow [Semantic Versioning](https://semver.org) (MAJOR.MINOR.PATCH); see [Versioning](docs/BUILD.md#versioning) for how each release's number is chosen.
 
+## Unreleased
+
+- **Check for updates ignores test versions.** A test version (one with a hyphen after its number, such as 0.36.0-beta.1) is never offered as an update, by Check for updates or the automatic check. A phone or PC running a test version is still offered the real version that follows it, for example 0.36.0 after 0.36.0-beta.1. A test version's number shows in full in About.
+
 ## 0.35.0, 21/November/2026
 
 - **The Ready line no longer points at the wrong place.** With a pre-service start time set, the line under Ready said the display "follows the pre-service start time above", but in Mission control and some other layouts the pre-service countdown is not above it. It now reads "Timing has not started. The display shows the pre-service countdown until you start the first segment." in every layout.
