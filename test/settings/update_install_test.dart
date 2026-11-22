@@ -182,6 +182,27 @@ void main() {
       },
     );
 
+    test(
+      'a beta install is offered the stable release and its files',
+      () async {
+        final update =
+            await UpdateChecker(
+                  (_) async => fullRelease(),
+                ).check('0.33.0-beta.1 (41)')
+                as UpdateAvailable;
+        expect(update.version, '0.33.0');
+        expect(update.assets.map((a) => a.name), contains(_setup));
+        // The same release is no update for the same beta's own stable number
+        // or above, and a beta tag is never an update.
+        expect(
+          await UpdateChecker(
+            (_) async => fullRelease(tag: 'v0.33.0-beta.2'),
+          ).check('0.32.0 (37)'),
+          isA<UpToDate>(),
+        );
+      },
+    );
+
     test('files from anywhere else, or without a size, are left out', () async {
       final update = await found(
         releaseWith([

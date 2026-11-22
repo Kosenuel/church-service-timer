@@ -4,6 +4,7 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+- **Check for updates ignores test versions.** A test version (one with a hyphen after its number, such as 0.36.0-beta.1) is never offered as an update, by Check for updates or the automatic check. A phone or PC running a test version is still offered the real version that follows it, for example 0.36.0 after 0.36.0-beta.1. A test version's number shows in full in About.
 - **Ctrl+K and the other Ctrl keys keep working.** On a PC they could work once and then only now and then. Two things could cause that, and both are fixed: a key press the keyboard reported as a held-down repeat (after a key release went missing) was ignored, and the app's idea of which keys were held could go wrong after another window, such as the mini timer, had the keyboard. A press after a pause now always counts, and the held keys are checked again whenever the window changes. Ctrl+K and Ctrl+M also work if a text box had kept the keyboard.
 - **The key line always shows ? and Ctrl K.** In a narrow window the line along the bottom of Live drops the least needed keys. **? Keys** and **Ctrl K Commands** now always stay, at the end, so you can always find the list of keys and the Commands list.
 
