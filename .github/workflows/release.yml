@@ -2,6 +2,13 @@ name: Release
 
 # Push a tag such as v0.24.0 to publish a GitHub Release with the signed APK
 # and that version's CHANGELOG.md section.
+#
+# A tag with a hyphen, such as v0.36.0-beta.1 or v1.0.0-rc.1, is a test
+# version (Semantic Versioning pre-release). It is built and published the
+# same way except that: the release is marked Pre-release (never "latest", so
+# the app's Check for updates ignores it), no Google Play bundle is built or
+# attached, and the guide site copy is marked Pre-release too. See
+# docs/BUILD.md > Test releases.
 on:
   push:
     tags: ['v*.*.*']
@@ -24,6 +31,10 @@ jobs:
         id: version
         run: |
           tag="${GITHUB_REF_NAME#v}"
+          if ! echo "$tag" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$'; then
+            echo "::error::Tag $GITHUB_REF_NAME is not vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-pre.release."
+            exit 1
+          fi
           pubspec=$(grep '^version:' pubspec.yaml | sed 's/version: //; s/+.*//')
           app=$(grep -o "appVersion = '[^ ']*" lib/domain/app_settings.dart | sed "s/appVersion = '//")
           echo "tag=$tag pubspec=$pubspec app=$app"
@@ -32,6 +43,11 @@ jobs:
             exit 1
           fi
           echo "version=$tag" >> "$GITHUB_OUTPUT"
+          # Anything after a hyphen makes it a test version.
+          case "$tag" in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - name: Extract release notes
         run: python3 scripts/release_notes.py "${{ steps.version.outputs.version }}" > "$RUNNER_TEMP/notes.md"
@@ -71,8 +87,11 @@ jobs:
         run: flutter build apk --release
 
       # The Android App Bundle that Google Play needs. Signed with the same
-      # release key, which Play uses as the upload key.
+      # release key, which Play uses as the upload key. Not built for a test
+      # version: it is not for Google Play, and an upload there is a manual
+      # step for a real release.
       - name: Build release App Bundle for Google Play
+        if: steps.version.outputs.prerelease != 'true'
         env:
           CST_KEYSTORE_PASSWORD: ${{ secrets.CST_KEYSTORE_PASSWORD }}
           CST_KEY_ALIAS: ${{ secrets.CST_KEY_ALIAS }}
@@ -85,15 +104,27 @@ jobs:
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk "dist/Church-Service-Timer-$version.apk"
           (cd dist && sha256sum "Church-Service-Timer-$version.apk" > "Church-Service-Timer-$version.apk.sha256")
-          cp build/app/outputs/bundle/release/app-release.aab "dist/Church-Service-Timer-$version.aab"
+          if [ "${{ steps.version.outputs.prerelease }}" != "true" ]; then
+            cp build/app/outputs/bundle/release/app-release.aab "dist/Church-Service-Timer-$version.aab"
+          fi
+          update_hint=" A PC with 0.34.0 or later can instead use Settings › About › **Check for updates** › **Download and install**."
+          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then
+            update_hint=" Install it over your current copy."
+          fi
           {
             echo
             echo "---"
+            if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then
+              echo "**Test version.** This is a pre-release for trying before the real release. Check for updates in the app does not offer it, and it is not the latest version."
+              echo
+            fi
             echo "**Android:** download \`Church-Service-Timer-$version.apk\` on the phone and open it (Android 7.0 or newer)."
             echo
-            echo "**Windows:** download \`Church-Service-Timer-$version-windows-setup.exe\` on the PC and open it (64-bit Windows 10 or 11). It is not code-signed, so Windows may say \"Windows protected your PC\" the first time: choose **More info**, then **Run anyway**. A PC with 0.34.0 or later can instead use Settings › About › **Check for updates** › **Download and install**."
-            echo
-            echo "The \`.aab\` file is the bundle uploaded to Google Play; it can't be installed directly."
+            echo "**Windows:** download \`Church-Service-Timer-$version-windows-setup.exe\` on the PC and open it (64-bit Windows 10 or 11). It is not code-signed, so Windows may say \"Windows protected your PC\" the first time: choose **More info**, then **Run anyway**.${update_hint}"
+            if [ "${{ steps.version.outputs.prerelease }}" != "true" ]; then
+              echo
+              echo "The \`.aab\` file is the bundle uploaded to Google Play; it can't be installed directly."
+            fi
             echo
             echo "APK SHA-256: \`$(cut -d' ' -f1 "dist/Church-Service-Timer-$version.apk.sha256")\`"
           } >> "$RUNNER_TEMP/notes.md"
@@ -103,10 +134,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version="${{ steps.version.outputs.version }}"
+          # A test version is marked Pre-release, which also keeps it from
+          # being "latest" (the app's Check for updates reads the latest).
+          flags=""
+          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then
+            flags="--prerelease"
+          fi
           gh release create "$GITHUB_REF_NAME" dist/* \
             --title "Church Service Timer $version" \
             --notes-file "$RUNNER_TEMP/notes.md" \
-            --verify-tag
+            --verify-tag $flags
 
   # The Windows app: a zip of the program folder and an installer, each with
   # a .sha256 checksum file, added to the GitHub Release once it exists. It runs after the Android release is
