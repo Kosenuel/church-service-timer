@@ -101,6 +101,11 @@ class AppState {
   /// Check for updates automatically, and what that last found. Local to
   /// this device; not part of backups.
   AutoUpdateSettings autoUpdate;
+
+  /// The app version the "what's new" notice on Live was last dealt with
+  /// for (x.y.z or x.y.z-pre), or null when nothing was seen. Local to this
+  /// device; not part of backups.
+  String? seenVersion;
   AppState(
     this.templates,
     this.defaults,
@@ -129,6 +134,7 @@ class AppState {
     Set<String>? dismissedHints,
     List<QuickTimerChoice>? recentQuickTimers,
     AutoUpdateSettings? autoUpdate,
+    this.seenVersion,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -332,6 +338,7 @@ class AppState {
           ?QuickTimerChoice.tryRead(r),
       ].take(quickTimerRecentLimit).toList(),
       autoUpdate: AutoUpdateSettings.fromJson(j['autoUpdate']),
+      seenVersion: readSeenVersion(j['seenVersion']),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -478,6 +485,7 @@ class AppState {
     'dismissedHints': [...dismissedHints],
     'recentQuickTimers': [for (final r in recentQuickTimers) r.toJson()],
     'autoUpdate': autoUpdate.toJson(),
+    if (seenVersion != null) 'seenVersion': seenVersion,
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
     'fullScreenLayout': fullScreenLayout,
