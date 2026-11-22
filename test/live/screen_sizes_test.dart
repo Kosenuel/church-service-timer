@@ -149,6 +149,25 @@ void main() {
           final where = '$layout at $size, segment $segment';
           expect(t.takeException(), isNull, reason: where);
           inReach(t, legend, size, where);
+          // ? and Ctrl K are never dropped, and are always the last two.
+          final keysHint = find.descendant(
+            of: legend,
+            matching: find.textContaining('?  Keys', findRichText: true),
+          );
+          final commandsHint = find.descendant(
+            of: legend,
+            matching: find.textContaining(
+              'Ctrl K  Commands',
+              findRichText: true,
+            ),
+          );
+          inReach(t, keysHint, size, 'the ? key, $where');
+          inReach(t, commandsHint, size, 'Ctrl K, $where');
+          expect(
+            t.getTopLeft(keysHint).dx,
+            lessThan(t.getTopLeft(commandsHint).dx),
+            reason: where,
+          );
           // The keys line sits along the foot of the window or the pane,
           // under every timer control.
           final top = t.getRect(legend).top;

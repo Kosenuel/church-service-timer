@@ -159,7 +159,7 @@ void main() {
         text(),
         'Space  Pause · PgDn PgDn  Next · + −  Adjust time · Ctrl Z  Undo · '
         'J  Jump to segment · 1 – 9  Cues · M  Message · Ctrl L  Lock · '
-        'Ctrl K  Commands · Timer changes ask to confirm',
+        '?  Keys · Ctrl K  Commands · Timer changes ask to confirm',
       );
       await t.pumpWidget(const SizedBox());
       // Keys has it too.
@@ -293,16 +293,20 @@ void main() {
       // The reminder goes before any key.
       final middling = await shown(1100);
       expect(middling, isNot(contains('Timer changes ask to confirm')));
-      expect(middling.length, 9);
+      expect(middling.length, 10);
       final narrow = await shown(600);
       expect(narrow, contains('Space  Pause'));
       expect(narrow, contains('PgDn PgDn  Next'));
-      expect(narrow, isNot(contains('Ctrl K  Commands')));
+      // ? and Ctrl K stay at the end however narrow it is.
+      expect(narrow.sublist(narrow.length - 2), [
+        '?  Keys',
+        'Ctrl K  Commands',
+      ]);
+      expect(narrow, isNot(contains('M  Message')));
       // The keys keep their order.
       expect(narrow.indexOf('Space  Pause'), 0);
-      final tiny = await shown(200, status: 'Display connected');
+      final tiny = await shown(420, status: 'Display connected');
       expect(tiny, contains('Display connected'));
-      expect(await shown(80), isEmpty);
       await t.pumpWidget(const SizedBox());
     });
 

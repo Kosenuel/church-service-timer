@@ -290,6 +290,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       }
     } finally {
       _miniTimerChanging = false;
+      // The window changed under the keyboard: Ctrl may have been let go
+      // in the other one.
+      syncKeyboard();
     }
     // The service may have ended while the window was changing.
     if (mounted && miniTimer && !miniTimerAvailable) {
@@ -390,6 +393,47 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       unawaited(goToPage(page + direction, slide: direction));
   DateTime? _clickerNextArmed;
 
+  /// How long a key can be held before its repeats count as one press.
+  /// Windows repeats a held key every 30 ms or so after about half a
+  /// second; a repeat that comes after a longer silence is a new press
+  /// whose key-down was lost.
+  static const keyRepeatSilence = Duration(milliseconds: 900);
+
+  /// The clock the silence is measured on; a test replaces it.
+  @visibleForTesting
+  Duration Function() keyClock = () => _wallClock.elapsed;
+  static final _wallClock = Stopwatch()..start();
+  final _lastKeyEvent = <LogicalKeyboardKey, Duration>{};
+
+  /// Whether [event] is a new press of its key. A key-down is. A repeat is
+  /// only when nothing was heard from that key for a while: on Windows a
+  /// key-up can go missing (a window or the on-screen keyboard took it),
+  /// and the engine then reports the next press as a repeat for good, so
+  /// the shortcut would work only every other time.
+  bool _isFreshPress(KeyEvent event) {
+    final now = keyClock();
+    final before = _lastKeyEvent[event.logicalKey];
+    if (event is KeyUpEvent) {
+      _lastKeyEvent.remove(event.logicalKey);
+      return false;
+    }
+    _lastKeyEvent[event.logicalKey] = now;
+    if (event is KeyDownEvent) return true;
+    return before == null || now - before > keyRepeatSilence;
+  }
+
+  /// Puts the keyboard's record of which keys are down right again. A key
+  /// released while another window had the keyboard (Alt+Tab, the mini
+  /// timer, the second screen) never reaches this one, and Ctrl would stay
+  /// held in the record.
+  void syncKeyboard() {
+    try {
+      unawaited(
+        HardwareKeyboard.instance.syncKeyboardState().catchError((_) {}),
+      );
+    } catch (_) {}
+  }
+
   /// Whether the keyboard is typing into a text field just now.
   bool get typingInField {
     final focus = FocusManager.instance.primaryFocus?.context;
@@ -405,7 +449,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   /// Ignored while typing, while a dialog or another page is on top, and
   /// whenever touch controls would be unavailable.
   bool onClickerKey(KeyEvent event) {
-    if (event is! KeyDownEvent || !mounted || !c.ready) return false;
+    if (!mounted || !c.ready) return false;
+    if (!_isFreshPress(event)) return false;
     // The clicker test page only shows what a key would do: nothing
     // pressed there reaches the service.
     if (clickerTestOpen) return false;
@@ -418,7 +463,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
           event.logicalKey,
           control: HardwareKeyboard.instance.isControlPressed,
         )) {
-      if (!commandPaletteAvailable || typingInField) return false;
+      // Ctrl+K means nothing to a text field, so a field that kept the
+      // keyboard does not block it.
+      if (!commandPaletteAvailable) return false;
       unawaited(openCommandPalette());
       return true;
     }
@@ -428,7 +475,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
           event.logicalKey,
           control: HardwareKeyboard.instance.isControlPressed,
         )) {
-      if (controlsLocked || typingInField) return false;
+      if (controlsLocked) return false;
       if (!miniTimer && !miniTimerAvailable) return false;
       unawaited(setMiniTimer(!miniTimer));
       return true;
@@ -683,6 +730,9 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Whatever happened to the keys while another window had the
+    // keyboard, the record is right again before the next press.
+    if (c.port.isDesktop) syncKeyboard();
     if (c.port.isDesktop) {
       // A desktop app keeps running when its window is minimised or
       // behind another, so the service is never suspended; only Settings
