@@ -372,6 +372,12 @@ int stageAccentRgbOf(Color accent) {
 AppPalette appColors(BuildContext context) =>
     Theme.of(context).extension<AppPalette>() ?? appPalettes.first;
 
+/// The app's own text face, on every platform. The app ships Roboto, but a
+/// theme with no font of its own lets Windows draw ordinary text (buttons,
+/// headings, lists) in Segoe UI, whose letters are a different width, so the
+/// layouts that are tested here could wrap or cut words on a PC.
+const appFontFamily = 'Roboto';
+
 ThemeData appTheme(
   String id, {
   AppearancePreferences appearance = const AppearancePreferences(),
@@ -403,6 +409,7 @@ ThemeData appTheme(
   final brightness = p.light ? Brightness.light : Brightness.dark;
   return ThemeData(
     useMaterial3: true,
+    fontFamily: appFontFamily,
     brightness: brightness,
     extensions: [p, layout],
     materialTapTargetSize: MaterialTapTargetSize.padded,
