@@ -61,6 +61,7 @@ class AutoUpdateCheck {
     _serviceChecks++;
     _changed();
   }
+
   void serviceCheckClosed() {
     if (_serviceChecks > 0) _serviceChecks--;
     _changed();
@@ -142,10 +143,12 @@ class AutoUpdateCheck {
     if (!saved.enabled || version == null || version == saved.dismissed) {
       return null;
     }
-    final mine = versionNumbers(app.appVersion);
+    final mine = parseVersion(app.appVersion);
     final theirs = versionNumbers(version);
     if (mine == null || theirs == null) return null;
-    return compareVersions(theirs, mine) > 0 ? version : null;
+    return compareParsed((numbers: theirs, pre: null), mine) > 0
+        ? version
+        : null;
   }
 
   /// Not now: hides the notice for [version]; a newer one shows again.

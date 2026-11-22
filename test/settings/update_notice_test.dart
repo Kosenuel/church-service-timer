@@ -50,6 +50,7 @@ void main() {
       expect(versionNumbers('v0.32'), isNull);
       expect(versionNumbers('latest'), isNull);
       expect(versionNumbers('v0.33.0-beta'), isNull);
+      expect(versionNumbers('0.36.0-beta.1 (41)'), isNull);
       expect(versionNumbers(''), isNull);
     });
 
@@ -57,6 +58,57 @@ void main() {
       expect(compareVersions([0, 9, 0], [0, 10, 0]), lessThan(0));
       expect(compareVersions([1, 0, 0], [0, 99, 99]), greaterThan(0));
       expect(compareVersions([0, 32, 1], [0, 32, 1]), 0);
+    });
+
+    test('reads a pre-release part', () {
+      expect(parseVersion('0.36.0-beta.1 (41)')!.numbers, [0, 36, 0]);
+      expect(parseVersion('0.36.0-beta.1 (41)')!.pre, 'beta.1');
+      expect(parseVersion('v1.0.0-rc.1')!.pre, 'rc.1');
+      expect(parseVersion('0.36.0 (42)')!.pre, isNull);
+      expect(parseVersion('0.36.0-'), isNull);
+      expect(parseVersion('0.36-beta'), isNull);
+    });
+
+    test('a pre-release is older than its release', () {
+      int cmp(String a, String b) =>
+          compareParsed(parseVersion(a)!, parseVersion(b)!);
+      expect(cmp('0.36.0-beta.1', '0.36.0'), lessThan(0));
+      expect(cmp('0.36.0', '0.36.0-beta.1'), greaterThan(0));
+      expect(cmp('0.36.0-beta.1', '0.36.0-beta.2'), lessThan(0));
+      expect(cmp('0.36.0-beta.2', '0.36.0-beta.10'), lessThan(0));
+      expect(cmp('0.36.0-beta.2', '0.36.0-rc.1'), lessThan(0));
+      expect(cmp('0.36.0-beta', '0.36.0-beta.1'), lessThan(0));
+      expect(cmp('0.36.0-beta.1', '0.35.9'), greaterThan(0));
+      expect(cmp('0.36.0-beta.1', '0.36.0-beta.1'), 0);
+    });
+
+    test('a beta is never offered to a stable install', () async {
+      // Even if a beta were the answer, tagged or flagged.
+      expect(await check(release('v0.36.0-beta.1')), isA<UpToDate>());
+      expect(await check(release('v1.0.0-rc.1')), isA<UpToDate>());
+      final flagged = jsonEncode({
+        'tag_name': 'v0.36.0',
+        'prerelease': true,
+        'html_url': 'https://github.com/x',
+      });
+      expect(await check(flagged), isA<UpToDate>());
+      final draft = jsonEncode({'tag_name': 'v0.36.0', 'draft': true});
+      expect(await check(draft), isA<UpToDate>());
+      final stable = jsonEncode({'tag_name': 'v0.36.0', 'prerelease': false});
+      expect(await check(stable), isA<UpdateAvailable>());
+    });
+
+    test('a beta install is offered the stable release above it', () async {
+      const beta = '0.36.0-beta.1 (41)';
+      final up = await check(release('v0.36.0'), beta);
+      expect(up, isA<UpdateAvailable>());
+      expect((up as UpdateAvailable).version, '0.36.0');
+      expect(await check(release('v0.37.0'), beta), isA<UpdateAvailable>());
+      // An older stable release, or a newer beta, is not an update.
+      final older = await check(release('v0.35.0'), beta);
+      expect(older, isA<UpToDate>());
+      expect((older as UpToDate).version, '0.36.0-beta.1');
+      expect(await check(release('v0.36.0-beta.2'), beta), isA<UpToDate>());
     });
 
     test('an older release means this is the latest', () async {

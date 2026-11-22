@@ -5,6 +5,10 @@ name: Publish to the guide site
 # repository's Releases, which the guide site's Download button
 # opens. The app repository is private, so this is where people download it.
 #
+# A pre-release (a tag such as v0.36.0-beta.1) is copied marked Pre-release
+# and without the "latest" mark, so the guide's Download button and the
+# app's Check for updates keep pointing at the last real release.
+#
 # Runs after every tagged release (called from release.yml), or by hand from
 # the Actions tab for an earlier tag, for example v0.30.0.
 #
@@ -63,6 +67,10 @@ jobs:
             --pattern '*-windows-setup.exe' --pattern '*-windows-setup.exe.sha256'
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,body \
             --jq '.name' > "$RUNNER_TEMP/title.txt"
+          # Pre-release if the app release is marked so, or the tag has a hyphen.
+          pre=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq '.isPrerelease')
+          case "$TAG" in *-*) pre=true ;; esac
+          echo "$pre" > "$RUNNER_TEMP/prerelease.txt"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body \
             --jq '.body' | grep -v '\.aab' > "$RUNNER_TEMP/notes.md"
           ls -l dist
@@ -73,13 +81,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GUIDE_RELEASE_TOKEN }}
           TAG: ${{ inputs.tag }}
         run: |
+          if [ "$(cat "$RUNNER_TEMP/prerelease.txt")" = "true" ]; then
+            # A test version: Pre-release, never latest.
+            mark="--prerelease"
+            edit_mark="--prerelease --latest=false"
+          else
+            mark="--latest"
+            edit_mark="--prerelease=false"
+          fi
           if gh release view "$TAG" --repo "$GUIDE_REPO" > /dev/null 2>&1; then
             # Already there (a re-run): replace the files and notes.
             gh release upload "$TAG" dist/* --repo "$GUIDE_REPO" --clobber
-            gh release edit "$TAG" --repo "$GUIDE_REPO" --notes-file "$RUNNER_TEMP/notes.md"
+            gh release edit "$TAG" --repo "$GUIDE_REPO" --notes-file "$RUNNER_TEMP/notes.md" $edit_mark
           else
             gh release create "$TAG" dist/* --repo "$GUIDE_REPO" --target main \
               --title "$(cat "$RUNNER_TEMP/title.txt")" \
-              --notes-file "$RUNNER_TEMP/notes.md" --latest
+              --notes-file "$RUNNER_TEMP/notes.md" $mark
           fi
           echo "Published: https://github.com/$GUIDE_REPO/releases/tag/$TAG"

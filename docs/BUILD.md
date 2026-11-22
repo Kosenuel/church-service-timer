@@ -77,7 +77,8 @@ An incompatible change is one that breaks something saved or shared with the pre
 - **Before 1.0.0.** While the version starts with 0, Semantic Versioning allows a MINOR release to include incompatible changes, and that is how 0.x releases are numbered: new features, compatible or not, make a MINOR release. Once the app is ready for general use, release 1.0.0. From then on an incompatible change always means a new MAJOR version.
 - **The build number** after the `+` in `pubspec.yaml` (and in brackets in `appVersion`) goes up by exactly one with every release, whatever the bump. Android uses it to accept the update, so it never goes down or repeats.
 - **One version for every platform.** Android and Windows are released together from the same tag with the same number.
-- **Pre-releases** use a hyphen if ever needed, for example `0.36.0-beta.1`. A tag with a hyphen is not yet handled by the release workflow, so check it before using one.
+- **Pre-releases** (test versions) have a hyphen after the number, for example `0.36.0-beta.1` or `1.0.0-rc.1`. They are published as GitHub **Pre-releases** and the app's Check for updates never offers them; see [Test releases](#test-releases-pre-releases). Under Semantic Versioning `0.36.0-beta.1` is older than `0.36.0`.
+- **Version 1.0.0.** What has to be true before the version moves to 1.0.0 is drafted in [RELEASE-1.0-CHECKLIST.md](RELEASE-1.0-CHECKLIST.md).
 
 ## Publishing a release
 
@@ -90,6 +91,47 @@ An incompatible change is one that breaks something saved or shared with the pre
    git push origin v0.36.0
    ```
 
-The [Release workflow](../.github/workflows/release.yml) checks that the tag matches both version strings, runs analysis and tests, builds the APK signed with the release key (it refuses to publish without the `CST_KEYSTORE_*` secrets), and publishes a GitHub Release with the APK, its SHA-256 checksum, the signed App Bundle for Google Play (`Church-Service-Timer-<version>.aab`) and that version's changelog section. Build and test also builds the bundle (a debug bundle on pull requests, the signed one on pushes to `main`), so a broken bundle shows up before tagging.
+The [Release workflow](../.github/workflows/release.yml) checks that the tag matches both version strings, runs analysis and tests, builds the APK signed with the release key (it refuses to publish without the `CST_KEYSTORE_*` secrets), and publishes a GitHub Release with the APK, its SHA-256 checksum, the signed App Bundle for Google Play (`Church-Service-Timer-<version>.aab`) and that version's changelog section. Build and test also builds the bundle (a debug bundle on pull requests, the signed one on pushes to `main`), so a broken bundle shows up before tagging. A tag with a hyphen is a test release, handled differently: see [Test releases](#test-releases-pre-releases).
 
 It then copies that release (the APK, the Windows installer and their checksums) to the public guide site's Releases ([publish-to-guide.yml](../.github/workflows/publish-to-guide.yml)), at https://github.com/ImmanuelOkose/church-service-timer-guide/releases, which the guide's **Download** button opens. This repository is private, so that is where people download the app. It needs the `GUIDE_RELEASE_TOKEN` repository secret: a fine-grained personal access token for `ImmanuelOkose/church-service-timer-guide` with **Contents: Read and write**. Without it the step warns and skips. To publish an earlier release there, run **Actions › Publish to the guide site › Run workflow** with its tag, for example `v0.30.0`.
+
+## Test releases (pre-releases)
+
+A test release lets you try a build on your own PC and phone, from the same download page as a real one, before the real release. A tag with a hyphen, such as `v0.36.0-beta.1`, is handled by the same [Release workflow](../.github/workflows/release.yml).
+
+### Cutting a test release
+
+1. Set the version with a hyphen part and the next build number: `version: 0.36.0-beta.1+41` in `pubspec.yaml`, `appVersion = '0.36.0-beta.1 (41)'` in `lib/domain/app_settings.dart`, and the example in the comment at the top of `windows/installer/church-service-timer.iss`.
+2. In `CHANGELOG.md`, add a section headed `## 0.36.0-beta.1, <date>` with what to try. Entries still under `## Unreleased` can stay there for the real release, or be moved into the test section.
+3. Merge to `main`, then tag and push:
+
+   ```sh
+   git tag v0.36.0-beta.1
+   git push origin v0.36.0-beta.1
+   ```
+
+   The next test of the same release is `0.36.0-beta.2+42`, tag `v0.36.0-beta.2`, and so on. Use `rc` (`1.0.0-rc.1`) for a release candidate.
+
+### What the workflow does differently for a test release
+
+| Step | Real release (`v0.36.0`) | Test release (`v0.36.0-beta.1`) |
+| --- | --- | --- |
+| Tag check | Tag, `pubspec.yaml` and `appVersion` must agree | Same, with the hyphen part included; a tag that is not `vX.Y.Z` or `vX.Y.Z-pre.release` fails |
+| Notes | `## 0.36.0, <date>` section | `## 0.36.0-beta.1, <date>` section, with a "Test version" line added below it |
+| Android | Signed APK and checksum | Signed APK and checksum, same release key |
+| Google Play bundle | Built and attached as `.aab` | **Not built and not attached.** Play must only ever receive a real release, and a bundle for a test version would be one more file to upload by mistake |
+| Windows installer and zip | Version `0.36.0` | Inno Setup `AppVersion` is the full text (`0.36.0-beta.1`); the installer file's own numeric version (`VersionInfoVersion`) is `0.36.0.0`, passed by `scripts/Package-Windows.ps1` |
+| GitHub Release | Normal release | Marked **Pre-release** (`gh release create --prerelease`), so it is not "latest" |
+| Guide site | Copied, marked latest | Copied, marked **Pre-release**, not latest ([publish-to-guide.yml](../.github/workflows/publish-to-guide.yml) reads the app release's pre-release flag, and a hyphen in the tag counts too) |
+
+### Trying it
+
+- **Android:** on the guide's Releases page (https://github.com/ImmanuelOkose/church-service-timer-guide/releases) a test version carries a **Pre-release** badge. Download its `.apk` on the phone and open it.
+- **Windows:** download its `-windows-setup.exe` and open it. Install over the normal copy: it is the same app, and saved programs and settings stay with the app.
+- **Check for updates never offers it.** The app reads the guide's *latest* release (GitHub leaves pre-releases and drafts out of it), and also ignores any answer flagged pre-release or whose version has a hyphen (`lib/app/update_checker.dart`). A device on a test version is still offered the next real release above it, since `0.36.0-beta.1` is older than `0.36.0`. The automatic check does the same. This also means Download and install cannot be used to get a test version: install it by hand.
+
+### From test to real release
+
+For the real release bump to `0.36.0+42` (and `0.36.0 (42)`), rename the changelog heading to `## 0.36.0, <date>` with the finished entries, and tag `v0.36.0`. **The build number goes up by one with every release, test releases included**: in this example `+41` was the beta, so the release is `+42`, never `+41` again.
+
+Android refuses to install an APK whose build number (versionCode) is lower than the one installed. A phone that has `0.36.0-beta.1 (41)` takes `0.36.0 (42)` as an update, but an `0.36.0 (41)` would be refused, and so would going back from the beta to `0.35.0 (40)` without uninstalling first (which deletes the app's data; export a backup first). Windows has no such rule, but the same numbering keeps both platforms the same.
