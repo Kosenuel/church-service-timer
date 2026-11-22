@@ -421,11 +421,15 @@ void main() {
         inside(status, find.text('Simulator · no physical display')),
         findsOneWidget,
       );
-      // On the same line as the keys, left of the reminder.
-      expect(inside(legend, find.textContaining('Commands')), findsOneWidget);
-      final line = t.getRect(status), words = t.getRect(find.text(reminder));
-      expect(line.right, lessThan(words.left));
-      expect(words.right, lessThanOrEqualTo(1366));
+      // On the same line as the keys, after the pinned ? and Ctrl K. The
+      // reminder is the first thing to go when there is no room.
+      final commands = find.textContaining('Commands', findRichText: true);
+      expect(inside(legend, commands), findsOneWidget);
+      expect(
+        t.getRect(status).left,
+        greaterThanOrEqualTo(t.getRect(commands).right),
+      );
+      expect(t.getRect(status).right, lessThanOrEqualTo(1366));
       expect(t.getRect(legend).bottom, lessThanOrEqualTo(768));
       expect(t.getSize(legend).height, 28);
       expect(t.takeException(), isNull);

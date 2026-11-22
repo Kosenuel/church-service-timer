@@ -1263,8 +1263,13 @@ class KeyLegend extends StatelessWidget {
     if (cues) (keys: '1 – 9', action: 'Cues', rank: 6),
     (keys: 'M', action: 'Message', rank: 7),
     (keys: 'Ctrl L', action: 'Lock', rank: 3),
-    (keys: 'Ctrl K', action: 'Commands', rank: 8),
+    // The two that show how to find the rest: always last, never dropped.
+    (keys: '?', action: 'Keys', rank: pinnedRank),
+    (keys: 'Ctrl K', action: 'Commands', rank: pinnedRank),
   ];
+
+  /// The rank of an entry that stays however narrow the line is.
+  static const pinnedRank = 100;
 
   /// Space after each entry.
   static const _gap = 22.0;
@@ -1333,8 +1338,10 @@ class KeyLegend extends StatelessWidget {
               keysWidth() + reminderRoom <= box.maxWidth;
           final room =
               box.maxWidth - (withReminder ? reminderRoom : statusRoom);
-          while (shown.isNotEmpty && keysWidth() > room) {
-            final least = shown.reduce((a, b) => a.rank > b.rank ? a : b);
+          while (keysWidth() > room) {
+            final droppable = shown.where((e) => e.rank < pinnedRank);
+            if (droppable.isEmpty) break;
+            final least = droppable.reduce((a, b) => a.rank > b.rank ? a : b);
             shown = [...shown]..remove(least);
           }
           return Row(
