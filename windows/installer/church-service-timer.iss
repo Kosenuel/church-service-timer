@@ -1,7 +1,9 @@
 ; Inno Setup script for the Church Service Timer installer.
 ; Built by scripts/Package-Windows.ps1, which passes the version and the
 ; folder that `flutter build windows --release` produced:
-;   iscc /DAppVersion=0.35.0 /DSourceDir=C:\...\Release church-service-timer.iss
+;   iscc /DAppVersion=0.35.0 /DVersionInfo=0.35.0.0 /DSourceDir=C:\...\Release church-service-timer.iss
+; AppVersion is text and may carry a pre-release part (0.36.0-beta.1);
+; VersionInfo must be four numbers (0.36.0.0), the same without that part.
 ;
 ; Installs for the current user by default, so no administrator password
 ; is needed in a church office; the person can choose "all users" instead.
@@ -12,6 +14,9 @@
 #define AppExe "church_service_timer.exe"
 #ifndef AppVersion
   #define AppVersion "0.0.0"
+#endif
+#ifndef VersionInfo
+  #define VersionInfo "0.0.0.0"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\..\build\windows\x64\runner\Release"
@@ -26,6 +31,7 @@
 AppId={{6C1E0A4B-93D7-4F5E-8B2A-5D0F7C3E91A4}
 AppName={#AppName}
 AppVersion={#AppVersion}
+VersionInfoVersion={#VersionInfo}
 AppVerName={#AppName} {#AppVersion}
 AppPublisher=I-Proton
 DefaultDirName={autopf}\{#AppName}
