@@ -2,6 +2,11 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built. From 0.35.0, version numbers follow [Semantic Versioning](https://semver.org) (MAJOR.MINOR.PATCH); see [Versioning](docs/BUILD.md#versioning) for how each release's number is chosen.
 
+## Unreleased
+
+- **Classic fills the window and keeps the controls in view at any width.** In a window about 964 wide and 1100 high the timer card ended with a large empty area under it while the right column ran on with the display, the cues and the rundown, so the rundown sat far down the page. Classic now measures its cards and places them in two columns so that both end at about the same height: the rundown goes under the timer card when that fills the gap, and a card changes column when that is the only way to avoid a band of empty page. Windows from about 740 wide (820 when under 1000 high) use two columns; narrower ones use one. The ring and the controls are fitted to the window height in every width from 600 up, not only from 1000, so Pause, Next segment and End service stay in view without scrolling in a window 700 or more high; the ring still fills the card and keeps its size from Ready to running. **Custom**, **Pre-service countdown** and the other labels shrink a little in a tight space rather than breaking a word or ending in "…".
+- **A sweep test checks Live at every width.** It runs Classic from 600 to 2000 wide in steps of 20, plus the window sizes reported, at heights from 600 to 1100, standing by, in Ready and running, and on tablets held both ways, and checks that nothing overflows, no label or heading is cut or wrapped, the controls are in view and no large empty band is left.
+
 ## 0.35.0, 21/November/2026
 
 - **The Ready line no longer points at the wrong place.** With a pre-service start time set, the line under Ready said the display "follows the pre-service start time above", but in Mission control and some other layouts the pre-service countdown is not above it. It now reads "Timing has not started. The display shows the pre-service countdown until you start the first segment." in every layout.

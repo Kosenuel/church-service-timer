@@ -15,6 +15,7 @@ import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/live/balanced_columns.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/live/keys_live.dart';
 import 'package:church_service_timer/live/mission_control_live.dart';
@@ -28,8 +29,10 @@ import 'package:church_service_timer/live/simulator_matrix.dart';
 /// The Live page: standing by, Ready for service and the running service.
 /// Classic fits the ring and controls to a window at least this wide and
 /// less than [classicBesideBelowHeight] tall, or less than
-/// [classicUsualWidth] wide at any height (see [LivePage.classicFit]).
-const classicBesideFromWidth = 1000.0;
+/// [classicUsualWidth] wide at any height (see [LivePage.classicFit]). Under
+/// about 890 wide the page is one column, and the ring is sized the same
+/// way.
+const classicBesideFromWidth = 600.0;
 const classicBesideBelowHeight = 1000.0;
 
 /// How Classic sets out the ring and the controls in such a window.
@@ -61,6 +64,12 @@ const classicSideMinWidth = 340.0;
 
 /// The card width from which the Ready form sets its rows in pairs.
 const classicReadyPairsFrom = 520.0;
+
+/// The page width from which Classic sets its cards in two columns.
+const classicTwoColumnsFrom = 820.0;
+
+/// The same in a window 1000 or more high.
+const classicTwoColumnsFromTall = 740.0;
 
 /// The widest Classic's Live page is usually laid out.
 const classicUsualWidth = 1200.0;
@@ -134,7 +143,7 @@ extension LivePage on HomeState {
   /// How Classic sets out a running or Ready service in a window at least
   /// [classicBesideFromWidth] wide and less than [classicBesideBelowHeight]
   /// tall or [classicUsualWidth] wide, with [width] for the timer card and
-  /// the column beside it.
+  /// the column beside it, or all of the page when it is a [single] column.
   ///
   /// A laptop window has the controls beside the ring. A narrower one,
   /// such as 1366 × 768 or 1920 × 1200 at 125% or 150% display scaling,
@@ -145,7 +154,7 @@ extension LivePage on HomeState {
   ///
   /// The heights are those of a running service, the tallest of running
   /// and Ready, so the ring keeps its size when the service starts.
-  ClassicFit classicFit(double width) {
+  ClassicFit classicFit(double width, {bool single = false}) {
     final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
     final height = MediaQuery.sizeOf(context).height;
     final s = c.liveSession, segment = s.timeline!.segments[s.index];
@@ -156,21 +165,26 @@ extension LivePage on HomeState {
 
     // The controls beside the ring, with the usual share for the column,
     // or enough for the display heading and its badge on one line.
-    final usualSide = (width - gap) * 3 / 10;
-    final narrowSide = 300 * scale > usualSide ? 300 * scale : null;
-    final usualInner = width - gap - (narrowSide ?? usualSide) - padding;
+    final usualSide = single ? 0.0 : (width - gap) * 3 / 10;
+    final narrowSide = !single && 300 * scale > usualSide ? 300 * scale : null;
+    final usualInner = single
+        ? width - padding
+        : width - gap - (narrowSide ?? usualSide) - padding;
     final beside = classicBesideRing(usualInner);
     final besideFits =
         usualInner - 20 - beside >= (showKeyHints ? 350 : 310) * scale;
 
     // Under the title, with a column wide enough for the display and cues.
-    final side = math.max(usualSide, classicSideMinWidth * scale);
-    final inner = width - gap - side - padding;
+    final side = single
+        ? 0.0
+        : math.max(usualSide, classicSideMinWidth * scale);
+    final inner = single ? width - padding : width - gap - side - padding;
     final notes = segment.notes.isEmpty ? 0.0 : 56 * scale;
     final speaker = segment.speaker.isEmpty ? 0.0 : 30 * scale;
     // From the top of the window to the segment's name: the header, the
     // timing bar, the card's padding and its first line.
-    final top = 234 * scale;
+    // A single column has the timing line inside the card instead.
+    final top = (single ? 250 : 234) * scale;
     // The name, the next segment and the speaker.
     double titleHeight(double across) =>
         (72 * scale) +
@@ -555,11 +569,15 @@ extension LivePage on HomeState {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'Pre-service countdown',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                        // Shrinks a little in a narrow tile, never cut.
+                        const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Pre-service countdown',
+                            maxLines: 1,
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
                         ),
                         Text(
                           summary,
@@ -1028,7 +1046,7 @@ extension LivePage on HomeState {
       side: null,
     );
     Widget timerPanelOf({required bool wide}) {
-      final arranged = wide && shortWide;
+      final arranged = shortWide;
       final arrangement = arranged ? fit.arrangement : null;
       final title = <Widget>[
         if (t == null)
@@ -1944,26 +1962,29 @@ extension LivePage on HomeState {
     }
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 760;
+        // Two columns need room for the timer card and a column of cues
+        // beside it; under that, one column.
+        // A tall window can have them a little sooner: its ring stacks
+        // under the name and needs no width beside it.
+        final wide =
+            constraints.maxWidth >=
+            (MediaQuery.sizeOf(context).height >= 1000
+                ? classicTwoColumnsFromTall
+                : classicTwoColumnsFrom);
         // A very wide window has a column for the rundown.
         final threeColumns = constraints.maxWidth > classicUsualWidth;
-        if (wide && shortWide) fit = classicFit(constraints.maxWidth);
-        Widget sideColumn() => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            displayPanel,
-            const SizedBox(height: 16),
-            cuePanel,
-            if (c.destination == 'mobile') ...[
-              const SizedBox(height: 16),
-              quickMessagePanel(),
-            ],
-            if (showRundown && !threeColumns) ...[
-              const SizedBox(height: 16),
-              rundownPanel(),
-            ],
-          ],
-        );
+        if (shortWide) {
+          fit = classicFit(constraints.maxWidth, single: !wide);
+        }
+        // The cards beside the timer, each as its own card for
+        // [BalancedColumns] to place by their heights.
+        Widget card(String name, Widget child) =>
+            KeyedSubtree(key: ValueKey('classic-card:$name'), child: child);
+        final sideCards = [
+          card('display', displayPanel),
+          card('cues', cuePanel),
+          if (c.destination == 'mobile') card('message', quickMessagePanel()),
+        ];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -2095,27 +2116,65 @@ extension LivePage on HomeState {
                 const SizedBox(height: 16),
               ],
               stageRequestCards(),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: shortWide ? 7 : 5,
-                    child: timerPanelOf(wide: true),
-                  ),
-                  const SizedBox(width: 20),
-                  // A narrow window gives the display and cues a column of
-                  // their own width, so their headings and cues read in
-                  // full.
-                  if (shortWide && fit.side != null)
-                    SizedBox(width: fit.side, child: sideColumn())
-                  else
-                    Expanded(flex: shortWide ? 3 : 5, child: sideColumn()),
-                  if (showRundown && threeColumns) ...[
+              if (showRundown && threeColumns)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: shortWide ? 7 : 5,
+                      child: timerPanelOf(wide: true),
+                    ),
+                    const SizedBox(width: 20),
+                    // A narrow window gives the display and cues a column
+                    // of their own width, so their headings and cues read
+                    // in full.
+                    if (shortWide && fit.side != null)
+                      SizedBox(
+                        width: fit.side,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final (i, w) in sideCards.indexed) ...[
+                              if (i > 0) const SizedBox(height: 16),
+                              w,
+                            ],
+                          ],
+                        ),
+                      )
+                    else
+                      Expanded(
+                        flex: shortWide ? 3 : 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final (i, w) in sideCards.indexed) ...[
+                              if (i > 0) const SizedBox(height: 16),
+                              w,
+                            ],
+                          ],
+                        ),
+                      ),
                     const SizedBox(width: 20),
                     Expanded(flex: 4, child: rundownPanel()),
                   ],
-                ],
-              ),
+                )
+              else
+                // Two columns, the cards placed so that both end about
+                // together: the rundown goes under the timer when the
+                // display and cues already run lower.
+                BalancedColumns(
+                  leftFlex: shortWide ? 7 : 5,
+                  rightFlex: shortWide ? 3 : 5,
+                  rightWidth: shortWide ? fit.side : null,
+                  tolerance: MediaQuery.sizeOf(context).height / 4,
+                  // Under the header, the timing bar and the page's padding.
+                  viewHeight: MediaQuery.sizeOf(context).height - 150,
+                  children: [
+                    card('timer', timerPanelOf(wide: true)),
+                    ...sideCards,
+                    if (showRundown) card('rundown', rundownPanel()),
+                  ],
+                ),
             ] else ...[
               stageRequestCards(),
               timerPanelOf(wide: false),
