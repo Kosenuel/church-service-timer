@@ -242,6 +242,7 @@ extension RefinedSettings on HomeState {
                           end,
                           'End screen',
                           'Save end screen',
+                          switchPreview: true,
                         );
                         if (next != null) await saveDefaultEnd(next);
                       },

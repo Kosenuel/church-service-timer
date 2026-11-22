@@ -47,6 +47,7 @@ extension ProgramEditActions on HomeState {
           onDraftChanged: (value) => c.queueEditDraft(draftKey, value),
           draftController: c,
           defaultEnd: c.state.defaults.end,
+          stagePreviewFirst: c.previewsAsStageScreen,
           existingNames: c.state.templates
               .asMap()
               .entries

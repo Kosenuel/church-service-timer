@@ -399,7 +399,7 @@ extension LiveActions on HomeState {
     String title,
     String button, {
     Future<bool> Function()? onDelete,
-    bool cue = false,
+    bool switchPreview = false,
   }) => showDialog<TextLayout>(
     context: context,
     animationStyle: reduceAppMotion(context)
@@ -410,9 +410,9 @@ extension LiveActions on HomeState {
       title: title,
       button: button,
       onDelete: onDelete,
-      // A stage cue can be seen as the sign or as a stage screen shows it,
-      // starting with the one in use.
-      stagePreviewFirst: cue ? c.previewsAsStageScreen : null,
+      // A stage cue, a message or an end or zero screen can be seen as the
+      // sign or as a stage screen shows it, starting with the one in use.
+      stagePreviewFirst: switchPreview ? c.previewsAsStageScreen : null,
     ),
   );
   Future<void> sendCue(TextLayout layout, {int? cueIndex}) async {
@@ -421,7 +421,7 @@ extension LiveActions on HomeState {
       layout,
       cueIndex == null ? 'New stage cue' : 'Edit stage cue',
       'Send',
-      cue: true,
+      switchPreview: true,
       onDelete: cueIndex == null
           ? null
           : () async {
