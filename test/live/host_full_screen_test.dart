@@ -191,6 +191,7 @@ void main() {
       Size size = const Size(1366, 768),
       bool start = true,
       bool noEnd = false,
+      bool tip = false,
     }) async {
       desktopWording = desktop;
       addTearDown(() => desktopWording = false);
@@ -199,6 +200,10 @@ void main() {
       final c = AppController(port);
       await c.initialize(startTicker: false);
       await c.commit((draft, _) => draft.themeId = 'graphite');
+      // The gestures tip has its own tests; elsewhere it has been seen.
+      if (!tip) {
+        await c.commit((d, _) => d.dismissedHints.add(gesturesTipHint));
+      }
       if (start) {
         await c.act('load', value: sunday(noEnd: noEnd));
         await c.act('start');
@@ -685,6 +690,7 @@ void main() {
       await c.act('start');
       // The phone's choice is not the one a computer uses.
       await c.commit((draft, _) => draft.fullScreenLayout = 'current');
+      await c.commit((d, _) => d.dismissedHints.add(gesturesTipHint));
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await press(t, LogicalKeyboardKey.f11);
@@ -817,6 +823,29 @@ void main() {
       await done(t);
     });
 
+    /// Records Android's "follow the sensor" request, in the same list as
+    /// what was asked of Flutter's own orientation call.
+    bool? recordSensorLandscape(WidgetTester t, List<String> asked) {
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('church.timer/device'),
+        (call) async {
+          if (call.method == 'sensorLandscape') {
+            asked.add(
+              'sensorLandscape ${call.arguments == true ? 'on' : 'off'}',
+            );
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          const MethodChannel('church.timer/device'),
+          null,
+        ),
+      );
+      return true;
+    }
+
     testWidgets('a phone or tablet turns landscape, and back on leaving', (
       t,
     ) async {
@@ -847,10 +876,13 @@ void main() {
       const landscape = 'landscapeLeft landscapeRight';
       await running(t, desktop: false, size: const Size(430, 900));
       expect(asked, isEmpty);
+      // Android's own request for the sensor, and its order among them.
+      final sensor = recordSensorLandscape(t, asked);
       Future<void> open() async {
         await openLiveMenu(t, 'Full screen');
         expect(stage, findsOneWidget);
-        expect(asked.last, landscape);
+        expect(asked[asked.length - 2], landscape);
+        expect(asked.last, 'sensorLandscape on');
       }
 
       // Exit.
@@ -859,19 +891,39 @@ void main() {
       await tapStage(t, const Offset(200, 600));
       await t.tap(key('full-screen-exit'));
       await t.pumpAndSettle();
-      expect(asked, [landscape, 'any']);
+      // Both landscapes, then the sensor on whatever auto-rotate says;
+      // leaving drops the sensor first, then asks as before.
+      expect(asked, [
+        landscape,
+        'sensorLandscape on',
+        'sensorLandscape off',
+        'any',
+      ]);
+      expect(sensor, isNotNull);
+      asked.clear();
 
       // Back.
       await open();
       await t.binding.handlePopRoute();
       await t.pumpAndSettle();
       expect(stage, findsNothing);
-      expect(asked, [landscape, 'any', landscape, 'any']);
+      expect(asked, [
+        landscape,
+        'sensorLandscape on',
+        'sensorLandscape off',
+        'any',
+      ]);
+      asked.clear();
 
       // Closed with the app, from full screen.
       await open();
       await done(t);
-      expect(asked, [landscape, 'any', landscape, 'any', landscape, 'any']);
+      expect(asked, [
+        landscape,
+        'sensorLandscape on',
+        'sensorLandscape off',
+        'any',
+      ]);
       expect(ScreenOrientation.fullScreen, isFalse);
     });
 
@@ -921,15 +973,14 @@ void main() {
         DeviceOrientation.landscapeLeft,
       ]);
       expect(asked, [landscape]);
-      // The service ends: it stays on the end screen until it is left.
+      // The service ends: on a phone full screen closes, and the screen
+      // goes back to what the app asked for last.
       await c.act('end');
       await step(t);
-      expect(stage, findsOneWidget);
-      expect(asked, [landscape]);
-      await home(t).setHostFullScreen(false);
-      await step(t);
       expect(stage, findsNothing);
+      expect(home(t).hostFullScreen.showing, isFalse);
       expect(asked, [landscape, 'portraitUp landscapeLeft']);
+      expect(ScreenOrientation.fullScreen, isFalse);
       await ScreenOrientation.setApp(const []);
       await done(t);
     });
@@ -1264,6 +1315,7 @@ void main() {
         'cues',
         'clock',
         'blank',
+        'gestures',
         'end',
       ]) {
         expect(key('full-screen-tray-$name'), findsOneWidget, reason: name);
@@ -1368,8 +1420,11 @@ void main() {
       await done(t);
     });
 
-    Future<void> endFromTray(WidgetTester t) async {
-      await swipeUp(t);
+    Future<void> endFromTray(
+      WidgetTester t, {
+      Size size = const Size(1366, 768),
+    }) async {
+      await swipeUp(t, size: size);
       await t.tap(key('full-screen-tray-end'));
       await t.pumpAndSettle();
       await t.tap(key('mini-confirm-action'));
@@ -1554,6 +1609,356 @@ void main() {
         expect((Offset.zero & size).intersect(rect), rect, reason: '$size');
         expect(t.takeException(), isNull, reason: '$size');
         await done(t);
+      }
+    });
+
+    testWidgets('on a phone the service ending closes full screen and the '
+        'orientation goes back, whoever ends it', (t) async {
+      ScreenOrientation.reset();
+      addTearDown(ScreenOrientation.reset);
+      final asked = <String>[];
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemChrome.setPreferredOrientations') {
+            final list = (call.arguments as List).cast<String>();
+            asked.add(
+              list.isEmpty
+                  ? 'any'
+                  : list.map((o) => o.split('.').last).join(' '),
+            );
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      const landscape = 'landscapeLeft landscapeRight';
+      const size = Size(844, 390);
+      Future<AppController> open() async {
+        final (c, _) = await running(t, desktop: false, size: size);
+        await ScreenOrientation.setApp(const [DeviceOrientation.portraitUp]);
+        asked.clear();
+        unawaited(home(t).setHostFullScreen(true));
+        await t.pumpAndSettle();
+        await settleControl(t);
+        expect(stage, findsOneWidget);
+        expect(asked, [landscape]);
+        return c;
+      }
+
+      // End service in the tray.
+      var c = await open();
+      await endFromTray(t, size: size);
+      expect(c.state.session.phase, 'ended');
+      expect(stage, findsNothing);
+      expect(home(t).hostFullScreen.showing, isFalse);
+      expect(asked, [landscape, 'portraitUp']);
+      expect(ScreenOrientation.fullScreen, isFalse);
+      expect(t.takeException(), isNull);
+      await done(t);
+
+      // End service from the Live controls, with full screen open: the
+      // same way out.
+      ScreenOrientation.reset();
+      c = await open();
+      unawaited(home(t).confirmEndService());
+      await t.pumpAndSettle();
+      await t.tap(key('mini-confirm-action'));
+      await step(t);
+      expect(c.state.session.phase, 'ended');
+      expect(stage, findsNothing);
+      expect(asked, [landscape, 'portraitUp']);
+      await done(t);
+
+      // Ended from a paired device.
+      ScreenOrientation.reset();
+      c = await open();
+      await c.act('end');
+      await step(t);
+      expect(stage, findsNothing);
+      expect(asked, [landscape, 'portraitUp']);
+      expect(ScreenOrientation.fullScreen, isFalse);
+      // Live shows the ended service, not the stage.
+      expect(key('live-menu'), findsOneWidget);
+      await done(t);
+    });
+
+    testWidgets('on a computer the service ending leaves full screen open', (
+      t,
+    ) async {
+      final (c, port) = await running(t, size: const Size(1366, 768));
+      await press(t, LogicalKeyboardKey.f11);
+      await settleControl(t);
+      await endFromTray(t);
+      expect(c.state.session.phase, 'ended');
+      expect(stage, findsOneWidget);
+      expect((port as DesktopPort).window.calls, ['enter']);
+      await t.tap(key('full-screen-exit'));
+      await step(t);
+      expect(port.window.calls, ['enter', 'leave']);
+    });
+
+    testWidgets('a computer sends Android no orientation request', (t) async {
+      final asked = <String>[];
+      recordSensorLandscape(t, asked);
+      await running(t);
+      await press(t, LogicalKeyboardKey.f11);
+      await press(t, LogicalKeyboardKey.escape);
+      expect(asked, isEmpty);
+      await done(t);
+    });
+
+    group('the gestures tip', () {
+      const phone = Size(844, 390);
+      final tip = find.byKey(const ValueKey('full-screen-tip'));
+      bool seen(AppController c) =>
+          c.state.dismissedHints.contains(gesturesTipHint);
+
+      Future<AppController> open(
+        WidgetTester t, {
+        bool desktop = false,
+        Size size = phone,
+      }) async {
+        final (c, _) = await running(
+          t,
+          desktop: desktop,
+          size: size,
+          tip: true,
+        );
+        unawaited(home(t).setHostFullScreen(true));
+        await t.pumpAndSettle();
+        return c;
+      }
+
+      testWidgets('shows the first time, in plain words, and is kept on the '
+          'device only', (t) async {
+        final c = await open(t);
+        expect(stage, findsOneWidget);
+        expect(tip, findsOneWidget);
+        for (final words in [
+          'Undo',
+          'Pause or resume',
+          'Next segment',
+          'Swipe up from the bottom, or tap once, for the controls',
+        ]) {
+          expect(find.text(words), findsOneWidget, reason: words);
+        }
+        expect(find.text('Double-tap here'), findsNWidgets(3));
+        expect(find.textContaining('tap anywhere'), findsNothing);
+        expect(find.textContaining('Tap anywhere'), findsOneWidget);
+        expect(seen(c), isTrue);
+        // Drawn on this screen only: the stage picture is untouched.
+        final snapshot = home(t).hostStageSnapshot();
+        expect(snapshot.toString().toLowerCase(), isNot(contains('gesture')));
+        expect(snapshot.toString(), isNot(contains('Pause or resume')));
+        expect(snapshot, {...c.stageWindowSnapshot(), 'stageLayout': 'timer'});
+        // Not in a backup.
+        final backup = exportBackup(c.state, c.now);
+        expect(backup, isNot(contains(gesturesTipHint)));
+        expect(backup, isNot(contains('dismissedHints')));
+        // On the device it is kept.
+        expect(
+          AppState.fromJson(c.state.toJson()).dismissedHints,
+          contains(gesturesTipHint),
+        );
+        await t.tap(key('full-screen-tip-tap'));
+        await t.pumpAndSettle();
+        await done(t);
+      });
+
+      testWidgets('says click, not tap, on a computer', (t) async {
+        await open(t, desktop: true, size: const Size(1920, 1080));
+        expect(tip, findsOneWidget);
+        expect(find.text('Double-click here'), findsNWidgets(3));
+        expect(
+          find.text(
+            'Click once, or move the mouse to the bottom edge, for the controls',
+          ),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Click anywhere'), findsOneWidget);
+        expect(find.textContaining('tap'), findsNothing);
+        await t.tap(key('full-screen-tip-tap'));
+        await t.pumpAndSettle();
+        await done(t);
+      });
+
+      testWidgets('a tap dismisses it, and neither it nor a quick second '
+          'tap does anything else', (t) async {
+        final c = await open(t);
+        final before = c.state.session.toJson().toString();
+        // Two quick taps on the left third, as a double tap would be.
+        await t.tapAt(const Offset(150, 200));
+        await t.pump(const Duration(milliseconds: 60));
+        expect(tip, findsNothing);
+        await t.tapAt(const Offset(150, 200));
+        await t.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
+        await t.pumpAndSettle();
+        expect(key('mini-dialog'), findsNothing);
+        expect(key('full-screen-hint'), findsNothing);
+        expect(tray, findsNothing);
+        expect(stage, findsOneWidget);
+        expect(c.state.session.toJson().toString(), before);
+        // Afterwards the stage answers as usual.
+        await t.pump(HostFullScreenView.tipGuard);
+        await doubleTap(t, const Offset(422, 200));
+        expect(find.text('Pause Sermon?'), findsOneWidget);
+        await t.tap(key('mini-confirm-cancel'));
+        await t.pumpAndSettle();
+        await done(t);
+      });
+
+      testWidgets('a key, the time, or Back dismisses it; Esc and Back stay '
+          'in full screen', (t) async {
+        await open(t);
+        expect(HostFullScreenView.tipTime, const Duration(seconds: 8));
+        await t.pump(const Duration(seconds: 7));
+        expect(tip, findsOneWidget);
+        await t.pump(const Duration(seconds: 1, milliseconds: 100));
+        await t.pumpAndSettle();
+        expect(tip, findsNothing);
+        expect(stage, findsOneWidget);
+
+        home(t).hostFullScreen.showTip!();
+        await t.pumpAndSettle();
+        expect(tip, findsOneWidget);
+        await t.sendKeyEvent(LogicalKeyboardKey.keyQ);
+        await t.pumpAndSettle();
+        expect(tip, findsNothing);
+
+        home(t).hostFullScreen.showTip!();
+        await t.pumpAndSettle();
+        await t.sendKeyEvent(LogicalKeyboardKey.escape);
+        await t.pumpAndSettle();
+        expect(tip, findsNothing);
+        expect(stage, findsOneWidget);
+
+        home(t).hostFullScreen.showTip!();
+        await t.pumpAndSettle();
+        await t.binding.handlePopRoute();
+        await t.pumpAndSettle();
+        expect(tip, findsNothing);
+        expect(stage, findsOneWidget);
+        await done(t);
+      });
+
+      testWidgets('never shows again by itself, but Show gestures brings it '
+          'back', (t) async {
+        final c = await open(t);
+        await t.tap(key('full-screen-tip-tap'));
+        await t.pumpAndSettle();
+        await t.pump(HostFullScreenView.tipGuard);
+        expect(tip, findsNothing);
+        // Leave, open again: nothing.
+        await home(t).setHostFullScreen(false);
+        await t.pumpAndSettle();
+        unawaited(home(t).setHostFullScreen(true));
+        await t.pumpAndSettle();
+        expect(stage, findsOneWidget);
+        expect(tip, findsNothing);
+        expect(seen(c), isTrue);
+        // From the tray, on demand.
+        await swipeUp(t, size: phone);
+        expect(tray, findsOneWidget);
+        expect(find.text('Show gestures'), findsOneWidget);
+        await t.tap(key('full-screen-tray-gestures'));
+        await t.pumpAndSettle();
+        expect(tip, findsOneWidget);
+        expect(tray, findsNothing);
+        await t.pump(HostFullScreenView.tipTime);
+        await t.pumpAndSettle();
+        expect(tip, findsNothing);
+        await done(t);
+      });
+
+      testWidgets('with the controls locked it does not show, or get in the '
+          'way of Hold to unlock', (t) async {
+        final (c, _) = await running(t, desktop: false, size: phone, tip: true);
+        home(t).lockControls();
+        await t.pumpAndSettle();
+        unawaited(home(t).setHostFullScreen(true));
+        await t.pumpAndSettle();
+        expect(stage, findsOneWidget);
+        expect(tip, findsNothing);
+        expect(key('full-screen-tip-tap'), findsNothing);
+        // Not used up: it shows when unlocked.
+        expect(seen(c), isFalse);
+        expect(key('full-screen-locked'), findsOneWidget);
+        await t.longPress(key('full-screen-unlock'));
+        await t.pumpAndSettle();
+        expect(home(t).controlsLocked, isFalse);
+        expect(tip, findsNothing);
+
+        // Locking while it shows takes it away.
+        home(t).hostFullScreen.showTip!();
+        await t.pumpAndSettle();
+        expect(tip, findsOneWidget);
+        home(t).lockControls();
+        await t.pumpAndSettle();
+        expect(tip, findsNothing);
+        expect(key('full-screen-tip-tap'), findsNothing);
+        // Show gestures does nothing locked.
+        home(t).hostFullScreen.showTip!();
+        await t.pumpAndSettle();
+        expect(tip, findsNothing);
+        await t.longPress(key('full-screen-unlock'));
+        await t.pumpAndSettle();
+        expect(home(t).controlsLocked, isFalse);
+        await done(t);
+      });
+
+      testWidgets('with Reduced motion it comes and goes at once', (t) async {
+        final (c, _) = await running(t, desktop: false, size: phone, tip: true);
+        await c.commit(
+          (d, _) =>
+              d.appearance = const AppearancePreferences(reducedMotion: true),
+        );
+        unawaited(home(t).setHostFullScreen(true));
+        await t.pump();
+        await t.pump();
+        expect(tip, findsOneWidget);
+        await t.tap(key('full-screen-tip-tap'));
+        await t.pump();
+        expect(tip, findsNothing);
+        await done(t);
+      });
+
+      testWidgets('fits from a small phone to a large monitor', (t) async {
+        for (final (size, desktop, scale) in const [
+          (Size(568, 320), false, 1.6),
+          (Size(844, 390), false, 1.0),
+          (Size(1920, 1080), true, 1.0),
+        ]) {
+          t.platformDispatcher.textScaleFactorTestValue = scale;
+          addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
+          await open(t, desktop: desktop, size: size);
+          expect(tip, findsOneWidget, reason: '$size');
+          expect(t.getSize(tip), size, reason: '$size');
+          expect(t.takeException(), isNull, reason: '$size');
+          await done(t);
+        }
+      });
+
+      for (final (name, size, desktop) in const [
+        ('phone', Size(844, 390), false),
+        ('1920', Size(1920, 1080), true),
+      ]) {
+        testWidgets('looks right on $name', (t) async {
+          await open(t, desktop: desktop, size: size);
+          expect(t.takeException(), isNull);
+          await expectLater(
+            find.byType(MaterialApp),
+            matchesGoldenFile('../goldens/host-full-screen-tip-$name.png'),
+          );
+          await t.tap(key('full-screen-tip-tap'));
+          await t.pumpAndSettle();
+          await done(t);
+        });
       }
     });
 

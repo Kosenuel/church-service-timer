@@ -85,6 +85,31 @@ void main() {
       }
     });
 
+    test('a test version is never shown as an update', () async {
+      for (final tag in ['v0.33.0-beta.1', 'v1.0.0-rc.1']) {
+        final (c, port) = await ready(release(tag), on: true);
+        expect(await c.autoUpdate.checkIfDue(), isTrue);
+        expect(c.state.autoUpdate.found, isNull);
+        expect(c.autoUpdate.notice, isNull);
+        c.dispose();
+      }
+      // A beta saved as found (by some other route) is not a notice either.
+      final (c, _) = await ready(null, on: true);
+      await c.commit((draft, _) => draft.autoUpdate.found = '0.33.0-beta.1');
+      expect(c.autoUpdate.notice, isNull);
+      c.dispose();
+    });
+
+    test('a device on a beta is offered the release above it', () async {
+      final (c, _) = await ready(release('v0.36.0'), on: true);
+      c.appVersion = '0.36.0-beta.1 (41)';
+      expect(await c.autoUpdate.checkIfDue(), isTrue);
+      expect(c.autoUpdate.notice, '0.36.0');
+      c.appVersion = '0.36.0 (42)';
+      expect(c.autoUpdate.notice, isNull);
+      c.dispose();
+    });
+
     test('an up-to-date answer clears an earlier find', () async {
       final (c, port) = await ready(release('v0.33.0'), on: true);
       await c.autoUpdate.checkIfDue();

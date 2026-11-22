@@ -27,6 +27,12 @@ if (-not $Version) {
   $line = Select-String -Path (Join-Path $root 'pubspec.yaml') -Pattern '^version:\s*([^+\s]+)'
   $Version = $line.Matches[0].Groups[1].Value
 }
+# Inno Setup's AppVersion takes text (0.36.0-beta.1), but the installer file's
+# own version numbers must be four numbers: 0.36.0-beta.1 becomes 0.36.0.0.
+if ($Version -notmatch '^(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.]+)?$') {
+  throw "'$Version' is not MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-pre.release."
+}
+$VersionInfo = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
 if (-not (Test-Path (Join-Path $release 'church_service_timer.exe'))) {
   throw "No Windows build at $release. Run: flutter build windows --release"
 }
@@ -66,7 +72,7 @@ if (-not $SkipInstaller) {
   if (-not $iscc) {
     throw 'Inno Setup 6 was not found. Install it (https://jrsoftware.org/isinfo.php), or pass -SkipInstaller.'
   }
-  & $iscc "/DAppVersion=$Version" "/DSourceDir=$release" "/DOutputDir=$dist" `
+  & $iscc "/DAppVersion=$Version" "/DVersionInfo=$VersionInfo" "/DSourceDir=$release" "/DOutputDir=$dist" `
     (Join-Path $root 'windows\installer\church-service-timer.iss')
   if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE." }
 }
