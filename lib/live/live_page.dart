@@ -22,6 +22,7 @@ import 'package:church_service_timer/live/quick_timer_sheet.dart';
 import 'package:church_service_timer/live/second_screen_control.dart';
 import 'package:church_service_timer/live/service_check.dart';
 import 'package:church_service_timer/live/update_available_notice.dart';
+import 'package:church_service_timer/live/whats_new_notice.dart';
 import 'package:church_service_timer/live/simulator_choice.dart';
 import 'package:church_service_timer/live/simulator_matrix.dart';
 
@@ -1809,6 +1810,7 @@ extension LivePage on HomeState {
         ),
       if (c.practice.active) practiceCoach(),
       if (standingBy) updateAvailableNotice(),
+      if (standingBy) whatsNewNotice(),
       if (!c.hardware.enabled &&
           c.displayConnection == DisplayConnection.disconnected &&
           (s.active || s.phase == 'ended'))

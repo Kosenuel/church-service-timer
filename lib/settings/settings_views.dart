@@ -702,7 +702,7 @@ extension SettingsViews on HomeState {
           () => detail(
             'Your data',
             deviceText(
-              'Saved services, reports and preferences stay on this device. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone. Pairings are never included in backups; saved sign passwords are included only if you choose, encrypted with a passphrase. Check for updates in About contacts GitHub to read the latest version number: when you press it and, only if you switch on Check for updates automatically, once a day. Nothing about you, your church or your services is sent; GitHub sees this device’s internet address, as any website does.',
+              'Saved services, reports and preferences stay on this device, along with the version you last saw What’s new for. There is no in-app account or cloud sync. Exported files go to the location you choose; keep backups somewhere you trust. Sign passwords and pairings are encrypted on this phone. Pairings are never included in backups; saved sign passwords are included only if you choose, encrypted with a passphrase. Check for updates in About contacts GitHub to read the latest version number: when you press it and, only if you switch on Check for updates automatically, once a day. Nothing about you, your church or your services is sent; GitHub sees this device’s internet address, as any website does.',
             ),
           ),
         ),
