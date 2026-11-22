@@ -846,6 +846,20 @@ extension LiveViewActions on HomeState {
     return keyFits('Custom', '+ −', label, part - 28);
   }
 
+  /// Whether "Custom", with its key where that shows, has little room to
+  /// spare in a row of time adjustments [width] wide.
+  bool customTight(double width) {
+    final label = (Theme.of(context).textTheme.labelLarge ?? const TextStyle())
+        .copyWith(fontSize: 14);
+    final part = (width - 2 - 10 - appLayout(context).controlHeight) / 3;
+    return !keyFits(
+      'Custom',
+      customKeyFits(width) ? '+ −' : '',
+      label,
+      part - 28 + 6,
+    );
+  }
+
   Widget liveControls(bool enabled) {
     final s = c.state.session;
     final canAdvance = enabled && s.index + 1 < s.timeline!.segments.length;
@@ -943,6 +957,7 @@ extension LiveViewActions on HomeState {
           VoidCallback? callback, {
           bool last = false,
           String? keys,
+          bool oneLine = false,
         }) => UnavailableAction(
           reason: callback == null ? unavailableReason(text) : null,
           child: TextButton(
@@ -955,7 +970,21 @@ extension LiveViewActions on HomeState {
                 context,
               ).textTheme.labelLarge?.copyWith(fontSize: 14),
             ),
-            child: keys == null
+            child: oneLine
+                ? FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(text, maxLines: 1, softWrap: false),
+                        if (showKeyHints && keys != null) ...[
+                          const SizedBox(width: 10),
+                          KeyHint(keys),
+                        ],
+                      ],
+                    ),
+                  )
+                : keys == null
                 ? Text(text, textAlign: TextAlign.center)
                 : keyLabel(text, keys, textAlign: TextAlign.center),
           ),
@@ -978,6 +1007,9 @@ extension LiveViewActions on HomeState {
             enabled ? adjustTime : null,
             // A large text size gives each its own line.
             keys: large || customKeyFits(constraints.maxWidth) ? '+ −' : null,
+            // One line whatever the room: a label with little to spare
+            // shrinks a little instead of breaking the word.
+            oneLine: !large && customTight(constraints.maxWidth),
           ),
         ];
         final adjustGroup = Semantics(
