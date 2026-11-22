@@ -289,6 +289,7 @@ String exportBackup(
     ..remove('dismissedHints')
     ..remove('recentQuickTimers')
     ..remove('autoUpdate')
+    ..remove('seenVersion')
     ..remove('settingsLock')
     ..remove('clickerControls')
     ..remove('fullScreenLayout')

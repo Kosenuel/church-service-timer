@@ -26,6 +26,7 @@ extension PlanningViews on HomeState {
         defaultEnd: s.timeline!.display.end,
         existingNames: const {},
         upcomingOnly: true,
+        stagePreviewFirst: c.previewsAsStageScreen,
       ),
     );
     if (result == null || !mounted) return;

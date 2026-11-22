@@ -29,7 +29,14 @@ class HostFullScreenState {
   /// Puts the control tray away if it is showing, and says whether it
   /// was; set by the view. Esc and Back close the tray first.
   bool Function()? closeTray;
+
+  /// Brings back the gestures tip; set by the view.
+  VoidCallback? showTip;
 }
+
+/// The id kept in [AppState.dismissedHints], on this device only, once the
+/// gestures tip has been shown on its own.
+const gesturesTipHint = 'full-screen-gestures';
 
 /// Makes the screen itself full: on a computer the window loses its frame
 /// and covers its monitor, where the computer can do that; on a phone or
@@ -68,12 +75,15 @@ extension HostFullScreenMode on HomeState {
   bool get hostFullScreenAvailable =>
       c.ready && c.liveSession.active && !c.pairing.joined;
 
-  /// Full screen, once open, stays after the service ends, showing its end
-  /// screen; it closes when the next service is set up or Live is left.
+  /// Full screen on a PC, once open, stays after the service ends,
+  /// showing its end screen; it closes when the next service is set up or
+  /// Live is left. On a phone or tablet it closes when the service ends,
+  /// and the screen turns back to how it was.
   bool get hostFullScreenStays =>
       c.ready &&
       !c.pairing.joined &&
-      (c.liveSession.active || c.liveSession.phase == 'ended');
+      (c.liveSession.active ||
+          (c.port.isDesktop && c.liveSession.phase == 'ended'));
 
   /// The header has room for the Full screen button from this width; a
   /// narrower screen would lose the service's name to it.
@@ -274,6 +284,13 @@ class HostFullScreenView extends StatefulWidget {
   /// How long the control tray stays untouched.
   static const trayTime = Duration(seconds: 6);
 
+  /// How long the gestures tip shows if nothing dismisses it.
+  static const tipTime = Duration(seconds: 8);
+
+  /// How long after the tip is tapped away a tap is ignored, so the second
+  /// tap of a double tap does not open the tray.
+  static const tipGuard = Duration(milliseconds: 400);
+
   /// How long a hint such as "Nothing to undo" shows.
   static const hintTime = Duration(milliseconds: 1600);
 
@@ -299,6 +316,11 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
   String? _hint;
   Timer? _hintHide;
 
+  /// The gestures tip is showing; [_tipGuarded] while a tap just
+  /// dismissed it.
+  bool _tip = false, _tipGuarded = false;
+  Timer? _tipHide, _tipGuardEnd;
+
   Offset? _doubleAt;
   double _dragFrom = 0, _dragBy = 0;
 
@@ -307,8 +329,22 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
     super.initState();
     home.hostFullScreen
       ..reveal = reveal
-      ..closeTray = closeTray;
+      ..closeTray = _closeOverlays
+      ..showTip = _showTip;
     home.c.addListener(_follow);
+    HardwareKeyboard.instance.addHandler(_tipKey);
+    // The first time on this device, and only unlocked.
+    if (!home.controlsLocked &&
+        !home.c.state.dismissedHints.contains(gesturesTipHint)) {
+      _tip = true;
+      _tipHide = Timer(HostFullScreenView.tipTime, _dismissTip);
+      // Kept on this device only, once it has shown.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(
+          home.c.commit((d, _) => d.dismissedHints.add(gesturesTipHint)),
+        );
+      });
+    }
     // Shown at first, so the way out is seen once.
     _control = true;
     _hide = Timer(HostFullScreenView.controlTime, _hideControl);
@@ -319,10 +355,14 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
     _hide?.cancel();
     _trayHide?.cancel();
     _hintHide?.cancel();
+    _tipHide?.cancel();
+    _tipGuardEnd?.cancel();
+    HardwareKeyboard.instance.removeHandler(_tipKey);
     home.c.removeListener(_follow);
     final state = home.hostFullScreen;
     if (state.reveal == reveal) state.reveal = null;
-    if (state.closeTray == closeTray) state.closeTray = null;
+    if (state.closeTray == _closeOverlays) state.closeTray = null;
+    if (state.showTip == _showTip) state.showTip = null;
     // Closed some other way than Exit: the screen still goes back.
     if (state.showing && !state.changing) {
       state.showing = false;
@@ -331,14 +371,16 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
     super.dispose();
   }
 
-  /// Full screen is for a service: it stays on the end screen once the
-  /// service ends, and Live comes back when another is set up.
+  /// Full screen is for a service: on a PC it stays on the end screen once
+  /// the service ends, and Live comes back when another is set up; a phone
+  /// or tablet goes back to Live as the service ends.
   void _follow() {
     if (home.mounted && !home.hostFullScreenStays) leave();
   }
 
-  /// End service from the tray: full screen stays, showing the end screen,
-  /// or the clock for a program with no end screen.
+  /// End service from the tray: on a PC full screen stays, showing the end
+  /// screen, or the clock for a program with no end screen; a phone or
+  /// tablet leaves full screen.
   Future<void> _endService() => home.confirmEndService();
 
   void leave() => unawaited(home.setHostFullScreen(false));
@@ -382,6 +424,54 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
       _control = false;
     });
     _waitThenHideTray();
+  }
+
+  /// Shows the gestures tip: the first time, and from Show gestures.
+  void _showTip() {
+    if (!mounted || home.controlsLocked) return;
+    _tipHide?.cancel();
+    _tipGuardEnd?.cancel();
+    setState(() {
+      _tip = true;
+      _tipGuarded = false;
+    });
+    _tipHide = Timer(HostFullScreenView.tipTime, _dismissTip);
+  }
+
+  /// Takes the tip away. After a tap, taps are ignored a moment longer.
+  void _dismissTip({bool afterTap = false}) {
+    _tipHide?.cancel();
+    if (!mounted || !_tip) return;
+    setState(() {
+      _tip = false;
+      _tipGuarded = afterTap;
+    });
+    if (afterTap) {
+      _tipGuardEnd = Timer(HostFullScreenView.tipGuard, () {
+        if (mounted) setState(() => _tipGuarded = false);
+      });
+    }
+  }
+
+  /// Any key takes the tip away, and the key still does its own work. Esc
+  /// is left to [_closeOverlays].
+  bool _tipKey(KeyEvent event) {
+    if (_tip &&
+        event is KeyDownEvent &&
+        event.logicalKey != LogicalKeyboardKey.escape) {
+      _dismissTip();
+    }
+    return false;
+  }
+
+  /// Esc and Back put the tip away first, then the tray; false if neither
+  /// was showing.
+  bool _closeOverlays() {
+    if (_tip) {
+      _dismissTip();
+      return true;
+    }
+    return closeTray();
   }
 
   /// Puts the tray away; false if it was not showing.
@@ -473,6 +563,12 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
       _tray = false;
       _trayHide?.cancel();
     }
+    if (locked && (_tip || _tipGuarded)) {
+      // Nor does it leave a tip in the way of Hold to unlock.
+      _tip = _tipGuarded = false;
+      _tipHide?.cancel();
+      _tipGuardEnd?.cancel();
+    }
     final motion = reduceAppMotion(context)
         ? Duration.zero
         : const Duration(milliseconds: 200);
@@ -483,7 +579,7 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         if (home.controlsLocked) return reveal();
-        if (!closeTray()) leave();
+        if (!_closeOverlays()) leave();
       },
       child: Scaffold(
         key: const ValueKey('host-full-screen'),
@@ -523,6 +619,25 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
                     ),
                   ),
                 ),
+                // Never part of the stage picture: drawn here only.
+                IgnorePointer(
+                  child: AnimatedSwitcher(
+                    duration: motion,
+                    child: _tip
+                        ? _tipView(context, size)
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+                // A tap anywhere on it closes it; the one after it, for a
+                // moment, is not a tap on the stage.
+                if (_tip || _tipGuarded)
+                  Positioned.fill(
+                    child: GestureDetector(
+                      key: const ValueKey('full-screen-tip-tap'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _dismissTip(afterTap: true),
+                    ),
+                  ),
                 if (_control)
                   SafeArea(
                     child: Align(
@@ -567,6 +682,122 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+
+  /// The three zones with what a double tap does in each, and how to bring
+  /// up the tray, over a darkened stage. Sized from the screen, so it reads
+  /// from a phone in landscape and on a large monitor.
+  Widget _tipView(BuildContext context, Size size) {
+    final colors = appColors(context);
+    final unit = (size.shortestSide / 390).clamp(1.0, 2.4);
+    final click = desktopWording ? 'click' : 'tap';
+    final double = desktopWording ? 'Double-click' : 'Double-tap';
+    final big = TextStyle(
+      color: Colors.white,
+      fontSize: 19 * unit,
+      fontWeight: FontWeight.w700,
+      height: 1.15,
+    );
+    final small = TextStyle(
+      color: Colors.white.withValues(alpha: .82),
+      fontSize: 14 * unit,
+      height: 1.2,
+    );
+    Widget zone(IconData icon, String name) => Expanded(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 8 * unit),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 36 * unit),
+            SizedBox(height: 6 * unit),
+            Text(name, textAlign: TextAlign.center, style: big),
+            SizedBox(height: 2 * unit),
+            Text('$double here', textAlign: TextAlign.center, style: small),
+          ],
+        ),
+      ),
+    );
+    final line = Colors.white.withValues(alpha: .45);
+    return Semantics(
+      container: true,
+      label:
+          'Gestures. $double the left third to undo, the middle to pause or resume, the right third for the next segment. Each asks first.',
+      child: ColoredBox(
+        key: const ValueKey('full-screen-tip'),
+        color: Colors.black.withValues(alpha: .82),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    zone(Icons.undo, 'Undo'),
+                    VerticalDivider(width: 1, thickness: 1, color: line),
+                    zone(Icons.pause_circle_outline, 'Pause or resume'),
+                    VerticalDivider(width: 1, thickness: 1, color: line),
+                    zone(Icons.skip_next_rounded, 'Next segment'),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  16 * unit,
+                  0,
+                  16 * unit,
+                  14 * unit,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.surface,
+                        borderRadius: BorderRadius.circular(14 * unit),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 14 * unit,
+                          vertical: 8 * unit,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.keyboard_double_arrow_up,
+                              color: Colors.white,
+                              size: 30 * unit,
+                            ),
+                            SizedBox(width: 10 * unit),
+                            Flexible(
+                              child: Text(
+                                desktopWording
+                                    ? 'Click once, or move the mouse to the bottom edge, for the controls'
+                                    : 'Swipe up from the bottom, or tap once, for the controls',
+                                style: big.copyWith(
+                                  fontSize: 17 * unit,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 8 * unit),
+                    Text(
+                      'Each one asks you to confirm. ${click[0].toUpperCase()}${click.substring(1)} anywhere, or press a key, to close.',
+                      textAlign: TextAlign.center,
+                      style: small,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -745,6 +976,16 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
         s.outputBlank ? 'Unblank' : 'Blank',
         blank ? home.confirmBlank : null,
         tooltip: s.outputBlank ? 'Unblank screen' : 'Blank screen',
+      ),
+      _item(
+        'full-screen-tray-gestures',
+        Icons.touch_app_outlined,
+        'Show gestures',
+        () async {
+          closeTray();
+          _showTip();
+        },
+        tooltip: 'Show what a double ${desktop ? 'click' : 'tap'} does',
       ),
       _divider(colors),
       // Ends the service, after the same question as End service on Live;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 
 /// Which ways round the app lets a phone or tablet turn. A paired stage
@@ -6,6 +8,10 @@ import 'package:flutter/services.dart';
 /// app had asked for before. Empty means any way round.
 class ScreenOrientation {
   ScreenOrientation._();
+
+  /// Android's own end of the device channel, which holds the screen to
+  /// whichever landscape the sensor reports.
+  static const _device = MethodChannel('church.timer/device');
 
   static const landscape = [
     DeviceOrientation.landscapeLeft,
@@ -31,10 +37,35 @@ class ScreenOrientation {
 
   /// Full screen turns the screen landscape, and leaving it brings back
   /// what the app asked for before.
+  ///
+  /// Asking Flutter for both landscapes becomes Android's "user
+  /// landscape", which follows the sensor only while the system's
+  /// auto-rotate is on. So full screen also asks Android, on the device
+  /// channel, for "sensor landscape", which turns between the two
+  /// landscapes whatever auto-rotate says. Leaving drops that first, then
+  /// asks for what the app had asked for before.
   static Future<void> setFullScreen(bool on) async {
     if (on == _fullScreen) return;
     _fullScreen = on;
-    await SystemChrome.setPreferredOrientations(on ? landscape : _app);
+    if (on) {
+      final landscapes = SystemChrome.setPreferredOrientations(landscape);
+      // Sent after the first, so it is the one that stands. Not waited
+      // for: the screen does not wait for it either.
+      unawaited(_sensorLandscape(true));
+      await landscapes;
+    } else {
+      unawaited(_sensorLandscape(false));
+      await SystemChrome.setPreferredOrientations(_app);
+    }
+  }
+
+  static Future<void> _sensorLandscape(bool on) async {
+    try {
+      await _device.invokeMethod<void>('sensorLandscape', on);
+    } catch (_) {
+      // No Android side to ask (a test, or an older build): the two
+      // landscapes asked for above still apply.
+    }
   }
 
   /// For tests: forgets what was asked for.

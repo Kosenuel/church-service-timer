@@ -706,7 +706,7 @@ void main() {
       await t.pumpWidget(const SizedBox());
     });
 
-    testWidgets('other text editors keep the sign preview alone', (t) async {
+    testWidgets('a composer given no stage choice keeps the sign preview alone', (t) async {
       setScreen(t);
       await t.pumpWidget(
         const MaterialApp(

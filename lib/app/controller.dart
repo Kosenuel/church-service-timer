@@ -33,6 +33,7 @@ import 'package:church_service_timer/app/web_stage_coordinator.dart';
 import 'package:church_service_timer/app/metrics_tracker.dart';
 import 'package:church_service_timer/app/backup_controller.dart';
 import 'package:church_service_timer/app/auto_update_check.dart';
+import 'package:church_service_timer/app/whats_new_notice.dart';
 import 'package:church_service_timer/app/settings_pin_controller.dart';
 import 'package:church_service_timer/app/service_notification_controller.dart';
 
@@ -684,6 +685,10 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  /// Whether a saved state existed when the app started; false on a new
+  /// install, after the app's data was cleared, or when it could not be read.
+  bool hadSavedState = false;
+
   Future<void> initialize({bool startTicker = true}) async {
     now = await port.clock();
     try {
@@ -694,6 +699,7 @@ class AppController extends ChangeNotifier {
               Map<String, dynamic>.from(jsonDecode(data)),
               now: now,
             );
+      hadSavedState = data != null;
       loadingChurchName = state.churchName;
       themeSelection.value = state.themeId;
       appearanceSelection.value = state.appearance;
@@ -716,6 +722,7 @@ class AppController extends ChangeNotifier {
       await syncPhoneWarnings(previous: previous);
     } catch (e) {
       state = AppState.fresh(now);
+      hadSavedState = false;
       state.session.held = true;
       corrupt = true;
       error = 'Saved state could not be recovered. Output is held. $e';
@@ -760,6 +767,7 @@ class AppController extends ChangeNotifier {
     if (startTicker)
       _timer = Timer.periodic(const Duration(milliseconds: 100), (_) => tick());
     autoUpdate.start();
+    await whatsNew.start();
   }
 
   Future<void> tick() async {
@@ -1139,6 +1147,7 @@ class AppController extends ChangeNotifier {
 
   /// Settings › About › Check for updates automatically.
   late final autoUpdate = AutoUpdateCheck(this);
+  late final whatsNew = WhatsNewNotice(this);
   Future<bool> restoreBackup(AppState restored) => backups.restore(restored);
   Future<Map<String, dynamic>> backupSecrets() => backups.secrets();
   bool hasBackupSecrets(Map<String, dynamic> secrets) =>

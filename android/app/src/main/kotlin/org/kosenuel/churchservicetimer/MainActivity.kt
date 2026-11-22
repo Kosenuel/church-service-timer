@@ -118,6 +118,18 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
         WarningNotifications.ensureChannel(context)
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "sensorLandscape" -> {
+                    // Full screen: turn between the two landscapes with the
+                    // sensor even when the system auto-rotate switch is off.
+                    // Off hands the choice back; Flutter then asks again for
+                    // whatever the app wanted.
+                    try {
+                        activity().requestedOrientation = if (call.arguments == true)
+                            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                        result.success(null)
+                    } catch (e: Exception) { result.error("ORIENTATION", e.message, null) }
+                }
                 "pickerTick" -> { host.get()?.window?.decorView?.let { pickerFeedback.tick(it, call.arguments as? String ?: "off") }; result.success(null) }
                 "signWifiProfile" -> background(result) { signWifi.info(call.arguments as String) }
                 "saveSignWifiProfile" -> background(result) {
