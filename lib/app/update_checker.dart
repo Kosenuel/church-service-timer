@@ -45,24 +45,68 @@ List<ReleaseAsset> _assets(Object? listed) {
   return found;
 }
 
-/// The x.y.z of a version such as `0.32.0 (37)` or a tag such as `v0.32.0`.
-/// The build number in brackets is ignored. Null when [text] is not a
-/// version.
-List<int>? versionNumbers(String text) {
+/// A version split into its x.y.z and its pre-release part, if any:
+/// `0.36.0-beta.1 (41)` is numbers 0.36.0 and pre-release `beta.1`.
+typedef ParsedVersion = ({List<int> numbers, String? pre});
+
+/// Splits a version such as `0.32.0 (37)`, `0.36.0-beta.1 (41)` or a tag
+/// such as `v0.32.0`. The build number in brackets is ignored. Null when
+/// [text] is not a version.
+ParsedVersion? parseVersion(String text) {
   final match = RegExp(
-    r'^v?(\d{1,6})\.(\d{1,6})\.(\d{1,6})(?: \(.*\))?$',
+    r'^v?(\d{1,6})\.(\d{1,6})\.(\d{1,6})'
+    r'(?:-([0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*))?(?: \(.*\))?$',
   ).firstMatch(text.trim());
   if (match == null) return null;
-  return [for (var i = 1; i <= 3; i++) int.parse(match.group(i)!)];
+  return (
+    numbers: [for (var i = 1; i <= 3; i++) int.parse(match.group(i)!)],
+    pre: match.group(4),
+  );
+}
+
+/// The x.y.z of a released (not pre-release) version such as `0.32.0 (37)`
+/// or a tag such as `v0.32.0`. The build number in brackets is ignored.
+/// Null when [text] is not a version, and also when it has a pre-release
+/// part such as `-beta.1`: a test version is never one to offer.
+List<int>? versionNumbers(String text) {
+  final parsed = parseVersion(text);
+  return parsed == null || parsed.pre != null ? null : parsed.numbers;
 }
 
 /// Below zero when version [a] is older than [b], zero when they are the
-/// same, above zero when it is newer.
+/// same, above zero when it is newer. Compares x.y.z only.
 int compareVersions(List<int> a, List<int> b) {
   for (var i = 0; i < 3; i++) {
     if (a[i] != b[i]) return a[i] - b[i];
   }
   return 0;
+}
+
+/// Semantic Versioning order, pre-release part included: `0.36.0-beta.1`
+/// is older than `0.36.0`, and `beta.2` is newer than `beta.1`.
+int compareParsed(ParsedVersion a, ParsedVersion b) {
+  final numbers = compareVersions(a.numbers, b.numbers);
+  if (numbers != 0) return numbers;
+  final x = a.pre, y = b.pre;
+  if (x == null || y == null) {
+    return x == y ? 0 : (x == null ? 1 : -1);
+  }
+  final left = x.split('.'), right = y.split('.');
+  for (var i = 0; i < left.length && i < right.length; i++) {
+    final m = int.tryParse(left[i]), n = int.tryParse(right[i]);
+    final int c;
+    if (m != null && n != null) {
+      c = m.compareTo(n);
+    } else if (m != null) {
+      c = -1; // numbers sort before words
+    } else if (n != null) {
+      c = 1;
+    } else {
+      c = left[i].compareTo(right[i]);
+    }
+    if (c != 0) return c;
+  }
+  return left.length - right.length;
 }
 
 /// What a check for a newer version found.
@@ -111,8 +155,9 @@ class UpdateUnknown extends UpdateResult {
 /// Fetches the text at an https address; null when it could not be read.
 typedef FetchText = Future<String?> Function(String url);
 
-/// Asks GitHub which version is the newest, when the person asks for it in
-/// Settings › About, or once a day when they have switched on Check for
+/// Asks GitHub which version is the newest released one (its
+/// `/releases/latest`, which leaves out pre-releases and drafts), when the
+/// person asks for it in Settings › About, or once a day when they have switched on Check for
 /// updates automatically (auto_update_check.dart). Nothing about the
 /// device or the church is sent: it is one plain GET. Downloading a new
 /// version, on a PC, is update_installer.dart, and only when asked.
@@ -129,19 +174,34 @@ class UpdateChecker {
   /// `0.32.0 (37)`. Never throws.
   Future<UpdateResult> check(String installed) async {
     try {
-      final mine = versionNumbers(installed);
+      final mine = parseVersion(installed);
       if (mine == null) return const UpdateUnknown();
       final text = await fetch(latestReleaseUrl);
       if (text == null) return const UpdateUnknown();
       final release = jsonDecode(text);
       if (release is! Map) return const UpdateUnknown();
+      final shown = mine.pre == null
+          ? mine.numbers.join('.')
+          : '${mine.numbers.join('.')}-${mine.pre}';
+      // /releases/latest never answers with a pre-release or a draft, but
+      // a test version is never offered even if one slipped through.
+      if (release['prerelease'] == true || release['draft'] == true) {
+        return UpToDate(shown);
+      }
       final tag = release['tag_name'];
-      final latest = tag is String ? versionNumbers(tag) : null;
+      final parsedTag = tag is String ? parseVersion(tag) : null;
+      // A tag with a hyphen is a test version: nothing to offer.
+      if (parsedTag?.pre != null) return UpToDate(shown);
+      final latest = parsedTag?.numbers;
       // A tag with brackets is not one of ours.
       if (latest == null || (tag as String).contains('(')) {
         return const UpdateUnknown();
       }
-      if (compareVersions(latest, mine) <= 0) return UpToDate(mine.join('.'));
+      // A device on 0.36.0-beta.1 is offered 0.36.0, but never the other
+      // way round: a pre-release is not a candidate (versionNumbers).
+      if (compareParsed((numbers: latest, pre: null), mine) <= 0) {
+        return UpToDate(shown);
+      }
       final page = release['html_url'];
       return UpdateAvailable(
         latest.join('.'),
