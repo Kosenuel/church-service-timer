@@ -2,6 +2,13 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built. From 0.35.0, version numbers follow [Semantic Versioning](https://semver.org) (MAJOR.MINOR.PATCH); see [Versioning](docs/BUILD.md#versioning) for how each release's number is chosen.
 
+## Unreleased
+
+- **Search the Bible on the Slides page, and a Ready tray for what you find.** The box at the top of **Library** now searches your songs and the whole King James Bible as you type, with nothing to download and no internet needed. Type a reference (**John 3:16**, **john 3 16**, **1cor13 4-7**, **psalm 23**, **John 3:16-4:2**) or any words from a verse in any order (**shadow valley death** finds Psalm 23:4). Quote a phrase to find just that wording, and spelling slips and modern words still find the old wording (**he who believes** finds "he that believeth", **you** finds "thee" and "ye"). Type the start of a book to see the books (**jo** offers Job, Joel, John, Jonah and Joshua), a book first to stay in it (**rom faith**), or a name such as **the Lord's Prayer** or **the Beatitudes**. Matched words are marked in each result.
+  - **Ready.** Press **Enter** (or tap a result) to put a passage in **Ready**, a short list on the Slides page, then press **Send** to show it on the screens exactly like a slide from the Library (same background, Dim, **Send to** and **Clear slide**). **Ctrl+Enter**, a second tap or the play button on a result sends it at once. In Ready, **+ next verse** and **Whole chapter** take in more, and **Save to Library** keeps it as Bible verses. Ready is kept while the app is open and starts empty after a restart.
+  - **Keys.** **/** or **Ctrl+F** goes to the box from anywhere on the Slides page, **Up** and **Down** move between results, **Esc** clears the box. **Search the Bible** is also in Commands (Ctrl+K). On a phone, the search field at the top of Slides opens a full-height list of results.
+  - **Isaiah can be looked up.** "Isaiah 40:31" and "Isa 40" were read as 1 Samuel or refused, because the I of Isaiah was taken for a Roman numeral; they now work in Add Bible verses as well.
+
 ## 0.38.0, 23/November/2026
 
 - **Song words, Bible verses and announcements on the screens.** A new **Slides** page, after Programs in the navigation, and a **Slides** button on Live under the display preview, put words on the second screen, web screens and stage screens.
