@@ -6,6 +6,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_pickers.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_paint.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +20,8 @@ final friday = DateTime(2026, 11, 20, 9, 30);
 
 void main() {
   setUpAll(loadAppFonts);
+  // Paper & Ink and the Finish tiles draw the finish photographs.
+  setUpAll(FinishTextures.instance.loadAll);
   tearDown(() => desktopWording = false);
 
   group('dates are written day first', () {

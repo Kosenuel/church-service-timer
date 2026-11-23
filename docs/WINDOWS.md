@@ -179,6 +179,8 @@ pwsh scripts/Package-Windows.ps1
 
 The app is in `build\windows\x64\runner\Release`; the script writes a zip and, with [Inno Setup 6](https://jrsoftware.org/isinfo.php) installed, an installer to `dist\`. `build.yml` does the same on GitHub and uploads the result as the `church-service-timer-windows` artifact; `release.yml` attaches both files to a tagged release.
 
+The installer's own pages are designed to match the app (see [windows/installer/README.md](../windows/installer/README.md)): a dark window, a picture beside the Welcome and Finished pages, a small icon on the inner pages, and a slideshow of six scenes (countdown, over-time, flip clock, Slides, phones and web screens, looks) with captions while files copy. It needs Inno Setup 6.6 or newer; an older one builds the plain wizard. A silent install shows none of it, and what is installed, where, and how upgrades work are unchanged. Not yet seen on a real PC: check each page, at 100% and 150% scaling, with Windows in light and dark mode, and that Next, Back and the launch tick box work from the keyboard. `python3 tool/make_installer_preview.py <folder>` draws mock-up previews of the pages.
+
 Nothing is code-signed. Windows SmartScreen shows "Windows protected your PC" the first time; **More info** then **Run anyway** starts it.
 
 ## What to try on a real PC

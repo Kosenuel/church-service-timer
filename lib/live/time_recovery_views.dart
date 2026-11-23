@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/time_picker.dart';
@@ -121,7 +122,10 @@ class _TimeRecoveryPageState extends State<TimeRecoveryPage> {
             label: const Text('Apply reviewed adjustments'),
           );
     return Scaffold(
-      appBar: AppBar(title: const Text('Recover time')),
+      appBar: AppBar(
+        flexibleSpace: finishBar(context),
+        title: const Text('Recover time'),
+      ),
       // In a wide window this is a dialog: the list scrolls and the
       // actions stay in a footer, at their ordinary size.
       body: wide

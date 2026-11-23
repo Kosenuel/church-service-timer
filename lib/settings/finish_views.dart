@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/finish.dart';
@@ -144,10 +146,70 @@ class FinishSection extends StatelessWidget {
             style: TextStyle(color: colors.muted),
           ),
         ],
+        const SizedBox(height: 4),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton(
+            key: const ValueKey('finish-credits'),
+            onPressed: () => showFinishTextureCredits(context),
+            child: const Text('Texture credits'),
+          ),
+        ),
       ],
     );
   }
 }
+
+/// The credits for the finish textures, from assets/finish/credits.json.
+Future<List<Map<String, dynamic>>> finishTextureCredits() async {
+  final raw = await rootBundle.loadString('assets/finish/credits.json');
+  return [
+    for (final e in jsonDecode(raw) as List)
+      Map<String, dynamic>.from(e as Map),
+  ];
+}
+
+/// Where the finish textures come from: photographs from Poly Haven and
+/// ambientCG, every one CC0.
+Future<void> showFinishTextureCredits(BuildContext context) => showDialog<void>(
+  context: context,
+  builder: (context) => AlertDialog(
+    title: const Text('Texture credits'),
+    content: SizedBox(
+      width: 480,
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: finishTextureCredits(),
+        builder: (context, snap) {
+          final credits = snap.data ?? const [];
+          return ListView(
+            key: const ValueKey('finish-credits-list'),
+            shrinkWrap: true,
+            children: [
+              for (final c in credits)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('${c['title']}'),
+                  subtitle: Text(
+                    '${c['author']} · ${c['license']}\n${c['source']}',
+                  ),
+                  isThreeLine: true,
+                ),
+              const Text(
+                'The photographs are from Poly Haven and ambientCG. Every one is CC0: none needs credit to be shown on screen; they are listed here with thanks.',
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Close'),
+      ),
+    ],
+  ),
+);
 
 class FinishTile extends StatelessWidget {
   final String id;
@@ -219,7 +281,7 @@ class FinishTile extends StatelessWidget {
 
 /// A small panel on a piece of the finish's wall, drawn with the real
 /// painters, as the app would draw them in [palette].
-class FinishSwatch extends StatelessWidget {
+class FinishSwatch extends StatefulWidget {
   final String id;
   final double strength;
   final AppPalette palette;
@@ -230,7 +292,16 @@ class FinishSwatch extends StatelessWidget {
     required this.palette,
   });
   @override
+  State<FinishSwatch> createState() => _FinishSwatchState();
+}
+
+class _FinishSwatchState extends State<FinishSwatch> {
+  // The swatch is a little wall of its own, so a glass pane in it shows the
+  // swatch's light, not the app's.
+  final _wall = GlobalKey();
+  @override
   Widget build(BuildContext context) {
+    final id = widget.id, palette = widget.palette, strength = widget.strength;
     final look = FinishLook.resolve(
       // The tile shows the material even where High contrast would hide it.
       palette.highContrast ? paletteFor(palette.id) : palette,
@@ -243,24 +314,27 @@ class FinishSwatch extends StatelessWidget {
       child: ExcludeSemantics(
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              RepaintBoundary(
-                child: flat
+          child: FinishWallScope(
+            wallKey: _wall,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                flat
                     ? ColoredBox(color: palette.background)
-                    : CustomPaint(painter: FinishWallPainter(look)),
-              ),
-              Center(
-                child: FractionallySizedBox(
-                  widthFactor: .72,
-                  heightFactor: .66,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    clipBehavior: Clip.none,
-                    children: [
-                      RepaintBoundary(
-                        child: flat
+                    : FinishPaint(
+                        key: _wall,
+                        look: look,
+                        part: FinishPart.wall,
+                      ),
+                Center(
+                  child: FractionallySizedBox(
+                    widthFactor: .72,
+                    heightFactor: .66,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      clipBehavior: Clip.none,
+                      children: [
+                        flat
                             ? DecoratedBox(
                                 decoration: BoxDecoration(
                                   color: palette.surface,
@@ -268,32 +342,41 @@ class FinishSwatch extends StatelessWidget {
                                   border: Border.all(color: palette.border),
                                 ),
                               )
-                            : CustomPaint(
-                                painter: FinishPanelPainter(
-                                  look,
+                            : FinishPaint(
+                                look: look,
+                                part: FinishPart.panel,
+                                corners: BorderRadius.circular(
                                   finishRadius(id) * .6,
                                 ),
                               ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _bar(palette.text, 6, 1),
-                            const SizedBox(height: 5),
-                            _bar(palette.muted, 4, .7),
-                            const SizedBox(height: 8),
-                            _bar(palette.accent, 8, .46, round: true),
-                          ],
+                        if (!flat && stitchedFinishes.contains(id))
+                          FinishPaint(
+                            look: look,
+                            part: FinishPart.seam,
+                            corners: BorderRadius.circular(
+                              finishRadius(id) * .6,
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _bar(palette.text, 6, 1),
+                              const SizedBox(height: 5),
+                              _bar(palette.muted, 4, .7),
+                              const SizedBox(height: 8),
+                              _bar(palette.accent, 8, .46, round: true),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
