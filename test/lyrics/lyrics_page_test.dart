@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/lyrics/bible_loader.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/lyrics/lyric_editors.dart';
 import 'package:church_service_timer/shared/finish.dart';
@@ -161,6 +162,12 @@ Future<void> settle(WidgetTester t) async {
 
 void main() {
   setUpAll(loadAppFonts);
+  // Read the Bible once, outside any test's fake clock: a later test that
+  // awaits a read made inside an earlier one would wait for ever.
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    await BibleLibrary.load();
+  });
   // The finish photographs, decoded before any shot draws them.
   setUpAll(FinishTextures.instance.loadAll);
 
@@ -503,6 +510,111 @@ void main() {
       expect(item.verses, hasLength(4));
     },
   );
+
+  Future<void> findReference(WidgetTester t, String text) async {
+    await t.enterText(
+      find.byKey(const ValueKey('lyrics-editor-reference')),
+      text,
+    );
+    await t.tap(find.byKey(const ValueKey('lyrics-editor-find')));
+    // The Bible is read from the app's assets in real time.
+    for (var i = 0; i < 3; i++) {
+      await t.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await settle(t);
+    }
+  }
+
+  testWidgets('a book that could be several is offered as choices', (t) async {
+    final c = await openLyrics(t, size: const Size(1366, 900), running: false);
+    await t.tap(find.byKey(const ValueKey('lyrics-add-scripture')));
+    await settle(t);
+    await findReference(t, 'Jo 3:16');
+    expect(find.text('Did you mean:'), findsOneWidget);
+    for (final book in ['Job', 'Joel', 'John', 'Jonah', 'Joshua']) {
+      expect(
+        find.byKey(ValueKey('lyrics-editor-choice-$book')),
+        findsOneWidget,
+      );
+    }
+    expect(find.byKey(const ValueKey('lyrics-editor-problem')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('lyrics-editor-understood')),
+      findsNothing,
+    );
+    await t.tap(find.byKey(const ValueKey('lyrics-editor-choice-John')));
+    await t.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 500)),
+    );
+    await settle(t);
+    expect(find.text('Did you mean:'), findsNothing);
+    expect(find.textContaining('For God so loved the world'), findsWidgets);
+    final field = t.widget<TextField>(
+      find.byKey(const ValueKey('lyrics-editor-reference')),
+    );
+    expect(field.controller!.text, 'John 3:16');
+    await t.tap(find.byKey(const ValueKey('lyrics-editor-save')));
+    await settle(t);
+    final item = c.state.lyrics.items.firstWhere((i) => i.kind == 'scripture');
+    expect(item.title, 'John 3:16');
+  });
+
+  testWidgets('a corrected spelling says what it understood', (t) async {
+    await openLyrics(t, size: const Size(1366, 900), running: false);
+    await t.tap(find.byKey(const ValueKey('lyrics-add-scripture')));
+    await settle(t);
+    await findReference(t, 'Jhon 3 16');
+    expect(find.text('Showing John 3:16'), findsOneWidget);
+    expect(find.text('Did you mean:'), findsNothing);
+    // Typing again clears it.
+    await t.enterText(
+      find.byKey(const ValueKey('lyrics-editor-reference')),
+      'John 3:1',
+    );
+    await settle(t);
+    expect(find.text('Showing John 3:16'), findsNothing);
+    // A correctly spelt reference needs no such line.
+    await findReference(t, 'John 3:16');
+    expect(find.textContaining('Showing'), findsNothing);
+  });
+
+  testWidgets('the choices and the line fit a phone with large text', (
+    t,
+  ) async {
+    final c = await openLyrics(
+      t,
+      size: const Size(360, 780),
+      desktop: false,
+      running: false,
+      textScale: 1.6,
+    );
+    t
+        .state<NavigatorState>(find.byType(Navigator).first)
+        .push(
+          MaterialPageRoute<void>(
+            builder: (_) => LyricEditorPage(controller: c, kind: 'scripture'),
+          ),
+        );
+    await settle(t);
+    await findReference(t, 'Jo 3:16');
+    expect(
+      find.byKey(const ValueKey('lyrics-editor-choice-Joshua')),
+      findsOneWidget,
+    );
+    expect(t.takeException(), isNull);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/lyrics-editor-bible-choices-phone.png'),
+    );
+    await findReference(t, 'Jhon 3:16');
+    expect(find.text('Showing John 3:16'), findsOneWidget);
+    expect(t.takeException(), isNull);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/lyrics-editor-bible-showing-phone.png'),
+    );
+  });
 
   testWidgets('an announcement is saved like a song', (t) async {
     final c = await openLyrics(t, size: const Size(1366, 900), running: false);

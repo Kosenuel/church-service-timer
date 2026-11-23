@@ -55,6 +55,14 @@ class _LyricEditorPageState extends State<LyricEditorPage> {
           widget.item!.verses,
         );
   String? _problem;
+
+  /// The books a typed name could be, and what followed the name, for the
+  /// choices under the field.
+  List<String> _choices = const [];
+  String _choicesRest = '';
+
+  /// The reference as understood, shown when a spelling was put right.
+  String? _understood;
   bool _saving = false;
 
   String get kind => widget.kind;
@@ -95,13 +103,24 @@ class _LyricEditorPageState extends State<LyricEditorPage> {
   };
 
   Future<void> _find() async {
-    setState(() => _problem = null);
+    setState(() {
+      _problem = null;
+      _choices = const [];
+      _understood = null;
+    });
     try {
       final bible = await BibleLibrary.load();
       final reading = bible.read(_title.text);
       setState(() {
         _reading = reading;
         _title.text = reading.reference;
+        _understood = reading.corrected ? reading.reference : null;
+      });
+    } on BibleBookChoice catch (e) {
+      setState(() {
+        _reading = null;
+        _choices = e.books;
+        _choicesRest = e.rest;
       });
     } on RuleError catch (e) {
       setState(() {
@@ -109,6 +128,12 @@ class _LyricEditorPageState extends State<LyricEditorPage> {
         _problem = e.message;
       });
     }
+  }
+
+  /// A tapped book: the same reference with that book in front.
+  void _choose(String book) {
+    _title.text = '$book $_choicesRest';
+    _find();
   }
 
   Future<void> _open() async {
@@ -429,6 +454,14 @@ class _LyricEditorPageState extends State<LyricEditorPage> {
                 controller: _title,
                 textInputAction: TextInputAction.search,
                 onSubmitted: (_) => _find(),
+                onChanged: (_) {
+                  if (_choices.isNotEmpty || _understood != null) {
+                    setState(() {
+                      _choices = const [];
+                      _understood = null;
+                    });
+                  }
+                },
                 decoration: const InputDecoration(
                   labelText: 'Reference',
                   hintText: 'John 3:16-18, Psalm 23, 1 Cor 13:4-7',
@@ -446,6 +479,33 @@ class _LyricEditorPageState extends State<LyricEditorPage> {
             ),
           ],
         ),
+        if (_choices.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            key: const ValueKey('lyrics-editor-choices'),
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text('Did you mean:', style: muted),
+              for (final book in _choices)
+                ActionChip(
+                  key: ValueKey('lyrics-editor-choice-$book'),
+                  label: Text(book),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _choose(book),
+                ),
+            ],
+          ),
+        ],
+        if (_understood != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Showing $_understood',
+            key: const ValueKey('lyrics-editor-understood'),
+            style: muted,
+          ),
+        ],
         const SizedBox(height: 8),
         Text(
           'From the King James Version (1769), which comes with the app. Other translations are under copyright and cannot be included; use Paste your own for them.',
