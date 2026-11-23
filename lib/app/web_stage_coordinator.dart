@@ -35,6 +35,13 @@ class WebStageCoordinator {
           kind,
         ))
         ..requestFor = ((d) => app.stageRequests.statusFor('web:${d.token}'))
+        // Each Stage display shows what its group shows.
+        ..stageFor = ((d, s) =>
+            app.screens.decorate(Map.of(s), 'web:${d.token}', LyricTarget.web))
+        ..groupFor = ((d) {
+          final g = app.screens.groupOf('web:${d.token}');
+          return (id: g.id, name: g.name);
+        })
         ..lyricImage = _lyricImage;
 
   /// A bundled photo by id, or Your picture when its name is the one in
@@ -178,13 +185,10 @@ class WebStageCoordinator {
   }
 
   /// The paired-screen snapshot without private notes, plus timing for
-  /// Service overview.
+  /// Service overview. Each Stage display adds what its group shows (see
+  /// [ScreensController.decorate]).
   Json snapshot() {
-    // Lyrics only when Web screens is ticked under Send to.
-    final base = app.lyrics.decorate(
-      app.pairedSnapshot(false),
-      LyricTarget.web,
-    );
+    final base = app.pairedSnapshot(false);
     final s = app.state.session;
     final now = app.now;
     if (!app.ready || !s.active || s.timeline == null) return base;

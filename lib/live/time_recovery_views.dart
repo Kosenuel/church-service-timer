@@ -85,6 +85,8 @@ class _TimeRecoveryPageState extends State<TimeRecoveryPage> {
               speaker: s.speaker,
               notes: s.notes,
               protected: v,
+              sceneId: s.sceneId,
+              sceneName: s.sceneName,
             );
             snapshot.timeline = Timeline(
               t.name,

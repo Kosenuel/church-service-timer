@@ -50,10 +50,6 @@ class QuickMessageController {
       app.stageScreens.every((p) => _recipients.contains(p.id));
 
   Json decorateSnapshot(PairPeer peer, Json data) {
-    final profile = app.pairing.savedDevices
-        .where((d) => d.id == peer.id)
-        .firstOrNull;
-    data['stageLayout'] = profile?.layout ?? 'timer';
     if (!peer.viewingStage || !_recipients.contains(peer.id)) {
       data.remove('quickMessage');
       data['blank'] = app.state.session.outputBlank;

@@ -65,10 +65,13 @@ void main() {
         'Clear slide gives back "${stageLayouts[layout]}" $when exactly',
         () async {
           final (c, port) = await open();
-          await c.setSimulatorLayout(layout);
+          // Every screen in Room 1, which keeps the layout for when no
+          // slide is up.
+          await c.screens.setShow('room', layout);
+          await c.screens.setShow('room', 'slides');
+          await c.screens.move('pair:phone', 'room');
           if (late) await overtime(c, port);
           final peer = PairPeer('phone', 'Pulpit phone', 'stage', _Wire());
-          await c.lyrics.setLook(c.lyrics.look.copyWith(toStage: true));
           c.lyrics.clear();
           final sim = jsonEncode(c.stageSimulatorSnapshot());
           final window = jsonEncode(c.stageWindowSnapshot());
@@ -99,7 +102,10 @@ void main() {
         'the screen shows "${stageLayouts[layout]}" again after Clear slide $when',
         (t) async {
           final (c, port) = await open();
-          await c.setSimulatorLayout(layout);
+          await t.runAsync(() async {
+            await c.screens.setShow('room', layout);
+            await c.screens.setShow('room', 'slides');
+          });
           if (late) await overtime(c, port);
           setScreen(t, const Size(960, 540));
           Future<List<String>> shown(Json data) async {

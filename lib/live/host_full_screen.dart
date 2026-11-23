@@ -122,14 +122,9 @@ extension HostFullScreenMode on HomeState {
   /// and over the stage in full screen.
   bool get compactQuestions => miniTimer || hostFullScreen.showing;
 
-  /// Timer only, with the segment name, or with the next segment. A PC
-  /// uses its second screen's choice; a phone or tablet has its own.
-  String get hostFullScreenLayout =>
-      c.secondScreen?.layout ?? c.state.fullScreenLayout;
-
-  /// What the stage shows now, as the second screen would get it.
-  Json hostStageSnapshot() =>
-      c.stageWindowSnapshot()..['stageLayout'] = hostFullScreenLayout;
+  /// What the stage shows now, as the second screen would get it: this
+  /// device's own screen, in its group.
+  Json hostStageSnapshot() => c.stageWindowSnapshot();
 
   /// Shows the stage full screen or goes back to Live. Opening needs a
   /// running service and nothing else open on top; otherwise nothing

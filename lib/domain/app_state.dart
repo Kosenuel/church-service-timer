@@ -139,6 +139,13 @@ class AppState {
   /// Stored songs, Bible verses and announcements, and how their slides
   /// look and where they go. In backups (except Your picture).
   LyricsLibrary lyrics;
+
+  /// The groups of stage screens, their scenes and which group each
+  /// screen of this device is in (see docs/SCREENS-PANEL-DESIGN.md). Null
+  /// in data saved before groups, until the app migrates it at start.
+  /// Groups and scenes are in backups when there are scenes; which screen
+  /// is in which group stays on this device.
+  ScreenSetup? screens;
   AppState(
     this.templates,
     this.defaults,
@@ -171,6 +178,7 @@ class AppState {
     AutoUpdateSettings? autoUpdate,
     this.seenVersion,
     this.lyrics = const LyricsLibrary(),
+    this.screens,
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -379,6 +387,8 @@ class AppState {
       seenVersion: readSeenVersion(j['seenVersion']),
       // Missing in saved data from before lyrics: an empty library.
       lyrics: LyricsLibrary.fromJson(j['lyrics']),
+      // Missing in saved data from before groups: migrated at start.
+      screens: ScreenSetup.tryRead(j['screens']),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -532,6 +542,7 @@ class AppState {
         jsonEncode(lyrics.look.toJson()) !=
             jsonEncode(const LyricsLook().toJson()))
       'lyrics': lyrics.toJson(),
+    if (screens != null) 'screens': screens!.toJson(),
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
     'fullScreenLayout': fullScreenLayout,

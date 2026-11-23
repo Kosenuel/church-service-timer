@@ -1,4 +1,4 @@
-import 'package:church_service_timer/shared/stage_layout_tiles.dart';
+import 'package:church_service_timer/screens/screen_group_note.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -67,12 +67,10 @@ extension SimulatorChoice on HomeState {
         simulatorKindButtons(),
         if (c.state.simulatorKind == 'stage') ...[
           const SizedBox(height: 8),
-          StageLayoutTiles(
-            keyPrefix: 'simulator-layout',
-            value: c.state.simulatorLayout,
-            onChanged: canChooseSimulatorKind && !c.busy
-                ? c.setSimulatorLayout
-                : null,
+          ScreenGroupNote(
+            controller: c,
+            screen: thisScreenKey,
+            locked: !canChooseSimulatorKind,
           ),
         ],
       ],

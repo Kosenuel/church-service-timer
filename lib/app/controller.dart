@@ -27,6 +27,7 @@ import 'package:church_service_timer/app/edit_draft_queue.dart';
 import 'package:church_service_timer/app/practice_controller.dart';
 import 'package:church_service_timer/app/quick_message_controller.dart';
 import 'package:church_service_timer/app/lyrics_controller.dart';
+import 'package:church_service_timer/app/screens_controller.dart';
 import 'package:church_service_timer/app/stage_request_controller.dart';
 import 'package:church_service_timer/app/paired_command_bridge.dart';
 import 'package:church_service_timer/app/phone_warning_scheduler.dart';
@@ -42,6 +43,7 @@ import 'package:church_service_timer/app/service_notification_controller.dart';
 export 'package:church_service_timer/app/simulator.dart';
 export 'package:church_service_timer/app/lyrics_controller.dart'
     show LyricTarget;
+export 'package:church_service_timer/app/screens_controller.dart';
 
 class AppController extends ChangeNotifier {
   final liveNavigation = ValueNotifier<int>(0);
@@ -148,21 +150,16 @@ class AppController extends ChangeNotifier {
     return commit((draft, _) => draft.overtimeAlert = value);
   }
 
-  /// Remembers what the stage simulator shows under the time.
-  Future<bool> setSimulatorLayout(String layout) async {
-    if (!stageLayouts.containsKey(layout)) return false;
-    if (state.simulatorLayout == layout) return true;
-    return commit((draft, _) => draft.simulatorLayout = layout);
-  }
-
   /// What a stage screen would show now, for the Simulator standing in
-  /// for one, with what it is set to show under the time.
-  Json stageSimulatorSnapshot() =>
-      stageWindowSnapshot()..['stageLayout'] = state.simulatorLayout;
+  /// for one: this device's own picture, as its group shows it.
+  Json stageSimulatorSnapshot() => stageWindowSnapshot();
   late final quickMessages = QuickMessageController(this);
 
   /// Song words, verses and announcements on the screens (Lyrics page).
   late final lyrics = LyricsController(this);
+
+  /// Groups of stage screens, what each shows, and scenes (Screens panel).
+  late final screens = ScreensController(this);
   late final practice = PracticeController(this);
   late final stageRequests = StageRequestController(this);
   late final pairedCommands = PairedCommandBridge(this);
@@ -173,8 +170,14 @@ class AppController extends ChangeNotifier {
   QuickMessage? get currentQuickMessage => quickMessages.current;
   Json decoratePairedSnapshot(PairPeer peer, Json data) {
     quickMessages.decorateSnapshot(peer, data);
-    // Lyrics only for stage screens ticked under Send to.
-    if (peer.viewingStage) lyrics.decorate(data, LyricTarget.stage);
+    // What the screen's group shows; slides only to a phone showing the
+    // stage, not one following the rundown.
+    screens.decorate(
+      data,
+      pairedScreenKey(peer.id),
+      LyricTarget.stage,
+      slides: peer.viewingStage,
+    );
     // A stage screen offers Request only while requests are on, and sees
     // the state of the one it sent.
     if (stageRequests.enabled && state.session.active) {
@@ -245,14 +248,18 @@ class AppController extends ChangeNotifier {
   /// The picture for a stage window on a second screen of this computer:
   /// what a paired stage screen would show. It is sent whatever the
   /// display is set to, because the operator opened that window to see it.
-  Json stageWindowSnapshot() => lyrics.decorate({
-    ...pairedSnapshot(false)
-      ..remove('rundown')
-      ..remove('connection'),
-    'stageSharing': true,
-    // The second screen's own choice; paired screens keep theirs.
-    'stageLayout': secondScreen?.layout ?? 'timer',
-  }, LyricTarget.second);
+  /// Host full screen and the stage simulator show the same picture: this
+  /// device's own screen, in its group.
+  Json stageWindowSnapshot() => screens.decorate(
+    {
+      ...pairedSnapshot(false)
+        ..remove('rundown')
+        ..remove('connection'),
+      'stageSharing': true,
+    },
+    thisScreenKey,
+    LyricTarget.second,
+  );
 
   /// The operator's choices for the second screen of this computer, where
   /// it can have one (a PC); null elsewhere.
@@ -854,6 +861,8 @@ class AppController extends ChangeNotifier {
     // Replace any card left by an earlier process with the restored state.
     unawaited(syncServiceNotification());
     await pairing.restoreMemory();
+    // Groups of screens from the settings of before groups, once.
+    await screens.migrate();
     try {
       await hardware.initialize();
       if (state.outputDestination != null && destination != 'led')
@@ -1099,6 +1108,7 @@ class AppController extends ChangeNotifier {
             (value as StageOutputMessage).layout,
             signFit: signFitRequired,
           );
+        final before = draft.session;
         draft.session = transition(
           draft.session,
           action,
@@ -1106,6 +1116,10 @@ class AppController extends ChangeNotifier {
           value: value,
           expectedRevision: revision,
         );
+        // A segment that starts applies the scene it names, in this save.
+        if (const {'start', 'advance', 'jump', 'undo'}.contains(action)) {
+          screens.segmentStarted(draft, before);
+        }
         // A message already covering every stage screen consumes an automatic
         // cue, as before. Targeted messages must not suppress other screens.
         if (action == 'warnings' && quickMessages.coversEveryStage) {
@@ -1460,7 +1474,11 @@ class AppController extends ChangeNotifier {
   String? get webStageLocalUrl => web.localUrl;
   Future<bool> setWebStageSettings(WebStageSettings next) =>
       web.setSettings(next);
-  Json webStageSnapshot() => web.snapshot();
+
+  /// What a web Stage display gets: the snapshot with what its group
+  /// shows, the default group's for a browser not named by [token].
+  Json webStageSnapshot({String? token}) =>
+      screens.decorate(web.snapshot(), 'web:${token ?? ''}', LyricTarget.web);
 
   late final metricsTracker = MetricsTracker(this);
   Future<bool> setRecordMetrics(bool on) => metricsTracker.setRecord(on);

@@ -184,11 +184,11 @@ void main() {
       expect(port.held, isFalse);
     });
 
-    test('a slide sent to no screen does not hold it', () async {
+    test('a slide no group shows does not hold it', () async {
       final (c, port) = await withSong();
-      await c.lyrics.setLook(
-        c.lyrics.look.copyWith(toSecond: false, toWeb: false, toStage: false),
-      );
+      for (final g in c.screens.setup.groups) {
+        await c.screens.setShow(g.id, 'timer');
+      }
       c.lyrics.show('amazing', 0);
       await pumpEventQueue();
       expect(c.lyrics.showing, isTrue);

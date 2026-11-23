@@ -4,6 +4,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/lyrics/lyric_stage.dart';
+import 'package:church_service_timer/pairing/confidence_monitor.dart';
 import 'package:church_service_timer/pairing/countdown_face.dart';
 import 'package:church_service_timer/pairing/flip_clock.dart';
 import 'package:church_service_timer/pairing/stage_colors.dart';
@@ -42,6 +43,9 @@ class StageSurface extends StatelessWidget {
     // Lyrics from the Lyrics page, where this screen is ticked for them.
     if (stageLyrics(sent) case final lyrics?)
       return LyricStage(data: lyrics, stale: stale);
+    // Slides and timer: the slide's words beside the countdown.
+    if (stageConfidence(sent) != null)
+      return ConfidenceMonitor(data: sent, stale: stale);
     if (sent['blank'] == true) return const ColoredBox(color: Colors.black);
     if (sent['quickMessage'] is Map)
       return RichStageMessage(
