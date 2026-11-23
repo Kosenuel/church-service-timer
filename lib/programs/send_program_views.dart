@@ -189,7 +189,7 @@ Future<void> reviewReceivedProgram(
     await NativeDisplayFonts.prepareState(
       AppState([p], c.state.defaults, Session(id: 'received', anchor: c.now)),
     );
-    validateTimelinePixels(p);
+    validateTimelinePixels(p, signFit: c.signFitRequired);
     if (!await c.commit((draft, at) {
       draft.saveReceivedProgram(p, update: choice == 'update', at: at.wall);
       draft.dismissReceived(received);

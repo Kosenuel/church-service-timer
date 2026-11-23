@@ -292,7 +292,7 @@ class TemplateEditorState extends State<TemplateEditor> {
         !widget.existingNames.contains(t.name.toLowerCase()),
         'A program with this name already exists.',
       );
-      validateTimelinePixels(t);
+      validateTimelinePixels(t, signFit: SignFit.of(context));
       Navigator.pop(context, t);
     } catch (e) {
       change(() => error = e.toString());

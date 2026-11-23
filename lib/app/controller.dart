@@ -113,6 +113,12 @@ class AppController extends ChangeNotifier {
   /// Whether a preview of something for the stage starts as a stage
   /// screen shows it, not as the LED sign does: the display is stage
   /// screens, or the Simulator standing in for one.
+  /// Whether text must fit the LED sign's 32 pixels to be sent or saved:
+  /// the display in use is the sign, or the Simulator standing in for it.
+  /// Stage screens show any width.
+  bool get signFitRequired =>
+      destination == 'led' || (destination == 'simulator' && !stageSimulator);
+
   bool get previewsAsStageScreen => destination == 'mobile' || stageSimulator;
 
   /// Remembers what the Simulator stands in for: 'led' or 'stage'.
@@ -717,13 +723,16 @@ class AppController extends ChangeNotifier {
       await NativeDisplayFonts.initialize(port);
       await NativeDisplayFonts.prepareState(state);
       for (final t in state.templates) {
-        validateTimelinePixels(t);
+        validateTimelinePixels(t, signFit: false);
       }
+      // Saved text is not refused for its width: it could be saved while
+      // only stage screens were in use, and is checked when sent to a sign.
       if (state.session.timeline != null)
-        validateTimelinePixels(state.session.timeline!);
-      if (state.session.alert != null) validateLayout(state.session.alert!);
+        validateTimelinePixels(state.session.timeline!, signFit: false);
+      if (state.session.alert != null)
+        validateLayout(state.session.alert!, signFit: false);
       for (final cue in state.stageCues) {
-        validateLayout(cue);
+        validateLayout(cue, signFit: false);
       }
       final previous = state.session;
       state.session = recover(state.session, now);
@@ -987,9 +996,13 @@ class AppController extends ChangeNotifier {
                   : pairing.localControl),
           'Operator control changed. Review the action again.',
         );
-        if (action == 'cue') validateLayout(value as TextLayout);
+        if (action == 'cue')
+          validateLayout(value as TextLayout, signFit: signFitRequired);
         if (action == 'message')
-          validateLayout((value as StageOutputMessage).layout);
+          validateLayout(
+            (value as StageOutputMessage).layout,
+            signFit: signFitRequired,
+          );
         draft.session = transition(
           draft.session,
           action,
@@ -1236,7 +1249,7 @@ class AppController extends ChangeNotifier {
 
   Future<bool> sendAndSaveCue(TextLayout layout, {int? index, int? revision}) =>
       commit((draft, at) {
-        validateLayout(layout);
+        validateLayout(layout, signFit: signFitRequired);
         hardware.validateAction(draft.session, at, cue: layout);
         if (index != null) {
           require(
@@ -1285,7 +1298,7 @@ class AppController extends ChangeNotifier {
   });
 
   Future<bool> setSharedZero(TextLayout? layout) => commit((draft, _) {
-    if (layout != null) validateLayout(layout);
+    if (layout != null) validateLayout(layout, signFit: signFitRequired);
     draft.defaults = draft.defaults.withZero(layout);
   });
 
