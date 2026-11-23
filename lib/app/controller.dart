@@ -590,6 +590,22 @@ class AppController extends ChangeNotifier {
             if (privateNotes) 'notes': e.notes,
           },
       ],
+      // A cue is showing: what the screens show without it, for groups
+      // whose screens do not show cues (see [ScreensController.decorate]).
+      // Taken off again before any screen gets the snapshot.
+      if (cueShowing(s, now)) ...{
+        'cue': true,
+        'plain': {
+          for (final e in pairedSnapshot(
+            false,
+            session: s.copy()
+              ..alert = null
+              ..automaticCue = null,
+            at: now,
+          ).entries)
+            if (stageCueKeys.contains(e.key)) e.key: e.value,
+        },
+      },
       if (privateNotes) 'cues': [for (final cue in state.stageCues) cue.text],
       if (privateNotes)
         'cueVersions': [
@@ -597,6 +613,11 @@ class AppController extends ChangeNotifier {
         ],
     };
   }
+
+  /// Whether a stage cue, a warning cue or a message from Live's composer
+  /// is on the screens of [s] now (not Blank).
+  bool cueShowing(Session s, Stamp now) =>
+      !s.outputBlank && (s.hasManualCue(now) || s.hasAutomaticCue(now));
 
   /// Whether Android exempts the app from battery optimisation; null when
   /// unknown. Restricted apps can have warnings stopped with the screen off.

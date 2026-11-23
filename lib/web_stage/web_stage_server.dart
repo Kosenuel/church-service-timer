@@ -750,6 +750,17 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         // What the display's group shows: a countdown layout, 'slides' or
         // 'monitor'. An older page goes by `layout` alone.
         'show': screenShowValue(s['stageShow'] ?? layout),
+        // A cue over a slide or the confidence monitor, sent only to a
+        // group that shows cues: still, wrapped, in its colour.
+        if ((s['lyrics'] is Map || s['confidence'] is Map) &&
+            stageCueOverSlide(s))
+          'slideCue': {
+            'text': '${s['displayText']}',
+            'position': stageSlideCueEdge(s),
+            'color': stageColorHex(color ?? 0xffffff),
+            'bold': s['bold'] == true,
+            'italic': s['italic'] == true,
+          },
         if (s['confidence'] case final Map m)
           'confidence': {
             ...webConfidence(m),

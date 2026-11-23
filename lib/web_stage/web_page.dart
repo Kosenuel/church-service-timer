@@ -99,6 +99,9 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
 #stage .msg p { font-size:6vh; line-height:1.2; margin:0; white-space:pre-wrap; word-break:break-word; }
 #lyr { position:fixed; inset:0; overflow:hidden; background:#000; display:none; z-index:3; container-type:inline-size; }
+/* A cue over a slide: a band across one edge, the words above it. */
+#scue { position:fixed; left:0; right:0; height:20vh; display:none; z-index:4; align-items:center; justify-content:center; padding:2vh 6vw; box-sizing:border-box; font-family:Roboto, system-ui, "Segoe UI", sans-serif; }
+#scueText { text-align:center; line-height:1.1; font-weight:500; overflow-wrap:normal; }
 /* Slides and timer: the slide's words beside the time, on the theme. */
 #cm { position:fixed; inset:0; display:none; z-index:3; font-family:Roboto, system-ui, "Segoe UI", sans-serif; }
 #cm.up { flex-direction:column; }
@@ -198,6 +201,7 @@ body.stale #app { opacity:.6; }
 <body>
 <div id="app" class="wrap"></div>
 <div id="stage"><div id="flip"></div><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="rule" id="stageRule"></div><div id="cd"><div class="cdband" id="cdNow"></div><div class="cdband" id="cdNext"></div><div id="cdOnly"></div><div id="cdTag"></div><div id="cdProg"><i></i></div></div><div class="note" id="stageNote"></div></div>
+<div id="scue"><div id="scueText"></div></div>
 <div id="cm"><div class="cmw"><div class="cmwin" id="cmWords"><div class="cml" id="cmLabel"></div><div class="cmt" id="cmText"></div></div></div><div class="cms" id="cmSide"><div class="cme" id="cmHead"></div><div class="cmd" id="cmTime"></div><div class="cmr" id="cmRule"></div><div class="cmn" id="cmNext"></div></div></div>
 <div id="lyr"><div class="bgl" id="lyrBg"></div><div class="fx" id="lyrFx"></div><div class="dim" id="lyrDim"></div><div class="words" id="lyrWords"></div><div class="chip" id="lyrChip"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
@@ -235,7 +239,7 @@ function clear(node) { while (node.firstChild) node.removeChild(node.firstChild)
 async function loadInfo() { try { info = (await api('/api/info')).body; } catch (_) {} }
 
 function showJoin(message) {
-  stop(); stopMotion(); renderLyrics(null); renderMonitor(null); token = null; save(); setLost(false); $('req').style.display = 'none';
+  stop(); stopMotion(); renderLyrics(null); renderMonitor(null); renderSlideCue(null); token = null; save(); setLost(false); $('req').style.display = 'none';
   $('stage').style.display = 'none'; clear($('tools'));
   const app = $('app'); clear(app); app.style.display = 'block';
   app.append(el('div', 'tag', 'Church Service Timer'), el('h1', '', info.church || 'Welcome'));
@@ -452,7 +456,7 @@ function render(s) {
   syncAwake();
   showRequests(s);
   if (s.role === 'stage') return renderStage(s);
-  renderLyrics(null); renderMonitor(null); stopMotion(); renderBand(null);
+  renderLyrics(null); renderMonitor(null); renderSlideCue(null); stopMotion(); renderBand(null);
   $('stage').style.display = 'none';
   const app = $('app'); app.style.display = 'block'; clear(app);
   const head = el('div', 'bar');
@@ -934,6 +938,7 @@ function renderStage(s) {
   // does the confidence monitor.
   renderLyrics(s);
   renderMonitor(s);
+  renderSlideCue(s);
   $('flip').style.display = 'none'; $('stageText').style.display = '';
   const stage = $('stage'); stage.style.display = 'flex';
   const text = $('stageText'); const note = $('stageNote');
@@ -1154,7 +1159,9 @@ function renderLyrics(s) {
   ['lyrBg', 'lyrFx', 'lyrDim', 'lyrWords'].forEach((i) => { $(i).style.display = ''; });
   chip.style.display = l.chip ? 'block' : 'none'; chip.textContent = l.chip || ''; chip.classList.toggle('over', l.chipOver === true);
   const w = window.innerWidth, h = window.innerHeight;
-  const key = [l.key, l.text, l.title, l.detail, l.reference, l.bg, l.dim, l.size, l.align, l.motion, w, h].join('|');
+  // A cue band over the slide (see renderSlideCue): the words keep clear.
+  const cueEdge = s.slideCue ? s.slideCue.position : '';
+  const key = [l.key, l.text, l.title, l.detail, l.reference, l.bg, l.dim, l.size, l.align, l.motion, cueEdge, w, h].join('|');
   if (lyr.dataset.key === key) return true;
   lyr.dataset.key = key;
   const bg = String(l.bg || 'black'), dark = bg === 'linen';
@@ -1168,6 +1175,8 @@ function renderLyrics(s) {
   const box = $('lyrWords'); clear(box);
   const padX = w * .07, padY = Math.min(w * .06, h * .1);
   box.style.left = box.style.right = padX + 'px'; box.style.top = box.style.bottom = padY + 'px';
+  if (cueEdge === 'top') box.style.top = h * .2 + padY + 'px';
+  if (cueEdge === 'bottom') box.style.bottom = h * .2 + padY + 'px';
   const blocks = [];
   if (l.kind === 'announcement') {
     if (l.title) blocks.push([l.title, 1.35, 'acc', 700]);
@@ -1183,8 +1192,21 @@ function renderLyrics(s) {
     if (i < blocks.length - 1) { const gap = el('div'); gap.style.height = (l.kind === 'announcement' && i === 0 ? .55 : .65) + 'em'; box.append(gap); }
   });
   const basis = Math.min(w, h * 16 / 9);
-  lyFit(box, basis * (l.size === 's' ? .045 : l.size === 'l' ? .064 : .054), h - padY * 2);
+  lyFit(box, basis * (l.size === 's' ? .045 : l.size === 'l' ? .064 : .054), h - padY * 2 - (cueEdge ? h * .2 : 0));
   return true;
+}
+// A cue over a slide, for a group that shows cues: a band across the top
+// or bottom in the cue's colour, the slide's words making room above it.
+function renderSlideCue(s) {
+  const band = $('scue'), c = s && s.sharing && !s.message && s.lyrics && !s.confidence ? s.slideCue : null;
+  if (!c) { band.style.display = 'none'; return; }
+  const colour = c.color || '#ffffff', top = c.position === 'top';
+  band.style.display = 'flex'; band.style.top = top ? '0' : ''; band.style.bottom = top ? '' : '0';
+  band.style.background = 'color-mix(in srgb, ' + colour + ' 16%, #000)';
+  band.style.borderTop = top ? '0' : '.6vh solid ' + colour; band.style.borderBottom = top ? '.6vh solid ' + colour : '0';
+  const t = $('scueText'); t.textContent = c.text; t.style.color = colour;
+  t.style.fontWeight = c.bold ? '800' : '500'; t.style.fontStyle = c.italic ? 'italic' : 'normal';
+  wrapSize(t, 2, window.innerHeight * .16, 12, window.innerHeight * .14) || (t.style.fontSize = '12px');
 }
 // Slides and timer: the slide's words, as large as fit, on the theme's
 // background; the time in its own panel (amber in the warning time, red in
@@ -1213,11 +1235,26 @@ function renderMonitor(s) {
   digits.style.color = solid ? ink : over ? red : moment === 'warning' ? warn : t.text;
   digits.style.opacity = time.active && time.paused ? '.45' : '1';
   const text = String(time.text || '');
+  const cue = s.slideCue;
+  digits.style.background = ''; digits.style.borderLeft = ''; digits.style.padding = ''; digits.style.whiteSpace = '';
+  if (cue) {
+    // A cue for the person on stage takes the time's place; the time
+    // stays in view beside its heading, and the words on the left.
+    if (text) head.textContent += '  ' + text;
+    const colour = cue.color || '#ffffff';
+    digits.style.color = colour; digits.style.background = 'color-mix(in srgb, ' + colour + ' 16%, #000)';
+    digits.style.borderLeft = Math.max(3, unit * .02) + 'px solid ' + colour; digits.style.padding = '0 ' + unit * .05 + 'px';
+    digits.style.whiteSpace = 'normal'; digits.style.lineHeight = '1.1'; digits.style.fontWeight = cue.bold ? '800' : '500';
+    const line = el('div', '', cue.text); digits.append(line);
+    let size = unit * .2; digits.style.fontSize = size + 'px';
+    for (let i = 0; i < 20 && (line.scrollWidth > line.clientWidth + 1 || digits.scrollHeight > digits.clientHeight + 1) && size > 10; i++) { size *= .9; digits.style.fontSize = size + 'px'; }
+  } else {
   digits.style.setProperty('--dg', '0.6em');
   for (const ch of text) digits.append(/[0-9]/.test(ch) ? el('span', 'dg', ch) : document.createTextNode(ch));
   let size = unit * .3; digits.style.fontSize = size + 'px';
   const most = sw - (frame + unit * .07) * 2; const wide = digits.scrollWidth;
   if (wide > most && wide > 0) digits.style.fontSize = size * most / wide + 'px';
+  }
   const rule = $('cmRule'); rule.style.background = solid ? ink : t.muted; rule.style.margin = eye * .8 + 'px 0';
   const next = $('cmNext'); clear(next);
   const nEye = el('div', 'cme', 'NEXT'); nEye.style.fontSize = eye + 'px'; nEye.style.color = solid ? ink : t.accent; nEye.style.marginBottom = eye * .6 + 'px';

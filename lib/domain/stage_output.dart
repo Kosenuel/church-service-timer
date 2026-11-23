@@ -373,3 +373,34 @@ Json stageForLayout(Json data, String layout) {
     'paused': false,
   }..remove('afterEnd');
 }
+
+/// Whether a cue shows over a slide or the confidence monitor: the host
+/// marks a snapshot whose screen shows a cue with `cue`, and sends it only
+/// to groups that show cues. A host from before this marks none, and the
+/// slide stays as it was.
+bool stageCueOverSlide(Json data) =>
+    data['cue'] == true &&
+    data['quickMessage'] is! Map &&
+    '${data['displayText'] ?? ''}'.trim().isNotEmpty;
+
+/// Where a cue sits over a slide: its own banner edge, or for a cue meant
+/// to fill the screen the bottom, so the slide's words stay in view.
+String stageSlideCueEdge(Json data) =>
+    data['cuePosition'] == 'top' ? 'top' : 'bottom';
+
+/// The cue's words as drawn over a slide or in the confidence monitor's
+/// time panel: still and wrapped onto lines (a band beside a slide is too
+/// short a run for scrolling words to be read), in the cue's colour.
+Json stageSlideCueText(Json data) =>
+    {
+      ...stageBannerText({...data, 'displayIsTimer': false}),
+      'effect': 'static',
+      'screenWrap': true,
+    }..removeWhere(
+      (k, _) => const {
+        'screenWords',
+        'screenSpeed',
+        'cueTotalMs',
+        'cueLeftMs',
+      }.contains(k),
+    );

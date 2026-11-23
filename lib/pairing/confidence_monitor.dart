@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:church_service_timer/display/clock_text.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/lyrics/lyric_stage.dart';
+import 'package:church_service_timer/pairing/paired_screen.dart';
 import 'package:church_service_timer/pairing/stage_colors.dart';
+import 'package:church_service_timer/pairing/stage_surface.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -371,6 +373,9 @@ class _Side extends StatelessWidget {
           : data['paused'] == true
           ? 'PAUSED'
           : 'TIME LEFT';
+      // A cue for the person on stage sits over the time's side; the
+      // slide's words stay as they are.
+      final cue = stageCueOverSlide(data);
       final next = slide['next'];
       final nextLabel = next is Map ? '${next['label'] ?? ''}'.trim() : '';
       final nextLine = next is Map ? '${next['line'] ?? ''}'.trim() : '';
@@ -462,14 +467,18 @@ class _Side extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               small(
-                heading,
+                // With a cue in the time's place, the time stays in view
+                // beside its heading.
+                cue && time.isNotEmpty ? '$heading  $time' : heading,
                 over ? ink : soft,
                 key: const ValueKey('confidence-heading'),
               ),
               SizedBox(height: eyebrow * .5),
               Expanded(
                 flex: 5,
-                child: Align(alignment: Alignment.centerLeft, child: digits),
+                child: cue
+                    ? _CueCard(data: data, stale: stale)
+                    : Align(alignment: Alignment.centerLeft, child: digits),
               ),
               Divider(
                 height: eyebrow * 1.6,
@@ -482,6 +491,41 @@ class _Side extends StatelessWidget {
                 child: Align(alignment: Alignment.topLeft, child: nextPart),
               ),
             ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// A cue in the confidence monitor's time panel: its words in its colour
+/// on a dark tint of it, with a rule along the edge, as a banner cue looks.
+class _CueCard extends StatelessWidget {
+  final Json data;
+  final bool stale;
+  const _CueCard({required this.data, required this.stale});
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final color = stageCueColor(data);
+      return StageScreenFlash(
+        key: const ValueKey('confidence-cue'),
+        data: data,
+        base: Color.alphaBlend(color.withValues(alpha: .16), Colors.black),
+        border: Border(
+          left: BorderSide(
+            color: color,
+            width: (box.maxWidth * .025).clamp(3.0, 10.0),
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(box.maxHeight * .08),
+          child: StageMessage(
+            data: stageSlideCueText(data),
+            stale: stale,
+            fullscreen: true,
+            wrapLines: 3,
           ),
         ),
       );

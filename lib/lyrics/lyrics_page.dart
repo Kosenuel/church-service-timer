@@ -9,6 +9,7 @@ import 'package:church_service_timer/lyrics/lyric_editors.dart';
 import 'package:church_service_timer/lyrics/lyric_photos.dart';
 import 'package:church_service_timer/lyrics/lyric_stage.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/screens/screens_entry.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
@@ -107,7 +108,7 @@ extension LyricsPageViews on HomeState {
         runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          if (button) lyricsButton(),
+          if (button) ...[lyricsButton(), screensButton()],
           if (l.showing) ...[
             Text(
               'On the screens: ${l.statusLine}',

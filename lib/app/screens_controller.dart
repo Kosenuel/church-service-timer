@@ -160,6 +160,22 @@ class ScreensController {
     data['stageShow'] = group.show;
     data.remove('lyrics');
     data.remove('confidence');
+    // A group whose screens do not show cues gets the picture as it would
+    // be without the cue, and no quick message: an older screen draws
+    // what it is sent, so it never sees one either.
+    final plain = data.remove('plain');
+    if (!group.cues) {
+      if (data.remove('cue') == true && plain is Map) {
+        data.removeWhere((k, _) => stageCueKeys.contains(k));
+        data.addAll(Map<String, dynamic>.from(plain));
+      }
+      if (data.remove('quickMessage') != null) {
+        data['blank'] = app.state.session.outputBlank;
+      }
+      data
+        ..remove('messageId')
+        ..remove('messageSeen');
+    }
     if (!slides) return data;
     final Json? slide = switch (group.show) {
       'slides' => app.lyrics.field(kind),
@@ -193,6 +209,10 @@ class ScreensController {
     unawaited(app.pairing.publish());
     unawaited(app.syncScreenAwake());
   }
+
+  /// Whether [group]'s screens show cues and quick messages.
+  Future<bool> setCues(String group, bool on) =>
+      _commit((s) => s.withCues(group, on));
 
   /// [group] shows [show] on all its screens at once.
   Future<bool> setShow(String group, String show) =>

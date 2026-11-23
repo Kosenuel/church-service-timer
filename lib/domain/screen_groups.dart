@@ -21,6 +21,30 @@ bool showsSlides(String show) => show == 'slides' || show == 'monitor';
 String screenShowValue(dynamic value) =>
     screenShows.containsKey(value) ? value as String : 'timer';
 
+/// The fields of a stage snapshot that a cue changes: what a screen whose
+/// group does not show cues takes from the snapshot without the cue.
+const stageCueKeys = {
+  'displayText',
+  'displayIsTimer',
+  'outputMode',
+  'effect',
+  'screenEffect',
+  'speed',
+  'screenSpeed',
+  'cueColor',
+  'screenWrap',
+  'screenWords',
+  'cuePosition',
+  'underText',
+  'underMode',
+  'bold',
+  'italic',
+  'cueTotalMs',
+  'cueLeftMs',
+  'clockFace',
+  'afterEnd',
+};
+
 /// The most groups and scenes kept, and the longest name either may have.
 const screenGroupLimit = 12, screenSceneLimit = 24, screenNameLimit = 40;
 
@@ -62,7 +86,19 @@ class ScreenGroup {
   /// The countdown layout shown while [show] is Slides or Slides and timer
   /// and no slide is up: the last of [stageLayouts] the group showed.
   final String fallback;
-  const ScreenGroup(this.id, this.name, this.show, {this.fallback = 'timer'});
+
+  /// "Shows cues": the screens face the person speaking, so they show
+  /// stage cues, warning cues and quick messages. Off, they never do (a
+  /// screen facing the congregation). It says who looks at the screens,
+  /// not what the moment needs, so scenes leave it alone.
+  final bool cues;
+  const ScreenGroup(
+    this.id,
+    this.name,
+    this.show, {
+    this.fallback = 'timer',
+    this.cues = false,
+  });
 
   /// The countdown layout the group's screens use now: its choice, or for
   /// slides its fallback. Every screen, however old, knows these four.
@@ -73,11 +109,20 @@ class ScreenGroup {
     name,
     next,
     fallback: stageLayouts.containsKey(next) ? next : fallback,
+    cues: cues,
   );
   ScreenGroup renamed(String next) =>
-      ScreenGroup(id, next, show, fallback: fallback);
+      ScreenGroup(id, next, show, fallback: fallback, cues: cues);
+  ScreenGroup withCues(bool on) =>
+      ScreenGroup(id, name, show, fallback: fallback, cues: on);
 
-  Json toJson() => {'id': id, 'name': name, 'show': show, 'fallback': fallback};
+  Json toJson() => {
+    'id': id,
+    'name': name,
+    'show': show,
+    'fallback': fallback,
+    'cues': cues,
+  };
 
   static ScreenGroup? tryRead(dynamic j) {
     if (j is! Map) return null;
@@ -94,6 +139,7 @@ class ScreenGroup {
         fallback: stageLayouts.containsKey(show)
             ? show
             : stageLayoutValue(j['fallback']),
+        cues: j['cues'] == true,
       );
     } on RuleError {
       return null;
@@ -227,6 +273,14 @@ class ScreenSetup {
     final g = _group(group);
     return _with(
       groups: [for (final x in groups) x.id == g.id ? x.withShow(show) : x],
+    );
+  }
+
+  /// Whether [group]'s screens show cues.
+  ScreenSetup withCues(String group, bool on) {
+    final g = _group(group);
+    return _with(
+      groups: [for (final x in groups) x.id == g.id ? x.withCues(on) : x],
     );
   }
 
@@ -440,8 +494,20 @@ ScreenSetup migrateScreens({
   required bool pairedSlides,
 }) {
   String show(OldScreenChoice c) => c.slides ? 'slides' : c.layout;
-  ScreenGroup group(String id, String name, OldScreenChoice c) =>
-      ScreenGroup(id, name, show(c), fallback: stageLayoutValue(c.layout));
+  // Cues: on for paired stage screens, which face the speaker; off for
+  // this device's own screen and web screens, which usually face the room.
+  ScreenGroup group(
+    String id,
+    String name,
+    OldScreenChoice c, {
+    bool cues = false,
+  }) => ScreenGroup(
+    id,
+    name,
+    show(c),
+    fallback: stageLayoutValue(c.layout),
+    cues: cues,
+  );
   final selfChoice = (
     layout: stageLayoutValue(self.layout),
     slides: self.slides,
@@ -476,7 +542,7 @@ ScreenSetup migrateScreens({
       group(id, i == 0 ? 'Stage' : 'Stage ${i + 1}', (
         layout: ranked[i],
         slides: pairedSlides,
-      )),
+      ), cues: true),
     );
   }
   for (final p in paired) {

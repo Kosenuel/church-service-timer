@@ -50,6 +50,7 @@ import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/reports/report_library_views.dart';
 import 'package:church_service_timer/reports/reports_desktop.dart';
 import 'package:church_service_timer/lyrics/lyrics_page.dart';
+import 'package:church_service_timer/screens/screens_entry.dart';
 import 'package:church_service_timer/shared/home_pages.dart';
 
 export 'package:church_service_timer/settings/appearance_views.dart';
@@ -1080,8 +1081,10 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                     : () => unawaited(setHostFullScreen(true)),
                                 icon: const Icon(Icons.fullscreen),
                               ),
-                            if (c.ready && page == 0 && liveFillsWindow)
+                            if (c.ready && page == 0 && liveFillsWindow) ...[
                               lyricsHeaderButton(),
+                              screensHeaderButton(),
+                            ],
                             if (c.ready && page == 0 && c.liveSession.active)
                               IconButton(
                                 key: const ValueKey('control-lock'),

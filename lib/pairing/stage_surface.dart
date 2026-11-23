@@ -41,8 +41,23 @@ class StageSurface extends StatelessWidget {
         ),
       );
     // Lyrics from the Lyrics page, where this screen is ticked for them.
-    if (stageLyrics(sent) case final lyrics?)
-      return LyricStage(data: lyrics, stale: stale);
+    if (stageLyrics(sent) case final lyrics?) {
+      if (!stageCueOverSlide(sent))
+        return LyricStage(data: lyrics, stale: stale);
+      // A cue on a group that shows cues: a banner across one edge of the
+      // slide, whose words make room for it, so both can be read.
+      final top = stageSlideCueEdge(sent) == 'top';
+      return StageBannerFrame(
+        key: const ValueKey('slide-cue'),
+        banner: stageSlideCueText(sent),
+        top: top,
+        stale: stale,
+        builder: (context, band, top) => Padding(
+          padding: EdgeInsets.only(top: top ? band : 0, bottom: top ? 0 : band),
+          child: LyricStage(data: lyrics, stale: stale),
+        ),
+      );
+    }
     // Slides and timer: the slide's words beside the countdown.
     if (stageConfidence(sent) != null)
       return ConfidenceMonitor(data: sent, stale: stale);
