@@ -376,11 +376,13 @@ const _numbered = {
 String? bibleBookOf(String words) {
   var w = words.toLowerCase().replaceAll('.', ' ').trim();
   int? part;
+  // A Roman numeral needs a space after it ("I Cor", "II Kings"): without
+  // one the I of Isaiah ("Isaiah", "Isa") is not a number.
   final prefix = RegExp(
-    r'^(1|2|3|i{1,3}|first|second|third|1st|2nd|3rd)\s*',
+    r'^(?:(1|2|3|first|second|third|1st|2nd|3rd)\s*|(i{1,3})\s+)',
   ).firstMatch(w);
   if (prefix != null) {
-    part = switch (prefix.group(1)) {
+    part = switch (prefix.group(1) ?? prefix.group(2)) {
       '1' || 'i' || 'first' || '1st' => 1,
       '2' || 'ii' || 'second' || '2nd' => 2,
       _ => 3,
