@@ -259,10 +259,14 @@ void main() {
     c.lyrics.selectedId = 'amazing';
     c.lyrics.show('amazing', 0);
     await settle(t);
-    // Scrolled as a person would, inside the column only.
+    // The picker folds away under Background; opened as a person would.
+    await t.tap(find.byKey(const ValueKey('lyrics-background-row-header')));
+    await settle(t);
+    await t.tap(find.byKey(const ValueKey('lyrics-bg-group-nature')));
+    await settle(t);
     await t.drag(
       find.byKey(const ValueKey('lyrics-column-screens')),
-      const Offset(0, -700),
+      const Offset(0, -400),
     );
     await settle(t);
     // Let the photo thumbnails decode.

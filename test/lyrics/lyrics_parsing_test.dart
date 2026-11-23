@@ -74,6 +74,55 @@ void main() {
       ]);
     });
 
+    test('emphasis marks pasted with the words are not shown', () {
+      // Lyrics sites and chat apps write italic as _words_ and bold as
+      // **words**; the app has no emphasis, so the marks were printed.
+      expect(
+        slides(
+          '_Chorus_\nGod will work it out _(x2)_\n*One thing I know*\n__Lord__ of all, **Amen**',
+        ),
+        [
+          (
+            'Chorus',
+            'God will work it out (x2)\nOne thing I know\nLord of all, Amen',
+          ),
+        ],
+      );
+      // Marks inside marks, and the mark around a whole line.
+      expect(lyricShownLine('*_(x2)_*'), '(x2)');
+      expect(lyricShownLine('_Repeat the chorus_'), 'Repeat the chorus');
+      // A lone mark, or one inside a word or a sum, is kept as typed.
+      for (final kept in [
+        'snake_case_name',
+        'Holy*',
+        '_ (x2)',
+        '2*3*4',
+        '* * *',
+        '__',
+        'a _ b _ c',
+      ]) {
+        expect(lyricShownLine(kept), kept, reason: kept);
+      }
+      // The words keep what was typed; only the slides drop the marks.
+      final song = LyricItem(
+        id: 's',
+        kind: 'song',
+        title: 'God Will Work It Out',
+        words: 'God will work it out _(x2)_',
+      );
+      expect(song.words, contains('_(x2)_'));
+      expect(song.slides.single.text, 'God will work it out (x2)');
+      expect(song.slides.single.plain, isNot(contains('_')));
+      final notice = LyricItem(
+        id: 'n',
+        kind: 'announcement',
+        title: '_Harvest lunch_',
+        words: 'All welcome _(bring a friend)_',
+      );
+      expect(notice.slides.single.title, 'Harvest lunch');
+      expect(notice.slides.single.text, 'All welcome (bring a friend)');
+    });
+
     test('odd whitespace and Windows line endings', () {
       const raw =
           '﻿Verse 1\r\n  Amazing  grace\t \r\n​how sweet\r\n \r\n\t\r\n\r\nChorus\rSing\r';

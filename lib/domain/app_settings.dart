@@ -313,6 +313,8 @@ String exportBackup(
     ..remove('autoUpdate')
     ..remove('keepScreenAlways')
     ..remove('seenVersion')
+    ..remove('slidesTab')
+    ..remove('slidesOpen')
     ..remove('settingsLock')
     ..remove('clickerControls')
     ..remove('fullScreenLayout')

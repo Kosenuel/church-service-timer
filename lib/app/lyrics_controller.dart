@@ -82,12 +82,21 @@ class LyricsController {
     LyricTarget.stage => look.toStage,
   };
 
-  /// "Amazing Grace · Verse 2" for status lines.
+  /// "Amazing Grace · Verse 2" for status lines. A Bible slide's name is
+  /// its reference ("Psalm 23:1-3", "John 3:16"), which already says what
+  /// it is, so it is not put after the passage's title again.
   String get statusLine {
     if (_black) return 'Black';
     final s = slide;
     if (s == null) return '';
-    return '${item!.title} · ${s.label}';
+    final title = item!.title.trim();
+    if (item!.kind == 'scripture' ||
+        s.label.isEmpty ||
+        s.label == title ||
+        s.label.startsWith('$title ')) {
+      return s.label.isEmpty ? title : s.label;
+    }
+    return '$title · ${s.label}';
   }
 
   void _changed() {
