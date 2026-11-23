@@ -1,3 +1,5 @@
+import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -141,7 +143,10 @@ extension DesktopLive on HomeState {
   }) {
     final colors = appColors(context);
     final s = c.liveSession;
-    final line = VerticalDivider(width: 1, thickness: 1, color: colors.border);
+    final line = finishRule(
+      context,
+      VerticalDivider(width: 1, thickness: 1, color: colors.border),
+    );
     return LayoutBuilder(
       builder: (context, space) {
         final side = (space.maxWidth * .25).clamp(320.0, 460.0);
@@ -154,14 +159,20 @@ extension DesktopLive on HomeState {
         // ring still has room above the controls with it taken out; the
         // timer has the height that is left. Ready leaves its room, so the
         // ring keeps its size when the service starts.
-        final paneWidth = space.maxWidth - side - stage - 2;
+        // A finish floats each pane with a gap round it.
+        final floating = finishLook(context).active;
+        final paneWidth =
+            space.maxWidth - side - stage - 2 - (floating ? 2 * finishGapX : 0);
         final legendRoom =
             showKeyHints &&
             (s.active || s.phase == 'ready') &&
             desktopRingRoom(paneWidth, space.maxHeight - keyLegendHeight) >=
                 desktopRingMinRoom;
         final legend = legendRoom && s.active;
-        final paneHeight = space.maxHeight - (legendRoom ? keyLegendHeight : 0);
+        final paneHeight =
+            space.maxHeight -
+            (legendRoom ? keyLegendHeight : 0) -
+            (floating ? 2 * finishGapY : 0);
         // A large window gives the ring more of the pane.
         final large = timer == null
             ? largePaneMode(paneWidth, paneHeight)
@@ -172,8 +183,8 @@ extension DesktopLive on HomeState {
           children: [
             SizedBox(
               width: side,
-              child: ColoredBox(
-                color: colors.surface,
+              child: FinishPane(
+                flatSurface: true,
                 child: rundownPane(
                   enabled,
                   upNext: desktopLayout == 'dial' && s.active
@@ -184,66 +195,73 @@ extension DesktopLive on HomeState {
             ),
             line,
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: large != LargePane.off
-                        ? largeTimerPane(
-                            mode: large,
-                            notices: notices,
-                            header: header,
-                            endService: endService,
-                            enabled: enabled,
-                            canJump: canJump,
-                            width: paneWidth,
-                            height: paneHeight,
-                          )
-                        : SingleChildScrollView(
-                            key: const ValueKey('live-timer-pane'),
-                            // Page Down is Next segment here, not a scroll key.
-                            primary: false,
-                            padding: const EdgeInsets.fromLTRB(28, 10, 28, 12),
-                            child: Center(
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 620,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    ...notices,
-                                    timer ??
-                                        desktopTimer(
-                                          header: header,
-                                          endService: endService,
-                                          enabled: enabled,
-                                          canJump: canJump,
-                                          paneWidth: paneWidth,
-                                          paneHeight: paneHeight,
-                                        ),
-                                  ],
+              child: FinishPane(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: large != LargePane.off
+                          ? largeTimerPane(
+                              mode: large,
+                              notices: notices,
+                              header: header,
+                              endService: endService,
+                              enabled: enabled,
+                              canJump: canJump,
+                              width: paneWidth,
+                              height: paneHeight,
+                            )
+                          : SingleChildScrollView(
+                              key: const ValueKey('live-timer-pane'),
+                              // Page Down is Next segment here, not a scroll key.
+                              primary: false,
+                              padding: const EdgeInsets.fromLTRB(
+                                28,
+                                10,
+                                28,
+                                12,
+                              ),
+                              child: Center(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 620,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      ...notices,
+                                      timer ??
+                                          desktopTimer(
+                                            header: header,
+                                            endService: endService,
+                                            enabled: enabled,
+                                            canJump: canJump,
+                                            paneWidth: paneWidth,
+                                            paneHeight: paneHeight,
+                                          ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                  ),
-                  if (legend) ...[
-                    Divider(height: 1, thickness: 1, color: colors.border),
-                    KeyLegend(
-                      key: const ValueKey('pane-key-legend'),
-                      clicker: clickerKeysOn,
                     ),
+                    if (legend) ...[
+                      Divider(height: 1, thickness: 1, color: colors.border),
+                      KeyLegend(
+                        key: const ValueKey('pane-key-legend'),
+                        clicker: clickerKeysOn,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             line,
             SizedBox(
               width: stage,
-              child: ColoredBox(
-                color: colors.surface,
+              child: FinishPane(
+                flatSurface: true,
                 child: SingleChildScrollView(
                   key: const ValueKey('live-stage-pane'),
                   primary: false,

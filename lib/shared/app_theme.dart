@@ -2,9 +2,12 @@ import 'dart:math' as math;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/domain/domain.dart'
     show
         AppearancePreferences,
+        effectiveFinish,
         stageCardBackground,
         desktopLayoutMinHeight,
         desktopLayoutMinWidth,
@@ -406,25 +409,41 @@ ThemeData appTheme(
         )
       : base;
   final layout = AppLayout.resolve(appearance, size);
+  // High contrast always draws Flat (FinishLook.resolve), so the outlines and
+  // text it asks for are never under a texture.
+  final finish = FinishLook.resolve(
+    p,
+    // A Paper & Ink theme always has Papery; the saved choice is kept.
+    effectiveFinish(id, appearance.finish),
+    appearance.finishStrength == 'full' ? 1 : .5,
+  );
   final brightness = p.light ? Brightness.light : Brightness.dark;
   return ThemeData(
     useMaterial3: true,
     fontFamily: appFontFamily,
     brightness: brightness,
-    extensions: [p, layout],
+    extensions: [p, layout, finish],
     materialTapTargetSize: MaterialTapTargetSize.padded,
     visualDensity: VisualDensity.standard,
     splashFactory: appearance.reducedMotion
         ? NoSplash.splashFactory
         : InkRipple.splashFactory,
-    pageTransitionsTheme: appearance.reducedMotion
-        ? PageTransitionsTheme(
-            builders: {
-              for (final platform in TargetPlatform.values)
-                platform: const _StillPageTransitions(),
-            },
-          )
-        : const PageTransitionsTheme(),
+    pageTransitionsTheme: PageTransitionsTheme(
+      builders: {
+        for (final entry
+            in appearance.reducedMotion
+                ? {
+                    for (final platform in TargetPlatform.values)
+                      platform:
+                          const _StillPageTransitions()
+                              as PageTransitionsBuilder,
+                  }.entries
+                : const PageTransitionsTheme().builders.entries)
+          entry.key: finish.active
+              ? FinishPageTransitions(entry.value)
+              : entry.value,
+      },
+    ),
     listTileTheme: ListTileThemeData(
       contentPadding: layout.tileInsets,
       minTileHeight: layout.controlHeight,
@@ -458,9 +477,17 @@ ThemeData appTheme(
       outline: p.muted,
       outlineVariant: p.border,
     ),
-    scaffoldBackgroundColor: p.background,
+    // A finish draws the background itself, behind each page (FinishWall),
+    // so the page and its bar must not cover it.
+    scaffoldBackgroundColor: finish.active ? Colors.transparent : p.background,
     appBarTheme: AppBarTheme(
-      backgroundColor: p.background,
+      // The bar is a plate of the finish's panel colour, so its words sit on
+      // a panel too.
+      backgroundColor: finish.active ? finish.panel : p.background,
+      surfaceTintColor: finish.active ? Colors.transparent : null,
+      elevation: finish.active ? 3 : null,
+      scrolledUnderElevation: finish.active ? 3 : null,
+      shadowColor: finish.active ? Colors.black : null,
       foregroundColor: p.text,
       centerTitle: false,
       systemOverlayStyle: p.light
@@ -468,7 +495,7 @@ ThemeData appTheme(
           : SystemUiOverlayStyle.light,
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: p.surface,
+      backgroundColor: finish.panel,
       indicatorColor: p.accent.withValues(alpha: .22),
     ),
     dividerColor: p.border,
@@ -485,7 +512,7 @@ ThemeData appTheme(
             ? Duration.zero
             : const Duration(milliseconds: 150),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+      ).merge(finishButtonStyle(finish, filled: true)),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
@@ -498,7 +525,7 @@ ThemeData appTheme(
           width: appearance.highContrast ? 1.5 : 1,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+      ).merge(finishButtonStyle(finish, filled: false)),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(minimumSize: Size(48, layout.controlHeight)),

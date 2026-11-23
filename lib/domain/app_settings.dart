@@ -17,6 +17,10 @@ class AppearancePreferences {
   /// How Live is arranged in a wide window, and whether buttons show their
   /// keyboard key ('automatic' shows them on a computer).
   final String desktopLayout, keyHints;
+
+  /// The material of the background and panels, and how much of it shows
+  /// (see finish.dart).
+  final String finish, finishStrength;
   final bool highContrast, reducedMotion;
   const AppearancePreferences({
     this.density = 'automatic',
@@ -26,6 +30,8 @@ class AppearancePreferences {
     this.reducedMotion = false,
     this.desktopLayout = defaultDesktopLayout,
     this.keyHints = 'automatic',
+    this.finish = defaultFinish,
+    this.finishStrength = defaultFinishStrength,
   });
   factory AppearancePreferences.fromJson(Json j) {
     require(
@@ -68,6 +74,9 @@ class AppearancePreferences {
       reducedMotion: j['reducedMotion'] ?? false,
       desktopLayout: j['desktopLayout'] ?? defaultDesktopLayout,
       keyHints: j['keyHints'] ?? 'automatic',
+      // Saved before finishes existed, or by a later version: Flat, Subtle.
+      finish: finishValue(j['finish']),
+      finishStrength: finishStrengthValue(j['finishStrength']),
     );
   }
   AppearancePreferences copyWith({
@@ -78,6 +87,8 @@ class AppearancePreferences {
     bool? reducedMotion,
     String? desktopLayout,
     String? keyHints,
+    String? finish,
+    String? finishStrength,
   }) => AppearancePreferences(
     density: density ?? this.density,
     dividers: dividers ?? this.dividers,
@@ -86,6 +97,8 @@ class AppearancePreferences {
     reducedMotion: reducedMotion ?? this.reducedMotion,
     desktopLayout: desktopLayout ?? this.desktopLayout,
     keyHints: keyHints ?? this.keyHints,
+    finish: finish ?? this.finish,
+    finishStrength: finishStrength ?? this.finishStrength,
   );
   Json toJson() => {
     'density': density,
@@ -95,6 +108,8 @@ class AppearancePreferences {
     'reducedMotion': reducedMotion,
     'desktopLayout': desktopLayout,
     'keyHints': keyHints,
+    'finish': finish,
+    'finishStrength': finishStrength,
   };
   @override
   bool operator ==(Object other) =>
@@ -105,7 +120,9 @@ class AppearancePreferences {
       highContrast == other.highContrast &&
       reducedMotion == other.reducedMotion &&
       desktopLayout == other.desktopLayout &&
-      keyHints == other.keyHints;
+      keyHints == other.keyHints &&
+      finish == other.finish &&
+      finishStrength == other.finishStrength;
   @override
   int get hashCode => Object.hash(
     density,
@@ -115,6 +132,8 @@ class AppearancePreferences {
     reducedMotion,
     desktopLayout,
     keyHints,
+    finish,
+    finishStrength,
   );
 }
 
