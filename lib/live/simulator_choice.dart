@@ -1,3 +1,4 @@
+import 'package:church_service_timer/screens/led_preview.dart';
 import 'package:church_service_timer/screens/screen_group_note.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/pairing/stage_colors.dart';
@@ -26,8 +27,36 @@ extension SimulatorChoice on HomeState {
 
   /// The picture of the display: the LED matrix, or a stage screen where
   /// the Simulator stands in for one.
-  Widget displayPreview() =>
-      c.stageSimulator ? stageSimulatorPreview() : liveMatrix();
+  ///
+  /// With a real LED sign as the display, the sign keeps a small strip of
+  /// its own above the stage picture (what this device's own screen
+  /// shows), so both are in view at once; with the LED simulator the big
+  /// picture is the sign itself, as before.
+  Widget displayPreview() {
+    if (c.stageSimulator) return stageSimulatorPreview();
+    // With the second screen open its copy is already under the sign's
+    // preview, so the sign keeps its full-size picture.
+    if (c.destination == 'led' &&
+        c.hardware.enabled &&
+        c.port.stageOutput?.open != true) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LedSignStrip(controller: c),
+          const SizedBox(height: 10),
+          // No taller than the sign's picture was, so the panes below
+          // keep their room.
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 280),
+              child: stageSimulatorPreview(),
+            ),
+          ),
+        ],
+      );
+    }
+    return liveMatrix();
+  }
 
   /// A live copy of what a stage screen would show, in a 16:9 box.
   Widget stageSimulatorPreview() => Semantics(

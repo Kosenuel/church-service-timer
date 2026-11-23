@@ -152,9 +152,17 @@ class ScreensController {
   /// Adds to [data] what [key]'s group shows: `stageLayout` (always one
   /// of the four countdown layouts, so every older screen draws it),
   /// `stageShow`, and for a group showing slides the slide (`lyrics`) or
-  /// the confidence monitor (`confidence`). With [slides] false (a phone
+  /// the confidence monitor (`confidence`). With [cues] the screen shows
+  /// cues whatever its group says (the stage simulator, the operator's
+  /// own preview of a stage screen). With [slides] false (a phone
   /// following the rundown, not the stage) no slide is added.
-  Json decorate(Json data, String key, LyricTarget kind, {bool slides = true}) {
+  Json decorate(
+    Json data,
+    String key,
+    LyricTarget kind, {
+    bool slides = true,
+    bool cues = false,
+  }) {
     final group = groupOf(key);
     data['stageLayout'] = group.layout;
     data['stageShow'] = group.show;
@@ -164,7 +172,7 @@ class ScreensController {
     // be without the cue, and no quick message: an older screen draws
     // what it is sent, so it never sees one either.
     final plain = data.remove('plain');
-    if (!group.cues) {
+    if (!group.cues && !cues) {
       if (data.remove('cue') == true && plain is Map) {
         data.removeWhere((k, _) => stageCueKeys.contains(k));
         data.addAll(Map<String, dynamic>.from(plain));

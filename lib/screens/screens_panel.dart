@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/screens/led_preview.dart';
 import 'package:church_service_timer/screens/show_miniature.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
@@ -540,6 +541,53 @@ class ScreensPageState extends State<ScreensPage> {
     );
   }
 
+  /// The LED sign beside the groups: it is not in a group, as it shows
+  /// the countdown and cues and never slides.
+  Widget ledCard() {
+    final colors = appColors(context);
+    return AppPanel(
+      key: const ValueKey('led-sign-card'),
+      padding: const EdgeInsets.all(16),
+      child: ListenableBuilder(
+        listenable: c.hardware,
+        builder: (context, _) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              c.hardware.rememberedName.isEmpty
+                  ? 'LED sign'
+                  : c.hardware.rememberedName,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              ledSignState(c),
+              key: const ValueKey('led-sign-card-state'),
+              style: TextStyle(
+                color: ledSignLive(c) ? colors.muted : colors.warning,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 10),
+            LedSignMatrix(controller: c),
+            const SizedBox(height: 10),
+            const Text(
+              'Shows the countdown and cues. Never slides.',
+              key: ValueKey('led-sign-card-line'),
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              c.hardware.enabled
+                  ? 'The picture is what this app last sent to the sign. The sign is not in a group.'
+                  : 'The LED simulator: what a sign would show. A sign is not in a group.',
+              style: TextStyle(color: colors.muted, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget newGroupButton() => OutlinedButton.icon(
     key: const ValueKey('new-group'),
     onPressed: locked || screens.setup.groups.length >= screenGroupLimit
@@ -557,7 +605,11 @@ class ScreensPageState extends State<ScreensPage> {
     const gap = 14.0, least = 300.0;
     final columns = ((width + gap) / (least + gap)).floor().clamp(1, 3);
     final groups = screens.setup.groups;
-    final cells = [for (final g in groups) groupCard(g), newGroupButton()];
+    final cells = [
+      for (final g in groups) groupCard(g),
+      if (hasLedSign(c)) ledCard(),
+      newGroupButton(),
+    ];
     if (columns == 1) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

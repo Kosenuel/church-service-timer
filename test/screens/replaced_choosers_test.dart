@@ -69,12 +69,12 @@ void main() {
         c.lyrics.selectedId = 'amazing';
         await settle(t);
         expect(find.text('No screens are showing slides.'), findsNWidgets(2));
-      expect(
-        find.byKey(const ValueKey('lyrics-no-groups-top')),
-        findsOneWidget,
-        reason: 'beside what is on the screens, where the operator looks',
-      );
-          final fix = find.byKey(const ValueKey('lyrics-fix-groups'));
+        expect(
+          find.byKey(const ValueKey('lyrics-no-groups-top')),
+          findsOneWidget,
+          reason: 'beside what is on the screens, where the operator looks',
+        );
+        final fix = find.byKey(const ValueKey('lyrics-fix-groups'));
         await t.ensureVisible(fix);
         await settle(t);
         expect(find.text('Show slides in Room 1'), findsNWidgets(2));

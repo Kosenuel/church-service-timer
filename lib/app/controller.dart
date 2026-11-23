@@ -152,7 +152,19 @@ class AppController extends ChangeNotifier {
 
   /// What a stage screen would show now, for the Simulator standing in
   /// for one: this device's own picture, as its group shows it.
-  Json stageSimulatorSnapshot() => stageWindowSnapshot();
+  /// It shows cues whatever the group says: it is the operator's own
+  /// preview of a stage screen, and a cue sent must be seen there.
+  Json stageSimulatorSnapshot() => screens.decorate(
+    {
+      ...pairedSnapshot(false)
+        ..remove('rundown')
+        ..remove('connection'),
+      'stageSharing': true,
+    },
+    thisScreenKey,
+    LyricTarget.second,
+    cues: true,
+  );
   late final quickMessages = QuickMessageController(this);
 
   /// Song words, verses and announcements on the screens (Lyrics page).

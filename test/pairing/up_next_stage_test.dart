@@ -373,8 +373,8 @@ void main() {
     });
   });
 
-  testWidgets('Choose display offers the same choice for the stage simulator '
-      'and its preview follows it', (t) async {
+  testWidgets('Choose display: the stage simulator shows its group\'s '
+      'choice, and its preview follows it', (t) async {
     setScreen(t);
     late AppController c;
     await t.runAsync(() async {
@@ -390,20 +390,13 @@ void main() {
     expect(find.descendant(of: preview, matching: line), findsNothing);
     await t.tap(find.byKey(const ValueKey('header-connection')));
     await t.pumpAndSettle();
-    for (final label in stageLayouts.values) {
-      expect(find.text(label), findsOneWidget);
-    }
-    final chip = find.byKey(const ValueKey('simulator-layout-next'));
-    expect(find.byKey(const ValueKey('simulator-layout-only')), findsOneWidget);
-    await t.ensureVisible(chip);
-    await t.runAsync(() async {
-      await t.tap(chip);
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    });
-    await t.pumpAndSettle();
-    expect(c.state.simulatorLayout, 'next');
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(
+      find.byKey(const ValueKey('screen-group-note-this')),
+      findsOneWidget,
+    );
     await t.pageBack();
+    await t.pumpAndSettle();
+    await t.runAsync(() => c.screens.setShow('room', 'next'));
     await t.pumpAndSettle();
     expect(
       t.widget<Text>(find.descendant(of: preview, matching: line)).data,

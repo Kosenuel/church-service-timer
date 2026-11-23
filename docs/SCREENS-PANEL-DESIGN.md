@@ -153,7 +153,7 @@ background, never a picture:
 
 ## Scenes and segments
 
-- **Save as scene** stores what every group shows now. Scenes can be
+- **Save as scene** stores what every group shows now (not Shows cues). Scenes can be
   renamed, updated (to what the groups show now) and deleted. A scene is
   lit in the panel while every group it lists shows what it says.
 - A program segment may name a scene: `Segment.sceneId` and
@@ -170,6 +170,66 @@ background, never a picture:
   the segment changes nothing, and the program editor says quietly
   "Scene “Worship” is not on this device. This segment changes nothing."
 
+## Shows cues (per group)
+
+`ScreenGroup.cues`. What counts as a cue: whatever puts something other
+than the countdown, clock or end screen on stage screens from Live: a
+stage cue (`cue` action), a warning cue (`automaticCue`, stage
+warnings) and a message from Live's composer (`message` action), all of
+which `Session.hasManualCue` / `hasAutomaticCue` cover, plus quick
+messages to stage screens (`quickMessage`). Blank, Black and Show clock
+are not cues and apply as before.
+
+- The host marks a snapshot with a cue showing (`cue: true`) and adds
+  `plain`, the display fields of the same snapshot without the cue
+  (`stageCueKeys`). `decorate` always takes `plain` off; for a group with
+  cues off it puts the `plain` fields in place of the cue's, drops `cue`,
+  and drops `quickMessage`, `messageId` and `messageSeen` (restoring
+  `blank`). An older paired or web screen draws what it is sent, so it
+  never sees a cue either.
+- Cues on, countdown layouts: as before.
+- Cues on, Slides: a full-screen cue would hide the words the person is
+  singing from, so it is drawn as a band across the bottom (a top banner
+  cue across the top), with the existing banner colours and flash, still
+  and wrapped (`stageSlideCueText`); the slide's words re-fit above the
+  band. Decision: a full-screen cue never covers the whole slide. A
+  quick message still covers the slide, as before (it is meant to stop
+  the speaker).
+- Cues on, Slides and timer: the cue takes the time's place in the right
+  panel, the time stays in the panel's heading, the words stay.
+- Defaults: the migration sets Stage (and Stage 2...) on, Room 1 and Web
+  screens off. New groups start off, with the switch on the card. This
+  changes what the second screen and web screens did (they showed every
+  cue); the CHANGELOG says so.
+- The stage simulator on Live always shows cues (`decorate(cues: true)`):
+  it is the operator's own preview of a stage screen, and a cue sent must
+  be seen there. Full screen and the second screen follow the group.
+- Scenes save and restore what a group shows, not Shows cues: it says
+  who looks at the screens, not what the moment needs.
+- The LED sign is unchanged.
+
+## The LED sign's preview
+
+- The display in use is one of the LED sign, stage screens or the
+  simulator (`AppController.destination`), and the sign is only sent
+  output while it is the display. So the sign gets its own preview on
+  Live when a real sign is the display: a small strip (its 32 × 16 dots,
+  its name, its state) above the stage picture, which is what this
+  device's own screen shows (its group). With the LED simulator as the
+  display the big preview is the simulated sign, as before, and the
+  Simulate chooser (LED sign or Stage screen) stays: it decides what the
+  Simulator stands in for, not only what the preview shows. Without a
+  sign nothing changes, so churches without one lose no space.
+- The Screens panel has an LED sign card beside the groups, shown when a
+  sign is set up or the LED simulator is in use: the dots, its state
+  (Connected, Connected · output held, Reconnecting…, Not found) and
+  "Shows the countdown and cues. Never slides." It has no tiles and no
+  group.
+- The dots are `HardwareDisplay.preview`: the app's copy of what it last
+  sent and the sign accepted, never a read-back, and the wording says
+  "what was sent to it". Not connected, the picture is dimmed and the
+  state is in the warning colour.
+
 ## Backups
 
 - Backups carry `screens` (groups, default and scenes; never `members`)
@@ -184,17 +244,33 @@ background, never a picture:
 | Before | Now |
 |---|---|
 | Settings › Screens & devices › Second screen: layout tiles | "Shows: Room 1 · Slides" and **Screens** |
-| Paired device › Screen options: layout tiles | the group chooser and **Screens**; the old "Screen group" (who gets quick messages) is now called **Message group** |
+| Paired device › Screen options: layout tiles | the group chooser, what that group shows, and **Screens**; the old "Screen group" (who gets quick messages) is now called **Message group** |
 | Web screens: "Stage displays show" tiles | "Web screens join Room 1 ..." and **Screens**, with per-group links |
 | Full screen's layout tiles (phone) | the group line and **Screens** |
 | Simulator's layout tiles in Choose display | the group line and **Screens** |
-| Slides page Send to boxes | "Showing slides: Room 1, Stage" and **Screens**; with none, "No screens are showing slides." and **Show slides in Room 1** |
+| Slides page Send to boxes | the groups showing slides and **Screens**; with none, "No screens are showing slides." and **Show slides in Room 1**, both in the look section and beside what is on the screens |
 
 ## Screen awake
 
 `wantsScreenAwake` keeps the lyrics rule with the new meaning of "a slide
 is on a screen": a slide or Black is up and at least one group with a
 screen in it shows Slides or Slides and timer.
+
+## Decisions the owner may overrule
+
+- The default group is the one holding the web screens (Room 1), so a
+  new paired phone joins Room 1, not Stage.
+- The stage simulator's own old layout is not migrated; it follows This
+  computer's group (and always shows cues).
+- The old quick-message audience groups (General, Preacher, Choir, Media
+  desk) stay, renamed **Message group**, instead of becoming screen
+  groups.
+- Black from the Slides page puts Slides groups to black and turns the
+  confidence monitor back to the countdown.
+- Programs carry a scene's id and name only, not its definition; backups
+  carry the definitions.
+- A program with a scene on a segment cannot be opened by an earlier
+  version (its segment has a new field).
 
 ## Phases
 

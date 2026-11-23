@@ -104,6 +104,10 @@ class TemplateEditorState extends State<TemplateEditor> {
       text: index == null ? '' : segments[index].notes,
     );
     var protected = index == null ? false : segments[index].protected;
+    // The scene applied when this segment starts, by id and name.
+    var sceneId = index == null ? '' : segments[index].sceneId;
+    var sceneName = index == null ? '' : segments[index].sceneName;
+    final scenes = widget.draftController?.screens.setup;
     String? issue, saved;
     Segment build() {
       final s = Segment.fromJson({
@@ -113,6 +117,8 @@ class TemplateEditorState extends State<TemplateEditor> {
         'speaker': speaker.text,
         'notes': notes.text,
         'protected': protected,
+        if (sceneId.isNotEmpty || sceneName.isNotEmpty)
+          'scene': {'id': sceneId, 'name': sceneName},
       });
       require(
         s.durationMs <= supportedCountdownMs,
@@ -159,6 +165,60 @@ class TemplateEditorState extends State<TemplateEditor> {
                   labelText: 'Speaker (optional)',
                 ),
               ),
+              if (scenes != null) ...[
+                const SizedBox(height: 4),
+                Builder(
+                  builder: (context) {
+                    final found = sceneId.isEmpty && sceneName.isEmpty
+                        ? null
+                        : scenes.sceneFor(sceneId, sceneName);
+                    final missing =
+                        found == null &&
+                        (sceneId.isNotEmpty || sceneName.isNotEmpty);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ChoiceField<String>(
+                          key: const ValueKey('segment-scene'),
+                          value: missing ? '-' : (found?.id ?? ''),
+                          decoration: const InputDecoration(
+                            labelText: 'Scene when it starts (optional)',
+                          ),
+                          options: [
+                            const ChoiceOption(value: '', label: 'None'),
+                            for (final sc in scenes.scenes)
+                              ChoiceOption(value: sc.id, label: sc.name),
+                            if (missing)
+                              ChoiceOption(
+                                value: '-',
+                                label: '$sceneName (not on this device)',
+                              ),
+                          ],
+                          onChanged: (v) => update(() {
+                            if (v == null || v == '-') return;
+                            final sc = scenes.sceneById(v);
+                            sceneId = sc?.id ?? '';
+                            sceneName = sc?.name ?? '';
+                          }),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          missing
+                              ? 'Scene “$sceneName” is not on this device. This segment changes nothing.'
+                              : scenes.scenes.isEmpty
+                              ? 'Save scenes in Screens to choose one here.'
+                              : 'When this segment starts, every group shows what the scene says.',
+                          key: const ValueKey('segment-scene-note'),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: appColors(context).muted,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
               const SizedBox(height: 12),
               TextField(
                 controller: notes,
@@ -572,6 +632,8 @@ class TemplateEditorState extends State<TemplateEditor> {
               final s = segments[i];
               final detail = [
                 if (s.speaker.isNotEmpty) s.speaker,
+                if (s.hasScene)
+                  'Scene: ${s.sceneName.isEmpty ? 'unnamed' : s.sceneName}',
                 if (s.notes.isNotEmpty) 'private note',
                 if (s.protected) 'protected',
               ].join(' · ');
