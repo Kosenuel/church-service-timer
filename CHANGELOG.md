@@ -20,6 +20,17 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
   - **Ready.** Press **Enter** (or tap a result) to put a passage in **Ready**, a short list on the Slides page, then press **Send** to show it on the screens exactly like a slide from the Library (same background, Dim, **Send to** and **Clear slide**). **Ctrl+Enter**, a second tap or the play button on a result sends it at once. In Ready, **+ next verse** and **Whole chapter** take in more, and **Save to Library** keeps it as Bible verses. Ready is kept while the app is open and starts empty after a restart.
   - **Keys.** **/** or **Ctrl+F** goes to the box from anywhere on the Slides page, **Up** and **Down** move between results, **Esc** clears the box. **Search the Bible** is also in Commands (Ctrl+K). On a phone, the search field at the top of Slides opens a full-height list of results.
 
+## 0.39.0-beta.1, 23/November/2026
+
+A test version. Please try these on the PC and phone before the real 0.39.0:
+
+- **Finishes.** In **Settings › Appearance › Finish**, choose each finish in turn and use the app as normal: start a service, scroll Settings and Programs, open the Slides page. It should feel as quick as **Flat**. Look at Marble, Carbon fibre, Plastic, Walnut, Oak, Leather and Bridge console at **Subtle** and **Full**, in a dark and a light theme, and at the Paper & Ink themes.
+- **Keep screen awake** in Settings is now one row that opens three choices.
+- **Add Bible verses** reads loosely typed references (john 3 9, Joh3: 9, Jhon 3 16).
+- **The Windows installer** has its new dark look. Install this test version over the one you have and check it finishes and the app opens.
+
+The full notes for these are under **Unreleased** above and move into 0.39.0.
+
 ## 0.38.0, 23/November/2026
 
 - **Song words, Bible verses and announcements on the screens.** A new **Slides** page, after Programs in the navigation, and a **Slides** button on Live under the display preview, put words on the second screen, web screens and stage screens.
