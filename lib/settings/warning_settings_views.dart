@@ -268,6 +268,58 @@ extension WarningSettingsViews on HomeState {
     if (next != null) await c.setSharedZero(next);
   }
 
+  /// How strongly stage screens show a countdown that has run past zero.
+  Widget overtimeAlertSettings() => panel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        label('Overtime alert · stage screens'),
+        const SizedBox(height: 8),
+        Text(
+          'When a segment runs past 00:00 and the stage keeps counting up, this is how clearly stage screens say so: the second screen, paired phones and tablets, web screens, full screen and the stage simulator. It does not change the LED sign.',
+          style: TextStyle(color: appColors(context).muted),
+        ),
+        const SizedBox(height: 8),
+        RadioGroup<String>(
+          groupValue: c.state.overtimeAlert,
+          onChanged: (v) {
+            if (!c.busy && v != null) c.setOvertimeAlert(v);
+          },
+          child: Column(
+            children: [
+              for (final (value, words) in const [
+                (
+                  'gentle',
+                  'The theme’s background, with red digits and a thick red frame.',
+                ),
+                (
+                  'strong',
+                  'The whole screen turns red, with large dark digits counting up. The default.',
+                ),
+                (
+                  'strongest',
+                  'The same red screen, pulsing slowly about every two seconds. It stays steady when Reduced motion is on.',
+                ),
+              ])
+                RadioListTile<String>(
+                  key: ValueKey('overtime-alert-$value'),
+                  contentPadding: EdgeInsets.zero,
+                  value: value,
+                  enabled: !c.busy,
+                  title: Text(overtimeAlerts[value]!),
+                  subtitle: Text(words),
+                ),
+            ],
+          ),
+        ),
+        Text(
+          'The screen also says OVER TIME and never flashes.',
+          style: TextStyle(color: appColors(context).muted),
+        ),
+      ],
+    ),
+  );
+
   Widget sharedZeroSettings() => panel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

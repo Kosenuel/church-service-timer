@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/stage_layout_tiles.dart';
 import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
@@ -134,14 +135,15 @@ extension PairingViews on HomeState {
                   onChanged: (v) => refresh(() => group = v ?? group),
                 ),
                 const SizedBox(height: 16),
-                ChoiceField<String>(
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Screen layout'),
+                ),
+                const SizedBox(height: 8),
+                StageLayoutTiles(
+                  keyPrefix: 'screen-layout',
                   value: layout,
-                  decoration: const InputDecoration(labelText: 'Screen layout'),
-                  options: [
-                    for (final e in screenLayouts.entries)
-                      ChoiceOption(value: e.key, label: e.value),
-                  ],
-                  onChanged: (v) => refresh(() => layout = v ?? layout),
+                  onChanged: (v) => refresh(() => layout = v),
                 ),
                 const SizedBox(height: 12),
                 const Text(
@@ -519,20 +521,10 @@ extension PairingViews on HomeState {
           const SizedBox(height: 8),
           const Text('What the second screen shows'),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final layout in secondScreenLayouts.entries)
-                ChoiceChip(
-                  key: ValueKey('second-screen-layout-${layout.key}'),
-                  label: Text(layout.value),
-                  selected: second.layout == layout.key,
-                  onSelected: controlsLocked
-                      ? null
-                      : (_) => second.setLayout(layout.key),
-                ),
-            ],
+          StageLayoutTiles(
+            keyPrefix: 'second-screen-layout',
+            value: second.layout,
+            onChanged: controlsLocked ? null : second.setLayout,
           ),
           const SizedBox(height: 4),
           Text(

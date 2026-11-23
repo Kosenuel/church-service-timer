@@ -630,6 +630,9 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
               ],
       };
     case WebRole.stage:
+      // On the last segment, in a Quick timer or with no program, 'Up next
+      // only' shows the end screen set for the program, or the clock.
+      s = stageForLayout(s, settings.stageLayout);
       // A banner cue: the page shows the countdown or clock as usual and
       // the cue in a band over it.
       final position = stageBannerPosition(s);
@@ -686,10 +689,22 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
             'words': ?stageWordGroups(s),
             ...effectsOf(s),
           },
-        // The segment name or up next line under the time, if chosen.
-        'line': shown['displayIsTimer'] == true
-            ? stageLayoutLine(s, settings.stageLayout)
-            : '',
+        'layout': settings.stageLayout,
+        // The countdown's own look: how far through the segment it is and
+        // the moment it is in (see [stageMoment]), the bands for the
+        // segment now and what is next, and how strongly overtime shows.
+        if (shown['displayIsTimer'] == true)
+          'countdown': {
+            'moment': stageMoment(s),
+            'progress': stageProgress(s),
+            'alert': overtimeAlertValue(s['overtimeAlert']),
+            'now': {
+              'name': '${s['segment'] ?? ''}',
+              'by': '${s['speaker'] ?? ''}'.trim(),
+            },
+            if (stageUpNext(s) case final next?)
+              'next': {'name': next.name, 'detail': next.detail},
+          },
         'overtime': s['overtime'] == true,
         'paused': s['paused'] == true,
         // Whether the text is a countdown or clock, whose colon blinks.

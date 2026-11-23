@@ -77,6 +77,11 @@ class AppState {
   /// of backups.
   String simulatorKind;
 
+  /// How strongly stage screens show overtime: 'gentle', 'strong' or
+  /// 'strongest', as [overtimeAlerts] names them. Kept on this device
+  /// with the other stage display choices; not part of backups.
+  String overtimeAlert;
+
   /// What the Simulator shows under the time while it stands in for a
   /// stage screen: 'timer', 'current' or 'next'. Local to this phone; not
   /// part of backups.
@@ -128,6 +133,7 @@ class AppState {
     this.fullScreenLayout = 'timer',
     this.simulatorKind = 'led',
     this.simulatorLayout = 'timer',
+    this.overtimeAlert = 'strong',
     this.practisedWall,
     this.practicePrompt = true,
     this.stageRequests = false,
@@ -324,6 +330,7 @@ class AppState {
       fullScreenLayout: stageLayoutValue(j['fullScreenLayout']),
       simulatorKind: simulatorKindValue(j['simulatorKind']),
       simulatorLayout: stageLayoutValue(j['simulatorLayout']),
+      overtimeAlert: overtimeAlertValue(j['overtimeAlert']),
       practisedWall: j['practisedWall'] is int
           ? j['practisedWall'] as int
           : null,
@@ -491,6 +498,7 @@ class AppState {
     'fullScreenLayout': fullScreenLayout,
     'simulatorKind': simulatorKind,
     'simulatorLayout': simulatorLayout,
+    'overtimeAlert': overtimeAlert,
   };
   AppState copy() => AppState.fromJson(toJson());
 

@@ -132,6 +132,13 @@ class AppController extends ChangeNotifier {
       ? 'End the current service before checking one.'
       : null;
 
+  /// Remembers how strongly stage screens show overtime.
+  Future<bool> setOvertimeAlert(String value) async {
+    if (!overtimeAlerts.containsKey(value)) return false;
+    if (state.overtimeAlert == value) return true;
+    return commit((draft, _) => draft.overtimeAlert = value);
+  }
+
   /// Remembers what the stage simulator shows under the time.
   Future<bool> setSimulatorLayout(String layout) async {
     if (!stageLayouts.containsKey(layout)) return false;
@@ -435,6 +442,24 @@ class AppController extends ChangeNotifier {
     return null;
   }
 
+  /// The fields of a snapshot that describe [display]'s own text and look,
+  /// for the screen that stands in place of the next item (see
+  /// `stageForLayout`).
+  Json _displayFields(TextLayout display) => {
+    'displayText': display.text,
+    ...stageEffectFields(display),
+    'speed': display.speed,
+    'screenSpeed': ?display.screenSpeed,
+    if (display.screenColor != 'white')
+      'cueColor': stageColorHex(
+        screenCueColors[display.screenColor] ?? stageAccentRgb(state.themeId),
+      ),
+    if (display.screenWrap) 'screenWrap': true,
+    'screenWords': ?stageWordGroupsOf(display),
+    'bold': display.bold,
+    'italic': display.italic,
+  };
+
   /// What stage screens are sent. With [session] and [at], what they
   /// would show of that session instead, as "Check this service" draws
   /// it on the stage simulator; no message is added to it.
@@ -456,8 +481,30 @@ class AppController extends ChangeNotifier {
       'nextSegment': t != null && s.index + 1 < t.segments.length
           ? t.segments[s.index + 1].name
           : '',
+      'speaker': t?.segments[s.index].speaker ?? '',
       // Who and what comes next, for stage screens set to show it.
       'upNext': stageUpNextLine(t, s.index, quick: s.quickTimer),
+      // How the countdown looks: inside a warning's time, how far through
+      // the segment it is, and how strongly overtime is shown.
+      if (s.nearWarning(now)) 'warning': true,
+      if (s.active && s.allocatedMs > 0)
+        'progress': double.parse(
+          (1 - s.balance(now) / s.allocatedMs)
+              .clamp(0.0, 1.0)
+              .toStringAsFixed(4),
+        ),
+      'overtimeAlert': state.overtimeAlert,
+      // What 'Up next only' shows in place of the next item when there is
+      // none: the end screen set for the program, or the clock.
+      if (s.active &&
+          t != null &&
+          (s.quickTimer || s.index + 1 >= t.segments.length))
+        'afterEnd': {
+          'outputMode': t.display.end == null ? 'Clock' : 'End screen',
+          ..._displayFields(
+            t.display.end ?? clockLayout(now.wall, s.clockFormat),
+          ),
+        },
       'displayIsTimer':
           s.active &&
           !s.showClock &&

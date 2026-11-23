@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/pairing/countdown_face.dart';
 import 'package:church_service_timer/pairing/flip_clock.dart';
 import 'package:church_service_timer/pairing/stage_colors.dart';
 
@@ -22,7 +23,8 @@ class StageSurface extends StatelessWidget {
   );
 
   Widget picture(BuildContext context) {
-    if (data['stageSharing'] == false)
+    final sent = this.data;
+    if (sent['stageSharing'] == false)
       return const ColoredBox(
         color: Colors.black,
         child: Center(
@@ -36,46 +38,37 @@ class StageSurface extends StatelessWidget {
           ),
         ),
       );
-    if (data['blank'] == true) return const ColoredBox(color: Colors.black);
-    if (data['quickMessage'] is Map)
+    if (sent['blank'] == true) return const ColoredBox(color: Colors.black);
+    if (sent['quickMessage'] is Map)
       return RichStageMessage(
         message: QuickMessage.fromJson(
-          Map<String, dynamic>.from(data['quickMessage']),
+          Map<String, dynamic>.from(sent['quickMessage']),
         ),
       );
-    final layout = '${data['stageLayout'] ?? 'timer'}';
+    final layout = stageLayoutValue(sent['stageLayout']);
+    // On the last segment, in a Quick timer or with no program, 'Up next
+    // only' shows what the program ends on: its end screen, or the clock.
+    final data = stageForLayout(sent, layout);
     // A banner cue leaves the countdown or clock in view, so the screen is
     // laid out for that and the cue is drawn in a band over it.
     final position = stageBannerPosition(data);
     final under = position == null ? data : stageUnderBanner(data);
-    // The segment name or the up next line, on one line under the time.
-    final text = under['displayIsTimer'] == true
-        ? stageLayoutLine(data, layout)
-        : '';
-    final showSegment = text.isNotEmpty;
-    // A seventeenth of the screen’s height: readable from the stage, and
-    // never more than one line; a long one ends in an ellipsis.
-    Widget label(double height) => SizedBox(
-      height: height,
-      child: Center(
-        child: Text(
-          text,
-          key: const ValueKey('stage-line'),
-          maxLines: 1,
-          softWrap: false,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          textScaler: TextScaler.noScaling,
-          style: TextStyle(
-            fontFamily: stageFontFamily,
-            color: Colors.white70,
-            fontSize: height * .72,
-            height: 1.15,
-            fontWeight: FontWeight.w600,
-          ),
+    // The countdown is drawn whole by [StageCountdown]: its time, the
+    // band for the segment or what is next, the progress line and the
+    // colours of the moment.
+    if (under['displayIsTimer'] == true) {
+      return StageBannerFrame(
+        banner: position == null ? null : stageBannerText(data),
+        top: position == 'top',
+        stale: stale,
+        builder: (context, band, top) => StageCountdown(
+          data: under,
+          layout: layout,
+          stale: stale,
+          inset: EdgeInsets.only(top: top ? band : 0, bottom: top ? 0 : band),
         ),
-      ),
-    );
+      );
+    }
     // A full-screen cue in a colour: its words in that colour (warm white
     // for amber) on charcoal, with a rule in its colour along the bottom
     // edge (see [stageColouredCard]).
@@ -110,48 +103,21 @@ class StageSurface extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(12, 12 + rule, 12, 12 + rule),
         child: LayoutBuilder(
           builder: (context, space) {
-            if (!space.maxHeight.isFinite) {
-              return showSegment
-                  ? Column(
-                      children: [timer, const SizedBox(height: 8), label(36)],
-                    )
-                  : timer;
-            }
+            if (!space.maxHeight.isFinite) return timer;
             // The time keeps the box it has without a banner and gives up
-            // the same space above and below, so it stays centred. Under a
-            // bottom band the segment name moves up to sit above the band.
-            final line = (space.maxHeight * .06).clamp(28.0, 84.0);
-            final below = showSegment ? line + 8 : 0.0;
-            final lift = top ? 0.0 : band;
+            // the same space above and below, so it stays centred.
             final clear = StageBannerFrame.clearance(
-              space.maxHeight - below,
+              space.maxHeight,
               above: top && band > 0 ? band - 12 : 0,
-              below: showSegment ? lift : (lift > 0 ? lift - 12 : 0),
+              below: !top && band > 0 ? band - 12 : 0,
             );
-            return Stack(
-              children: [
-                Positioned.fill(
-                  bottom: below,
-                  child: Padding(
-                    // The flip clock fills its box, so it gives up the
-                    // whole band, not only the empty part of a line.
-                    padding: clock != null
-                        ? EdgeInsets.only(
-                            top: top ? band : 0,
-                            bottom: top ? 0 : band,
-                          )
-                        : EdgeInsets.symmetric(vertical: clear),
-                    child: timer,
-                  ),
-                ),
-                if (showSegment)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: lift,
-                    child: label(line),
-                  ),
-              ],
+            return Padding(
+              // The flip clock fills its box, so it gives up the whole
+              // band, not only the empty part of a line.
+              padding: clock != null
+                  ? EdgeInsets.only(top: top ? band : 0, bottom: top ? 0 : band)
+                  : EdgeInsets.symmetric(vertical: clear),
+              child: timer,
             );
           },
         ),

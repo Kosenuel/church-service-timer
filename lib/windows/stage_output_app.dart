@@ -46,7 +46,8 @@ class StageOutputScreen extends StatelessWidget {
               color: stageBackdropOf(data),
               child: Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  // The clock and the countdown fill the screen in the theme's colours.
+                  padding: EdgeInsets.all(stageFillsScreen(data) ? 0 : 24),
                   child: data == null
                       ? const Text(
                           'Waiting for Church Service Timer…',

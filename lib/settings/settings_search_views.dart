@@ -90,6 +90,12 @@ extension SettingsSearchViews on HomeState {
         () => openDisplaySection('zero'),
       ),
       (
+        'Overtime alert',
+        'overtime red screen gentle strong strongest pulse stage over time',
+        Icons.notification_important_outlined,
+        () => openDisplaySection('overtime'),
+      ),
+      (
         'Default end screen',
         'end screen hallelujah clock finish',
         Icons.flag_outlined,
