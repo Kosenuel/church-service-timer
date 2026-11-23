@@ -98,7 +98,8 @@ void main() {
       );
       await t.pumpWidget(page());
       await t.pump();
-      expect(find.text('Next: Closing'), findsOneWidget);
+      expect(find.text('UP NEXT'), findsOneWidget);
+      expect(find.text('Closing'), findsOneWidget);
       await shot(t, 'stage-next-segment');
       data['quickMessage'] = const QuickMessage(
         headline: 'PLEASE WAIT',
@@ -107,12 +108,12 @@ void main() {
       ).toJson();
       await t.pumpWidget(page());
       await t.pump();
-      expect(find.text('Next: Closing'), findsNothing);
+      expect(find.text('Closing'), findsNothing);
       expect(find.text('The choir is getting ready.'), findsOneWidget);
       data.remove('quickMessage');
       await t.pumpWidget(page());
       await t.pump();
-      expect(find.text('Next: Closing'), findsOneWidget);
+      expect(find.text('Closing'), findsOneWidget);
       await t.pumpWidget(const SizedBox());
     },
   );

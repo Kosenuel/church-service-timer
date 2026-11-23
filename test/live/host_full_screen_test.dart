@@ -12,6 +12,7 @@ import 'package:church_service_timer/shared/screen_orientation.dart';
 import 'package:church_service_timer/windows/atomic_store.dart';
 import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/window_memory.dart';
+import 'package:church_service_timer/shared/stage_layout_tiles.dart';
 import 'package:flutter/gestures.dart';
 import 'package:church_service_timer/pairing/flip_clock.dart';
 import 'package:flutter/material.dart';
@@ -664,14 +665,24 @@ void main() {
       final (c, _) = await running(t);
       await press(t, LogicalKeyboardKey.f11);
       expect(find.text('Sermon'), findsNothing);
-      expect(find.text('Next: Response'), findsNothing);
+      expect(find.text('UP NEXT'), findsNothing);
       await c.commit((draft, _) => draft.fullScreenLayout = 'current');
       await t.pumpAndSettle();
       expect(find.text('Sermon'), findsOneWidget);
       await c.commit((draft, _) => draft.fullScreenLayout = 'next');
       await t.pumpAndSettle();
-      expect(find.text('Next: Response · 10 min'), findsOneWidget);
+      expect(find.text('UP NEXT'), findsOneWidget);
+      expect(find.text('Response'), findsOneWidget);
+      expect(find.text('10 min'), findsOneWidget);
       expect(time(t), '12:38');
+      // Up next only: the next item and no time.
+      await c.commit((draft, _) => draft.fullScreenLayout = 'only');
+      await t.pumpAndSettle();
+      expect(find.text('UP NEXT'), findsOneWidget);
+      expect(find.text('Response'), findsOneWidget);
+      expect(find.byType(ClockText), findsNothing);
+      await c.commit((draft, _) => draft.fullScreenLayout = 'next');
+      await t.pumpAndSettle();
       // Kept on this device: in its saved state, never in a backup.
       expect(c.state.toJson()['fullScreenLayout'], 'next');
       expect(AppState.fromJson(c.state.toJson()).fullScreenLayout, 'next');
@@ -699,7 +710,9 @@ void main() {
       expect(find.text('Welcome'), findsNothing);
       await c.secondScreen!.setLayout('next');
       await t.pumpAndSettle();
-      expect(find.text('Next: Sermon · 40 min'), findsOneWidget);
+      expect(find.text('UP NEXT'), findsOneWidget);
+      expect(find.text('Sermon'), findsOneWidget);
+      expect(find.text('40 min'), findsOneWidget);
       expect(home(t).hostStageSnapshot(), c.stageWindowSnapshot());
       // No window to change here: the stage fills the one there is.
       expect(t.getSize(key('full-screen-stage')), const Size(1366, 768));
@@ -818,7 +831,7 @@ void main() {
       await t.pumpAndSettle();
       expect(c.state.fullScreenLayout, 'next');
       expect(
-        t.widget<ChoiceChip>(key('full-screen-layout-next')).selected,
+        t.widget<StageLayoutTile>(key('full-screen-layout-next')).selected,
         isTrue,
       );
       await done(t);

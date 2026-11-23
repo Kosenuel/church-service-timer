@@ -261,6 +261,7 @@ const stageLayouts = {
   'timer': 'Timer only',
   'current': 'Timer and segment name',
   'next': 'Timer and up next',
+  'only': 'Up next only',
 };
 
 /// A stage layout from saved settings; anything unknown is 'timer'.
@@ -286,7 +287,7 @@ String stageUpNextLine(Timeline? timeline, int index, {bool quick = false}) {
 /// segment name, the up next line, or empty for nothing. A snapshot from
 /// a host from before the up next line has only the next segment's name.
 String stageLayoutLine(Json data, String layout) => switch (layout) {
-  'timer' => '',
+  'timer' || 'only' => '',
   'next' => switch (data['upNext']) {
     final String line => line,
     _ => switch (data['nextSegment']) {
@@ -296,3 +297,79 @@ String stageLayoutLine(Json data, String layout) => switch (layout) {
   },
   _ => '${data['segment'] ?? ''}',
 };
+
+/// The next item as 'Up next only' shows it: its name, and below it who
+/// has it and how long it runs ("Worship team · 6 min 30 s", empty when
+/// it has neither). Null when nothing is next: the last segment, a Quick
+/// timer, or no program. A host from before 'Up next only' sends the
+/// whole line, `Next: Response · Worship team · 6 min 30 s`, and no more
+/// than the name otherwise; the words after the name are taken from it.
+({String name, String detail})? stageUpNext(Json data) {
+  final name = data['nextSegment'];
+  if (name is! String || name.trim().isEmpty) return null;
+  final line = data['upNext'];
+  final lead = 'Next: $name';
+  var detail = '';
+  if (line is String && line.startsWith('$lead · ')) {
+    detail = line.substring(lead.length + 3);
+  }
+  return (name: name, detail: detail);
+}
+
+/// How the countdown looks at this moment, by the host's own warning
+/// settings: 'overtime' (past zero), 'paused', 'warning' (inside a
+/// warning's time, as the operator's timer shows it) or 'normal'. An
+/// older host sends no warning and so never shows 'warning'.
+String stageMoment(Json data) => data['overtime'] == true
+    ? 'overtime'
+    : data['paused'] == true
+    ? 'paused'
+    : data['warning'] == true
+    ? 'warning'
+    : 'normal';
+
+/// How much of the current segment has gone, from 0 to 1, for the line
+/// along the bottom edge; 0 from a host that sends none, and full in
+/// overtime.
+double stageProgress(Json data) {
+  if (data['overtime'] == true) return 1;
+  final value = data['progress'];
+  return value is num ? value.toDouble().clamp(0.0, 1.0) : 0.0;
+}
+
+/// How strongly overtime is shown on stage screens: Gentle keeps the
+/// theme's background with red digits and a thick red frame, Strong makes
+/// the whole screen red, and Strongest also pulses it slowly.
+const overtimeAlerts = {
+  'gentle': 'Gentle',
+  'strong': 'Strong',
+  'strongest': 'Strongest',
+};
+
+/// An overtime alert from saved settings or a snapshot; anything unknown
+/// (or missing, as in data saved before the setting) is 'strong'.
+String overtimeAlertValue(dynamic value) =>
+    overtimeAlerts.containsKey(value) ? value as String : 'strong';
+
+/// What a snapshot shows in place of the next item on the last segment, a
+/// Quick timer or with no program, when the screen is set to 'Up next
+/// only': the end screen set for the program or service, or the clock
+/// where it has none. The host sends it as `afterEnd`, in the fields of a
+/// snapshot, with nothing for a screen that is not counting down.
+Json stageForLayout(Json data, String layout) {
+  final after = data['afterEnd'];
+  if (layout != 'only' ||
+      data['displayIsTimer'] != true ||
+      stageBannerPosition(data) != null ||
+      after is! Map ||
+      stageUpNext(data) != null) {
+    return data;
+  }
+  return {
+    ...data,
+    ...Map<String, dynamic>.from(after),
+    'displayIsTimer': false,
+    'overtime': false,
+    'paused': false,
+  }..remove('afterEnd');
+}

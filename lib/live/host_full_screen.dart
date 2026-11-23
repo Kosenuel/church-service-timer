@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/stage_layout_tiles.dart';
 import 'dart:async';
 
 import 'package:church_service_timer/app/platform.dart';
@@ -6,7 +7,6 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/screen_orientation.dart';
-import 'package:church_service_timer/windows/second_screen.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/pairing/stage_colors.dart';
@@ -222,22 +222,13 @@ extension HostFullScreenMode on HomeState {
             style: muted,
           ),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final layout in secondScreenLayouts.entries)
-                ChoiceChip(
-                  key: ValueKey('full-screen-layout-${layout.key}'),
-                  label: Text(layout.value),
-                  selected: c.state.fullScreenLayout == layout.key,
-                  onSelected: controlsLocked
-                      ? null
-                      : (_) => c.commit(
-                          (draft, _) => draft.fullScreenLayout = layout.key,
-                        ),
-                ),
-            ],
+          StageLayoutTiles(
+            keyPrefix: 'full-screen-layout',
+            value: c.state.fullScreenLayout,
+            onChanged: controlsLocked
+                ? null
+                : (layout) =>
+                      c.commit((draft, _) => draft.fullScreenLayout = layout),
           ),
           const SizedBox(height: 4),
           Text(

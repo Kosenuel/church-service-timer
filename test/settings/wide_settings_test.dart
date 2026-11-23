@@ -219,11 +219,25 @@ void main() {
     await t.pumpAndSettle();
     expect(c.state.clockFormat, '12h');
     expect(find.text('12-hour · AM/PM'), findsWidgets);
+    await t.ensureVisible(find.byKey(const ValueKey('display-section-end')));
     await t.tap(find.byKey(const ValueKey('display-section-end')));
     await t.pumpAndSettle();
     expectOrdinaryButtons(t);
     await shot(t, 'display-end-screen');
+    // The overtime alert sits beside At zero, and can be changed there.
+    await t.ensureVisible(
+      find.byKey(const ValueKey('display-section-overtime')),
+    );
+    await t.tap(find.byKey(const ValueKey('display-section-overtime')));
+    await t.pumpAndSettle();
+    expect(find.text('OVERTIME ALERT · STAGE SCREENS'), findsOneWidget);
+    expect(c.state.overtimeAlert, 'strong');
+    await t.tap(find.byKey(const ValueKey('overtime-alert-strongest')));
+    await t.pumpAndSettle();
+    expect(c.state.overtimeAlert, 'strongest');
+    await shot(t, 'display-overtime');
     for (final key in ['connection', 'profile', 'shape', 'fonts', 'zero']) {
+      await t.ensureVisible(find.byKey(ValueKey('display-section-$key')));
       await t.tap(find.byKey(ValueKey('display-section-$key')));
       await t.pumpAndSettle();
       expectOrdinaryButtons(t);
@@ -444,8 +458,10 @@ void main() {
             'shape',
             'fonts',
             'zero',
+            'overtime',
             'end',
           ]) {
+            await t.ensureVisible(find.byKey(ValueKey('display-section-$key')));
             await t.tap(find.byKey(ValueKey('display-section-$key')));
             await t.pumpAndSettle();
             expect(t.takeException(), isNull, reason: '$key at $size');

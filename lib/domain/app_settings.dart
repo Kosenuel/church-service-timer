@@ -314,6 +314,7 @@ String exportBackup(
     ..remove('fullScreenLayout')
     ..remove('simulatorKind')
     ..remove('simulatorLayout')
+    ..remove('overtimeAlert')
     ..remove('practisedWall')
     ..remove('practicePrompt')
     ..remove('stageRequests')

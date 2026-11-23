@@ -1,9 +1,9 @@
+import 'package:church_service_timer/shared/stage_layout_tiles.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/app/platform.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -433,17 +433,14 @@ extension WebStageViews on HomeState {
           ),
         ),
       const SizedBox(height: 12),
-      ChoiceField<String>(
-        key: const ValueKey('web-stage-layout'),
+      const Text('Stage displays show'),
+      const SizedBox(height: 8),
+      StageLayoutTiles(
+        keyPrefix: 'web-stage-layout',
         value: settings.stageLayout,
-        decoration: const InputDecoration(labelText: 'Stage displays show'),
-        options: [
-          for (final e in stageLayouts.entries)
-            ChoiceOption(value: e.key, label: e.value),
-        ],
-        onChanged: (v) => v == null || controlsLocked
+        onChanged: controlsLocked
             ? null
-            : update(settings.copyWith(stageLayout: v)),
+            : (v) => update(settings.copyWith(stageLayout: v)),
       ),
       SwitchListTile(
         key: const ValueKey('web-show-speakers'),

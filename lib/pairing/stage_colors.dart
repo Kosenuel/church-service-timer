@@ -65,6 +65,27 @@ class StageColors {
       ? Color.lerp(background, text, .30)!
       : Color.lerp(background, Colors.black, .30)!;
 
+  /// A band across the screen (the segment name, up next): a shade of the
+  /// text colour over the surface, with its edge a little stronger.
+  Color get band => Color.lerp(surface, text, .05)!;
+  Color get bandLine => Color.lerp(surface, text, .16)!;
+
+  /// The empty part of the progress line.
+  Color get track => Color.lerp(background, text, .12)!;
+
+  /// The warning period: amber, deeper on a light theme so it still reads
+  /// on a pale background.
+  Color get warn => light ? const Color(0xff875100) : const Color(0xfff3ba61);
+
+  /// Red digits and frame for Gentle overtime.
+  Color get over => light ? const Color(0xffad2835) : const Color(0xffff6b6b);
+
+  /// The red screen of Strong and Strongest overtime, the lighter red it
+  /// pulses to, and the dark ink on it (4.8:1 or better on the dark red).
+  static const overtimeRed = Color(0xffe5333a);
+  static const overtimeBright = Color(0xffff5b61);
+  static const overtimeInk = Color(0xff1a0000);
+
   /// The AM and PM tile that is not lit, and its edge.
   Color get tileOff => Color.lerp(background, text, .06)!;
   Color get tileLine => Color.lerp(background, text, .14)!;
@@ -79,8 +100,9 @@ class StageColors {
 }
 
 /// The colour a stage screen's own area is painted: the theme's background
-/// where the snapshot shows the clock, black as ever otherwise (cues and
-/// messages have their own backgrounds).
+/// where the snapshot shows the clock or the countdown (red in Strong and
+/// Strongest overtime), black as ever otherwise (cues and messages have
+/// their own backgrounds).
 Color stageBackdropOf(Json? data) {
   if (data == null ||
       data['stageSharing'] == false ||
@@ -88,11 +110,29 @@ Color stageBackdropOf(Json? data) {
       data['quickMessage'] is Map) {
     return Colors.black;
   }
-  final under = stageBannerPosition(data) == null
-      ? data
-      : stageUnderBanner(data);
+  final shown = stageForLayout(data, stageLayoutValue(data['stageLayout']));
+  final under = stageBannerPosition(shown) == null
+      ? shown
+      : stageUnderBanner(shown);
   if (stageShowsClock(under) && stageClockFace(under) != null) {
     return StageColors.of(data).background;
   }
+  if (under['displayIsTimer'] == true) {
+    return stageOvertimeSolid(under, stageLayoutValue(data['stageLayout']))
+        ? StageColors.overtimeRed
+        : StageColors.of(data).background;
+  }
   return Colors.black;
 }
+
+/// Whether the whole screen turns solid red: the countdown is in overtime
+/// and the alert is Strong or Strongest. 'Up next only' shows no time, so
+/// overtime does not change it.
+bool stageOvertimeSolid(Json data, String layout) =>
+    layout != 'only' &&
+    stageMoment(data) == 'overtime' &&
+    overtimeAlertValue(data['overtimeAlert']) != 'gentle';
+
+/// Whether this snapshot's picture fills its whole screen in the theme's
+/// colours (the clock, the countdown), so a host adds no margin of its own.
+bool stageFillsScreen(Json? data) => stageBackdropOf(data) != Colors.black;

@@ -546,8 +546,15 @@ void main() {
         Color.lerp(Colors.black, const Color(0xffffa833), .32),
       );
       expect(textColor(t), const Color(0xffffa833));
-      // The rest of the screen stays black.
-      expect(flashOf(t).color, Colors.transparent);
+      // The rest of the screen stays as it was.
+      expect(
+        t
+            .widget<ColoredBox>(
+              find.byKey(const ValueKey('stage-countdown-ground')),
+            )
+            .color,
+        Colors.black,
+      );
       await t.pump(const Duration(milliseconds: 700));
       expect(flashOf(t, band: true).color, isNot(const Color(0xffffa833)));
 

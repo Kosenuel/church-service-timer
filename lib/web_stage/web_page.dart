@@ -76,9 +76,25 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
   #stage.fx-screenFlash, #stage .band.fx-screenFlash { box-shadow:inset 0 0 0 1.2vh var(--fx); }
 }
 #stage .rule { position:absolute; left:0; right:0; bottom:0; height:max(4px, 1.667vh); display:none; }
-#stage .line { position:absolute; left:4vw; right:4vw; bottom:6vh; display:none; color:#bbb; font-size:6vh; font-weight:600; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-#stage.stale .line { opacity:.35; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
+/* The countdown's bands, tag and progress line, in the theme's colours. */
+#cd { position:absolute; inset:0; display:none; pointer-events:none; font-family:Roboto, system-ui, "Segoe UI", sans-serif; }
+#stage.stale #cd { opacity:.35; }
+#cd .cdband { position:absolute; display:none; align-items:baseline; justify-content:center; gap:2vw; background:var(--c-band); border:1px solid var(--c-line); text-align:center; min-width:0; overflow:hidden; }
+#cd .cdband.up { flex-direction:column; align-items:center; gap:1.5vw; }
+#cd .cdeye { color:var(--c-eye); font-weight:700; text-transform:uppercase; white-space:nowrap; align-self:center; }
+#cd .cdnm { color:var(--c-name); font-weight:500; line-height:1.1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+#cd .cdsub { color:var(--c-sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+#cd .cdband.up .cdnm, #cd .cdband.up .cdsub { white-space:normal; overflow-wrap:anywhere; }
+#cd #cdOnly { position:absolute; display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+#cd #cdOnly .cdnm { white-space:normal; overflow-wrap:anywhere; line-height:1.02; max-width:100%; }
+#cd #cdTag { position:absolute; left:0; right:0; display:none; align-items:center; justify-content:center; }
+#cd #cdTag b { font-weight:700; text-transform:uppercase; border-radius:999px; white-space:nowrap; }
+#cd #cdProg { position:absolute; left:0; right:0; bottom:0; background:var(--c-track); }
+#cd #cdProg i { display:block; height:100%; width:0; background:var(--c-fill); transition:width 1s linear, background .3s; }
+#stage.cdpulse { animation:cdpulse 2s ease-in-out infinite; }
+@keyframes cdpulse { 0%, 100% { background:#e5333a; } 50% { background:#ff5b61; } }
+@media (prefers-reduced-motion: reduce) { #stage.cdpulse { animation:none; } #cd #cdProg i { transition:none; } }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
 #stage .msg p { font-size:6vh; line-height:1.2; margin:0; white-space:pre-wrap; word-break:break-word; }
@@ -133,7 +149,7 @@ body.stale #app { opacity:.6; }
 </head>
 <body>
 <div id="app" class="wrap"></div>
-<div id="stage"><div id="flip"></div><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="rule" id="stageRule"></div><div class="line" id="stageLine"></div><div class="note" id="stageNote"></div></div>
+<div id="stage"><div id="flip"></div><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="rule" id="stageRule"></div><div id="cd"><div class="cdband" id="cdNow"></div><div class="cdband" id="cdNext"></div><div id="cdOnly"></div><div id="cdTag"></div><div id="cdProg"><i></i></div></div><div class="note" id="stageNote"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
 <div id="req"><span id="reqNote"></span><button class="chip" id="reqBtn">Request</button></div>
@@ -746,6 +762,94 @@ function renderFlip(s, w, h) {
   return t;
 }
 
+// The countdown's chrome: the band for the segment now or what is next
+// (or the next item alone), the PAUSED and OVER TIME tag, and the progress
+// line, in the host's theme and the colour of the moment. It returns the
+// share of the screen's height left for the digits, and their colour. All
+// text is set with textContent.
+function renderCountdown(s, cd, w, h, high, low) {
+  const stage = $('stage'), root = $('cd');
+  const t = Object.assign({}, CLASSIC, s.theme || {});
+  const light = lumOf(t.background) > .179;
+  const upright = h > w;
+  const only = s.layout === 'only' && !!cd.next;
+  // 'Up next only' shows no time, so overtime does not change it.
+  const moment = only && cd.moment === 'overtime' ? 'normal' : cd.moment;
+  const over = moment === 'overtime', solid = over && cd.alert !== 'gentle';
+  const redInk = light ? '#ad2835' : '#ff6b6b', warn = light ? '#875100' : '#f3ba61', dark = '#1a0000';
+  const ink = over ? (solid ? dark : redInk) : moment === 'warning' ? warn : t.text;
+  stage.style.background = solid ? '#e5333a' : t.background;
+  stage.classList.toggle('cdpulse', solid && cd.alert === 'strongest');
+  if (over && !solid) stage.style.boxShadow = 'inset 0 0 0 ' + Math.max(6, Math.min(w, h) * 0.035) + 'px ' + redInk;
+  const vars = {
+    '--c-band': solid ? 'rgba(0,0,0,.12)' : mixHex(t.surface, t.text, .05),
+    '--c-line': solid ? 'rgba(0,0,0,.3)' : mixHex(t.surface, t.text, .16),
+    '--c-eye': solid ? dark : t.accent, '--c-name': solid ? dark : t.text, '--c-sub': solid ? 'rgba(26,0,0,.8)' : t.muted,
+    '--c-track': solid ? 'rgba(0,0,0,.22)' : mixHex(t.background, t.text, .12),
+    '--c-fill': over ? (solid ? dark : redInk) : moment === 'warning' ? warn : t.accent
+  };
+  for (const k in vars) root.style.setProperty(k, vars[k]);
+  root.style.display = 'block';
+  const topM = upright ? w * .08 : w * .03, botM = upright ? w * .10 : w * .044, side = upright ? w * .06 : w * .03, gap = upright ? w * .05 : w * .02;
+  const prog = $('cdProg'); prog.style.height = Math.max(4, upright ? w * .024 : w * .013) + 'px';
+  $('cdProg').firstChild.style.width = (Math.max(0, Math.min(1, cd.progress || 0)) * 100) + '%';
+  const bandTop = high ? h * .2 : 0, bandBottom = low ? h * .2 : 0;
+  const fs = (a, b) => (upright ? b : a) * w + 'px';
+  const fill = (node, label, name, detail) => {
+    clear(node);
+    const e = el('span', 'cdeye', label); e.style.fontSize = fs(.019, .042); e.style.letterSpacing = '.16em';
+    const n = el('span', 'cdnm', name); n.style.fontSize = fs(.044, .09);
+    node.append(e, n);
+    if (detail) { const d = el('span', 'cdsub', detail); d.style.fontSize = fs(.03, .054); node.append(d); }
+    node.classList.toggle('up', upright);
+    node.style.left = side + 'px'; node.style.right = side + 'px';
+    node.style.borderRadius = (upright ? w * .04 : w * .016) + 'px';
+    node.style.padding = upright ? (w * .05) + 'px ' + (w * .04) + 'px' : (w * .015) + 'px ' + (w * .03) + 'px';
+    node.style.display = 'flex'; node.style.maxHeight = h * (upright ? .34 : .3) + 'px';
+  };
+  const nowBand = $('cdNow'), nextBand = $('cdNext'), onlyBox = $('cdOnly'), tag = $('cdTag');
+  nowBand.style.display = nextBand.style.display = onlyBox.style.display = tag.style.display = 'none';
+  let padTop = bandTop + topM, padBottom = bandBottom + botM, nextH = 0;
+  if (only) {
+    clear(onlyBox);
+    const e = el('span', 'cdeye', 'UP NEXT'); e.style.fontSize = fs(.03, .054); e.style.letterSpacing = '.16em';
+    const n = el('span', 'cdnm', cd.next.name); n.style.fontSize = fs(.12, .17); n.style.marginTop = (upright ? w * .05 : w * .022) + 'px';
+    onlyBox.append(e, n);
+    if (cd.next.detail) { const d = el('span', 'cdsub', cd.next.detail); d.style.fontSize = fs(.046, .07); d.style.marginTop = (upright ? w * .05 : w * .022) + 'px'; d.style.whiteSpace = 'normal'; onlyBox.append(d); }
+    onlyBox.style.left = side + 'px'; onlyBox.style.right = side + 'px'; onlyBox.style.top = bandTop + 'px'; onlyBox.style.bottom = bandBottom + 'px';
+    onlyBox.style.display = 'flex';
+    return { only: true, room: 1, ink };
+  }
+  if (s.layout === 'current' && cd.now.name.trim()) {
+    fill(nowBand, 'Now', cd.now.name, cd.now.by);
+    nowBand.style.top = bandTop + topM + 'px';
+    padTop += nowBand.offsetHeight + gap;
+  }
+  if (s.layout === 'next' && cd.next) {
+    fill(nextBand, 'Up next', cd.next.name, cd.next.detail);
+    nextBand.style.bottom = bandBottom + botM + 'px';
+    nextH = nextBand.offsetHeight; padBottom += nextH + gap;
+  }
+  // The tag has its room always, so the digits keep their size.
+  const tagH = upright ? w * .085 : h * .075;
+  const paused = cd.moment === 'paused' || (cd.moment === 'overtime' && s.paused);
+  const words = paused ? (over ? 'PAUSED · OVER TIME' : 'PAUSED') : over ? 'OVER TIME' : '';
+  if (words) {
+    clear(tag);
+    const b = el('b', '', words);
+    const pill = over && !paused;
+    b.style.fontSize = tagH * .5 + 'px'; b.style.letterSpacing = '.18em'; b.style.padding = (tagH * .12) + 'px ' + (tagH * .5) + 'px';
+    b.style.background = pill ? (solid ? dark : redInk) : vars['--c-band'];
+    b.style.color = pill ? (solid ? '#e5333a' : t.background) : t.text;
+    b.style.border = pill ? '0' : '1px solid ' + vars['--c-line'];
+    tag.append(b); tag.style.display = 'flex';
+  }
+  tag.style.height = tagH + 'px'; tag.style.bottom = bandBottom + botM + (nextH ? nextH + gap : 0) + 'px';
+  padBottom += tagH;
+  stage.style.paddingTop = padTop + 'px'; stage.style.paddingBottom = padBottom + 'px';
+  return { only: false, room: Math.max(.2, (h - padTop - padBottom) / h), ink, dim: moment === 'paused' };
+}
+
 function renderStage(s) {
   $('app').style.display = 'none';
   $('flip').style.display = 'none'; $('stageText').style.display = '';
@@ -754,19 +858,11 @@ function renderStage(s) {
   renderBand(s);
   // With a banner, the countdown keeps to the middle of the screen and is
   // a little smaller at most, so its digits stay clear of the band.
-  // The segment name or up next line under the time, on one line that
-  // ends in an ellipsis; above a bottom banner while one shows.
-  const lineText = s.sharing && !s.message && !s.blank ? (s.line || '') : '';
-  const line = $('stageLine'); line.textContent = lineText;
-  line.style.display = lineText ? 'block' : 'none';
   const low = s.banner && s.banner.position !== 'top', high = s.banner && s.banner.position === 'top';
-  line.style.bottom = low ? '22vh' : '';
-  // With the line, the time keeps to the space between it and any band.
-  const above = lineText && high ? 20 : 0, below = lineText ? (low ? 30 : 14) : 0;
-  stage.style.paddingTop = above ? above + 'vh' : '';
-  stage.style.paddingBottom = below ? below + 'vh' : '';
-  const room = lineText ? 1 - (above + below) / 100 : s.banner ? 0.88 : 1;
-  note.style.bottom = low ? (lineText ? '30vh' : '23vh') : '';
+  stage.style.paddingTop = ''; stage.style.paddingBottom = '';
+  let room = s.banner ? 0.88 : 1;
+  note.style.bottom = low ? '23vh' : '';
+  $('cd').style.display = 'none'; stage.classList.remove('cdpulse'); stage.style.boxShadow = '';
   const value = s.displayText || '';
   const h = window.innerHeight, w = window.innerWidth;
   // "Wrap long text": wrapped onto up to 3 lines, as large as fits.
@@ -812,12 +908,20 @@ function renderStage(s) {
     clear(text); note.textContent = ''; text.style.display = 'none';
     return;
   }
+  // The countdown in the theme's colours with its bands and progress line.
+  let cdLook = null;
+  if (s.countdown && !card) {
+    cdLook = renderCountdown(s, s.countdown, w, h, high, low);
+    if (cdLook.only) { clear(text); text.style.display = 'none'; return; }
+    room = cdLook.room;
+  }
   // A coloured full-screen cue in its colour, amber's in warm white, with
   // its colour in the rule too; otherwise white, or red in overtime.
-  text.style.color = card ? cardInk(s.color) : s.color || (s.overtime ? '#ff4d4d' : '#fff');
+  text.style.color = cdLook ? cdLook.ink : card ? cardInk(s.color) : s.color || (s.overtime ? '#ff4d4d' : '#fff');
+  if (cdLook && cdLook.dim) text.style.opacity = '.45';
   text.style.fontWeight = s.bold ? '800' : '500';
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
-  if (s.paused) note.textContent = 'PAUSED';
+  if (s.paused && !cdLook) note.textContent = 'PAUSED';
   let effect = s.effect, wrapAt = 0;
   if (wrap) {
     text.textContent = value; text.classList.add('wrapped');

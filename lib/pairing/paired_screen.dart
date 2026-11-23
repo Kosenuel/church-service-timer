@@ -182,7 +182,8 @@ class _PairedScreenState extends State<PairedScreen> {
             children: [
               Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  // The clock and the countdown fill the screen in the theme's colours.
+                  padding: EdgeInsets.all(stageFillsScreen(data) ? 0 : 24),
                   child: data == null
                       ? Text(
                           hub.status,
