@@ -25,6 +25,7 @@ import 'package:church_service_timer/app/appearance_preview.dart';
 import 'package:church_service_timer/app/edit_draft_queue.dart';
 import 'package:church_service_timer/app/practice_controller.dart';
 import 'package:church_service_timer/app/quick_message_controller.dart';
+import 'package:church_service_timer/app/lyrics_controller.dart';
 import 'package:church_service_timer/app/stage_request_controller.dart';
 import 'package:church_service_timer/app/paired_command_bridge.dart';
 import 'package:church_service_timer/app/phone_warning_scheduler.dart';
@@ -38,6 +39,8 @@ import 'package:church_service_timer/app/settings_pin_controller.dart';
 import 'package:church_service_timer/app/service_notification_controller.dart';
 
 export 'package:church_service_timer/app/simulator.dart';
+export 'package:church_service_timer/app/lyrics_controller.dart'
+    show LyricTarget;
 
 class AppController extends ChangeNotifier {
   final liveNavigation = ValueNotifier<int>(0);
@@ -143,6 +146,9 @@ class AppController extends ChangeNotifier {
   Json stageSimulatorSnapshot() =>
       stageWindowSnapshot()..['stageLayout'] = state.simulatorLayout;
   late final quickMessages = QuickMessageController(this);
+
+  /// Song words, verses and announcements on the screens (Lyrics page).
+  late final lyrics = LyricsController(this);
   late final practice = PracticeController(this);
   late final stageRequests = StageRequestController(this);
   late final pairedCommands = PairedCommandBridge(this);
@@ -153,6 +159,8 @@ class AppController extends ChangeNotifier {
   QuickMessage? get currentQuickMessage => quickMessages.current;
   Json decoratePairedSnapshot(PairPeer peer, Json data) {
     quickMessages.decorateSnapshot(peer, data);
+    // Lyrics only for stage screens ticked under Send to.
+    if (peer.viewingStage) lyrics.decorate(data, LyricTarget.stage);
     // A stage screen offers Request only while requests are on, and sees
     // the state of the one it sent.
     if (stageRequests.enabled && state.session.active) {
@@ -223,14 +231,14 @@ class AppController extends ChangeNotifier {
   /// The picture for a stage window on a second screen of this computer:
   /// what a paired stage screen would show. It is sent whatever the
   /// display is set to, because the operator opened that window to see it.
-  Json stageWindowSnapshot() => {
+  Json stageWindowSnapshot() => lyrics.decorate({
     ...pairedSnapshot(false)
       ..remove('rundown')
       ..remove('connection'),
     'stageSharing': true,
     // The second screen's own choice; paired screens keep theirs.
     'stageLayout': secondScreen?.layout ?? 'timer',
-  };
+  }, LyricTarget.second);
 
   /// The operator's choices for the second screen of this computer, where
   /// it can have one (a PC); null elsewhere.
@@ -728,6 +736,7 @@ class AppController extends ChangeNotifier {
       error = 'Saved state could not be recovered. Output is held. $e';
     }
     await secondScreen?.load();
+    await lyrics.loadPicture();
     ready = true;
     // Create the order-of-service code and easy name once, so they stay the
     // same week after week (and slides stay valid).

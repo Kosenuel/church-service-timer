@@ -377,6 +377,19 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                     if (uri == null) result.success(null)
                     else background(result) { readImport(uri, 16 * 1024 * 1024, type) }
                 }
+                "pickText" -> {
+                    // Song words for Lyrics: a plain text file.
+                    if (pending != null) result.error("BUSY", "A document picker is already open", null)
+                    else {
+                        pending = result
+                        try {
+                            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                                addCategory(Intent.CATEGORY_OPENABLE)
+                                type = "text/plain"
+                            }, 48)
+                        } catch (e: Exception) { pending = null; result.error("PICKER", e.message, null) }
+                    }
+                }
                 "pick" -> {
                     if (pending != null) result.error("BUSY", "A document picker is already open", null)
                     else {
@@ -427,7 +440,7 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
 
     @Deprecated("Activity result bridge for Flutter's method channel")
     fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode != 41 && requestCode != 42 && requestCode != 45 && requestCode != 47) return
+        if (requestCode != 41 && requestCode != 42 && requestCode != 45 && requestCode != 47 && requestCode != 48) return
         val result = pending ?: return
         val maxBytes = importLimit
         pending = null
@@ -446,6 +459,10 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
             background(result) { ChurchBanner.readPhoto(context, uri) }
             return
         }
+        if (requestCode == 48) {
+            background(result) { readText(uri) }
+            return
+        }
         if (requestCode == 42) {
             val text = exportContent ?: ""
             exportContent = null
@@ -455,6 +472,32 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
                 null
             }
         } else background(result) { readImport(uri, maxBytes) }
+    }
+
+    /** Reads a picked text file of song words: UTF-8, or Windows-1252 as older Notepad saved it. */
+    private fun readText(uri: android.net.Uri): Map<String, String> {
+        var name = "song.txt"
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val ni = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (ni >= 0 && !cursor.isNull(ni)) name = cursor.getString(ni)
+            }
+        }
+        val bytes = (contentResolver.openInputStream(uri) ?: error("Cannot open selected file")).use { input ->
+            val out = ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                if (out.size() + count > 262144) error("Choose a text file under 256 KB.")
+                out.write(buffer, 0, count)
+            }
+            out.toByteArray()
+        }
+        val text = try {
+            Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString()
+        } catch (_: java.nio.charset.CharacterCodingException) { String(bytes, charset("windows-1252")) }
+        return mapOf("name" to name, "content" to text.removePrefix("\uFEFF"))
     }
 
     /** Reads a picked or received CSV/JSON document as UTF-8 text. */

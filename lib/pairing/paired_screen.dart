@@ -181,7 +181,8 @@ class _PairedScreenState extends State<PairedScreen> {
             children: [
               Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  // A lyric slide's background reaches the edges.
+                  padding: EdgeInsets.all(data?['lyrics'] is Map ? 0 : 24),
                   child: data == null
                       ? Text(
                           hub.status,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/lyrics/lyric_stage.dart';
 
 /// The face every stage screen is drawn in: Roboto, which the app carries,
 /// so a screen looks the same on Windows (whose own font is Segoe UI),
@@ -34,6 +35,9 @@ class StageSurface extends StatelessWidget {
           ),
         ),
       );
+    // Lyrics from the Lyrics page, where this screen is ticked for them.
+    if (stageLyrics(data) case final lyrics?)
+      return LyricStage(data: lyrics, stale: stale);
     if (data['blank'] == true) return const ColoredBox(color: Colors.black);
     if (data['quickMessage'] is Map)
       return RichStageMessage(

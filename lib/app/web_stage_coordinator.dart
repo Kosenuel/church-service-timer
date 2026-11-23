@@ -159,7 +159,11 @@ class WebStageCoordinator {
   /// The paired-screen snapshot without private notes, plus timing for
   /// Service overview.
   Json snapshot() {
-    final base = app.pairedSnapshot(false);
+    // Lyrics only when Web screens is ticked under Send to.
+    final base = app.lyrics.decorate(
+      app.pairedSnapshot(false),
+      LyricTarget.web,
+    );
     final s = app.state.session;
     final now = app.now;
     if (!app.ready || !s.active || s.timeline == null) return base;
