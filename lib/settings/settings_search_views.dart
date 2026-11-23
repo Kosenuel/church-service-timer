@@ -173,7 +173,7 @@ extension SettingsSearchViews on HomeState {
       'Quick message presets': 'Saved quick messages',
       'Screens & devices': 'Pair phones and share to stage screens',
       'Backup & restore': 'Export or restore all your data',
-      'Keep screen awake': 'Prevent sleep while the app is visible',
+      'Keep screen awake': 'While a service is running, always or never',
       'Feedback centre': 'Report a problem or send an idea',
       'About': 'Version, what’s new and licences',
     };
