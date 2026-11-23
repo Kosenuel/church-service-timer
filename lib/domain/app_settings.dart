@@ -364,7 +364,8 @@ String exportBackup(
     ..remove('webStage')
     ..remove('churchLogo')
     ..remove('savedLooks')
-    ..remove('lyrics');
+    ..remove('lyrics')
+    ..remove('screens');
   // The logo only when one is set, so plain backups stay readable by
   // earlier versions.
   if (state.churchLogo.isNotEmpty) data['churchLogo'] = state.churchLogo;
@@ -375,6 +376,11 @@ String exportBackup(
   // Stored songs and the screen look, only when there are songs, so plain
   // backups stay readable by earlier versions. Your picture stays here.
   if (!state.lyrics.isEmpty) data['lyrics'] = state.lyrics.toBackupJson();
+  // Groups and scenes when there are scenes, which programs may name;
+  // which screen of this device is in which group stays here.
+  final screens = state.screens;
+  final carriesScreens = screens != null && screens.scenes.isNotEmpty;
+  if (carriesScreens) data['screens'] = screens.toBackupJson();
   // Earlier program versions, keyed by name because IDs stay on the phone.
   final history = <String, dynamic>{
     for (final t in state.templates)
@@ -395,10 +401,12 @@ String exportBackup(
   ];
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    // Version 12 only with stored songs, 11 only with saved looks, 10 only with a church logo, 9 only with program history or a
+    // Version 13 only with scenes, 12 only with stored songs, 11 only with saved looks, 10 only with a church logo, 9 only with program history or a
     // segment library, 8 only with sealed passwords, so plain backups
     // remain readable by earlier versions.
-    'schemaVersion': !state.lyrics.isEmpty
+    'schemaVersion': carriesScreens
+        ? 13
+        : !state.lyrics.isEmpty
         ? 12
         : state.savedLooks.isNotEmpty
         ? 11
@@ -452,6 +460,7 @@ AppState importBackup(String raw, Stamp now) {
             10,
             11,
             12,
+            13,
           }.contains(envelope['schemaVersion']),
       'Choose a supported Church Service Timer backup.',
     );
@@ -477,12 +486,19 @@ AppState importBackup(String raw, Stamp now) {
       if (envelope['schemaVersion'] >= 10) 'churchLogo',
       if (envelope['schemaVersion'] >= 11) 'savedLooks',
       if (envelope['schemaVersion'] >= 12) 'lyrics',
+      if (envelope['schemaVersion'] >= 13) 'screens',
     }, 'Backup data');
     final history = data.remove('programHistory');
     final logo = churchLogoValue(data.remove('churchLogo') ?? '');
     final segments = readSegmentLibrary(data.remove('segmentLibrary'));
     final looks = readSavedLooks(data.remove('savedLooks'));
     final lyrics = LyricsLibrary.fromJson(data.remove('lyrics'));
+    final rawScreens = data.remove('screens');
+    final screens = ScreenSetup.tryRead(rawScreens);
+    require(
+      rawScreens == null || screens != null,
+      'Backup has unreadable screen groups.',
+    );
     require(
       data.length ==
               (envelope['schemaVersion'] >= 7
@@ -525,6 +541,7 @@ AppState importBackup(String raw, Stamp now) {
     restored.churchLogo = logo;
     restored.savedLooks = looks;
     restored.lyrics = lyrics;
+    restored.screens = screens;
     for (final e in versions.entries) {
       final program = restored.templates.where((t) => t.name == e.key);
       require(program.isNotEmpty, 'Backup history names a missing program.');

@@ -193,9 +193,7 @@ void main() {
       await settle(t);
       expect(t.widget<Text>(status).data, 'Black on the screens');
       c.lyrics.toggleBlack();
-      await c.lyrics.setLook(
-        c.lyrics.look.copyWith(toSecond: false, toWeb: false, toStage: false),
-      );
+      await t.runAsync(() => c.screens.setShow('room', 'timer'));
       await settle(t);
       expect(
         t.widget<Text>(status).data,
@@ -402,38 +400,52 @@ void main() {
       expect(t.takeException(), isNull);
     });
 
-    testWidgets('Screens is one row; Change opens the same choices', (t) async {
+    testWidgets('Screens is one row: the groups showing slides, and Screens', (
+      t,
+    ) async {
       final c = await openLyrics(t, size: tall, running: false);
       final header = find.byKey(k('lyrics-screens-row-header'));
       expect(
-        find.descendant(
-          of: header,
-          matching: find.text('Second screen · Web screens'),
-        ),
+        find.descendant(of: header, matching: find.text('Church Auditorium')),
         findsOneWidget,
       );
+      // The old Send to chips are gone.
       expect(find.byKey(k('lyrics-send-stage')), findsNothing);
       expect(find.byKey(k('lyrics-send-note')), findsNothing);
       await openRow(t, 'lyrics-screens-row');
-      await t.tap(find.byKey(k('lyrics-send-stage')));
+      expect(find.byKey(k('lyrics-send-note')), findsOneWidget);
+      expect(find.byKey(k('lyrics-open-screens')), findsOneWidget);
+      await t.runAsync(() => c.screens.setShow('stage', 'monitor'));
       await settle(t);
-      expect(c.lyrics.look.toStage, isTrue);
       expect(
         find.descendant(
           of: header,
-          matching: find.text('Second screen · Web screens · Stage screens'),
+          matching: find.text('Church Auditorium · Stage (with the timer)'),
         ),
         findsOneWidget,
       );
-      expect(find.byKey(k('lyrics-send-note')), findsOneWidget);
-      await c.lyrics.setLook(
-        c.lyrics.look.copyWith(toSecond: false, toWeb: false, toStage: false),
-      );
+      await t.runAsync(() async {
+        await c.screens.setShow('room', 'timer');
+        await c.screens.setShow('stage', 'timer');
+      });
       await settle(t);
       expect(
-        find.descendant(of: header, matching: find.text('None chosen')),
+        find.descendant(
+          of: header,
+          matching: find.text('No screens are showing slides'),
+        ),
         findsOneWidget,
       );
+      // One tap fixes it, in the row and beside the status line.
+      expect(find.byKey(k('lyrics-fix-groups')), findsOneWidget);
+      expect(find.byKey(k('lyrics-fix-groups-top')), findsOneWidget);
+      await t.runAsync(() async {
+        await t.tap(find.byKey(k('lyrics-fix-groups')));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+      await settle(t);
+      expect(c.screens.groupOf(thisScreenKey).show, 'slides');
+      expect(find.byKey(k('lyrics-fix-groups')), findsNothing);
     });
 
     testWidgets('Tab reaches the rows, Enter and Space open and close them, '
@@ -703,7 +715,7 @@ void main() {
     expect(preview.data['text'], shown);
     for (final target in LyricTarget.values) {
       expect(
-        c.lyrics.field(target, always: true)!['text'],
+        c.lyrics.field(target)!['text'],
         shown,
         reason: '$target',
       );
@@ -712,6 +724,61 @@ void main() {
     expect(webLyrics(c.lyrics.field(LyricTarget.web)!)['text'], shown);
     // The words themselves keep what was typed.
     expect(c.state.lyrics.byId('work')!.words, contains('_(x2)_'));
+  });
+
+  testWidgets('slide cards in a row are the same height, with even gaps, '
+      'and the badge never covers the slide name', (t) async {
+    final c = await openLyrics(t, running: false);
+    await c.lyrics.save(
+      LyricItem(
+        id: 'work',
+        kind: 'song',
+        title: 'God Will Work It Out',
+        words: [
+          'Before I knew my name\nbefore I drew a breath\n'
+              'He was making ways for me\nNow and every day\nin every step',
+          'God will work it out',
+          'Oh, yes, He will',
+          'Pushing past the fear\nfighting to relief\nHe is making ways\n'
+              'And He won’t let me down\nnever ever leave\nstill making ways',
+          'One thing I know\nOne thing I’ve found',
+          'Oh',
+        ].join('\n\n'),
+      ),
+    );
+    await settle(t);
+    await t.tap(find.byKey(k('lyrics-item-work')));
+    await settle(t);
+    await t.tap(find.byKey(k('lyrics-slide-3')));
+    await settle(t);
+    final rects = [
+      for (var i = 0; i < 6; i++) t.getRect(find.byKey(k('lyrics-slide-$i'))),
+    ];
+    // Group the cards by row.
+    final rows = <double, List<Rect>>{};
+    for (final r in rects) {
+      rows.putIfAbsent(r.top, () => []).add(r);
+    }
+    expect(rows.length, greaterThan(1), reason: 'more than one row');
+    for (final row in rows.values) {
+      expect(
+        row.map((r) => r.height).toSet().length,
+        1,
+        reason: 'cards in one row share a height: $row',
+      );
+    }
+    final tops = rows.keys.toList()..sort();
+    for (var i = 1; i < tops.length; i++) {
+      final above = rows[tops[i - 1]]!.first;
+      expect(tops[i] - above.bottom, 8, reason: 'gap between rows');
+    }
+    // On the live card the name and the badge sit side by side.
+    final live = find.byKey(k('lyrics-slide-3'));
+    final badge = t.getRect(find.byKey(k('lyrics-on-screens-badge')));
+    final name = t.getRect(
+      find.descendant(of: live, matching: find.text('SLIDE 4')),
+    );
+    expect(name.right, lessThanOrEqualTo(badge.left));
   });
 
   testWidgets('the keys are one quiet line under the slides', (t) async {

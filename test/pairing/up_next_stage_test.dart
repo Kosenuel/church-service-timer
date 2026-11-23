@@ -139,8 +139,8 @@ void main() {
       expect(c.pairedSnapshot(false)['upNext'], '');
     });
 
-    test('the stage simulator, second screen, full screen and web screens '
-        'each follow their own choice', () async {
+    test('the stage simulator, second screen and full screen follow this '
+        'computer\'s group; web screens follow theirs', () async {
       final port = SecondPort();
       final c = AppController(port);
       await c.initialize(startTicker: false);
@@ -151,63 +151,44 @@ void main() {
       // Each starts with the timer only.
       expect(c.stageSimulatorSnapshot()['stageLayout'], 'timer');
       expect(c.stageWindowSnapshot()['stageLayout'], 'timer');
-      expect(c.webStageSettings.stageLayout, 'timer');
       expect(c.stageSimulatorSnapshot()['upNext'], next);
-      // The simulator: kept on this device, never in a backup.
-      expect(await c.setSimulatorLayout('next'), isTrue);
+      // This computer's group: the second screen, full screen and the
+      // simulator together. Saved with the groups, never in a backup.
+      final room = c.screens.groupOf(thisScreenKey).id;
+      expect(await c.screens.setShow(room, 'next'), isTrue);
       expect(c.stageSimulatorSnapshot()['stageLayout'], 'next');
-      expect(AppState.fromJson(c.state.toJson()).simulatorLayout, 'next');
-      expect(exportBackup(c.state, c.now), isNot(contains('simulatorLayout')));
-      expect(await c.setSimulatorLayout('nonsense'), isFalse);
-      // The second screen, which full screen on a computer follows too.
-      await c.secondScreen!.setLayout('current');
-      expect(c.stageWindowSnapshot()['stageLayout'], 'current');
-      expect(c.stageSimulatorSnapshot()['stageLayout'], 'next');
-      // Web stage displays: a choice for all of them, saved with the
-      // web screen options.
-      final settings = c.webStageSettings;
+      expect(c.stageWindowSnapshot()['stageLayout'], 'next');
       expect(
-        viewFor(WebRole.stage, c.web.snapshot(), settings)['layout'],
-        'timer',
-      );
-      expect(
-        await c.setWebStageSettings(settings.copyWith(stageLayout: 'next')),
-        isTrue,
-      );
-      expect(c.webStageSettings.stageLayout, 'next');
-      expect(
-        WebStageSettings.fromJson(
-          c.webStageSettings.toJson(),
-          churchName: '',
-        ).stageLayout,
+        AppState.fromJson(
+          c.state.toJson(),
+        ).screens!.groupOf(thisScreenKey).show,
         'next',
       );
-      final view = viewFor(WebRole.stage, c.web.snapshot(), c.webStageSettings);
+      expect(exportBackup(c.state, c.now), isNot(contains('"members"')));
+      // Web stage displays: what their group shows.
+      await c.screens.move(thisScreenKey, 'stage');
+      final view = viewFor(
+        WebRole.stage,
+        c.webStageSnapshot(),
+        c.webStageSettings,
+      );
       expect(view['layout'], 'next');
       expect(view['countdown']['next'], {
         'name': 'Sermon',
         'detail': 'Pastor Ade · 40 min',
       });
+      expect(c.stageWindowSnapshot()['stageLayout'], 'timer');
+      await c.screens.setShow(room, 'current');
       expect(
         viewFor(
           WebRole.stage,
-          c.web.snapshot(),
-          c.webStageSettings.copyWith(stageLayout: 'current'),
+          c.webStageSnapshot(),
+          c.webStageSettings,
         )['countdown']['now'],
         {'name': 'Welcome', 'by': ''},
       );
-      // Up next only is chosen and kept like the others.
-      expect(
-        await c.setWebStageSettings(settings.copyWith(stageLayout: 'only')),
-        isTrue,
-      );
-      expect(
-        WebStageSettings.fromJson(
-          c.webStageSettings.toJson(),
-          churchName: '',
-        ).stageLayout,
-        'only',
-      );
+      await c.screens.setShow(room, 'only');
+      expect(c.webStageSnapshot()['stageLayout'], 'only');
     });
 
     test('a web stage display shows no countdown bands over a cue or '
@@ -248,7 +229,7 @@ void main() {
       await host.pairing.approve(host.pairing.peers.last);
       final id = host.pairing.peers.last.id;
       await eventually(() => !client.stale);
-      await host.pairing.configureScreen(id, group: 'choir', layout: 'next');
+      await host.screens.setShow(host.screens.groupOf('pair:$id').id, 'next');
       await eventually(() => client.snapshot?['stageLayout'] == 'next');
       expect(client.snapshot!['upNext'], 'Next: Sermon · Pastor Ade · 40 min');
     });
@@ -392,8 +373,8 @@ void main() {
     });
   });
 
-  testWidgets('Choose display offers the same choice for the stage simulator '
-      'and its preview follows it', (t) async {
+  testWidgets('Choose display: the stage simulator shows its group\'s '
+      'choice, and its preview follows it', (t) async {
     setScreen(t);
     late AppController c;
     await t.runAsync(() async {
@@ -409,20 +390,13 @@ void main() {
     expect(find.descendant(of: preview, matching: line), findsNothing);
     await t.tap(find.byKey(const ValueKey('header-connection')));
     await t.pumpAndSettle();
-    for (final label in stageLayouts.values) {
-      expect(find.text(label), findsOneWidget);
-    }
-    final chip = find.byKey(const ValueKey('simulator-layout-next'));
-    expect(find.byKey(const ValueKey('simulator-layout-only')), findsOneWidget);
-    await t.ensureVisible(chip);
-    await t.runAsync(() async {
-      await t.tap(chip);
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    });
-    await t.pumpAndSettle();
-    expect(c.state.simulatorLayout, 'next');
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(
+      find.byKey(const ValueKey('screen-group-note-this')),
+      findsOneWidget,
+    );
     await t.pageBack();
+    await t.pumpAndSettle();
+    await t.runAsync(() => c.screens.setShow('room', 'next'));
     await t.pumpAndSettle();
     expect(
       t.widget<Text>(find.descendant(of: preview, matching: line)).data,

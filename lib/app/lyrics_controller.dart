@@ -7,7 +7,9 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/lyrics/lyric_backgrounds.dart';
 import 'package:church_service_timer/lyrics/lyric_photos.dart';
 
-/// The screens lyrics can be sent to, as Send to names them.
+/// The kinds of screen a slide is drawn for, which differ in how they get
+/// Your picture. Which screens show slides is up to their group (see
+/// [ScreensController]).
 enum LyricTarget {
   /// This computer's second screen, with its copy on Live, host full
   /// screen and the stage simulator (on a phone: full screen and the
@@ -67,20 +69,14 @@ class LyricsController {
   LyricSlide? get slide => index == null ? null : item!.slides[index!];
   bool get black => _black;
 
-  /// Whether lyrics cover anything on the ticked screens: a slide, or
-  /// Black.
+  /// Whether lyrics cover anything on the screens showing slides: a
+  /// slide, or Black.
   bool get showing => _black || slide != null;
 
   /// Whether a slide or Black is on at least one screen: showing, and a
-  /// Send to box ticked. This is the job the screen is kept awake for.
-  bool get onScreens =>
-      showing && (look.toSecond || look.toWeb || look.toStage);
-
-  bool sendsTo(LyricTarget target) => switch (target) {
-    LyricTarget.second => look.toSecond,
-    LyricTarget.web => look.toWeb,
-    LyricTarget.stage => look.toStage,
-  };
+  /// group with a screen in it shows slides. This is the job the screen is
+  /// kept awake for.
+  bool get onScreens => showing && app.screens.slidesReachAScreen;
 
   /// "Amazing Grace · Verse 2" for status lines. A Bible slide's name is
   /// its reference ("Psalm 23:1-3", "John 3:16"), which already says what
@@ -198,10 +194,10 @@ class LyricsController {
   }
 
   /// The `lyrics` field for [target]'s picture, or null when nothing is
-  /// showing or [target] is not ticked. Older screens ignore it and keep
-  /// showing the countdown.
-  Json? field(LyricTarget target, {bool always = false}) {
-    if (!app.ready || !showing || (!always && !sendsTo(target))) return null;
+  /// showing. Only screens whose group shows Slides get it; older screens
+  /// ignore it and keep showing the countdown.
+  Json? field(LyricTarget target) {
+    if (!app.ready || !showing) return null;
     final s = app.state.session, now = app.now;
     final bg = backgroundFor(target);
     final slide = this.slide;
@@ -234,19 +230,37 @@ class LyricsController {
   }
 
   /// What the panel's preview shows: the slide as the second screen
-  /// gets it, whatever is ticked, so the operator always sees it.
-  Json? previewField() =>
-      field(LyricTarget.second, always: true)?..remove('picture');
+  /// gets it, whichever groups show slides, so the operator always sees
+  /// it.
+  Json? previewField() => field(LyricTarget.second)?..remove('picture');
 
-  /// Adds [target]'s `lyrics` field to [data], or takes it away.
-  Json decorate(Json data, LyricTarget target) {
-    final f = field(target);
-    if (f == null) {
-      data.remove('lyrics');
-    } else {
-      data['lyrics'] = f;
+  /// The `confidence` field for a group showing Slides and timer: the
+  /// words of the slide on the screens and the label and first line of
+  /// the next one. Null with no slide, and while Black is on (the
+  /// confidence monitor then shows the countdown).
+  Json? confidenceField() {
+    if (!app.ready || _black) return null;
+    final slide = this.slide, item = this.item, at = index;
+    if (slide == null || item == null || at == null) return null;
+    final slides = item.slides;
+    final next = at + 1 < slides.length ? slides[at + 1] : null;
+    String firstLine(LyricSlide s) {
+      for (final line in [s.title, ...s.text.split('\n')]) {
+        final t = line.trim();
+        if (t.isNotEmpty) return t;
+      }
+      return '';
     }
-    return data;
+
+    return {
+      'v': 1,
+      'key': '$_itemId:$at',
+      'kind': item.kind,
+      ...slide.toJson(),
+      // The time of day, for the monitor's time while no service runs.
+      'clock': stageClockText(app.now.wall, app.state.clockFormat),
+      if (next != null) 'next': {'label': next.label, 'line': firstLine(next)},
+    };
   }
 
   // ---- Saving --------------------------------------------------------------

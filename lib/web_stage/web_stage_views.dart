@@ -1,4 +1,4 @@
-import 'package:church_service_timer/shared/stage_layout_tiles.dart';
+import 'package:church_service_timer/screens/screen_group_note.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -433,15 +433,19 @@ extension WebStageViews on HomeState {
           ),
         ),
       const SizedBox(height: 12),
-      const Text('Stage displays show'),
-      const SizedBox(height: 8),
-      StageLayoutTiles(
-        keyPrefix: 'web-stage-layout',
-        value: settings.stageLayout,
-        onChanged: controlsLocked
-            ? null
-            : (v) => update(settings.copyWith(stageLayout: v)),
+      const SizedBox(height: 4),
+      // What a Stage display shows is its group's choice (Screens panel).
+      ScreenGroupNote(
+        controller: c,
+        screen: null,
+        locked: controlsLocked,
+        lead: 'Stage displays that join go to',
       ),
+      Text(
+        'A browser opened from a group’s web link joins that group; Web link for this group is on each group’s menu in Screens.',
+        style: TextStyle(color: colors.muted, fontSize: 12),
+      ),
+      const SizedBox(height: 8),
       SwitchListTile(
         key: const ValueKey('web-show-speakers'),
         contentPadding: EdgeInsets.zero,

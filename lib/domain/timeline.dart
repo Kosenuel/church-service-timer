@@ -13,6 +13,11 @@ class Segment {
   int get durationMs => durationSeconds * 1000;
   String get durationText => durationLabel(durationMs);
   final bool protected;
+
+  /// The scene applied to the screens when this segment starts, by its
+  /// id and its name (see [ScreenSetup.sceneFor]); empty for none.
+  final String sceneId, sceneName;
+  bool get hasScene => sceneId.isNotEmpty || sceneName.isNotEmpty;
   const Segment(
     this.name,
     this.minutes, {
@@ -20,7 +25,21 @@ class Segment {
     this.speaker = '',
     this.notes = '',
     this.protected = false,
+    this.sceneId = '',
+    this.sceneName = '',
   });
+
+  /// This segment naming [id] and [name] as its scene, or none.
+  Segment withScene(String id, String name) => Segment(
+    this.name,
+    minutes,
+    seconds: seconds,
+    speaker: speaker,
+    notes: notes,
+    protected: protected,
+    sceneId: id,
+    sceneName: name,
+  );
   factory Segment.fromJson(Json j) {
     keys(j, {
       'name',
@@ -29,6 +48,7 @@ class Segment {
       'speaker',
       'notes',
       'protected',
+      'scene',
     }, 'Segment');
     require(
       j['minutes'] is int &&
@@ -58,6 +78,16 @@ class Segment {
       return text;
     }
 
+    final scene = j['scene'];
+    require(
+      scene == null ||
+          (scene is Map &&
+              (scene['id'] ?? '') is String &&
+              (scene['name'] ?? '') is String &&
+              '${scene['id'] ?? ''}'.length <= 24 &&
+              '${scene['name'] ?? ''}'.runes.length <= 80),
+      'A segment names an unreadable scene.',
+    );
     return Segment(
       nameValue(j['name'], 'Segment name'),
       j['minutes'],
@@ -65,6 +95,8 @@ class Segment {
       speaker: optional(j['speaker'], 80, 'Speaker'),
       notes: optional(j['notes'], 1000, 'Private notes', multiline: true),
       protected: boolSetting(j['protected'] ?? false),
+      sceneId: scene is Map ? '${scene['id'] ?? ''}' : '',
+      sceneName: scene is Map ? '${scene['name'] ?? ''}'.trim() : '',
     );
   }
   Json toJson() => {
@@ -74,6 +106,9 @@ class Segment {
     if (speaker.isNotEmpty) 'speaker': speaker,
     if (notes.isNotEmpty) 'notes': notes,
     if (protected) 'protected': true,
+    // Only when set, so programs without one stay readable by earlier
+    // versions.
+    if (hasScene) 'scene': {'id': sceneId, 'name': sceneName},
   };
 }
 

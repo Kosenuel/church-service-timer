@@ -21,6 +21,8 @@ void main() {
       final c = AppController(FakePort());
       await c.initialize(startTicker: false);
       addTearDown(c.dispose);
+      // Web screens join Church Auditorium, which shows no messages until asked to.
+      await c.screens.setCues('room', true);
       final joined = <String>[];
       c.onWebJoined = joined.add;
       expect(await c.selectDestination('mobile'), isTrue);

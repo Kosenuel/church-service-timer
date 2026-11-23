@@ -16,6 +16,7 @@ import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/settings/diagnostics_views.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/screens/screens_entry.dart';
 import 'package:church_service_timer/live/balanced_columns.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
 import 'package:church_service_timer/live/keys_live.dart';
@@ -1490,6 +1491,7 @@ extension LivePage on HomeState {
                         c.busy || c.corrupt ? null : chooseDisplay,
                       ),
                       lyricsButton(),
+                      screensButton(),
                     ],
                   ),
                 ],

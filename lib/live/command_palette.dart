@@ -9,6 +9,7 @@ import 'package:church_service_timer/live/shortcuts.dart';
 import 'package:church_service_timer/live/shortcuts_sheet.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/screens/screens_panel.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
 
 /// One thing the operator can do from the command palette. Running it
@@ -442,6 +443,26 @@ extension CommandPalette on HomeState {
           words: 'songs words slide remove black hide',
           run: c.lyrics.clear,
         ),
+      PaletteCommand(
+        id: 'screens-panel',
+        label: 'Screens',
+        detail: 'What each group of screens shows, and scenes',
+        icon: Icons.dashboard_customize_outlined,
+        group: 'This window',
+        words: 'groups scenes stage second web slides layout monitor',
+        run: () => openScreensPanel(context, c),
+      ),
+      if (!controlsLocked && c.pairing.localControl)
+        for (final scene in c.screens.setup.scenes)
+          PaletteCommand(
+            id: 'scene-${scene.id}',
+            label: 'Scene: ${scene.name}',
+            detail: 'Sets every group it names at once',
+            icon: Icons.dashboard_customize_outlined,
+            group: 'This window',
+            words: 'scene screens groups apply',
+            run: () => c.screens.applyScene(scene.id),
+          ),
       PaletteCommand(
         id: 'appearance',
         label: 'Appearance',

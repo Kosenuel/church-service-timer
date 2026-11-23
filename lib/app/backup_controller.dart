@@ -54,6 +54,17 @@ class BackupController {
       // Stored songs come back with the backup; a backup from before
       // lyrics leaves the songs on this device as they are.
       if (!restored.lyrics.isEmpty) draft.lyrics = restored.lyrics;
+      // Groups and scenes come back with a backup that has them; which
+      // screen of this device is in which group stays as it is, and a
+      // screen whose group is gone is in the default group.
+      if (restored.screens case final screens?) {
+        draft.screens = ScreenSetup(
+          groups: screens.groups,
+          defaultGroup: screens.defaultGroup,
+          scenes: screens.scenes,
+          members: draft.screens?.members ?? const {},
+        );
+      }
       draft.keepScreenAwake = restored.keepScreenAwake;
       draft.notificationClearSeconds = restored.notificationClearSeconds;
       draft.printPreferences = restored.printPreferences;

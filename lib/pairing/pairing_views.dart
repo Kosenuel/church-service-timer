@@ -1,4 +1,6 @@
-import 'package:church_service_timer/shared/stage_layout_tiles.dart';
+import 'package:church_service_timer/screens/screen_group_note.dart';
+import 'package:church_service_timer/screens/screens_panel.dart';
+import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
@@ -88,9 +90,11 @@ extension PairingViews on HomeState {
             destructive: true,
           )) {
             await hub.forgetDevice(id);
+            await c.screens.forget(pairedScreenKey(id));
           }
         case 'reject':
           await hub.forgetDevice(id);
+          await c.screens.forget(pairedScreenKey(id));
         case 'control':
           final peer = hub.peerFor(id);
           if (peer != null &&
@@ -113,62 +117,100 @@ extension PairingViews on HomeState {
   }
 
   Future<void> screenOptions(SavedPairDevice device) async {
-    var group = device.group, layout = device.layout;
+    final key = pairedScreenKey(device.id);
+    var group = device.group, screenGroup = c.screens.groupOf(key).id;
     final save = await showDialog<bool>(
       context: context,
       animationStyle: reduceAppMotion(context)
           ? AnimationStyle.noAnimation
           : null,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, refresh) => AlertDialog(
-          title: Text(device.name),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ChoiceField<String>(
-                  value: group,
-                  decoration: const InputDecoration(labelText: 'Screen group'),
-                  options: [
-                    for (final e in screenGroups.entries)
-                      ChoiceOption(value: e.key, label: e.value),
-                  ],
-                  onChanged: (v) => refresh(() => group = v ?? group),
-                ),
-                const SizedBox(height: 16),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Screen layout'),
-                ),
-                const SizedBox(height: 8),
-                StageLayoutTiles(
-                  keyPrefix: 'screen-layout',
-                  value: layout,
-                  onChanged: (v) => refresh(() => layout = v),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Messages temporarily replace this layout. Private notes are never shown.',
-                ),
-              ],
+        builder: (ctx, refresh) {
+          final chosen = c.screens.setup.groupNamed(screenGroup);
+          return AlertDialog(
+            title: Text(device.name),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ChoiceField<String>(
+                    key: const ValueKey('screen-options-group'),
+                    value: screenGroup,
+                    decoration: const InputDecoration(labelText: 'Group'),
+                    options: [
+                      for (final g in c.screens.setup.groups)
+                        ChoiceOption(value: g.id, label: g.name),
+                    ],
+                    onChanged: (v) =>
+                        refresh(() => screenGroup = v ?? screenGroup),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Shows what ${chosen.name} shows: ${screenShows[chosen.show]}${chosen.cues ? ', with cues' : ''}. Change that in Screens.',
+                    key: const ValueKey('screen-options-shows'),
+                    style: TextStyle(fontSize: 12, color: appColors(ctx).muted),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      key: const ValueKey('screen-options-screens'),
+                      onPressed: () {
+                        Navigator.pop(ctx, false);
+                        unawaited(openScreensPanel(context, c));
+                      },
+                      icon: const Icon(
+                        Icons.dashboard_customize_outlined,
+                        size: 18,
+                      ),
+                      label: const Text('Screens'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ChoiceField<String>(
+                    value: group,
+                    decoration: const InputDecoration(
+                      labelText: 'Message group',
+                    ),
+                    options: [
+                      for (final e in screenGroups.entries)
+                        ChoiceOption(value: e.key, label: e.value),
+                    ],
+                    onChanged: (v) => refresh(() => group = v ?? group),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Quick messages can go to a message group. Messages temporarily replace what the screen shows. Private notes are never shown.',
+                  ),
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
       ),
     );
     if (save != true) return;
     try {
-      await c.pairing.configureScreen(device.id, group: group, layout: layout);
+      if (screenGroup != c.screens.groupOf(key).id) {
+        await c.screens.move(key, screenGroup);
+      }
+      if (group != device.group) {
+        await c.pairing.configureScreen(
+          device.id,
+          group: group,
+          layout: device.layout,
+        );
+      }
     } catch (_) {
       if (mounted)
         await showError(
@@ -520,16 +562,17 @@ extension PairingViews on HomeState {
             onChanged: controlsLocked ? null : second.setOpenOnStart,
           ),
           const SizedBox(height: 8),
-          const Text('What the second screen shows'),
           const SizedBox(height: 8),
-          StageLayoutTiles(
-            keyPrefix: 'second-screen-layout',
-            value: second.layout,
-            onChanged: controlsLocked ? null : second.setLayout,
+          // What it shows is its group's choice, set in the Screens panel
+          // with every other screen's.
+          ScreenGroupNote(
+            controller: c,
+            screen: thisScreenKey,
+            locked: controlsLocked,
           ),
           const SizedBox(height: 4),
           Text(
-            'Only this computer’s second screen. Paired stage screens keep their own choice.',
+            'The second screen, full screen and the stage simulator are one screen, This computer, in the Screens panel.',
             style: muted,
           ),
         ],

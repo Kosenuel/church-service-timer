@@ -16,8 +16,11 @@ void main() {
     final file = File('${dir.path}/${relative.replaceAll(r'\', '/')}');
     expect(file.existsSync(), isTrue, reason: '$relative is missing');
     final bytes = file.readAsBytesSync();
-    expect(String.fromCharCodes(bytes.sublist(1, 4)), 'PNG',
-        reason: '$relative is not a PNG');
+    expect(
+      String.fromCharCodes(bytes.sublist(1, 4)),
+      'PNG',
+      reason: '$relative is not a PNG',
+    );
     final data = ByteData.sublistView(bytes);
     return (data.getUint32(16), data.getUint32(20));
   }
@@ -63,8 +66,12 @@ void main() {
     for (final s in ['220', '331', '441', '551']) {
       expect(iss, contains("Size := '$s'"));
     }
-    expect(File('${dir.path}/${setupValue('SetupIconFile').replaceAll(r'\', '/')}').existsSync(),
-        isTrue);
+    expect(
+      File(
+        '${dir.path}/${setupValue('SetupIconFile').replaceAll(r'\', '/')}',
+      ).existsSync(),
+      isTrue,
+    );
   });
 
   test('The Code section is balanced and only builds with the new look', () {
@@ -76,10 +83,10 @@ void main() {
     var code = iss.substring(start);
     code = code.replaceAll(RegExp(r'\{[^}]*\}', dotAll: true), ' ');
     code = code.replaceAll(RegExp(r"'[^']*'"), "''");
-    final words = RegExp(r'\b(begin|case|try|end)\b', caseSensitive: false)
-        .allMatches(code)
-        .map((m) => m.group(1)!.toLowerCase())
-        .toList();
+    final words = RegExp(
+      r'\b(begin|case|try|end)\b',
+      caseSensitive: false,
+    ).allMatches(code).map((m) => m.group(1)!.toLowerCase()).toList();
     var depth = 0;
     for (final w in words) {
       depth += w == 'end' ? -1 : 1;
@@ -90,23 +97,31 @@ void main() {
     // script relies on is spelled as Inno Setup expects.
     expect(code, contains('if WizardSilent then'));
     expect(code, contains('procedure InitializeWizard;'));
-    expect(code,
-        contains('procedure CurInstallProgressChanged(CurProgress, MaxProgress: Integer);'));
+    expect(
+      code,
+      contains(
+        'procedure CurInstallProgressChanged(CurProgress, MaxProgress: Integer);',
+      ),
+    );
   });
 
-  test('Install location, upgrade and silent-install behaviour are unchanged',
-      () {
-    expect(iss, contains('AppId={{6C1E0A4B-93D7-4F5E-8B2A-5D0F7C3E91A4}'));
-    expect(setupValue('DefaultDirName'), r'{autopf}\{#AppName}');
-    expect(setupValue('PrivilegesRequired'), 'lowest');
-    expect(setupValue('CloseApplications'), 'yes');
-    expect(iss, contains('Flags: nowait postinstall skipifsilent'));
-    // The in-app updater starts the installer with no arguments, so every
-    // page shows; nothing here may depend on a command-line switch.
-    final updater = File('lib/windows/windows_updates.dart').readAsStringSync();
-    expect(updater, contains('Process.start(path, const []'));
-    // Without the new look the script falls back to the plain wizard.
-    expect(iss, contains('#if VER >= 0x06060000'));
-    expect(iss, contains('WizardStyle=modern\n#endif'));
-  });
+  test(
+    'Install location, upgrade and silent-install behaviour are unchanged',
+    () {
+      expect(iss, contains('AppId={{6C1E0A4B-93D7-4F5E-8B2A-5D0F7C3E91A4}'));
+      expect(setupValue('DefaultDirName'), r'{autopf}\{#AppName}');
+      expect(setupValue('PrivilegesRequired'), 'lowest');
+      expect(setupValue('CloseApplications'), 'yes');
+      expect(iss, contains('Flags: nowait postinstall skipifsilent'));
+      // The in-app updater starts the installer with no arguments, so every
+      // page shows; nothing here may depend on a command-line switch.
+      final updater = File(
+        'lib/windows/windows_updates.dart',
+      ).readAsStringSync();
+      expect(updater, contains('Process.start(path, const []'));
+      // Without the new look the script falls back to the plain wizard.
+      expect(iss, contains('#if VER >= 0x06060000'));
+      expect(iss, contains('WizardStyle=modern\n#endif'));
+    },
+  );
 }

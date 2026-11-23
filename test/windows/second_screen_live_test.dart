@@ -489,7 +489,10 @@ void main() {
         ),
       );
       expect(surface.data['remaining'], c.stageWindowSnapshot()['remaining']);
-      expect(surface.data['stageLayout'], c.secondScreen!.layout);
+      expect(
+        surface.data['stageLayout'],
+        c.screens.groupOf(thisScreenKey).layout,
+      );
       // In the screen's own shape: 3840 × 2160.
       final box = t.getSize(find.byKey(preview));
       expect(box.width / box.height, closeTo(16 / 9, .01));
@@ -503,12 +506,12 @@ void main() {
       await finish(t, port, feed);
     });
 
-    testWidgets('it follows the second screen’s own layout', (t) async {
+    testWidgets('it follows the second screen’s group', (t) async {
       final port = SecondPort();
       final c = await live(t, port);
       await press(t, 'live-second-screen-show');
       final feed = await window(t, port);
-      await t.runAsync(() => c.secondScreen!.setLayout('next'));
+      await t.runAsync(() => c.screens.setShow('room', 'next'));
       await t.pumpAndSettle();
       expect(
         t
@@ -764,37 +767,35 @@ void main() {
   });
 
   group('what it shows', () {
-    testWidgets('the choice reaches the second screen, not paired phones', (
-      t,
-    ) async {
-      final port = SecondPort();
-      final c = await live(t, port);
-      expect(c.stageWindowSnapshot()['stageLayout'], 'timer');
-      await press(t, 'live-second-screen-show');
-      final feed = await window(t, port);
-      expect(feed.data!['stageLayout'], 'timer');
+    testWidgets(
+      'its group\'s choice reaches the second screen, not paired phones',
+      (t) async {
+        final port = SecondPort();
+        final c = await live(t, port);
+        expect(c.stageWindowSnapshot()['stageLayout'], 'timer');
+        await press(t, 'live-second-screen-show');
+        final feed = await window(t, port);
+        expect(feed.data!['stageLayout'], 'timer');
 
-      await t.runAsync(() async {
-        await c.secondScreen!.setLayout('next');
-        await until(() => feed.data?['stageLayout'] == 'next');
-      });
-      expect(feed.data!['nextSegment'], 'Praise & Worship');
-      expect(port.saved['layout'], 'next');
-      // A paired phone's picture is untouched: its layout comes from its
-      // own setting in Screens & devices.
-      expect(c.pairedSnapshot(false).containsKey('stageLayout'), isFalse);
-      expect(c.pairedSnapshot(true).containsKey('stageLayout'), isFalse);
-      // Kept on this computer, not in the app's state or its backups.
-      expect(port.data, isNot(contains('openOnStart')));
-      expect(port.data, isNot(contains('1920, 0, 5760')));
-      await finish(t, port, feed);
+        await t.runAsync(() async {
+          await c.screens.setShow('room', 'next');
+          await until(() => feed.data?['stageLayout'] == 'next');
+        });
+        expect(feed.data!['nextSegment'], 'Praise & Worship');
+        // A paired phone's picture is its own group's (Stage), untouched.
+        expect(c.pairedSnapshot(false).containsKey('stageLayout'), isFalse);
+        expect(c.screens.setup.byId('stage')!.layout, 'timer');
+        // Kept on this computer, not in the app's state or its backups.
+        expect(port.data, isNot(contains('openOnStart')));
+        expect(port.data, isNot(contains('1920, 0, 5760')));
+        await finish(t, port, feed);
 
-      // The next time the app opens on this computer it is still chosen.
-      final again = await ready(t, port);
-      expect(again.secondScreen!.layout, 'next');
-      expect(again.stageWindowSnapshot()['stageLayout'], 'next');
-      again.dispose();
-    });
+        // The next time the app opens on this computer it is still chosen.
+        final again = await ready(t, port);
+        expect(again.stageWindowSnapshot()['stageLayout'], 'next');
+        again.dispose();
+      },
+    );
 
     testWidgets('the Settings card holds every option', (t) async {
       setScreen(t, const Size(1366, 900));
@@ -813,24 +814,20 @@ void main() {
       );
       const toggle = ValueKey('second-screen-open-on-start');
       expect(t.widget<SwitchListTile>(find.byKey(toggle)).value, isFalse);
-      for (final name in [
-        'Timer only',
-        'Timer and segment name',
-        'Timer and up next',
-      ]) {
-        expect(find.text(name), findsOneWidget);
-      }
+      // What it shows is its group's, with the way to Screens.
+      expect(
+        find.byKey(const ValueKey('screen-group-note-this')),
+        findsOneWidget,
+      );
       await t.ensureVisible(find.byKey(toggle));
       await t.tap(find.byKey(toggle));
       await t.pumpAndSettle();
       expect(port.saved['openOnStart'], isTrue);
       expect(t.widget<SwitchListTile>(find.byKey(toggle)).value, isTrue);
-      const chip = ValueKey('second-screen-layout-current');
-      await t.ensureVisible(find.byKey(chip));
-      await t.tap(find.byKey(chip));
-      await t.pumpAndSettle();
-      expect(port.saved['layout'], 'current');
-      expect(c.stageWindowSnapshot()['stageLayout'], 'current');
+      expect(
+        find.byKey(const ValueKey('second-screen-layout-current')),
+        findsNothing,
+      );
 
       // Show in the card remembers the screen, as Live's button does.
       await t.ensureVisible(find.byKey(const ValueKey('second-screen-show-1')));
