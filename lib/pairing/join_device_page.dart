@@ -231,7 +231,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
     return FinishCard(
       key: const ValueKey('wifi-rejoin'),
       radius: 16,
-      flat: (child) => DecoratedBox(
+      flat: (child) => Container(
         decoration: BoxDecoration(
           color: colors.surface,
           borderRadius: BorderRadius.circular(16),

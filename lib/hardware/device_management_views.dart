@@ -434,7 +434,7 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
       FinishCard(
         key: const ValueKey('led-status-card'),
         radius: 20,
-        flat: (child) => DecoratedBox(
+        flat: (child) => Container(
           decoration: BoxDecoration(
             color: colors.surface,
             borderRadius: BorderRadius.circular(20),

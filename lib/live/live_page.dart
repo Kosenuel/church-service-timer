@@ -1860,7 +1860,7 @@ extension LivePage on HomeState {
           child: FinishCard(
             key: const ValueKey('display-disconnected-banner'),
             radius: 12,
-            flat: (child) => DecoratedBox(
+            flat: (child) => Container(
               decoration: BoxDecoration(
                 color: appColors(context).surface,
                 borderRadius: BorderRadius.circular(12),
