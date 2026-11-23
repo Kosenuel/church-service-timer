@@ -110,6 +110,74 @@ designed slide: the title large in the accent colour, the body under it,
 the detail line smaller, left or centre aligned as the screen look says,
 on the same backgrounds. Saved in the library like songs.
 
+## The Slides page (layout)
+
+The page was tidied so the output pane stays calm and the four buttons
+never scroll out of reach (`lib/lyrics/slides_parts.dart` holds the
+pieces laid out on their own).
+
+- **Library** (left, 328 wide): the search box, then four tabs by their
+  full names, **Songs**, **Bible verses**, **Announcements** and **All**
+  (`AppState.slidesTab`, default All so nothing in an existing library
+  is hidden). The tabs share the leftover width round their names; when
+  the names do not fit (a phone, large text) the row scrolls sideways
+  instead of squeezing or cutting a name. While searching, the tabs go
+  and the search covers every kind. Each tab has its own empty line. The
+  three Add buttons are one quiet row pinned to the bottom of the card
+  (**+ Song**, **+ Bible verses**, **+ Announcement**); only when the
+  full words do not fit on one row do they become + Song, + Verses and
+  + Notice, and only if those do not fit either do they wrap. Their
+  tooltips and screen-reader names always say the whole thing.
+- **Slides** (middle): the Ready tray, the item's title with its list
+  line under it and Edit, the slide grid, and the keys as one quiet line
+  under it (on a touch screen, "Tap a slide to show it").
+- **On the screens now** (right; on a phone the preview card, the rows
+  card and the bar along the bottom): the preview; a one-line status
+  (`maxLines: 1`, never wrapped: "Amazing Grace · Verse 2 · 2 of 4",
+  "Psalm 23:1-3", "Black on the screens", with "· on no screen" when
+  no screen is chosen); one row of **Previous**, **Next** (widest,
+  filled), **Clear** and **Black** (black while on). The four never
+  wrap: the keys under the words are dropped first, then the four words
+  shrink together (to at most 60%, then a FittedBox). Then three rows
+  with hairlines between:
+  - **Screens**: the chosen targets as text and **Change**, which opens
+    the existing Send to chips and note in place (not remembered). The
+    send-to state and logic are unchanged. "The second screen is not
+    showing" stays visible with the row closed.
+  - **Background**: a swatch, the background's name and a chevron; opens
+    to the picker with a chip for each group (Designs, Nature, People,
+    Your picture; the current background's group first), the tiles, the
+    note and Photo credits.
+  - **Look**: a summary built from the look ("Dim 70% · Medium · Centre
+    · Gentle · Countdown", "Not dimmed" on Linen); opens to Dim, Text
+    size, Align, Motion and Countdown in the corner (now a switch).
+  In a narrow card the value goes under the row's name.
+- Background and Look start closed; which are open is
+  `AppState.slidesOpen` (`background`, `look`). Both it and the tab are
+  kept on this device only, like `dismissedHints`: removed in
+  `exportBackup`, untouched by a restore, and a missing or unknown value
+  reads as the default. The panel keeps its own copy, so a tap shows at
+  once even while a save is under way, and saves after it.
+- Keys: each row's header is one focusable button (Tab reaches it) that
+  a screen reader hears as expanded or collapsed. Enter opens and
+  closes it; Space does too while the header has the keyboard
+  (`slidesFoldHasFocus`), and moves to the next slide everywhere else.
+  The arrows, Esc, B, / and Ctrl+F work as before.
+
+### Emphasis marks in pasted words
+
+Words pasted from lyrics sites, chat apps and notes apps carry Markdown
+or WhatsApp emphasis: `_(x2)_` (italic), `**Chorus**` (bold). The app
+has no emphasis syntax of its own, so the marks were printed on the
+cards, the preview and every screen. `lyricShownLine` takes a pair of
+`_`, `__`, `*` or `**` off round words when the slides are made (song
+lines before the heading check, so `_Chorus_` names a slide; an
+announcement's title and words; pasted Bible text). A lone mark, one
+inside a word (`snake_case`) or a sum (`2*3*4`) stays. The saved words
+keep exactly what was typed. Since screens get the slide's text from the
+host, the second screen, paired screens, web screens, full screen and
+the simulator all show it the same way, whatever version they run.
+
 ## Where state is saved
 
 `AppState.lyrics` (`LyricsLibrary`, saved key `lyrics`):
@@ -228,7 +296,9 @@ is open on top: **→**, **Space** or **Page Down** next slide; **←** or
 the slide back). Live's own meanings of Space, B and → (pause and next
 segment) apply only on Live, so they never clash: on the Lyrics page
 those keys never touch the timer, and on Live they never change a slide.
-The page shows its keys in the line under the slides.
+The page shows its keys in the line under the slides, and under the
+words of each of the four buttons on a computer. Space on a focused row
+that folds open opens or closes it instead (see The Slides page).
 
 ## Scripture search and the Ready tray
 
