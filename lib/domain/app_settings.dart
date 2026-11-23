@@ -399,12 +399,21 @@ String exportBackup(
       else
         r,
   ];
+  final end = state.defaults.end;
+  final stockDefaultEnd =
+      end != null &&
+      jsonEncode(end.toJson()) == jsonEncode(defaultEndScreen.toJson());
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    // Version 13 only with scenes, 12 only with stored songs, 11 only with saved looks, 10 only with a church logo, 9 only with program history or a
+    // Version 14 only when the default end screen is the stock one: since
+    // state version 17 an older backup's stock default is moved to the clock
+    // on restore, so a backup that holds the stock one by choice has to say
+    // it is not older. Version 13 only with scenes, 12 only with stored songs, 11 only with saved looks, 10 only with a church logo, 9 only with program history or a
     // segment library, 8 only with sealed passwords, so plain backups
     // remain readable by earlier versions.
-    'schemaVersion': carriesScreens
+    'schemaVersion': stockDefaultEnd
+        ? 14
+        : carriesScreens
         ? 13
         : !state.lyrics.isEmpty
         ? 12
@@ -461,6 +470,7 @@ AppState importBackup(String raw, Stamp now) {
             11,
             12,
             13,
+            14,
           }.contains(envelope['schemaVersion']),
       'Choose a supported Church Service Timer backup.',
     );
@@ -524,7 +534,9 @@ AppState importBackup(String raw, Stamp now) {
     final versions = readProgramHistory(history);
     final restored = AppState.fromJson({
       ...data,
-      'version': envelope['schemaVersion'] >= 7
+      'version': envelope['schemaVersion'] >= 14
+          ? 17
+          : envelope['schemaVersion'] >= 7
           ? 13
           : envelope['schemaVersion'] >= 6
           ? 12

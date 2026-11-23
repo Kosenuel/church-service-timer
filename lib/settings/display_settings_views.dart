@@ -128,7 +128,7 @@ extension RefinedSettings on HomeState {
       'Content & preview',
       Icons.flag_outlined,
       'Default end screen',
-      '${c.state.defaults.end?.text ?? 'No end screen'} · for new programs',
+      '${c.state.defaults.end?.text ?? 'The clock'} · for new programs',
       defaultEndSettings,
     ),
   ];

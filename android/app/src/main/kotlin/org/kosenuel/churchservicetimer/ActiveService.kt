@@ -86,8 +86,7 @@ object ServiceCard {
 
     @Suppress("DEPRECATION")
     fun build(c: Context): Notification {
-        val open = PendingIntent.getActivity(c, NOTICE, Intent(c, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val open = MainActivity.openApp(c, NOTICE)
         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(c, CHANNEL) else Notification.Builder(c)
         builder.setSmallIcon(R.drawable.ic_warning_notification).setOngoing(true).setOnlyAlertOnce(true)
             .setContentIntent(open).setCategory(Notification.CATEGORY_SERVICE)

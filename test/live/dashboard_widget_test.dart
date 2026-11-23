@@ -7,6 +7,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import '../support/live_helpers.dart';
 import '../support/fake_port.dart';
 import '../support/widget_setup.dart';
+import '../support/stock_end_screen.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -105,6 +106,7 @@ void main() {
     final port = FakePort()..at = start;
     final c = AppController(port);
     await c.initialize(startTicker: false);
+    await useStockEndScreen(c);
     await c.act('load', value: c.state.templates.first);
     await c.act('start');
     await tester.pumpWidget(TimerApp(controller: c));

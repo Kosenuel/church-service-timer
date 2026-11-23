@@ -5,6 +5,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import '../support/fake_port.dart';
 import '../support/widget_setup.dart';
+import '../support/stock_end_screen.dart';
 
 void main() {
   setUpAll(loadAppFonts);
@@ -73,6 +74,7 @@ void main() {
       final p = FakePort();
       final before = AppController(p);
       await before.initialize(startTicker: false);
+      await useStockEndScreen(before);
       await before.act('load', value: before.state.templates.last);
       await before.act('start');
       await before.act('end');
@@ -100,6 +102,7 @@ void main() {
       final p = FakePort();
       final host = AppController(p);
       await host.initialize(startTicker: false);
+      await useStockEndScreen(host);
       await host.act('load', value: host.state.templates.last);
       await host.act('start');
       await t.pumpWidget(TimerApp(controller: host));
@@ -200,6 +203,7 @@ void main() {
       size(t);
       final c = AppController(FakePort());
       await c.initialize(startTicker: false);
+      await useStockEndScreen(c);
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await tap(t, 'Programs');

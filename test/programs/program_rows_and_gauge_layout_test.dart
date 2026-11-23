@@ -10,6 +10,7 @@ import 'program_grouping_cases.dart';
 import '../support/fake_port.dart';
 import '../support/ports.dart';
 import '../support/widget_setup.dart';
+import '../support/stock_end_screen.dart';
 
 void main() {
   for (final e in revision06Cases.entries) {
@@ -22,6 +23,7 @@ void main() {
   Future<AppController> setup(FakePort port) async {
     final c = AppController(port);
     await c.initialize(startTicker: false);
+    await useStockEndScreen(c);
     return c;
   }
 

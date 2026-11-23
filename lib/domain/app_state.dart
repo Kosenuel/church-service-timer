@@ -271,6 +271,8 @@ class AppState {
     link(session);
   }
 
+  /// A new install ends on the clock: no end screen until one is made.
+  /// Saved state always holds its own choice, so this never reaches it.
   factory AppState.fresh(Stamp now) => AppState(
     [
       Timeline('Sunday Service', const [
@@ -278,7 +280,7 @@ class AppState {
         Segment('Announcements', 5),
         Segment('Sermon', 30),
         Segment('Closing', 5),
-      ], DisplaySettings()),
+      ], DisplaySettings(end: null)),
       Timeline(
         'Quick rehearsal',
         const [
@@ -286,11 +288,11 @@ class AppState {
           Segment('Message', 2),
           Segment('Closing', 1),
         ],
-        DisplaySettings(),
+        DisplaySettings(end: null),
         type: 'rehearsal',
       ),
     ],
-    DisplaySettings(),
+    DisplaySettings(end: null),
     Session(id: 'idle', anchor: now),
   );
   factory AppState.fromJson(Json j, {Stamp? now}) {
@@ -312,6 +314,7 @@ class AppState {
         14,
         15,
         16,
+        17,
       }.contains(j['version']),
       'Unsupported saved-state version.',
     );
@@ -514,6 +517,18 @@ class AppState {
           .toList();
     }
     if ((j['version'] as int) < 16) a.upgradeDefaultCues();
+    // New installs end on the clock. Saved data cannot say whether the stock
+    // end screen was chosen or never changed, so only the app-wide default
+    // that is still exactly the stock one moves to the clock, for the
+    // programs made from now on. Programs already saved, a customised
+    // default and the running service keep what they hold. Runs once: later
+    // versions hold the church's own choice, stock or not.
+    if ((j['version'] as int) < 17 &&
+        a.defaults.end != null &&
+        jsonEncode(a.defaults.end!.toJson()) ==
+            jsonEncode(defaultEndScreen.toJson())) {
+      a.defaults = a.defaults.withEnd(null);
+    }
     a.session.clockFormat = a.clockFormat;
     a.session.clockBlink = a.clockBlink;
     a.applySharedZero();
@@ -521,7 +536,7 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 16,
+    'version': 17,
     'appearance': appearance.toJson(),
     'programLibrary': programLibrary.toJson(),
     'programHistory': writeProgramHistory(programHistory),
