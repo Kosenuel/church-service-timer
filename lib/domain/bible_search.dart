@@ -278,69 +278,53 @@ String referenceText(BibleReference r) {
 String _bookKey(String name) =>
     name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-/// Reads [input] as a reference or the start of a book's name.
+/// Books in the order the chips show them: alphabetical by name, a
+/// book's own name first.
+List<String> _chipOrder(Iterable<String> books, String? first) {
+  String name(String b) => b.replaceFirst(RegExp(r'^\d '), '');
+  final out = <String>{
+    ?first,
+    ...([...books]..sort((a, b) {
+      final c = name(a).compareTo(name(b));
+      return c != 0 ? c : a.compareTo(b);
+    })),
+  };
+  return out.toList();
+}
+
+/// Reads [input] as a reference or the start of a book's name, with
+/// everything the reference parser understands: misspelt books, "john 3 v
+/// 9", spoken numbers, and a book that could be several.
 ReferenceReading interpretReference(String input) {
   var q = input.trim().replaceAll(RegExp(r'\s+'), ' ');
-  if (q.isEmpty) return const ReferenceReading();
   // A separator typed and nothing after it yet: "John 3:" and "John 3:16-".
   final bare = q.replaceFirst(RegExp(r'[\s:.,\-–—]+$'), '');
   if (bare.isEmpty) return const ReferenceReading();
   final trailing = bare.length != q.length;
   q = bare;
-  if (RegExp(r'\d').hasMatch(q)) {
-    try {
-      final r = parseBibleReference(q);
-      // The last number is still being typed when it is a lone verse.
-      return ReferenceReading(
-        reference: r,
-        narrowing: r.verse != null && r.endVerse == null && !trailing,
-      );
-    } on RuleError {
-      // Fall through: it may be a book still being typed, "jo 3".
-    }
+  if (q.length > bibleReferenceLimit) return const ReferenceReading();
+  try {
+    final r = parseBibleReference(q);
+    // The last number is still being typed when it is a lone verse.
+    return ReferenceReading(
+      reference: r,
+      narrowing: r.verse != null && r.endVerse == null && !trailing,
+    );
+  } on BibleBookChoice catch (e) {
+    return ReferenceReading(books: _chipOrder(e.books, null), rest: e.rest);
+  } on RuleError {
+    // Perhaps a book still being typed.
   }
-  final m = RegExp(
-    r'^((?:[123]|i{1,3}|first|second|third|1st|2nd|3rd)?\s?[a-z][a-z .]*?)\s?(\d[\d:.,\- –]*)?$',
-    caseSensitive: false,
-  ).firstMatch(q);
+  final m = RegExp(r'^(.*?[^\d\s])\s*(\d[\d:.,\- –]*)?$').firstMatch(q);
   if (m == null) return const ReferenceReading();
   final typed = m.group(1)!.trim();
-  final rest = (m.group(2) ?? '').trim();
-  final found = <String>[];
-  final exact = bibleBookOf(typed);
-  if (exact != null) found.add(exact);
-  final key = _bookKey(typed.replaceFirst(RegExp(r'^(1st|2nd|3rd)'), ''));
-  final numbered = RegExp(
-    r'^(?:([123])|(i{1,3})(?=\s)|(first)|(second)|(third)|(1st)|(2nd)|(3rd))\s?(?=[a-z])',
-    caseSensitive: false,
-  ).firstMatch(typed);
-  int? part;
-  var letters = key;
-  if (numbered != null) {
-    final p = numbered.group(0)!.trim().toLowerCase();
-    part = switch (p) {
-      '1' || 'i' || 'first' || '1st' => 1,
-      '2' || 'ii' || 'second' || '2nd' => 2,
-      _ => 3,
-    };
-    letters = _bookKey(typed.substring(numbered.end));
-  }
-  final byName = [...bibleBooks]
-    ..sort(
-      (a, b) => a
-          .replaceFirst(RegExp(r'^\d '), '')
-          .compareTo(b.replaceFirst(RegExp(r'^\d '), '')),
-    );
-  if (letters.length >= 2) {
-    for (final b in byName) {
-      final isNumbered = RegExp(r'^\d ').hasMatch(b);
-      if (isNumbered != (part != null)) continue;
-      if (isNumbered && !b.startsWith('$part ')) continue;
-      final name = _bookKey(b.replaceFirst(RegExp(r'^\d '), ''));
-      if (name.startsWith(letters) && !found.contains(b)) found.add(b);
-    }
-  }
-  return ReferenceReading(books: found, rest: rest);
+  // A phrase is words, not a book: at most a number and two words.
+  if (typed.split(' ').length > 3) return const ReferenceReading();
+  final found = <String>{?bibleBookOf(typed), ...bibleBookGuesses(typed)};
+  return ReferenceReading(
+    books: _chipOrder(found, bibleBookOf(typed)),
+    rest: (m.group(2) ?? '').trim(),
+  );
 }
 
 // ---- Named passages ------------------------------------------------------
@@ -779,6 +763,10 @@ class BibleSearchIndex {
     if (trimmed.isEmpty) return SearchResult(query);
     final reading = interpretReference(trimmed);
     if (reading.isReference) return _byReference(query, reading, limit);
+    // A book still to be chosen and a number after it: not words.
+    if (reading.books.isNotEmpty && reading.rest.isNotEmpty) {
+      return SearchResult(query, books: reading.books);
+    }
     final named = _named(trimmed);
     final words = _byWords(query, trimmed, limit, reading);
     if (named.isEmpty) return words;
@@ -864,7 +852,7 @@ class BibleSearchIndex {
       query,
       hits: hits,
       total: total,
-      note: reading.note,
+      note: r.corrected ? 'Showing ${whole.hit!.reference}' : reading.note,
       byReference: true,
     );
   }
@@ -980,7 +968,19 @@ class BibleSearchIndex {
     ];
     final hasReal = used.any((t) => !_stopStems.contains(t.stem));
     // A word nothing matches is set aside when real words match.
-    if (used.isEmpty || !hasReal) return none;
+    if (used.isEmpty) return none;
+    // Only common words: a lone one is too many verses to be of use; two or
+    // more are searched as the exact phrase, and the operator is told.
+    String? common;
+    if (!hasReal) {
+      const hint = 'Only common words: add another word to narrow it down.';
+      if (used.length < 2)
+        return SearchResult(query, books: reading.books, note: hint);
+      for (final t in used) {
+        t.phrase = true;
+      }
+      common = 'Showing the exact phrase. Add another word to narrow it down.';
+    }
     final k = used.length;
     final marks = Uint16List(verseCount);
     for (var i = 0; i < k; i++) {
@@ -1032,7 +1032,7 @@ class BibleSearchIndex {
       final v = key & 0xfffff;
       hits.add(_verseHit(v, key >> 40, used));
     }
-    String? note;
+    String? note = common;
     if (missing.isNotEmpty) {
       note = missing.length == 1
           ? 'No verse has “${missing.first}”; showing the rest of your words.'

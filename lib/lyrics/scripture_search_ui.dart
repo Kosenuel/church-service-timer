@@ -98,12 +98,16 @@ class HighlightedVerse extends StatelessWidget {
 class ScriptureSearchKeys extends StatelessWidget {
   final ScriptureSearchController controller;
   final VoidCallback onClear;
+
+  /// Esc in an empty box: hand the keyboard back to the slides.
+  final VoidCallback? onRelease;
   final void Function(SearchEntry entry, {required bool send}) onChoose;
   final Widget child;
   const ScriptureSearchKeys({
     super.key,
     required this.controller,
     required this.onClear,
+    this.onRelease,
     required this.onChoose,
     required this.child,
   });
@@ -115,8 +119,14 @@ class ScriptureSearchKeys extends StatelessWidget {
       if (event is KeyUpEvent) return KeyEventResult.ignored;
       final key = event.logicalKey;
       if (key == LogicalKeyboardKey.escape) {
-        if (!controller.active) return KeyEventResult.ignored;
-        onClear();
+        if (!controller.active) {
+          if (event is! KeyDownEvent || onRelease == null) {
+            return KeyEventResult.ignored;
+          }
+          onRelease!();
+          return KeyEventResult.handled;
+        }
+        if (event is KeyDownEvent) onClear();
         return KeyEventResult.handled;
       }
       if (!controller.active) return KeyEventResult.ignored;

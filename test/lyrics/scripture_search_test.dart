@@ -209,6 +209,124 @@ void main() {
     expect(find.byKey(const ValueKey('lyrics-item-amazing')), findsOneWidget);
   });
 
+  testWidgets('b and space in the box are typing, not Black or Next', (
+    t,
+  ) async {
+    final c = await open(t);
+    c.lyrics.show('amazing', 0);
+    await settle(t);
+    await t.tap(find.byKey(const ValueKey('lyrics-search')));
+    await t.sendKeyEvent(LogicalKeyboardKey.keyB);
+    await t.sendKeyEvent(LogicalKeyboardKey.space);
+    await t.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await settle(t);
+    expect(c.lyrics.black, isFalse);
+    expect(c.lyrics.index, 0);
+    await t.enterText(find.byKey(const ValueKey('lyrics-search')), 'b ');
+    await settle(t);
+    expect(
+      t
+          .widget<TextField>(find.byKey(const ValueKey('lyrics-search')))
+          .controller!
+          .text,
+      'b ',
+    );
+    expect(c.lyrics.black, isFalse);
+    expect(c.lyrics.index, 0);
+  });
+
+  testWidgets('a second Esc hands the keys back to the slides', (t) async {
+    final c = await open(t);
+    c.lyrics.show('amazing', 0);
+    await type(t, 'john 3');
+    await t.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(t);
+    expect(c.lyrics.showing, isTrue);
+    await t.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(t);
+    expect(
+      c.lyrics.showing,
+      isTrue,
+      reason: 'the second Esc only leaves the box',
+    );
+    final f = FocusManager.instance.primaryFocus?.context;
+    expect(f?.findAncestorWidgetOfExactType<EditableText>(), isNull);
+    await t.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await settle(t);
+    expect(c.lyrics.index, 1, reason: 'the arrow keys work without a click');
+    await t.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(t);
+    expect(c.lyrics.showing, isFalse);
+  });
+
+  testWidgets('Tab reaches the box, results and the Ready buttons in order', (
+    t,
+  ) async {
+    final c = await open(t);
+    trayOf(c).addReady(index.bible.read('John 3:16'));
+    await settle(t);
+    await t.tap(find.byKey(const ValueKey('lyrics-search')));
+    final seen = <Key?>[];
+    Key? buttonKey() {
+      final ctx = FocusManager.instance.primaryFocus?.context;
+      return ctx?.findAncestorWidgetOfExactType<FilledButton>()?.key ??
+          ctx?.findAncestorWidgetOfExactType<TextButton>()?.key ??
+          ctx?.findAncestorWidgetOfExactType<IconButton>()?.key;
+    }
+
+    for (var i = 0; i < 30; i++) {
+      await t.sendKeyEvent(LogicalKeyboardKey.tab);
+      await t.pump();
+      seen.add(buttonKey());
+    }
+    for (final k in const [
+      'ready-send-1',
+      'ready-remove-1',
+      'ready-next-1',
+      'ready-chapter-1',
+      'ready-save-1',
+    ]) {
+      expect(seen, contains(ValueKey(k)), reason: '$k reachable by Tab');
+    }
+    expect(
+      seen.indexOf(const ValueKey('ready-send-1')),
+      lessThan(seen.indexOf(const ValueKey('ready-save-1'))),
+    );
+    // And back with Shift+Tab.
+    await t.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await t.sendKeyEvent(LogicalKeyboardKey.tab);
+    await t.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await t.pump();
+    expect(FocusManager.instance.primaryFocus, isNotNull);
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('a misspelt book is read, and says what is shown', (t) async {
+    final c = await open(t);
+    await type(t, 'jhon 3 16');
+    expect(find.text('Showing John 3:16'), findsOneWidget);
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
+    await settle(t);
+    expect(trayOf(c).items.single.reference, 'John 3:16');
+    await type(t, 'john chapter three verse sixteen');
+    expect(find.text('Showing John 3:16'), findsNothing);
+    expect(find.byKey(const ValueKey('search-hit-0')), findsOneWidget);
+    await type(t, 'jo 3');
+    for (final b in ['Job', 'Joel', 'John', 'Jonah', 'Joshua']) {
+      expect(find.byKey(ValueKey('search-book-$b')), findsOneWidget);
+    }
+  });
+
+  testWidgets('only common words show the phrase and a hint', (t) async {
+    await open(t);
+    await type(t, 'thou art');
+    expect(find.byKey(const ValueKey('search-hit-0')), findsOneWidget);
+    expect(find.textContaining('Add another word'), findsOneWidget);
+    await type(t, 'the');
+    expect(find.textContaining('add another word'), findsOneWidget);
+    expect(find.byKey(const ValueKey('search-hit-0')), findsNothing);
+  });
+
   testWidgets('/ and Ctrl+F focus the box; Commands has it', (t) async {
     await open(t);
     bool inBox() {

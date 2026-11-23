@@ -236,6 +236,86 @@ const cases = <Case>[
   ('john loved', _f, 'John 3:16'),
 ];
 
+/// What the reference parser now reads: misspelt books, "v" for verse and
+/// spoken numbers. Each must come out as the same passage the Add Bible
+/// verses editor reads.
+const forgiving = <(String, String)>[
+  ('jerimiah 29 11', 'Jeremiah 29:11'),
+  ('jeramiah 29:11', 'Jeremiah 29:11'),
+  ('Jhon 3 16', 'John 3:16'),
+  ('jhn 3:16', 'John 3:16'),
+  ('galations 5:22', 'Galatians 5:22'),
+  ('phillipians 4:13', 'Philippians 4:13'),
+  ('ephesions 2:8', 'Ephesians 2:8'),
+  ('revelations 21:4', 'Revelation 21:4'),
+  ('mathew 5:3', 'Matthew 5:3'),
+  ('duteronomy 6:4', 'Deuteronomy 6:4'),
+  ('isiah 53:5', 'Isaiah 53:5'),
+  ('hebrew 11:1', 'Hebrews 11:1'),
+  ('proverb 3:5', 'Proverbs 3:5'),
+  ('romens 8:28', 'Romans 8:28'),
+  ('genisis 1:1', 'Genesis 1:1'),
+  ('joshuah 1:9', 'Joshua 1:9'),
+  ('1 corinthans 13', '1 Corinthians 13'),
+  ('john 3 v 9', 'John 3:9'),
+  ('john 3 v. 16', 'John 3:16'),
+  ('john 3 verse 16', 'John 3:16'),
+  ('psalm 23 v 1-3', 'Psalm 23:1-3'),
+  ('romans 8 vs 28', 'Romans 8:28'),
+  ('john chapter three verse sixteen', 'John 3:16'),
+  ('romans eight twenty-eight', 'Romans 8:28'),
+  ('romans eight twenty eight', 'Romans 8:28'),
+  ('psalm twenty three', 'Psalm 23'),
+  (
+    'first corinthians chapter thirteen verses four to seven',
+    '1 Corinthians 13:4-7',
+  ),
+  ('turn to genesis chapter one verse one', 'Genesis 1:1'),
+  ('open your bibles to john chapter three verse sixteen', 'John 3:16'),
+  (
+    'psalm one hundred and nineteen verse one hundred and five',
+    'Psalm 119:105',
+  ),
+  ('matthew twenty eight nineteen', 'Matthew 28:19'),
+  ('philippians four thirteen', 'Philippians 4:13'),
+  ('isaiah forty thirty one', 'Isaiah 40:31'),
+  ('revelation twenty one four', 'Revelation 21:4'),
+  ('john three sixteen', 'John 3:16'),
+  ('second timothy chapter one verse seven', '2 Timothy 1:7'),
+  ('john 3:16 kjv', 'John 3:16'),
+  ('John 3:16 (KJV)', 'John 3:16'),
+  ('jn 3 16', 'John 3:16'),
+  ('1 jhn 4:8', '1 John 4:8'),
+];
+
+/// Inputs both the editor and the search must read the same way, including
+/// the ones that are wrong or could be several books.
+const agreeing = <String>[
+  'John 3:16',
+  'john 3 16',
+  'jerimiah 29 11',
+  'Jhon 3 16',
+  'john 3 v 9',
+  'john chapter three verse sixteen',
+  'romans eight twenty-eight',
+  'psalm 23',
+  'psalm 23:1-3',
+  '1cor13 4-7',
+  'isaiah 40:31',
+  'jude 3',
+  'john 3:16-4:2',
+  'john 40',
+  'john 3:99',
+  'jo 3',
+  'phi 4:13',
+  'ma 5:3',
+  'john 3:16 kjv',
+  'psalm 119:105',
+  'first corinthians chapter thirteen verses four to seven',
+  'obadiah 1:3',
+  'revelation 22:21',
+];
+
 /// Text that must find nothing sensible, and must not crash.
 const nothing = [
   '',
@@ -255,7 +335,6 @@ const nothing = [
   'qwertyuiop asdfghjkl',
   'xyzzy qwxz',
   'the',
-  'in the',
   'αγάπη',
   '愛',
   'مرحبا',
@@ -342,6 +421,84 @@ void main() {
       ]) {
         expect(() => index.search(q), returnsNormally, reason: q);
       }
+    });
+  });
+
+  group('what the reference parser now reads', () {
+    for (final (query, reference) in forgiving) {
+      test('“$query” → $reference', () {
+        final r = index.search(query);
+        expect(r.byReference, isTrue, reason: '${r.note} ${r.books}');
+        expect(r.hits.first.reference, reference);
+      });
+    }
+    test('a corrected spelling says what is shown', () {
+      expect(index.search('Jhon 3 16').note, 'Showing John 3:16');
+      expect(index.search('jerimiah 29 11').note, 'Showing Jeremiah 29:11');
+      expect(index.search('John 3 16').note, isNull);
+      expect(index.search('john chapter three verse sixteen').note, isNull);
+    });
+    test('a book that could be several offers them, in one list', () {
+      expect(index.search('jo 3').books, [
+        'Job',
+        'Joel',
+        'John',
+        'Jonah',
+        'Joshua',
+      ]);
+      expect(index.search('jo').books, [
+        'Job',
+        'Joel',
+        'John',
+        'Jonah',
+        'Joshua',
+      ]);
+      expect(
+        index.search('phi 4:13').books,
+        containsAll(['Philemon', 'Philippians']),
+      );
+      expect(index.search('1 jo').books, ['1 John']);
+      expect(index.search('jhon').books, contains('John'));
+      expect(index.search('jo 3').hits, isEmpty);
+    });
+    test('the editor and the search read the same input the same way', () {
+      for (final input in agreeing) {
+        String? editor, editorProblem;
+        List<String>? editorBooks;
+        try {
+          editor = index.bible.read(input).reference;
+        } on BibleBookChoice catch (e) {
+          editorBooks = e.books;
+        } on RuleError catch (e) {
+          editorProblem = e.message;
+        }
+        final r = index.search(input);
+        if (editor != null) {
+          expect(r.hits.first.passage.book, isNotEmpty, reason: input);
+          // A chapter's first hit is the chapter; a verse's own hit is it.
+          final first = r.hits.first.reference;
+          final narrowed = r.hits.map((h) => h.reference);
+          expect(narrowed, contains(editor), reason: '$input: $first');
+          expect(r.problem, isFalse, reason: input);
+        } else if (editorBooks != null) {
+          expect(r.books.toSet(), editorBooks.toSet(), reason: input);
+          expect(r.hits, isEmpty, reason: input);
+        } else {
+          expect(r.problem, isTrue, reason: input);
+          expect(r.note, editorProblem, reason: input);
+        }
+      }
+    });
+    test('only common words: the exact phrase, or a hint', () {
+      final r = index.search('thou art');
+      expect(r.hits, isNotEmpty);
+      expect(r.hits.every((h) => h.tier == 2), isTrue);
+      expect(r.note, contains('Add another word'));
+      expect(index.search('in the').hits, isNotEmpty);
+      final one = index.search('the');
+      expect(one.hits, isEmpty);
+      expect(one.note, contains('add another word'));
+      expect(index.search('"thou art"').hits, isNotEmpty);
     });
   });
 

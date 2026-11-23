@@ -493,6 +493,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
       key: const ValueKey('lyrics-search-keys'),
       controller: _bible,
       onClear: _clearSearch,
+      onRelease: _takeKeys,
       onChoose: _chooseEntry,
       child: TextField(
         key: const ValueKey('lyrics-search'),

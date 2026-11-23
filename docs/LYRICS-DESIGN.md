@@ -279,7 +279,10 @@ to be kept in step with the Bible file. Numbers are in the test output
 ### What a search does
 
 1. **A reference** (`interpretReference`, the one place that calls
-   `parseBibleReference` and `bibleBookOf`): `John 3:16`, `john 3 16`,
+   `parseBibleReference`, `bibleBookOf` and `bibleBookGuesses`; it reads
+   misspelt books, "john 3 v 9", spoken numbers, and shows "Showing John
+   3:16" when a spelling was corrected; a book that could be several
+   becomes the chips): `John 3:16`, `john 3 16`,
    `joh 3`, `1cor13 4-7`, `psalm 23`, ranges and cross-chapter ranges.
    A chapter shows the whole chapter first and then each verse; a lone
    verse number narrows as it is typed (`john 3:1` shows 1 and 10 to 19,
@@ -381,8 +384,9 @@ On the Slides page, **/** or **Ctrl+F** puts the keyboard in the box (on
 a phone with a keyboard, opens the sheet); Ctrl+F also from inside it.
 In the box: **Up** and **Down** move the highlight, **Enter** puts the
 highlighted result in Ready (or selects a Library item), **Ctrl+Enter**
-sends it, **Esc** clears the box and keeps the keyboard in it (so a second
-Esc can never clear the slide on the screens). Tapping a result prepares
+sends it, **Esc** clears the box; a second Esc (box empty) hands the keyboard back to
+the slides, so the arrow keys work without a click (and it never clears the
+slide on the screens: that is the third Esc). Tapping a result prepares
 it, a second tap within 0.45 s or the play button sends it. **Search the
 Bible** is in Commands under Go to. Neither key clashes with an existing
 one (`/` was unused; `?` is Shift+/).
@@ -396,11 +400,6 @@ closes it. Ready sits under the field, only when it has something in it.
 
 ### Known weak spots
 
-- Misspelt book names in a reference ("jerimiah 29 11"), "john chapter
-  three verse sixteen" and "john 3 v 9" are not read yet: the reference
-  parser on this branch does not read them (see the
-  fix/forgiving-bible-references branch, which the one adapter,
-  `interpretReference`, is built to take).
 - Modern wording that is not the same word ("plans to prosper you",
   "do not be anxious", "God-breathed") finds nothing: the KJV does not
   say it.
