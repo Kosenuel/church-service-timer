@@ -29,7 +29,7 @@ Future<void> hammer(WidgetTester t, String key, {required String a}) async {
   await set('${a}x');
   await set(a);
   await set('');
-  await set('${a.substring(0, 1)}');
+  await set(a.substring(0, 1));
   await set(a);
   // Select all, delete, undo-like retype of the same text, Backspace.
   await t.sendKeyDownEvent(LogicalKeyboardKey.control);
