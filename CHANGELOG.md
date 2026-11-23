@@ -2,7 +2,7 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built. From 0.35.0, version numbers follow [Semantic Versioning](https://semver.org) (MAJOR.MINOR.PATCH); see [Versioning](docs/BUILD.md#versioning) for how each release's number is chosen.
 
-## Unreleased
+## 0.38.0, 23/November/2026
 
 - **Song words, Bible verses and announcements on the screens.** A new **Slides** page, after Programs in the navigation, and a **Slides** button on Live under the display preview, put words on the second screen, web screens and stage screens.
   - **Library** on the left keeps every song, set of Bible verses and announcement you save, for every service, most recently used first. Search finds a title or any words in it. **Add a song**: type or paste the words, or **Open a text file**. A blank line starts a new slide, and a line such as Verse 1, Chorus, Bridge, Refrain, Pre-chorus, Intro, Outro, Tag or Ending names the slide and is not shown. **Lines on a slide** keeps the words as typed or splits them into slides of 2 or 4 lines; the slides it makes show beside the words as you type. **Save song**. Edit or delete (it asks first) from the ⋮ beside each one.
