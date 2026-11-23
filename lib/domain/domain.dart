@@ -34,4 +34,5 @@ export 'package:church_service_timer/domain/quick_timer.dart';
 export 'package:church_service_timer/domain/desktop_layout.dart';
 export 'package:church_service_timer/domain/lyrics.dart';
 export 'package:church_service_timer/domain/bible.dart';
+export 'package:church_service_timer/domain/bible_search.dart';
 export 'package:church_service_timer/domain/finish.dart';
