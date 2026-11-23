@@ -260,14 +260,35 @@ function revealTools() {
 }
 document.addEventListener('pointerdown', () => { if (role === 'stage') revealTools(); });
 
+// Wake lock: held only while this page is a stage screen or a service is
+// running, and let go otherwise so an idle screen can sleep. A browser may
+// refuse or drop the lock, so failure is quiet and the next change retries.
 let wake = null;
-async function keepAwake() { try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (_) {} }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && role !== 'order') keepAwake(); });
+function wantAwake() {
+  if (document.visibilityState !== 'visible' || role === 'order') return false;
+  return role === 'stage' || (!!lastState && lastState.phase === 'active');
+}
+async function keepAwake() {
+  try {
+    if (!('wakeLock' in navigator) || wake) return;
+    const lock = await navigator.wakeLock.request('screen');
+    // The need may have ended while the browser was answering.
+    if (!wantAwake() || wake) { lock.release().catch(() => {}); return; }
+    wake = lock;
+    lock.addEventListener('release', () => { if (wake === lock) wake = null; });
+  } catch (_) {}
+}
+function letSleep() {
+  const lock = wake; wake = null;
+  try { if (lock) lock.release().catch(() => {}); } catch (_) {}
+}
+function syncAwake() { if (wantAwake()) keepAwake(); else letSleep(); }
+document.addEventListener('visibilitychange', syncAwake);
 
 function stop() { clearTimeout(timer); timer = null; }
 function start() {
   stop(); lastState = null; lastOk = Date.now(); misses = 0;
-  if (role !== 'order') keepAwake();
+  syncAwake();
   tools(role === 'stage');
   poll();
 }
@@ -324,6 +345,7 @@ function wrapSize(node, lines, height, least, most) {
 
 function render(s) {
   lastState = s;
+  syncAwake();
   showRequests(s);
   if (s.role === 'stage') return renderStage(s);
   stopMotion(); renderBand(null);

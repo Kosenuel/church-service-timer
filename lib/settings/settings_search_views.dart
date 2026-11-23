@@ -127,16 +127,7 @@ extension SettingsSearchViews on HomeState {
         'Keep screen awake',
         'sleep awake screen lock',
         Icons.wb_sunny_outlined,
-        () => openSettingsDetail(
-          'Keep screen awake',
-          () => SwitchListTile(
-            title: const Text('Keep screen awake'),
-            value: c.state.keepScreenAwake,
-            onChanged: c.busy
-                ? null
-                : (v) => c.commit((d, _) => d.keepScreenAwake = v),
-          ),
-        ),
+        () => openSettingsDetail('Keep screen awake', screenAwakeSetting),
       ),
       (
         'Feedback centre',

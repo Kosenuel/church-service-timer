@@ -254,6 +254,9 @@ String themeIdValue(dynamic value) {
   return value;
 }
 
+/// When the screen is kept awake, with the words for each choice.
+const screenAwakeChoices = {'never', 'service', 'always'};
+
 bool boolSetting(dynamic value) {
   require(value is bool, 'Screen-awake setting must be true or false.');
   return value as bool;
@@ -289,6 +292,7 @@ String exportBackup(
     ..remove('dismissedHints')
     ..remove('recentQuickTimers')
     ..remove('autoUpdate')
+    ..remove('keepScreenAlways')
     ..remove('seenVersion')
     ..remove('settingsLock')
     ..remove('clickerControls')
