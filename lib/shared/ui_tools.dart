@@ -193,3 +193,43 @@ TextStyle sectionLabelStyle(BuildContext context) => TextStyle(
   fontSize: 11,
   fontWeight: FontWeight.w700,
 );
+
+/// An [AnimatedSwitcher] that survives going from one child to another
+/// and back inside the fade. The stock one keys the fading-out child by
+/// the child's own key, so A, then B, then A again within the fade puts
+/// two children with the same key in one Stack: an assertion in a debug
+/// build and a broken element tree in a release one, after which typing
+/// and Tab stop working. Here every change of child (its type or key)
+/// gets a number that never repeats, and that number is the key the
+/// switcher sees.
+class FreshSwitcher extends StatefulWidget {
+  final Duration duration;
+  final AnimatedSwitcherTransitionBuilder transitionBuilder;
+  final Widget child;
+  const FreshSwitcher({
+    super.key,
+    required this.duration,
+    required this.child,
+    this.transitionBuilder = AnimatedSwitcher.defaultTransitionBuilder,
+  });
+
+  @override
+  State<FreshSwitcher> createState() => _FreshSwitcherState();
+}
+
+class _FreshSwitcherState extends State<FreshSwitcher> {
+  var _serial = 0;
+
+  @override
+  void didUpdateWidget(FreshSwitcher old) {
+    super.didUpdateWidget(old);
+    if (!Widget.canUpdate(old.child, widget.child)) _serial++;
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedSwitcher(
+    duration: widget.duration,
+    transitionBuilder: widget.transitionBuilder,
+    child: KeyedSubtree(key: ValueKey(_serial), child: widget.child),
+  );
+}

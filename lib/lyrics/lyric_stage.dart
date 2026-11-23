@@ -4,6 +4,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/lyrics/lyric_backgrounds.dart';
 import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/material.dart';
 
 /// The face slides are drawn in, as every stage screen.
@@ -325,7 +326,7 @@ class LyricStage extends StatelessWidget {
             ),
             if (dim > 0)
               ColoredBox(color: Colors.black.withValues(alpha: dim.toDouble())),
-            AnimatedSwitcher(
+            FreshSwitcher(
               duration: reduceAppMotion(context)
                   ? Duration.zero
                   : const Duration(milliseconds: 260),
