@@ -9,6 +9,7 @@ import 'package:church_service_timer/domain/domain.dart'
     show
         AppearancePreferences,
         effectiveFinish,
+        finishStrengthFor,
         stageCardBackground,
         desktopLayoutMinHeight,
         desktopLayoutMinWidth,
@@ -412,11 +413,13 @@ ThemeData appTheme(
   final layout = AppLayout.resolve(appearance, size);
   // High contrast always draws Flat (FinishLook.resolve), so the outlines and
   // text it asks for are never under a texture.
+  // A Paper & Ink theme always has Papery; the saved choice is kept.
+  final finishId = effectiveFinish(id, appearance.finish);
   final finish = FinishLook.resolve(
     p,
-    // A Paper & Ink theme always has Papery; the saved choice is kept.
-    effectiveFinish(id, appearance.finish),
-    appearance.finishStrength == 'full' ? 1 : .5,
+    finishId,
+    // The strength chosen, or the finish's own.
+    finishStrengthFor(finishId, appearance.finishStrength) == 'full' ? 1 : .5,
   );
   // Its photographs start loading now, so the first frame that shows the
   // finish can draw them.
@@ -463,15 +466,44 @@ ThemeData appTheme(
       selectedColor: p.text,
       selectedTileColor: p.accent.withValues(alpha: .16),
     ),
+    // Menus, dialogs and sheets in the panel colour and shape of the finish;
+    // opened on a page, they are laid on its material as well
+    // (FinishPopupFrame).
     popupMenuTheme: PopupMenuThemeData(
-      color: p.surface,
+      color: finish.active ? finish.panel : p.surface,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: p.border),
-      ),
+      shape:
+          finishShape ??
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: p.border),
+          ),
     ),
-    // Dialogs and sheets in the panel colour and shape of the finish.
+    // Snack bars and tooltips are too brief, and too small, for material:
+    // a finish gives them its panel colour, edge and corners, so they are
+    // not the plain theme's dark slips over it.
+    snackBarTheme: finish.active
+        ? SnackBarThemeData(
+            backgroundColor: finish.panel,
+            contentTextStyle: TextStyle(color: p.text, fontSize: 15),
+            actionTextColor: p.accent,
+            closeIconColor: p.muted,
+            elevation: 4,
+            shape: finishShape,
+          )
+        : null,
+    tooltipTheme: finish.active
+        ? TooltipThemeData(
+            decoration: BoxDecoration(
+              color: finish.panel,
+              borderRadius: BorderRadius.circular(
+                math.min(finishRadius(finish.id), 8),
+              ),
+              border: Border.all(color: finish.border),
+            ),
+            textStyle: TextStyle(color: p.text, fontSize: 13),
+          )
+        : null,
     dialogTheme: DialogThemeData(
       backgroundColor: finish.active ? finish.panel : p.surface,
       shape:

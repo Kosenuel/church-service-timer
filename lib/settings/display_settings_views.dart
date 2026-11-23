@@ -2,6 +2,7 @@ import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -889,8 +890,8 @@ class _DisplaySettingsDeskState extends State<DisplaySettingsDesk> {
       children: [
         SizedBox(
           width: (MediaQuery.sizeOf(context).width * .24).clamp(300.0, 400.0),
-          child: ColoredBox(
-            color: colors.surface,
+          child: FinishPane(
+            flatSurface: true,
             child: ListView(
               key: const ValueKey('display-sections'),
               primary: false,
@@ -923,35 +924,41 @@ class _DisplaySettingsDeskState extends State<DisplaySettingsDesk> {
             ),
           ),
         ),
-        VerticalDivider(width: 1, thickness: 1, color: colors.border),
+        finishRule(
+          context,
+          VerticalDivider(width: 1, thickness: 1, color: colors.border),
+        ),
+        // The chosen section on a panel of the finish, not its wall.
         Expanded(
-          child: SingleChildScrollView(
-            key: ValueKey('display-detail-${section.key}'),
-            primary: false,
-            padding: const EdgeInsets.fromLTRB(40, 28, 40, 32),
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 640),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      section.title,
-                      style: text.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+          child: FinishPane(
+            child: SingleChildScrollView(
+              key: ValueKey('display-detail-${section.key}'),
+              primary: false,
+              padding: const EdgeInsets.fromLTRB(40, 28, 40, 32),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 640),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        section.title,
+                        style: text.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      section.summary,
-                      style: text.bodyMedium?.copyWith(color: colors.muted),
-                    ),
-                    const SizedBox(height: 20),
-                    section.key == 'clock'
-                        ? widget.home.clockFormatSettings(titled: false)
-                        : section.content(),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        section.summary,
+                        style: text.bodyMedium?.copyWith(color: colors.muted),
+                      ),
+                      const SizedBox(height: 20),
+                      section.key == 'clock'
+                          ? widget.home.clockFormatSettings(titled: false)
+                          : section.content(),
+                    ],
+                  ),
                 ),
               ),
             ),

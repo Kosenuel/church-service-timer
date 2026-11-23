@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -19,7 +20,10 @@ extension StandingByDesktop on HomeState {
     required Widget cues,
   }) {
     final colors = appColors(context);
-    final line = VerticalDivider(width: 1, thickness: 1, color: colors.border);
+    final line = finishRule(
+      context,
+      VerticalDivider(width: 1, thickness: 1, color: colors.border),
+    );
     return LayoutBuilder(
       builder: (context, space) {
         final side = (space.maxWidth * .25).clamp(320.0, 460.0);
@@ -46,7 +50,21 @@ extension StandingByDesktop on HomeState {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         ...notices,
-                        standingByClock(header),
+                        // On a panel with a finish, not on the bare wall.
+                        if (finishLook(context).active)
+                          FinishSurface(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                22,
+                                16,
+                                22,
+                                18,
+                              ),
+                              child: standingByClock(header),
+                            ),
+                          )
+                        else
+                          standingByClock(header),
                         const SizedBox(height: 20),
                         if (standingByProgram case final program?)
                           nextServiceCard(program)

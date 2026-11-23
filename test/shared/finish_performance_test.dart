@@ -6,6 +6,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/finish_paint.dart';
+import 'package:church_service_timer/shared/finish_popups.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -154,6 +155,99 @@ void main() {
       await live(t, 'console');
       expect(find.byType(BackdropFilter), findsNothing);
     });
+  });
+
+  group('the pages and popups that were bare', () {
+    // Programs and Reports on a computer, Settings, a dialog and a menu:
+    // their panels are drawn once, not again while the clock ticks under
+    // them, and only images.
+    void cheap(WidgetTester t, String what) {
+      final boxes = <RenderFinishPaint>{
+        ...t.renderObjectList<RenderFinishPaint>(find.byType(FinishPaint)),
+        for (final f in t.allRenderObjects.whereType<RenderFinishPopupFrame>())
+          if (f.sheet != null) ...[f.panel, f.stitches],
+      };
+      expect(boxes, isNotEmpty, reason: what);
+      for (final box in boxes) {
+        if (!box.hasSize) continue;
+        final canvas = TestRecordingCanvas();
+        box.paint(TestRecordingPaintingContext(canvas), Offset.zero);
+        final calls = canvas.invocations
+            .map((i) => i.invocation.memberName)
+            .toList();
+        expect(calls, isNot(contains(#saveLayer)), reason: what);
+        expect(calls, isNot(contains(#drawPath)), reason: what);
+        expect(calls, isNot(contains(#drawShadow)), reason: what);
+        final draws = calls.where(
+          (m) => !const {#save, #restore, #translate, #scale}.contains(m),
+        );
+        expect(draws.length, lessThanOrEqualTo(10), reason: '$what: $calls');
+        for (final i in canvas.invocations) {
+          for (final a in i.invocation.positionalArguments) {
+            if (a is Paint) {
+              expect(a.maskFilter, isNull, reason: '$what: a blur');
+              expect(a.imageFilter, isNull, reason: '$what: a filter');
+            }
+          }
+        }
+      }
+    }
+
+    Future<void> ticks(
+      WidgetTester t,
+      AppController c,
+      FakePort port,
+      String what,
+    ) async {
+      final before = FinishPaintCount.total;
+      for (var i = 1; i <= 8; i++) {
+        port.at = after(i);
+        await c.tick();
+        await t.pump(const Duration(seconds: 1));
+      }
+      expect(FinishPaintCount.total, before, reason: '$what drew again');
+    }
+
+    Future<void> rail(WidgetTester t, String name) async {
+      await t.tap(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('navigation-rail')),
+              matching: find.text(name),
+            )
+            .first,
+      );
+      await t.pumpAndSettle();
+    }
+
+    for (final finish in ['denim', 'console', 'glass', 'walnut']) {
+      testWidgets('$finish: Programs, Reports and Settings on a computer', (
+        t,
+      ) async {
+        final (c, port) = await live(t, finish);
+        for (final page in ['Programs', 'Reports', 'Settings']) {
+          await rail(t, page);
+          cheap(t, '$finish $page');
+          await ticks(t, c, port, '$finish $page');
+        }
+      });
+
+      testWidgets('$finish: the End service question and the header menu', (
+        t,
+      ) async {
+        final (c, port) = await live(t, finish);
+        await t.tap(find.byKey(const ValueKey('end-service')).first);
+        await t.pumpAndSettle();
+        cheap(t, '$finish dialog');
+        await ticks(t, c, port, '$finish dialog');
+        await t.tap(find.text('Cancel'));
+        await t.pumpAndSettle();
+        await t.tap(find.byIcon(Icons.more_vert).first);
+        await t.pumpAndSettle();
+        cheap(t, '$finish menu');
+        await ticks(t, c, port, '$finish menu');
+      });
+    }
   });
 
   group('the seam', () {

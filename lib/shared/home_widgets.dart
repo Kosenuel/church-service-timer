@@ -97,9 +97,11 @@ class AppPanel extends StatelessWidget {
         child: child,
       );
     }
-    // The plain card, or the finish's material.
-    return FinishSurface(
+    // The plain card, or the finish's material; inside another panel of the
+    // finish it is set into it, not a second panel on top.
+    return FinishCard(
       radius: 20,
+      flat: (child) => FinishSurface(radius: 20, child: child),
       child: Padding(padding: pad, child: child),
     );
   }

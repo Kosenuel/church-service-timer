@@ -1098,71 +1098,82 @@ class _AppearancePageState extends State<AppearancePage> {
               ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  LayoutBuilder(
-                    builder: (context, space) {
-                      final columns = space.maxWidth >= 1000
-                          ? 5
-                          : space.maxWidth >= 760
-                          ? 4
-                          : space.maxWidth >= 520
-                          ? 3
-                          : 2;
-                      final width =
-                          (space.maxWidth - 10 * (columns - 1)) / columns;
-                      return Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          for (final p in choices)
-                            SizedBox(width: width, child: themeTile(p)),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(46),
-                    ),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Create custom theme'),
-                    onPressed: saving ? null : createCustom,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    palette.description,
-                    style: TextStyle(color: colors.muted, fontSize: 12),
-                  ),
-                  const SizedBox(height: 8),
-                  // The second tab is easy to miss.
-                  Builder(
-                    builder: (context) => Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        key: const ValueKey('to-desktop-layout'),
-                        onPressed: () =>
-                            DefaultTabController.of(context).animateTo(1),
-                        icon: const Icon(
-                          Icons.dashboard_customize_outlined,
-                          size: 18,
+                  // The themes on a panel of the finish, as the Finish
+                  // section below is, not straight on its wall.
+                  FinishPanelled(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        LayoutBuilder(
+                          builder: (context, space) {
+                            final columns = space.maxWidth >= 1000
+                                ? 5
+                                : space.maxWidth >= 760
+                                ? 4
+                                : space.maxWidth >= 520
+                                ? 3
+                                : 2;
+                            final width =
+                                (space.maxWidth - 10 * (columns - 1)) / columns;
+                            return Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [
+                                for (final p in choices)
+                                  SizedBox(width: width, child: themeTile(p)),
+                              ],
+                            );
+                          },
                         ),
-                        label: Text(switch (wideLayoutDevice(
-                          context,
-                          desktop: widget.controller.port.isDesktop,
-                        )) {
-                          WideLayoutDevice.computer =>
-                            'Desktop layout and spacing',
-                          WideLayoutDevice.tablet =>
-                            'Tablet layout and spacing',
-                          WideLayoutDevice.none => 'Spacing and accessibility',
-                        }),
-                      ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(46),
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create custom theme'),
+                          onPressed: saving ? null : createCustom,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          palette.description,
+                          style: TextStyle(color: colors.muted, fontSize: 12),
+                        ),
+                        const SizedBox(height: 8),
+                        // The second tab is easy to miss.
+                        Builder(
+                          builder: (context) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              key: const ValueKey('to-desktop-layout'),
+                              onPressed: () =>
+                                  DefaultTabController.of(context).animateTo(1),
+                              icon: const Icon(
+                                Icons.dashboard_customize_outlined,
+                                size: 18,
+                              ),
+                              label: Text(switch (wideLayoutDevice(
+                                context,
+                                desktop: widget.controller.port.isDesktop,
+                              )) {
+                                WideLayoutDevice.computer =>
+                                  'Desktop layout and spacing',
+                                WideLayoutDevice.tablet =>
+                                  'Tablet layout and spacing',
+                                WideLayoutDevice.none =>
+                                  'Spacing and accessibility',
+                              }),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 20),
                   // On a panel, so its words are never straight on the finish.
-                  FinishSurface(
+                  FinishCard(
                     radius: 18,
+                    flat: (child) => FinishSurface(radius: 18, child: child),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: FinishSection(
@@ -1212,11 +1223,13 @@ class _AppearancePageState extends State<AppearancePage> {
                       child: AppDivider(indent: 0, endIndent: 0),
                     );
                     final wide = MediaQuery.sizeOf(context).width >= 840;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: wide
-                          ? [layouts, gap, controls]
-                          : [controls, gap, layouts],
+                    return FinishPanelled(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: wide
+                            ? [layouts, gap, controls]
+                            : [controls, gap, layouts],
+                      ),
                     );
                   },
                 ),
@@ -1255,18 +1268,22 @@ class _AppearancePageState extends State<AppearancePage> {
                         ),
                       ),
                     ),
-                    VerticalDivider(
-                      width: 1,
-                      thickness: 1,
-                      color: colors.border,
+                    finishRule(
+                      context,
+                      VerticalDivider(
+                        width: 1,
+                        thickness: 1,
+                        color: colors.border,
+                      ),
                     ),
                     SizedBox(
                       width: (MediaQuery.sizeOf(context).width * .32).clamp(
                         400.0,
                         640.0,
                       ),
-                      child: ColoredBox(
-                        color: colors.background,
+                      // A panel of the finish when there is one, not the
+                      // theme's background over its wall.
+                      child: FinishBackdrop(
                         child: ListView(
                           key: const ValueKey('appearance-preview-pane'),
                           padding: const EdgeInsets.all(24),
@@ -1308,8 +1325,7 @@ class _AppearancePageState extends State<AppearancePage> {
                   ),
                 ),
         ),
-        bottomNavigationBar: Material(
-          color: colors.surface,
+        bottomNavigationBar: FinishBarPlate(
           child: SafeArea(
             top: false,
             child: Container(

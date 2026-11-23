@@ -12,7 +12,7 @@ final revision08Cases = <String, void Function()>{
     old.remove('churchBanner');
     final state = AppState.fromJson(old);
     equal(state.churchBanner, '');
-    equal(state.toJson()['version'], 16);
+    equal(state.toJson()['version'], 17);
     equal(state.templates.map((t) => t.toJson()).toList(), old['templates']);
   },
   'Banner survives saved-state and portable-backup round trips': () {

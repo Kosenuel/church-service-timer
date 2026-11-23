@@ -3,26 +3,38 @@
 ///
 /// Every id a backup or saved look may name is listed here, so a look saved
 /// by a later version still loads; one this version does not know draws as
-/// [defaultFinish].
+/// [defaultFinish]. They are listed, and shown, in this order: Flat, the
+/// cloths (Leather with them, a hide that is stitched like Denim), Glass,
+/// the woods, Plastic, the metals, Marble and then the rest.
 const finishIds = [
   'flat',
-  'glass',
-  'console',
-  'brick',
   'cashmere',
   'denim',
-  'plastic',
+  'leather',
+  'glass',
   'walnut',
   'oak',
-  'leather',
-  'marble',
+  'plastic',
+  'console',
   'carbon',
+  'marble',
+  'brick',
 ];
 const defaultFinish = 'flat';
 
 /// How much of the material shows: Subtle is half, for long services.
 const finishStrengths = ['subtle', 'full'];
-const defaultFinishStrength = 'subtle';
+
+/// The strength a finish has until one is chosen: Full, except the dark,
+/// busy grains (Walnut, Oak and Carbon fibre), which read best at Subtle.
+const subtleByDefault = {'walnut', 'oak', 'carbon'};
+String defaultFinishStrength(String finish) =>
+    subtleByDefault.contains(finish) ? 'subtle' : 'full';
+
+/// The strength drawn for [finish] when [chosen] is the one chosen (null when
+/// none has been): the choice, else the finish's own default.
+String finishStrengthFor(String finish, String? chosen) =>
+    chosen ?? defaultFinishStrength(finish);
 
 /// The themes that carry their own finish, Papery, whatever finish is saved.
 /// Papery is not in [finishIds]: it is never chosen, never saved and never
@@ -73,8 +85,7 @@ String finishDescription(String id) => switch (id) {
 String finishValue(dynamic value) =>
     value is String && finishIds.contains(value) ? value : defaultFinish;
 
-/// A stored strength this version knows, else Subtle.
-String finishStrengthValue(dynamic value) =>
-    value is String && finishStrengths.contains(value)
-    ? value
-    : defaultFinishStrength;
+/// A stored strength this version knows, else null: none chosen, so the
+/// finish's own default.
+String? finishStrengthValue(dynamic value) =>
+    value is String && finishStrengths.contains(value) ? value : null;

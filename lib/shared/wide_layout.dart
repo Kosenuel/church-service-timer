@@ -48,16 +48,24 @@ class SplitPage extends StatelessWidget {
       ),
       child: FinishPane(flatSurface: true, child: side),
     );
+    // With a finish the content is a panel too, like the pane beside it, so
+    // nothing on the page sits on the bare wall; the cards in it are set
+    // into the panel (FinishCard).
     final content = Expanded(
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: mainMaxWidth),
-          child: main,
+      child: FinishPane(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: mainMaxWidth),
+            child: main,
+          ),
         ),
       ),
     );
-    final line = VerticalDivider(width: 1, thickness: 1, color: colors.border);
+    final line = finishRule(
+      context,
+      VerticalDivider(width: 1, thickness: 1, color: colors.border),
+    );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: sideFirst ? [pane, line, content] : [content, line, pane],

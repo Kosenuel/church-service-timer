@@ -10,6 +10,7 @@ import 'package:church_service_timer/shared/home_widgets.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/services.dart';
 
 /// Opens the Screens panel as a page of its own: on a phone the whole
@@ -809,6 +810,7 @@ class ScreensPageState extends State<ScreensPage> {
         canPop: !c.uiLocked,
         child: Scaffold(
           appBar: AppBar(
+            flexibleSpace: finishBar(context),
             title: const Text('Screens'),
             actions: [
               if (locked)
@@ -831,39 +833,44 @@ class ScreensPageState extends State<ScreensPage> {
                     child: Center(
                       child: SizedBox(
                         width: width,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'One tap sets what a whole group shows; a scene sets every group at once.',
-                              style: TextStyle(color: colors.muted),
-                            ),
-                            if (locked) ...[
-                              const SizedBox(height: 6),
+                        // With a finish the page is one panel of it, its
+                        // cards set into it, so the notes and the status
+                        // line are not on the bare wall.
+                        child: FinishPanelled(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                               Text(
-                                c.uiLocked
-                                    ? 'Controls are locked on Live.'
-                                    : 'Take control on this device to change the screens.',
-                                key: const ValueKey('screens-locked'),
-                                style: TextStyle(color: colors.warning),
-                              ),
-                            ],
-                            const SizedBox(height: 14),
-                            scenesCard(narrow),
-                            const SizedBox(height: 14),
-                            board(width),
-                            const SizedBox(height: 8),
-                            Semantics(
-                              liveRegion: true,
-                              child: Text(
-                                status,
-                                key: const ValueKey('screens-status'),
+                                'One tap sets what a whole group shows; a scene sets every group at once.',
                                 style: TextStyle(color: colors.muted),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            screensCard(),
-                          ],
+                              if (locked) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  c.uiLocked
+                                      ? 'Controls are locked on Live.'
+                                      : 'Take control on this device to change the screens.',
+                                  key: const ValueKey('screens-locked'),
+                                  style: TextStyle(color: colors.warning),
+                                ),
+                              ],
+                              const SizedBox(height: 14),
+                              scenesCard(narrow),
+                              const SizedBox(height: 14),
+                              board(width),
+                              const SizedBox(height: 8),
+                              Semantics(
+                                liveRegion: true,
+                                child: Text(
+                                  status,
+                                  key: const ValueKey('screens-status'),
+                                  style: TextStyle(color: colors.muted),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              screensCard(),
+                            ],
+                          ),
                         ),
                       ),
                     ),

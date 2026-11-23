@@ -30,7 +30,10 @@ class FinishSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context);
-    final strength = value.finishStrength == 'full' ? 1.0 : .5;
+    // What the switch shows: the strength chosen, or the drawn finish's own.
+    final drawn = effectiveFinish(themeId, value.finish);
+    final shown = finishStrengthFor(drawn, value.finishStrength);
+    final ownDefault = defaultFinishStrength(drawn);
     final plain = value.highContrast || MediaQuery.highContrastOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -87,7 +90,16 @@ class FinishSection extends StatelessWidget {
                               child: i < row.length
                                   ? FinishTile(
                                       id: row[i],
-                                      strength: strength,
+                                      // Each tile at the strength choosing
+                                      // it would give.
+                                      strength:
+                                          finishStrengthFor(
+                                                row[i],
+                                                value.finishStrength,
+                                              ) ==
+                                              'full'
+                                          ? 1.0
+                                          : .5,
                                       palette: palette,
                                       selected: value.finish == row[i],
                                       onTap: onChanged == null
@@ -128,14 +140,25 @@ class FinishSection extends StatelessWidget {
                 ButtonSegment(value: 'subtle', label: Text('Subtle')),
                 ButtonSegment(value: 'full', label: Text('Full')),
               ],
-              selected: {value.finishStrength},
-              onSelectionChanged:
-                  onChanged == null ||
-                      (value.finish == 'flat' &&
-                          !paperyThemeIds.contains(themeId))
+              selected: {shown},
+              onSelectionChanged: drawn == 'flat' || onChanged == null
                   ? null
                   : (v) => onChanged!(value.copyWith(finishStrength: v.first)),
             ),
+            // A strength chosen that is not this finish's own can go back
+            // to it, so a choice made for one finish is never a trap.
+            if (drawn != 'flat' &&
+                value.finishStrength != null &&
+                shown != ownDefault)
+              TextButton(
+                key: const ValueKey('finish-strength-default'),
+                onPressed: onChanged == null
+                    ? null
+                    : () => onChanged!(value.copyWith(defaultStrength: true)),
+                child: Text(
+                  '${finishName(drawn)} looks best at ${ownDefault == 'full' ? 'Full' : 'Subtle'}',
+                ),
+              ),
           ],
         ),
         if (plain) ...[

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
 
@@ -52,11 +54,27 @@ class SettingsWide extends StatelessWidget {
         side: side!(context),
       );
     }
+    // One column: with a finish it is a panel, so the page's words and
+    // cards are on the material, not its bare wall.
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth + 64),
-        child: content,
+        child: finishLook(context).active
+            ? Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: finishGapX,
+                  vertical: finishGapY + 8,
+                ),
+                child: FinishSurface(
+                  child: SingleChildScrollView(
+                    primary: false,
+                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+                    child: wideMain ?? main,
+                  ),
+                ),
+              )
+            : content,
       ),
     );
   }

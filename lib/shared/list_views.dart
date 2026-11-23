@@ -3,6 +3,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 
 /// One choice in the Share or Export sheet.
@@ -40,10 +41,13 @@ extension ListViews on HomeState {
     final colors = appColors(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
+      child: FinishCard(
         key: ValueKey('hint-$id'),
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(12),
+        flat: (child) => Material(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(12),
+          child: child,
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
           child: Row(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
@@ -815,8 +816,7 @@ class TemplateEditorState extends State<TemplateEditor> {
         ),
       ],
     );
-    final bar = Material(
-      color: colors.surface,
+    final bar = FinishBarPlate(
       child: SafeArea(
         top: false,
         child: Container(
@@ -912,9 +912,18 @@ class TemplateEditorState extends State<TemplateEditor> {
             )
           : SafeArea(
               bottom: false,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                children: fields,
+              child: FinishPane(
+                child: ListView(
+                  // Clear of a panel's edge with a finish, so the first
+                  // field's label is whole.
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    finishLook(context).active ? 18 : 8,
+                    16,
+                    24,
+                  ),
+                  children: fields,
+                ),
               ),
             ),
       bottomNavigationBar: wide ? null : bar,

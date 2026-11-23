@@ -68,9 +68,10 @@ class SavedLook {
   final String name, layout, themeId, density, keyHints;
   final bool highContrast;
 
-  /// The finish and its strength; a look saved before finishes existed is
-  /// Flat and Subtle.
-  final String finish, finishStrength;
+  /// The finish and its strength (null when none was chosen: the finish's
+  /// own default); a look saved before finishes existed is Flat.
+  final String finish;
+  final String? finishStrength;
   const SavedLook({
     required this.name,
     required this.layout,
@@ -79,9 +80,13 @@ class SavedLook {
     this.keyHints = 'automatic',
     this.highContrast = false,
     this.finish = defaultFinish,
-    this.finishStrength = defaultFinishStrength,
+    this.finishStrength,
   });
-  factory SavedLook.fromJson(Json j) {
+
+  /// [legacy]: saved before strengths could be left to the finish, when
+  /// every look wrote Subtle whether or not it was chosen; that Subtle reads
+  /// as not chosen (see readFinishStrength).
+  factory SavedLook.fromJson(Json j, {bool legacy = false}) {
     keys(j, {
       'name',
       'layout',
@@ -100,7 +105,9 @@ class SavedLook {
       keyHints: j['keyHints'] is String ? j['keyHints'] as String : '',
       highContrast: j['highContrast'] == true,
       finish: finishValue(j['finish']),
-      finishStrength: finishStrengthValue(j['finishStrength']),
+      finishStrength: legacy && j['finishStrength'] != 'full'
+          ? null
+          : finishStrengthValue(j['finishStrength']),
     );
     require(
       desktopLayoutIds.contains(look.layout) &&
@@ -125,10 +132,9 @@ class SavedLook {
     'highContrast': highContrast,
     // Left out for a plain look, so a backup of one still opens in an
     // earlier version, which rejects fields it does not know.
-    if (finish != defaultFinish || finishStrength != defaultFinishStrength) ...{
-      'finish': finish,
-      'finishStrength': finishStrength,
-    },
+    if (finish != defaultFinish || finishStrength != null) 'finish': finish,
+    // Only a chosen strength; without one the look takes the finish's own.
+    'finishStrength': ?finishStrength,
   };
 
   /// The look that [appearance] and [themeId] make now.
@@ -157,6 +163,7 @@ class SavedLook {
         highContrast: highContrast,
         finish: finish,
         finishStrength: finishStrength,
+        defaultStrength: finishStrength == null,
       );
 }
 
@@ -179,7 +186,7 @@ String savedLookName(dynamic value) {
   return name;
 }
 
-List<SavedLook> readSavedLooks(dynamic value) {
+List<SavedLook> readSavedLooks(dynamic value, {bool legacy = false}) {
   if (value == null) return [];
   require(
     value is List && value.length <= savedLookLimit,
@@ -187,7 +194,7 @@ List<SavedLook> readSavedLooks(dynamic value) {
   );
   final looks = [
     for (final e in value as List)
-      SavedLook.fromJson(Map<String, dynamic>.from(e as Map)),
+      SavedLook.fromJson(Map<String, dynamic>.from(e as Map), legacy: legacy),
   ];
   require(
     looks.map((l) => l.name.toLowerCase()).toSet().length == looks.length,

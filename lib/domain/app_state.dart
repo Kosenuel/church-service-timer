@@ -314,6 +314,7 @@ class AppState {
         14,
         15,
         16,
+        17,
       }.contains(j['version']),
       'Unsupported saved-state version.',
     );
@@ -369,7 +370,14 @@ class AppState {
       churchBanner: churchBannerValue(j['churchBanner'] ?? ''),
       churchLogo: churchLogoValue(j['churchLogo'] ?? ''),
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
-      savedLooks: readSavedLooks(j['savedLooks']),
+      // The one-time reading of a Subtle saved before 0.39.0 as not chosen
+      // covers the looks saved with it.
+      savedLooks: readSavedLooks(
+        j['savedLooks'],
+        legacy: savedBeforeFinishDefaults(
+          Map<String, dynamic>.from(j['appearance'] ?? {}),
+        ),
+      ),
       keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
       keepScreenAlways: boolSetting(j['keepScreenAlways'] ?? false),
       lockScreenControls: boolSetting(j['lockScreenControls'] ?? true),
@@ -509,6 +517,18 @@ class AppState {
           .toList();
     }
     if ((j['version'] as int) < 16) a.upgradeDefaultCues();
+    // New installs end on the clock. Saved data cannot say whether the stock
+    // end screen was chosen or never changed, so only the app-wide default
+    // that is still exactly the stock one moves to the clock, for the
+    // programs made from now on. Programs already saved, a customised
+    // default and the running service keep what they hold. Runs once: later
+    // versions hold the church's own choice, stock or not.
+    if ((j['version'] as int) < 17 &&
+        a.defaults.end != null &&
+        jsonEncode(a.defaults.end!.toJson()) ==
+            jsonEncode(defaultEndScreen.toJson())) {
+      a.defaults = a.defaults.withEnd(null);
+    }
     a.session.clockFormat = a.clockFormat;
     a.session.clockBlink = a.clockBlink;
     a.applySharedZero();
@@ -516,7 +536,7 @@ class AppState {
     return a;
   }
   Json toJson() => {
-    'version': 16,
+    'version': 17,
     'appearance': appearance.toJson(),
     'programLibrary': programLibrary.toJson(),
     'programHistory': writeProgramHistory(programHistory),
