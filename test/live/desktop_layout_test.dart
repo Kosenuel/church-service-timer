@@ -1,5 +1,6 @@
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/live/mission_control_live.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
@@ -369,6 +370,162 @@ void main() {
         );
       }
       await t.pumpWidget(const SizedBox());
+    }
+  });
+
+  testWidgets('Mission control fits a laptop window with large system text', (
+    t,
+  ) async {
+    // At 1366 × 768 with text at 1.6 the rundown's blocks were 0.4 short
+    // of their two lines, which overflowed. The text size comes from a
+    // MediaQuery above the app here, as well as from the system below.
+    Timeline three() => Timeline('Sunday Service', const [
+      Segment('Welcome', 5),
+      Segment('Praise & Worship', 20),
+      Segment('Sermon', 40),
+    ], DisplaySettings());
+    for (final (size, scale) in const [
+      (Size(1366, 768), 1.15),
+      (Size(1366, 768), 1.3),
+      (Size(1366, 768), 1.6),
+      (Size(1366, 768), 2.0),
+      (Size(1280, 720), 1.6),
+      (Size(1920, 1080), 1.6),
+      (Size(1920, 1080), 2.0),
+    ]) {
+      final where = 'Mission control at $size ×$scale';
+      setScreen(t, size);
+      final c = AppController(DesktopFakePort());
+      await c.initialize(startTicker: false);
+      await c.commit((draft, _) {
+        draft.appearance = draft.appearance.copyWith(
+          desktopLayout: 'mission_control',
+        );
+      });
+      await c.act('load', value: three());
+      await c.act('start');
+      await t.pumpWidget(
+        MediaQuery(
+          data: MediaQueryData.fromView(
+            t.view,
+          ).copyWith(textScaler: TextScaler.linear(scale)),
+          child: TimerApp(controller: c),
+        ),
+      );
+      await t.pump();
+      expect(t.takeException(), isNull, reason: where);
+      // Each block still has a line of figures under its name.
+      final blocks = find.byType(TimelineBlock);
+      expect(blocks, findsNWidgets(3), reason: where);
+      for (final name in ['Welcome', 'Praise & Worship', 'Sermon']) {
+        final block = find.ancestor(
+          of: find.text(name),
+          matching: find.byType(TimelineBlock),
+        );
+        expect(
+          find.descendant(of: block, matching: find.byType(Text)),
+          findsAtLeast(2),
+          reason: '$name, $where',
+        );
+      }
+      await t.pumpWidget(const SizedBox());
+    }
+
+    // The same through the system's own text size, part-way through.
+    for (final scale in const [1.6, 2.0]) {
+      await running(t, layout: 'mission_control', textScale: scale);
+      expect(t.takeException(), isNull, reason: 'system text ×$scale');
+      await t.pumpWidget(const SizedBox());
+    }
+  });
+
+  testWidgets('a rundown block keeps only the lines its height has room for', (
+    t,
+  ) async {
+    Future<void> block(
+      double height, {
+      double scale = 1,
+      List<String>? more,
+    }) async {
+      await t.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 600,
+                  height: height,
+                  child: TimelineBlock(
+                    name: 'Sermon',
+                    detail: '40 min',
+                    border: Colors.grey,
+                    strong: true,
+                    more: more,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(
+        t.takeException(),
+        isNull,
+        reason: '$height high ×$scale, more $more',
+      );
+    }
+
+    const more = ['Pastor Samuel', 'Planned 40:00', 'Starts about 10:25'];
+
+    // The height the block asks for holds both lines at any text size.
+    for (final scale in const [1.0, 1.3, 1.6, 2.0, 3.0]) {
+      late double needed, rich;
+      await t.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+            child: Scaffold(
+              body: Builder(
+                builder: (context) {
+                  needed = TimelineBlock.heightFor(context);
+                  rich = TimelineBlock.heightFor(context, rich: true);
+                  return const SizedBox();
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await block(needed, scale: scale);
+      expect(find.text('40 min'), findsOneWidget, reason: '×$scale');
+      // A little shorter, as the rundown's blocks were at 1.6: the name
+      // alone.
+      await block(needed - 6, scale: scale);
+      expect(find.text('Sermon'), findsOneWidget, reason: '×$scale');
+      expect(find.text('40 min'), findsNothing, reason: '×$scale');
+      await block(rich, scale: scale, more: more);
+      for (final text in more) {
+        expect(find.text(text), findsOneWidget, reason: '$text ×$scale');
+      }
+    }
+
+    // The taller block steps down: every line, the name and the short
+    // detail, the name alone, and still nothing overflows with no height.
+    await block(118, more: more);
+    expect(find.text('Pastor Samuel'), findsOneWidget);
+    expect(find.text('40 min'), findsNothing);
+    await block(70, more: more);
+    expect(find.text('Pastor Samuel'), findsNothing);
+    expect(find.text('40 min'), findsOneWidget);
+    await block(40, more: more);
+    expect(find.text('Sermon'), findsOneWidget);
+    expect(find.text('40 min'), findsNothing);
+    for (final height in const [20.0, 8.0, 2.0]) {
+      await block(height);
+      await block(height, scale: 2, more: more);
+      expect(find.text('Sermon'), findsOneWidget);
     }
   });
 

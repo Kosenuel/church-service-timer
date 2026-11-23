@@ -859,13 +859,18 @@ class RundownTimeline extends StatelessWidget {
         double x(int ms) => ms / total * w;
         final plannedEnd = x(s.plannedMs);
         // Two lines of text in each block and one under it: taller with
-        // large system text, so nothing is cut off.
+        // large system text, so nothing is cut off. Never less than the
+        // lines take at that size, which grow faster than this allows.
         final scaler = MediaQuery.textScalerOf(context);
+        final blocks = math.max(
+          rich ? scaler.scale(88) + 30 : scaler.scale(31) + 19,
+          TimelineBlock.heightFor(context, rich: rich),
+        );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
-              height: rich ? scaler.scale(88) + 30 : scaler.scale(31) + 19,
+              height: blocks,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -1134,72 +1139,98 @@ class TimelineBlock extends StatelessWidget {
                   ),
                 LayoutBuilder(
                   builder: (context, box) {
-                    // A short segment's block is narrow. It keeps what
-                    // can be read in it: the full lines, then the name
-                    // with the short detail, then the name alone.
+                    // A short segment's block is narrow, and large system
+                    // text can make its lines taller than the block. It
+                    // keeps what can be read in it: the full lines, then
+                    // the name with the short detail, then the name alone.
                     final scale =
                         MediaQuery.textScalerOf(context).scale(100) / 100;
                     final roomy = box.maxWidth >= 128 * scale;
                     final tight = box.maxWidth < 64 * scale;
-                    final rich = more != null && !tight;
+                    final pad = more == null ? _plainPad : _richPad;
+                    bool fits(List<double> sizes) =>
+                        _linesHeight(context, sizes) <= box.maxHeight - 2 * pad;
+                    final full =
+                        more != null && roomy && !tight && fits(_richSizes);
+                    final two =
+                        !full &&
+                        !(more != null && tight) &&
+                        fits(more == null ? _plainSizes : _shortSizes);
+                    final title = Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: full ? _richSizes.first : 12,
+                        fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
+                      ),
+                    );
                     return Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: rich && roomy ? 10 : 7,
-                        vertical: more == null ? 6 : 9,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
-                            style: TextStyle(
-                              fontSize: rich && roomy ? 15 : 12,
-                              fontWeight: strong
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                            ),
-                          ),
-                          if (more != null && tight)
-                            const SizedBox()
-                          else if (more != null && !roomy) ...[
-                            const Spacer(),
-                            line(
-                              detail,
-                              colour:
-                                  outcomeColour ??
-                                  (strong ? colors.text : null),
-                              strong: strong || outcomeColour != null,
-                            ),
-                          ] else if (more != null) ...[
-                            line(more[0]),
-                            const Spacer(),
-                            line(more[1]),
-                            line(
-                              more[2],
-                              colour:
-                                  outcomeColour ??
-                                  (strong ? colors.text : null),
-                              strong: strong || outcomeColour != null,
-                            ),
-                          ] else
-                            Text(
-                              detail,
-                              maxLines: 1,
-                              overflow: TextOverflow.clip,
-                              softWrap: false,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: colors.muted,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
+                        horizontal: full ? 10 : 7,
+                        // The name alone keeps as much of its padding as
+                        // the height leaves it.
+                        vertical: full || two
+                            ? pad
+                            : math.max(
+                                0,
+                                math.min(
+                                  pad,
+                                  (box.maxHeight -
+                                          _linesHeight(context, const [12])) /
+                                      2,
+                                ),
                               ),
-                            ),
-                        ],
                       ),
+                      child: !full && !two
+                          // Not a Column: in a block shorter than one line
+                          // the name is cut at the edge, with no overflow.
+                          ? Align(
+                              alignment: Alignment.topLeft,
+                              widthFactor: 1,
+                              child: title,
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                title,
+                                if (full) ...[
+                                  line(more[0]),
+                                  const Spacer(),
+                                  line(more[1]),
+                                  line(
+                                    more[2],
+                                    colour:
+                                        outcomeColour ??
+                                        (strong ? colors.text : null),
+                                    strong: strong || outcomeColour != null,
+                                  ),
+                                ] else if (more != null) ...[
+                                  const Spacer(),
+                                  line(
+                                    detail,
+                                    colour:
+                                        outcomeColour ??
+                                        (strong ? colors.text : null),
+                                    strong: strong || outcomeColour != null,
+                                  ),
+                                ] else
+                                  Text(
+                                    detail,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.clip,
+                                    softWrap: false,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: colors.muted,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
                     );
                   },
                 ),
@@ -1210,6 +1241,45 @@ class TimelineBlock extends StatelessWidget {
       ),
     );
   }
+
+  /// The text sizes of the lines of a block with [more], of the same
+  /// block too narrow for them, and of one without.
+  static const _richSizes = [15.0, 12.0, 12.0, 12.0];
+  static const _shortSizes = [12.0, 12.0];
+  static const _plainSizes = [12.0, 11.0];
+
+  /// The space above and below the lines, with [more] and without.
+  static const _richPad = 9.0, _plainPad = 6.0;
+
+  /// How tall lines of text of these [sizes] are here, at the system
+  /// text size.
+  static double _linesHeight(BuildContext context, List<double> sizes) {
+    final style = DefaultTextStyle.of(context).style;
+    final scaler = MediaQuery.textScalerOf(context);
+    var height = 0.0;
+    for (final size in sizes) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: '0',
+          style: style.copyWith(fontSize: size),
+        ),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      height += painter.height;
+      painter.dispose();
+    }
+    return height;
+  }
+
+  /// The height a block needs for all its lines at the system text size:
+  /// the name and one line of figures, or with [rich] the lines of [more].
+  static double heightFor(BuildContext context, {bool rich = false}) =>
+      _linesHeight(context, rich ? _richSizes : _plainSizes) +
+      2 * (rich ? _richPad : _plainPad) +
+      // The running segment's outline, and a pixel to spare.
+      4;
 }
 
 /// One key in [KeyLegend]: the keys, what they do, and how much the
