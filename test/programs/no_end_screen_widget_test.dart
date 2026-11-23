@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../live/desktop_layout_test.dart' show DesktopFakePort;
 import '../support/fake_port.dart';
+import '../support/stock_end_screen.dart';
 import '../support/widget_setup.dart';
 
 /// The choice of no end screen, which shows the clock when the service ends.
@@ -39,6 +40,8 @@ void main() {
     setScreen(t, size);
     final c = AppController(desktop ? DesktopFakePort() : FakePort());
     await c.initialize(startTicker: false);
+    // These tests start from an install that has the stock end screen.
+    await useStockEndScreen(c);
     await c.commit((draft, _) {
       if (desktop) {
         draft.appearance = draft.appearance.copyWith(
