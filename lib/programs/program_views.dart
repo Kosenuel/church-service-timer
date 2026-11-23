@@ -1,5 +1,6 @@
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
+import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -762,7 +763,12 @@ extension TemplateViews on HomeState {
                     ],
                   ),
           );
-          if (embedded) return Material(color: colors.surface, child: body);
+          // Beside the list, a panel of the finish when there is one.
+          if (embedded) {
+            return finishLook(context).active
+                ? FinishSurface(radius: 18, child: body)
+                : Material(color: colors.surface, child: body);
+          }
           return Scaffold(
             appBar: AppBar(
               flexibleSpace: finishBar(context),

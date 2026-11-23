@@ -4,6 +4,8 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 
 /// Puts the floating New program button at the foot of the list column
 /// instead of the window's right edge.
@@ -32,7 +34,18 @@ class ListColumnButtonLocation extends FloatingActionButtonLocation {
 extension ProgramsDesktop on HomeState {
   Widget programsDesktop() {
     final colors = appColors(context);
-    final line = VerticalDivider(width: 1, thickness: 1, color: colors.border);
+    final line = finishRule(
+      context,
+      VerticalDivider(width: 1, thickness: 1, color: colors.border),
+    );
+    // A column: the plain surface in Flat, and with a finish a panel of its
+    // material, as Live's columns are, so nothing sits on the bare wall.
+    final finished = finishLook(context).active;
+    Widget column(Widget child, {bool surface = true}) => finished
+        ? FinishPane(child: child)
+        : surface
+        ? Material(color: colors.surface, child: child)
+        : child;
     // The program stays open only while the search and filter show it,
     // as on the tablet page.
     final shown = c.state.programLibrary.find(
@@ -44,7 +57,11 @@ extension ProgramsDesktop on HomeState {
     void select(String name) => refreshHome(() => programsPage.open = name);
     return LayoutBuilder(
       builder: (context, space) {
-        final list = (space.maxWidth * .22).clamp(300.0, 360.0);
+        // A finish's panel takes a margin and an edge from the column, so
+        // the list is wider by as much, and its title and buttons keep
+        // their room.
+        final list =
+            (space.maxWidth * .22).clamp(300.0, 360.0) + (finished ? 28 : 0);
         final summary = (space.maxWidth * .22).clamp(320.0, 380.0);
         // The page starts after the side rail, when there is one.
         programsButtonLocation.columnRight =
@@ -55,9 +72,8 @@ extension ProgramsDesktop on HomeState {
           children: [
             SizedBox(
               width: list,
-              child: Material(
-                color: colors.surface,
-                child: SingleChildScrollView(
+              child: column(
+                SingleChildScrollView(
                   key: const ValueKey('programs-list-pane'),
                   primary: false,
                   padding: const EdgeInsets.only(top: 12),
@@ -69,16 +85,18 @@ extension ProgramsDesktop on HomeState {
             ),
             line,
             Expanded(
-              child: open == null
-                  ? programsDesktopEmpty()
-                  : programTable(open, select),
+              child: column(
+                surface: false,
+                open == null
+                    ? programsDesktopEmpty()
+                    : programTable(open, select),
+              ),
             ),
             line,
             SizedBox(
               width: summary,
-              child: Material(
-                color: colors.surface,
-                child: SingleChildScrollView(
+              child: column(
+                SingleChildScrollView(
                   key: const ValueKey('programs-summary-pane'),
                   primary: false,
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),

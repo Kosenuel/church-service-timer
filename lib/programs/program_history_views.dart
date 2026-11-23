@@ -49,12 +49,16 @@ extension ProgramHistoryViews on HomeState {
                       )
                     else
                       // In a card like the other lists, not bare rows.
-                      Material(
-                        color: colors.surface,
-                        clipBehavior: Clip.antiAlias,
-                        shape: RoundedRectangleBorder(
-                          side: BorderSide(color: colors.border),
-                          borderRadius: BorderRadius.circular(18),
+                      FinishCard(
+                        radius: 18,
+                        flat: (child) => Material(
+                          color: colors.surface,
+                          clipBehavior: Clip.antiAlias,
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(color: colors.border),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: child,
                         ),
                         child: AppMenuList(
                           key: const ValueKey('program-versions'),

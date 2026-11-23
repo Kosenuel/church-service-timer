@@ -1,5 +1,6 @@
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 
 /// The small notice on Live, while standing by, that the automatic update
@@ -20,12 +21,17 @@ extension UpdateAvailableNotice on HomeState {
     final colors = appColors(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
+      // A card of the finish's material when there is one.
+      child: FinishCard(
         key: const ValueKey('update-available-notice'),
-        color: colors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: colors.border),
+        radius: 14,
+        flat: (child) => Material(
+          color: colors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: colors.border),
+          ),
+          child: child,
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),

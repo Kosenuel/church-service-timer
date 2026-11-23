@@ -4,6 +4,7 @@ import 'package:church_service_timer/shared/app_pickers.dart';
 import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/live/standing_by_desktop.dart';
 import 'package:church_service_timer/live/practice_views.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
@@ -306,13 +307,17 @@ extension LivePage on HomeState {
                       width: items.length.isOdd && i == items.length - 1
                           ? space.maxWidth
                           : width,
-                      child: Material(
+                      child: FinishCard(
                         key: ValueKey('quick-load:${p.name}'),
-                        color: colors.surface,
-                        clipBehavior: Clip.antiAlias,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(color: colors.border),
+                        radius: 14,
+                        flat: (child) => Material(
+                          color: colors.surface,
+                          clipBehavior: Clip.antiAlias,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(color: colors.border),
+                          ),
+                          child: child,
                         ),
                         child: InkWell(
                           onTap: disabled
@@ -388,13 +393,17 @@ extension LivePage on HomeState {
         : colors.accent;
     return Padding(
       padding: const EdgeInsets.only(top: 18),
-      child: Material(
+      child: FinishCard(
         key: const ValueKey('last-service-card'),
-        color: colors.surface,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: colors.border),
+        radius: 14,
+        flat: (child) => Material(
+          color: colors.surface,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: colors.border),
+          ),
+          child: child,
         ),
         child: InkWell(
           onTap: () => openReport(r),
@@ -1795,10 +1804,14 @@ extension LivePage on HomeState {
       if (controlsLocked)
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: Material(
+          child: FinishCard(
             key: const ValueKey('controls-locked-banner'),
-            color: appColors(context).surface,
-            borderRadius: BorderRadius.circular(14),
+            radius: 14,
+            flat: (child) => Material(
+              color: appColors(context).surface,
+              borderRadius: BorderRadius.circular(14),
+              child: child,
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
@@ -1844,33 +1857,39 @@ extension LivePage on HomeState {
           (s.active || s.phase == 'ended'))
         Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: Container(
+          child: FinishCard(
             key: const ValueKey('display-disconnected-banner'),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: appColors(context).surface,
-              borderRadius: BorderRadius.circular(12),
+            radius: 12,
+            flat: (child) => DecoratedBox(
+              decoration: BoxDecoration(
+                color: appColors(context).surface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: child,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.wifi_off, color: appColors(context).error),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Display disconnected',
-                        style: TextStyle(
-                          color: appColors(context).error,
-                          fontWeight: FontWeight.w600,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.wifi_off, color: appColors(context).error),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Display disconnected',
+                          style: TextStyle(
+                            color: appColors(context).error,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

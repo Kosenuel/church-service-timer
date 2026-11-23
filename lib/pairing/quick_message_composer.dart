@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -250,12 +251,16 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
         ),
       ),
       const SizedBox(height: 8),
-      Material(
-        color: colors.surface,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colors.border),
+      FinishCard(
+        radius: 16,
+        flat: (child) => Material(
+          color: colors.surface,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: colors.border),
+          ),
+          child: child,
         ),
         child: Column(
           children: [
@@ -462,8 +467,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
               ),
             ),
           ),
-          Material(
-            color: colors.surface,
+          FinishBarPlate(
             child: SafeArea(
               top: false,
               child: Container(
@@ -539,8 +543,7 @@ class _QuickMessageComposerState extends State<QuickMessageComposer> {
             children: content,
           ),
         ),
-        Material(
-          color: colors.surface,
+        FinishBarPlate(
           child: SafeArea(
             top: false,
             child: Container(

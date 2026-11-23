@@ -6,6 +6,7 @@ import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:church_service_timer/web_stage/web_stage_views.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/wide_detail.dart';
@@ -961,11 +962,13 @@ extension PairingViews on HomeState {
                   ),
                 ),
               ),
-              VerticalDivider(width: 1, thickness: 1, color: colors.border),
+              finishRule(
+                context,
+                VerticalDivider(width: 1, thickness: 1, color: colors.border),
+              ),
               SizedBox(
                 width: pane,
-                child: Material(
-                  color: colors.surface,
+                child: FinishColumn(
                   child: SingleChildScrollView(
                     key: const ValueKey('web-screens-pane'),
                     primary: false,

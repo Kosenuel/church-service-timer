@@ -357,32 +357,36 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
             main: SingleChildScrollView(
               primary: false,
               padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
-              child: Form(
-                key: form,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ...fields,
-                    const SizedBox(height: 24),
-                    // The one main action last, where the eye ends up;
-                    // clearing the draft is the quiet one at the left.
-                    Row(
-                      children: [
-                        TextButton.icon(
-                          style: TextButton.styleFrom(
-                            foregroundColor: appColors(context).error,
+              // On a panel of the finish, not its bare wall.
+              child: FinishPanelled(
+                padding: const EdgeInsets.all(20),
+                child: Form(
+                  key: form,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ...fields,
+                      const SizedBox(height: 24),
+                      // The one main action last, where the eye ends up;
+                      // clearing the draft is the quiet one at the left.
+                      Row(
+                        children: [
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              foregroundColor: appColors(context).error,
+                            ),
+                            onPressed: busy ? null : clearDraft,
+                            icon: const Icon(Icons.delete_outline),
+                            label: const Text('Clear draft'),
                           ),
-                          onPressed: busy ? null : clearDraft,
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('Clear draft'),
-                        ),
-                        const Spacer(),
-                        copy,
-                        const SizedBox(width: 10),
-                        send,
-                      ],
-                    ),
-                  ],
+                          const Spacer(),
+                          copy,
+                          const SizedBox(width: 10),
+                          send,
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
