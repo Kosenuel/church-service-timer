@@ -617,7 +617,7 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
                 ),
                 // Never part of the stage picture: drawn here only.
                 IgnorePointer(
-                  child: FreshSwitcher(
+                  child: AnimatedSwitcher(
                     duration: motion,
                     child: _tip
                         ? _tipView(context, size)
