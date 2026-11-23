@@ -63,7 +63,7 @@ void main() {
     () {
       // pubspec "X+N" and appVersion "X (N)" must agree; no edit per release.
       final pubspec = RegExp(
-        r'^version: (\d+\.\d+\.\d+)\+(\d+)$',
+        r'^version: (\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\+(\d+)$',
         multiLine: true,
       ).firstMatch(File('pubspec.yaml').readAsStringSync())!;
       expect(appVersion, '${pubspec.group(1)} (${pubspec.group(2)})');
