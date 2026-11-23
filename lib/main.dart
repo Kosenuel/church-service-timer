@@ -165,7 +165,10 @@ class TimerApp extends StatelessWidget {
                 shape: controller.ready
                     ? controller.state.pixelShape
                     : 'square',
-                child: child!,
+                child: SignFit(
+                  required: !controller.ready || controller.signFitRequired,
+                  child: child!,
+                ),
               ),
             ),
           ),

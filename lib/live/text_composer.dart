@@ -17,6 +17,28 @@ import 'package:church_service_timer/live/cue_preview.dart';
 bool sameLayout(TextLayout? a, TextLayout? b) =>
     jsonEncode(a?.toJson()) == jsonEncode(b?.toJson());
 
+/// [effectChoices] as the editor lists them: "(must fit)" is left off when
+/// no LED sign is in use, as nothing then has to fit.
+List<ChoiceOption<String>> effectChoicesFor(bool signFit) => signFit
+    ? effectChoices
+    : [
+        for (final o in effectChoices)
+          if (o.value == 'static')
+            const ChoiceOption(
+              value: 'static',
+              label: 'Static',
+              hint: 'Holds still',
+            )
+          else if (o.value == 'flashHold')
+            const ChoiceOption(
+              value: 'flashHold',
+              label: 'Flash then hold',
+              hint: 'Flashes three times, then stays steady',
+            )
+          else
+            o,
+      ];
+
 /// The effects a cue may have, as the editor lists them, each with a line
 /// saying what it does. "On the LED sign: steady, or scrolls if too wide"
 /// marks those only screens can show. Only Static and Flash then hold must
@@ -182,9 +204,20 @@ class _TextComposerState extends State<TextComposer> {
               setState(() => fontError = '$e');
           });
     }
-    String? error;
+    // Text only has to fit the sign when a sign is the display in use; a
+    // note says so when it would not fit one.
+    final signFit = SignFit.of(context);
+    String? error, signNote;
     try {
-      validateLayout(layout);
+      validateLayout(layout, signFit: signFit);
+      if (!signFit) {
+        try {
+          validateLayout(layout);
+        } catch (_) {
+          signNote =
+              'Too wide for the LED sign’s 32 pixels with this effect. Fine for stage screens; before sending it to a sign, choose Scroll long text or make it shorter.';
+        }
+      }
     } catch (e) {
       error = e.toString();
     }
@@ -250,7 +283,7 @@ class _TextComposerState extends State<TextComposer> {
         helperText: effectNotes[effect],
         helperMaxLines: 3,
       ),
-      options: effectChoices,
+      options: effectChoicesFor(signFit),
       onChanged: (v) => setState(() {
         effect = v!;
         watch.reset();
@@ -388,6 +421,14 @@ class _TextComposerState extends State<TextComposer> {
                 const SizedBox(height: 16),
                 screenControls,
               ],
+              if (error == null && signNote != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    signNote,
+                    style: TextStyle(color: appColors(context).muted),
+                  ),
+                ),
               if (error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),

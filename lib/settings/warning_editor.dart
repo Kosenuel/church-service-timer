@@ -115,7 +115,7 @@ class _WarningEditorState extends State<WarningEditor> {
         threshold >= 0 && threshold <= 3599,
         'Choose a time up to 59:59.',
       );
-      validateLayout(cue);
+      validateLayout(cue, signFit: SignFit.of(context));
       require(
         duration >= 1 && duration <= 120,
         'Choose from 1 to 120 seconds.',

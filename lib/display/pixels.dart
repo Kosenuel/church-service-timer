@@ -115,7 +115,11 @@ List<String>? stageWordGroupsOf(TextLayout? l) {
   }
 }
 
-void validateLayout(TextLayout layout) {
+/// Whether [layout] can be saved and shown. With [signFit] (the default),
+/// text must also fit the LED sign as its effect requires. Pass false when
+/// no sign is the display in use: stage screens show any width, and the
+/// check is made again when something is sent to a sign.
+void validateLayout(TextLayout layout, {bool signFit = true}) {
   layout.validate();
   final unknown = layout.text.runes
       .where((r) => !layoutGlyphs(layout).containsKey(String.fromCharCode(r)))
@@ -124,6 +128,7 @@ void validateLayout(TextLayout layout) {
     unknown.isEmpty,
     'This pixel font does not support: ${unknown.map((r) => 'U+${r.toRadixString(16).toUpperCase().padLeft(4, '0')}').join(', ')}. Use basic Latin letters, numbers and supported punctuation.',
   );
+  if (!signFit) return;
   final width = textWidth(layout);
   // Scroll long text, and the effects only screens show, scroll across
   // the sign when they are too wide for it.
@@ -151,14 +156,14 @@ void validateLayout(TextLayout layout) {
   );
 }
 
-void validateTimelinePixels(Timeline timeline) {
+void validateTimelinePixels(Timeline timeline, {bool signFit = true}) {
   for (final l in [
     ...timeline.display.cues,
     ...timeline.display.warnings.map((w) => w.cue),
     ?timeline.display.end,
     if (timeline.display.zero != null) timeline.display.zero!,
   ]) {
-    validateLayout(l);
+    validateLayout(l, signFit: signFit);
   }
 }
 
@@ -264,6 +269,18 @@ class LedAppearance extends InheritedWidget {
       'square';
   @override
   bool updateShouldNotify(LedAppearance old) => shape != old.shape;
+}
+
+/// Above the Navigator like [LedAppearance]: whether text must fit the LED
+/// sign to be sent or saved, because a sign is the display in use. True
+/// when nothing says otherwise.
+class SignFit extends InheritedWidget {
+  final bool required;
+  const SignFit({super.key, required this.required, required super.child});
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SignFit>()?.required ?? true;
+  @override
+  bool updateShouldNotify(SignFit old) => required != old.required;
 }
 
 class LedMatrix extends StatelessWidget {
