@@ -99,6 +99,27 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
 #stage .msg p { font-size:6vh; line-height:1.2; margin:0; white-space:pre-wrap; word-break:break-word; }
 #lyr { position:fixed; inset:0; overflow:hidden; background:#000; display:none; z-index:3; container-type:inline-size; }
+/* Slides and timer: the slide's words beside the time, on the theme. */
+#cm { position:fixed; inset:0; display:none; z-index:3; font-family:Roboto, system-ui, "Segoe UI", sans-serif; }
+#cm.up { flex-direction:column; }
+#cm .cmw { flex:62; min-width:0; min-height:0; position:relative; }
+#cm.up .cmw { flex:58; }
+#cm .cmwin { position:absolute; inset:0; display:flex; flex-direction:column; }
+#cm .cml { font-weight:700; letter-spacing:.16em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#cm .cmt { flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; overflow:hidden; }
+#cm .cmt div { line-height:1.18; overflow-wrap:normal; }
+#cm .cmt .num { font-size:.55em; font-weight:700; vertical-align:super; opacity:.7; }
+#cm .cms { flex:38; min-width:0; min-height:0; display:flex; flex-direction:column; box-sizing:border-box; }
+#cm.up .cms { flex:42; }
+#cm .cme { font-weight:700; letter-spacing:.16em; white-space:nowrap; }
+#cm .cmd { flex:5; display:flex; align-items:center; min-height:0; font-weight:500; line-height:1; white-space:nowrap; font-variant-numeric:tabular-nums; }
+#cm .cmd .dg { display:inline-block; width:var(--dg); text-align:center; }
+#cm .cmr { height:1px; opacity:.35; }
+#cm .cmn { flex:4; min-height:0; overflow:hidden; }
+#cm .cmn b { font-weight:700; }
+@keyframes cm-pulse { from { background:#e5333a; } to { background:#ff5b61; } }
+#cm .cms.pulse { animation:cm-pulse 1s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) { #cm .cms.pulse { animation:none; } }
 #lyr .bgl, #lyr .fx, #lyr .dim, #lyr canvas, #lyr img { position:absolute; inset:0; width:100%; height:100%; }
 #lyr img { object-fit:cover; }
 #lyr .bgl { will-change:transform; }
@@ -177,6 +198,7 @@ body.stale #app { opacity:.6; }
 <body>
 <div id="app" class="wrap"></div>
 <div id="stage"><div id="flip"></div><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="rule" id="stageRule"></div><div id="cd"><div class="cdband" id="cdNow"></div><div class="cdband" id="cdNext"></div><div id="cdOnly"></div><div id="cdTag"></div><div id="cdProg"><i></i></div></div><div class="note" id="stageNote"></div></div>
+<div id="cm"><div class="cmw"><div class="cmwin" id="cmWords"><div class="cml" id="cmLabel"></div><div class="cmt" id="cmText"></div></div></div><div class="cms" id="cmSide"><div class="cme" id="cmHead"></div><div class="cmd" id="cmTime"></div><div class="cmr" id="cmRule"></div><div class="cmn" id="cmNext"></div></div></div>
 <div id="lyr"><div class="bgl" id="lyrBg"></div><div class="fx" id="lyrFx"></div><div class="dim" id="lyrDim"></div><div class="words" id="lyrWords"></div><div class="chip" id="lyrChip"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
@@ -190,6 +212,12 @@ const span = (total) => { const h = Math.floor(total / 3600), m = Math.floor(tot
 const ROLES = { order: ['Order of service', 'What is happening now and next. No times.'], stage: ['Stage display', 'The countdown and messages, full screen, for the stage.'], overview: ['Service overview', 'Rundown, time left, ahead or behind, and finish time.'] };
 let token = null, role = null, team = false, info = { church: '', orderAccess: 'code' }, timer = null, lastState = null, hideTools = null;
 try { token = localStorage.getItem('cst-token'); role = localStorage.getItem('cst-role'); team = localStorage.getItem('cst-team') === '1'; } catch (_) {}
+// The screen group this browser is in: from a per-group link (?group=),
+// else the one it was last in. The host may move it; the page keeps that.
+let group = null;
+try { group = localStorage.getItem('cst-group'); } catch (_) {}
+try { const g = new URLSearchParams(location.search).get('group'); if (g && /^[a-z0-9-]{1,24}$/.test(g)) { group = g; localStorage.setItem('cst-group', g); } } catch (_) {}
+function keepGroup(g) { if (!g || !g.id || g.id === group) return; group = g.id; try { localStorage.setItem('cst-group', group); } catch (_) {} }
 function save() { try { if (token) { localStorage.setItem('cst-token', token); localStorage.setItem('cst-role', role); localStorage.setItem('cst-team', team ? '1' : '0'); } else { localStorage.removeItem('cst-token'); } } catch (_) {} }
 // Every request gives up after a few seconds: when the host device leaves
 // the network nothing answers and nothing fails, so without this a request
@@ -207,7 +235,7 @@ function clear(node) { while (node.firstChild) node.removeChild(node.firstChild)
 async function loadInfo() { try { info = (await api('/api/info')).body; } catch (_) {} }
 
 function showJoin(message) {
-  stop(); stopMotion(); renderLyrics(null); token = null; save(); setLost(false); $('req').style.display = 'none';
+  stop(); stopMotion(); renderLyrics(null); renderMonitor(null); token = null; save(); setLost(false); $('req').style.display = 'none';
   $('stage').style.display = 'none'; clear($('tools'));
   const app = $('app'); clear(app); app.style.display = 'block';
   app.append(el('div', 'tag', 'Church Service Timer'), el('h1', '', info.church || 'Welcome'));
@@ -223,7 +251,7 @@ function showJoin(message) {
   const join = async (code) => {
     go.disabled = true; err.textContent = '';
     try {
-      const r = await api('/api/join', { code, role: role && role !== 'order' ? role : 'stage' });
+      const r = await api('/api/join', { code, role: role && role !== 'order' ? role : 'stage', group });
       if (r.status === 200) { token = r.body.token; role = r.body.role; team = r.body.team; save(); start(); }
       else err.textContent = r.body.error || 'Could not join.';
     } catch (_) { err.textContent = 'The host device did not answer. Check you are on the same Wi-Fi.'; }
@@ -377,7 +405,7 @@ async function poll() {
   try {
     const r = await api('/api/state?token=' + encodeURIComponent(token));
     if (r.status === 401) { showJoin('The codes changed or this device was removed. Please join again.'); return; }
-    if (r.status === 200) { misses = 0; lastOk = Date.now(); setLost(false); role = r.body.role; team = r.body.team; render(r.body); }
+    if (r.status === 200) { misses = 0; lastOk = Date.now(); setLost(false); role = r.body.role; team = r.body.team; keepGroup(r.body.group); render(r.body); }
     else missed();
   } catch (_) { missed(); }
   timer = setTimeout(poll, role === 'order' ? 3000 : 1000);
@@ -424,7 +452,7 @@ function render(s) {
   syncAwake();
   showRequests(s);
   if (s.role === 'stage') return renderStage(s);
-  renderLyrics(null); stopMotion(); renderBand(null);
+  renderLyrics(null); renderMonitor(null); stopMotion(); renderBand(null);
   $('stage').style.display = 'none';
   const app = $('app'); app.style.display = 'block'; clear(app);
   const head = el('div', 'bar');
@@ -902,8 +930,10 @@ function renderCountdown(s, cd, w, h, high, low) {
 
 function renderStage(s) {
   $('app').style.display = 'none';
-  // A slide covers the countdown, which keeps running underneath.
+  // A slide covers the countdown, which keeps running underneath, and so
+  // does the confidence monitor.
   renderLyrics(s);
+  renderMonitor(s);
   $('flip').style.display = 'none'; $('stageText').style.display = '';
   const stage = $('stage'); stage.style.display = 'flex';
   const text = $('stageText'); const note = $('stageNote');
@@ -1156,7 +1186,92 @@ function renderLyrics(s) {
   lyFit(box, basis * (l.size === 's' ? .045 : l.size === 'l' ? .064 : .054), h - padY * 2);
   return true;
 }
+// Slides and timer: the slide's words, as large as fit, on the theme's
+// background; the time in its own panel (amber in the warning time, red in
+// overtime as strongly as the host chose) with the next slide under it.
+function renderMonitor(s) {
+  const cm = $('cm'), m = s && s.sharing && !s.message ? s.confidence : null;
+  if (!m) { if (cm.style.display !== 'none') { cm.style.display = 'none'; cm.dataset.key = ''; } return false; }
+  const w = window.innerWidth, h = window.innerHeight, up = h > w * 1.1;
+  const t = s.theme || { background: '#000000', surface: '#141414', accent: '#ffffff', muted: '#b3b3b3', text: '#ffffff' };
+  cm.style.display = 'flex'; cm.classList.toggle('up', up); cm.style.background = t.background;
+  cm.classList.toggle('stale', document.body.classList.contains('stale'));
+  const light = (() => { const v = parseInt(t.background.slice(1), 16); const c = [v >> 16, (v >> 8) & 255, v & 255].map((x) => { x /= 255; return x <= .03928 ? x / 12.92 : Math.pow((x + .055) / 1.055, 2.4); }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2] > .179; })();
+  const time = m.time || {}, moment = time.active ? time.moment : 'normal', over = moment === 'overtime';
+  const solid = over && time.alert !== 'gentle';
+  const warn = light ? '#875100' : '#f3ba61', red = light ? '#ad2835' : '#ff6b6b', ink = '#1a0000';
+  // The time and what is next: redrawn every poll.
+  const side = $('cmSide'); const sw = up ? w : w * .38, sh = up ? h * .42 : h;
+  const unit = up ? Math.min(sw * .75, sh) : Math.min(sw, sh * .9), eye = Math.max(10, Math.min(36, unit * .055));
+  const frame = over && time.alert === 'gentle' ? Math.max(4, Math.min(28, Math.min(sw, sh) * .03)) : 0;
+  side.style.background = solid ? '#e5333a' : t.surface; side.classList.toggle('pulse', solid && time.alert === 'strongest');
+  side.style.border = frame ? frame + 'px solid ' + red : '0'; side.style.padding = (frame + unit * .07) + 'px';
+  const head = $('cmHead'); head.style.fontSize = eye + 'px';
+  head.textContent = !time.active ? 'TIME' : over ? 'OVER TIME' : time.paused ? 'PAUSED' : 'TIME LEFT';
+  head.style.color = over ? (solid ? ink : red) : solid ? ink : t.muted;
+  const digits = $('cmTime'); clear(digits);
+  digits.style.color = solid ? ink : over ? red : moment === 'warning' ? warn : t.text;
+  digits.style.opacity = time.active && time.paused ? '.45' : '1';
+  const text = String(time.text || '');
+  digits.style.setProperty('--dg', '0.6em');
+  for (const ch of text) digits.append(/[0-9]/.test(ch) ? el('span', 'dg', ch) : document.createTextNode(ch));
+  let size = unit * .3; digits.style.fontSize = size + 'px';
+  const most = sw - (frame + unit * .07) * 2; const wide = digits.scrollWidth;
+  if (wide > most && wide > 0) digits.style.fontSize = size * most / wide + 'px';
+  const rule = $('cmRule'); rule.style.background = solid ? ink : t.muted; rule.style.margin = eye * .8 + 'px 0';
+  const next = $('cmNext'); clear(next);
+  const nEye = el('div', 'cme', 'NEXT'); nEye.style.fontSize = eye + 'px'; nEye.style.color = solid ? ink : t.accent; nEye.style.marginBottom = eye * .6 + 'px';
+  const line = el('div'); line.style.fontSize = eye * 1.55 + 'px'; line.style.lineHeight = '1.2'; line.style.color = solid ? ink : t.text;
+  if (m.next && (m.next.label || m.next.line)) {
+    if (m.next.label) { const b = el('b', '', m.next.line ? m.next.label + ' · ' : m.next.label); b.style.color = solid ? ink : t.accent; line.append(b); }
+    if (m.next.line) line.append(document.createTextNode(m.next.line));
+  } else line.textContent = 'Last slide';
+  next.append(nEye, line);
+  // The words: redrawn only when they or the screen change.
+  const key = [m.key, m.text, m.title, m.reference, m.detail, m.label, t.text, t.accent, w, h].join('|');
+  const box = $('cmText');
+  // The same words as the last poll: kept, unless they no longer fit (a
+  // font the browser drew them in first was replaced).
+  const fits = () => { const a = box.firstChild, z = box.lastChild; if (!a) return true; if (z.getBoundingClientRect().bottom - a.getBoundingClientRect().top > box.getBoundingClientRect().height + 1) return false; for (const d of box.children) if (d.scrollWidth > d.clientWidth + 1) return false; return true; };
+  if (cm.dataset.key === key && fits()) return true;
+  cm.dataset.key = key;
+  const words = $('cmWords'); const pad = up ? [w * .08, w * .07, w * .05, w * .07] : [h * .08, w * .035, h * .08, w * .045];
+  words.style.padding = pad.map((v) => v + 'px').join(' ');
+  // The words' share of the screen as laid out (the time's panel keeps its
+  // padding whatever its share).
+  const area = words.getBoundingClientRect();
+  const ww = area.width - pad[1] - pad[3], wh = area.height - pad[0] - pad[2];
+  const labelSize = Math.max(10, Math.min(40, wh * .055));
+  const label = $('cmLabel'); label.textContent = (m.label || '').toUpperCase(); label.style.fontSize = labelSize + 'px'; label.style.color = t.accent; label.style.height = labelSize * 2.2 + 'px';
+  clear(box);
+  const blocks = [];
+  if (m.title) blocks.push([m.title, 1.2, t.accent, 700]);
+  if (m.text) blocks.push([m.text, 1, t.text, 500]);
+  if (m.reference) blocks.push([m.reference, .55, t.muted, 500]);
+  if (m.detail) blocks.push([m.detail, .6, t.muted, 500]);
+  blocks.forEach(([value, scale, colour, weight], i) => {
+    String(value).split('\n').forEach((one, j) => { const d = lyLine(one, ''); d.style.fontSize = scale + 'em'; d.style.fontWeight = String(weight); d.style.color = colour; if (i > 0 && j === 0) d.style.marginTop = '.35em'; box.append(d); });
+  });
+  // The largest size at which every line fits across with no word broken
+  // and all of them fit the room, measured as drawn (the box centres its
+  // lines, so their own top and bottom are measured, not the box's).
+  const room = wh - labelSize * 2.2;
+  const fit = () => {
+    const ok = (size) => { box.style.fontSize = size + 'px'; const a = box.firstChild, z = box.lastChild; if (!a) return true; if (z.getBoundingClientRect().bottom - a.getBoundingClientRect().top > room + 1) return false; for (const d of box.children) if (d.scrollWidth > d.clientWidth + 1) return false; return true; };
+    if (ok(room / 4)) return room / 4;
+    let lo = 4, hi = room / 4; for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (ok(mid)) lo = mid; else hi = mid; }
+    return lo;
+  };
+  // Typed lines kept whole when that costs at most a fifth of the size.
+  box.style.whiteSpace = 'nowrap'; const whole = fit();
+  box.style.whiteSpace = 'normal'; const wrapped = fit();
+  if (whole >= wrapped * .8) box.style.whiteSpace = 'nowrap';
+  box.style.fontSize = (whole >= wrapped * .8 ? whole : wrapped) + 'px';
+  box.style.maxWidth = ww + 'px';
+  return true;
+}
 window.addEventListener('resize', () => { if (lastState && lastState.role === 'stage') renderLyrics(lastState); });
+window.addEventListener('resize', () => { if (lastState && lastState.role === 'stage') renderMonitor(lastState); });
 window.addEventListener('resize', () => { if (lastState && lastState.role === 'stage') renderStage(lastState); });
 
 (async () => { await loadInfo(); if (token && role) start(); else showJoin(); })();

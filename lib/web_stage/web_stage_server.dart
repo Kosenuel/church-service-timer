@@ -750,7 +750,22 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         // What the display's group shows: a countdown layout, 'slides' or
         // 'monitor'. An older page goes by `layout` alone.
         'show': screenShowValue(s['stageShow'] ?? layout),
-        if (s['confidence'] case final Map m) 'confidence': webConfidence(m),
+        if (s['confidence'] case final Map m)
+          'confidence': {
+            ...webConfidence(m),
+            // The monitor's time: the countdown while a service runs (over
+            // a cue or Blank too), else the time of day.
+            'time': {
+              'active': phase == 'active',
+              'text': switch (phase == 'active' ? s['remaining'] : m['clock']) {
+                final String t when stageTimePattern.hasMatch(t) => t,
+                _ => '',
+              },
+              'moment': phase == 'active' ? stageMoment(s) : 'normal',
+              'alert': overtimeAlertValue(s['overtimeAlert']),
+              'paused': s['paused'] == true,
+            },
+          },
         // The countdown's own look: how far through the segment it is and
         // the moment it is in (see [stageMoment]), the bands for the
         // segment now and what is next, and how strongly overtime shows.
