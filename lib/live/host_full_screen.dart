@@ -7,6 +7,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/screen_orientation.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/pairing/stage_colors.dart';
@@ -647,7 +648,7 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
                   child: Align(
                     alignment: const Alignment(0, .55),
                     child: IgnorePointer(
-                      child: AnimatedSwitcher(
+                      child: FreshSwitcher(
                         duration: motion,
                         child: _hint == null
                             ? const SizedBox.shrink()
@@ -659,7 +660,7 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
                 SafeArea(
                   child: Align(
                     alignment: Alignment.bottomCenter,
-                    child: AnimatedSwitcher(
+                    child: FreshSwitcher(
                       duration: motion,
                       transitionBuilder: (child, animation) => SlideTransition(
                         position: Tween(
