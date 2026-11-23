@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
@@ -95,8 +96,13 @@ extension SecondScreenControl on HomeState {
       child: ExcludeSemantics(
         child: AnimatedBuilder(
           animation: Listenable.merge([c, c.liveClock]),
-          builder: (context, _) =>
-              StageSurface(data: c.stageWindowSnapshot(), stale: false),
+          builder: (context, _) {
+            final data = c.stageWindowSnapshot();
+            return ColoredBox(
+              color: stageBackdropOf(data),
+              child: StageSurface(data: data, stale: false),
+            );
+          },
         ),
       ),
     );

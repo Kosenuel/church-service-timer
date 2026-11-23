@@ -7,6 +7,7 @@ import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/windows/stage_output.dart';
 import 'package:church_service_timer/windows/win32_api.dart' as win32;
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:flutter/services.dart';
 
 /// The stage window: black, full screen, with the same picture a paired
@@ -40,19 +41,23 @@ class StageOutputScreen extends StatelessWidget {
           animation: feed,
           builder: (context, _) {
             final data = feed.data;
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: data == null
-                    ? const Text(
-                        'Waiting for Church Service Timer…',
-                        style: TextStyle(
-                          fontFamily: stageFontFamily,
-                          color: Colors.white70,
-                          fontSize: 20,
-                        ),
-                      )
-                    : StageSurface(data: data, stale: feed.stale),
+            // The theme's background while the clock shows, black otherwise.
+            return ColoredBox(
+              color: stageBackdropOf(data),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: data == null
+                      ? const Text(
+                          'Waiting for Church Service Timer…',
+                          style: TextStyle(
+                            fontFamily: stageFontFamily,
+                            color: Colors.white70,
+                            fontSize: 20,
+                          ),
+                        )
+                      : StageSurface(data: data, stale: feed.stale),
+                ),
               ),
             );
           },

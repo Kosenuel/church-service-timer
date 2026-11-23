@@ -655,6 +655,11 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         ...common,
         'sharing': s['stageSharing'] == true,
         'blank': s['blank'] == true,
+        // A flip clock, wherever the screen is filled with the time of
+        // day, in the host's theme (white on black from an older host).
+        if (shown['displayIsTimer'] != true)
+          'clock': ?_clockView(stageClockFace(shown)),
+        'theme': ?stageThemeOf(s),
         'displayText': shown['displayText'] ?? '',
         'bold': shown['bold'] == true,
         'italic': shown['italic'] == true,
@@ -732,3 +737,14 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
       };
   }
 }
+
+/// The flip clock as the web page draws it, or null for no clock.
+Json? _clockView(StageClockFace? face) => face == null
+    ? null
+    : {
+        'hours': face.hours,
+        'minutes': face.minutes,
+        'pm': ?face.pm,
+        'weekday': face.weekday,
+        'date': face.date,
+      };

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
@@ -451,7 +452,7 @@ extension MobileDisplayViews on HomeState {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: ColoredBox(
-              color: Colors.black,
+              color: stageBackdropOf(data),
               child: data == null
                   ? const Center(
                       child: Text(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 
@@ -35,16 +36,19 @@ extension SimulatorChoice on HomeState {
       aspectRatio: 16 / 9,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: ColoredBox(
-          color: Colors.black,
-          child: ExcludeSemantics(
-            child: AnimatedBuilder(
-              animation: Listenable.merge([c, c.liveClock]),
-              builder: (context, _) => StageSurface(
-                data: c.stageSimulatorSnapshot(),
-                stale: c.state.session.held || c.state.session.disconnected,
-              ),
-            ),
+        child: ExcludeSemantics(
+          child: AnimatedBuilder(
+            animation: Listenable.merge([c, c.liveClock]),
+            builder: (context, _) {
+              final data = c.stageSimulatorSnapshot();
+              return ColoredBox(
+                color: stageBackdropOf(data),
+                child: StageSurface(
+                  data: data,
+                  stale: c.state.session.held || c.state.session.disconnected,
+                ),
+              );
+            },
           ),
         ),
       ),

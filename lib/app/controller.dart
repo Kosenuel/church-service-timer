@@ -20,6 +20,7 @@ import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/hardware/hardware_display.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
 import 'package:church_service_timer/app/appearance_preview.dart';
 import 'package:church_service_timer/app/edit_draft_queue.dart';
@@ -482,6 +483,15 @@ class AppController extends ChangeNotifier {
       if (quick != null) 'quickMessage': quick.toJson(),
       'displayText': s.outputBlank ? '' : display?.text ?? '',
       'outputMode': s.outputMode(now),
+      // The clock shown before a scheduled service starts is a clock too,
+      // though its output is the pre-service one.
+      if (s.outputMode(now) == 'Pre-service' &&
+          s.startsAtWall! - now.wall > preServiceCountdownMs)
+        'clockFace': true,
+      // The day and date under the clock, in the host's time, and the
+      // theme every stage screen draws it in. Older screens ignore both.
+      ...stageClockDateFields(now.wall),
+      'stageTheme': StageColors.fieldsOf(paletteFor(state.themeId)),
       'clockBlink': s.clockBlink,
       ...stageEffectFields(display, time: _cueTime(s, now)),
       // The LED sign's speed, which older paired screens keep following.

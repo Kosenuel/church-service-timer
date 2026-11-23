@@ -97,11 +97,43 @@ body.stale #app { opacity:.6; }
 .role b { display:block; }
 .role.on { border-color: var(--accent); }
 .foot { text-align:center; color:#5f7068; font-size:12px; margin-top:28px; font-style:italic; }
+
+/* The flip clock: every size is a multiple of --H, the height of a card. */
+#flip { display:none; flex-direction:column; align-items:center; justify-content:center; font-family:Roboto, system-ui, "Segoe UI", sans-serif; text-align:center; }
+#flip .fmain { display:flex; align-items:center; justify-content:center; }
+#flip .fpair { display:flex; gap:calc(var(--H) * .05); }
+#flip .fcolon { display:grid; gap:calc(var(--H) * .2); width:calc(var(--H) * .2); justify-items:center; margin:0 calc(var(--H) * .06); }
+#flip .fcolon i { display:block; width:calc(var(--H) * .075); height:calc(var(--H) * .075); border-radius:50%; background:var(--f-accent); }
+#flip .fd { position:relative; width:calc(var(--H) * .72); height:var(--H); perspective:calc(var(--H) * 4); font-size:calc(var(--H) * .86); line-height:1; font-weight:500; color:var(--f-text); font-variant-numeric:tabular-nums; }
+#flip .fh, #flip .fl { position:absolute; left:0; width:100%; height:50%; overflow:hidden; backface-visibility:hidden; }
+#flip .fh span, #flip .fl span { position:absolute; left:0; width:100%; height:200%; display:grid; place-items:center; }
+#flip .ft { top:0; border-radius:calc(var(--H) * .07) calc(var(--H) * .07) 0 0; background:linear-gradient(var(--f-top), var(--f-mid)); }
+#flip .fb { bottom:0; border-radius:0 0 calc(var(--H) * .07) calc(var(--H) * .07); background:linear-gradient(var(--f-mid), var(--f-bottom)); }
+#flip .ft span { top:0; } #flip .fb span { top:-100%; }
+#flip .fl.ft { transform-origin:bottom; z-index:3; }
+#flip .fl.fb { transform-origin:top; transform:rotateX(90deg); z-index:3; }
+#flip .fd.flipping .fl.ft { animation:fliptop .32s ease-in forwards; }
+#flip .fd.flipping .fl.fb { animation:flipbottom .32s .32s ease-out forwards; }
+@keyframes fliptop { to { transform:rotateX(-90deg); } }
+@keyframes flipbottom { to { transform:rotateX(0deg); } }
+#flip .fd::after { content:""; position:absolute; left:0; right:0; top:calc(50% - 1px); height:2px; background:var(--f-hinge); z-index:5; }
+#flip .fd::before { content:""; position:absolute; inset:0; border-radius:calc(var(--H) * .07); box-shadow:0 calc(var(--H) * .04) calc(var(--H) * .1) rgba(0,0,0,.35); pointer-events:none; }
+#flip .ftiles { display:none; }
+#flip .ftiles.on { display:grid; }
+#flip .ftiles.side { gap:calc(var(--H) * .06); height:var(--H); width:calc(var(--H) * .62); margin-left:calc(var(--H) * .14); }
+#flip .ftiles.below { grid-auto-flow:column; gap:calc(var(--H) * .1); margin-top:calc(var(--H) * .22); height:calc(var(--H) * .27); }
+#flip .ftiles.below b { width:calc(var(--H) * .5); }
+#flip .ftiles b { display:grid; place-items:center; font-weight:700; font-size:calc(var(--H) * .17); letter-spacing:.06em; border-radius:calc(var(--H) * .05); color:var(--f-muted); background:var(--f-off); border:1px solid var(--f-line); }
+#flip .ftiles b.lit { color:var(--f-on); background:var(--f-accent); border-color:var(--f-accent); }
+#flip .fdate { margin-top:calc(var(--H) * .2); }
+#flip .fdow { font-size:calc(var(--H) * .13); letter-spacing:.32em; text-transform:uppercase; color:var(--f-accent); font-weight:500; line-height:1.25; white-space:nowrap; }
+#flip .fdmy { font-size:calc(var(--H) * .115); letter-spacing:.04em; color:var(--f-muted); font-weight:300; line-height:1.25; margin-top:calc(var(--H) * .05); white-space:nowrap; }
+@media (prefers-reduced-motion: reduce) { #flip .fd.flipping .fl.ft, #flip .fd.flipping .fl.fb { animation:none; } }
 </style>
 </head>
 <body>
 <div id="app" class="wrap"></div>
-<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="rule" id="stageRule"></div><div class="line" id="stageLine"></div><div class="note" id="stageNote"></div></div>
+<div id="stage"><div id="flip"></div><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="rule" id="stageRule"></div><div class="line" id="stageLine"></div><div class="note" id="stageNote"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
 <div id="req"><span id="reqNote"></span><button class="chip" id="reqBtn">Request</button></div>
@@ -637,8 +669,86 @@ setInterval(() => {
   document.querySelectorAll('#stage .colon').forEach((c) => c.classList.toggle('dim', !lit));
 }, 50);
 
+
+// The flip clock, wherever the screen is filled with the time of day.
+// Four cards (the hours' first is hidden on a 12 hour clock's single
+// digit) turn over when their digit changes; the colours are mixed from
+// the host's theme, and nothing is drawn from the host as HTML.
+const flipDigits = []; let flipCur = ['', '', '', ''];
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgbHex = (c) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+const mixHex = (a, b, t) => { const x = hexRgb(a), y = hexRgb(b); return rgbHex(x.map((v, i) => v + (y[i] - v) * t)); };
+const lumOf = (h) => { const [r, g, b] = hexRgb(h).map((v) => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r + .7152 * g + .0722 * b; };
+const ratioOf = (a, b) => { const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+const CLASSIC = { background: '#000000', surface: '#141414', accent: '#ffffff', muted: '#b3b3b3', text: '#ffffff' };
+function flipCard() {
+  const d = el('div', 'fd');
+  for (const cls of ['fh ft', 'fh fb', 'fl ft', 'fl fb']) { const half = el('div', cls); half.append(el('span')); d.append(half); }
+  return d;
+}
+const flipSet = (d, sel, t) => { d.querySelector(sel + ' span').textContent = t; };
+const flipShow = (d, v) => { ['.fh.ft', '.fh.fb', '.fl.ft', '.fl.fb'].forEach((q) => flipSet(d, q, v)); };
+function flipTurn(d, from, to) {
+  d.classList.remove('flipping'); void d.offsetWidth;
+  flipSet(d, '.fh.ft', to); flipSet(d, '.fh.fb', from); flipSet(d, '.fl.ft', from); flipSet(d, '.fl.fb', to);
+  d.classList.add('flipping');
+  const done = () => { d.removeEventListener('animationend', handler); flipShow(d, to); d.classList.remove('flipping'); };
+  const handler = (e) => { if (e.animationName === 'flipbottom') done(); };
+  d.addEventListener('animationend', handler);
+  setTimeout(() => { if (d.classList.contains('flipping')) done(); }, 900);
+}
+function renderFlip(s, w, h) {
+  const c = s.clock, root = $('flip');
+  if (!flipDigits.length) {
+    const pairs = [el('div', 'fpair'), el('div', 'fpair')];
+    const tiles = (cls) => { const t = el('div', 'ftiles ' + cls); t.append(el('b', '', 'AM'), el('b', '', 'PM')); return t; };
+    const colon = el('div', 'fcolon'); colon.append(el('i'), el('i'));
+    const main = el('div', 'fmain'); main.append(pairs[0], colon, pairs[1], tiles('side'));
+    const date = el('div', 'fdate'); date.append(el('div', 'fdow'), el('div', 'fdmy'));
+    root.append(main, tiles('below'), date);
+    for (let i = 0; i < 4; i++) { const d = flipCard(); flipShow(d, '0'); flipDigits.push(d); pairs[i < 2 ? 0 : 1].append(d); }
+  }
+  const t = Object.assign({}, CLASSIC, s.theme || {});
+  const light = lumOf(t.background) > .179;
+  const vars = {
+    '--f-text': t.text, '--f-accent': t.accent, '--f-muted': t.muted,
+    '--f-top': mixHex(t.surface, t.text, .06), '--f-bottom': mixHex(t.surface, t.background, .35),
+    '--f-mid': mixHex(mixHex(t.surface, t.text, .06), mixHex(t.surface, t.background, .35), .5),
+    '--f-hinge': light ? mixHex(t.background, t.text, .3) : mixHex(t.background, '#000000', .3),
+    '--f-off': mixHex(t.background, t.text, .06), '--f-line': mixHex(t.background, t.text, .14),
+    '--f-on': ratioOf('#10150a', t.accent) >= ratioOf('#ffffff', t.accent) ? '#10150a' : '#ffffff'
+  };
+  for (const k in vars) root.style.setProperty(k, vars[k]);
+  const twelve = typeof c.pm === 'boolean', upright = h > w;
+  // The largest card that fits, sized for two hour digits so the clock
+  // keeps its size as 9:59 becomes 10:00.
+  const m = Math.min(w, h) * .04;
+  const wf = 2 * (2 * .72 + .05) + .12 + .2 + .12 + (!upright && twelve ? .76 : 0);
+  const hf = 1 + (upright && twelve ? .49 : 0) + .2 + .13 * 1.25 + .05 + .115 * 1.25;
+  root.style.setProperty('--H', Math.max(10, Math.min((w - 2 * m) / wf, (h - 2 * m) / hf)) + 'px');
+  root.style.display = 'flex';
+  const hs = c.hours.length === 1 ? ' ' + c.hours : c.hours, next = [hs[0], hs[1], c.minutes[0], c.minutes[1]];
+  const calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const animate = !calm && !$('stage').classList.contains('stale');
+  flipDigits.forEach((d, i) => {
+    d.style.display = next[i] === ' ' ? 'none' : '';
+    if (flipCur[i] === next[i]) return;
+    if (animate && flipCur[i] !== '' && flipCur[i] !== ' ' && next[i] !== ' ') flipTurn(d, flipCur[i], next[i]);
+    else flipShow(d, next[i] === ' ' ? '0' : next[i]);
+    flipCur[i] = next[i];
+  });
+  root.querySelectorAll('.ftiles').forEach((box) => {
+    box.classList.toggle('on', twelve && box.classList.contains(upright ? 'below' : 'side'));
+    if (twelve) { box.children[0].classList.toggle('lit', !c.pm); box.children[1].classList.toggle('lit', c.pm); }
+  });
+  root.querySelector('.fdow').textContent = c.weekday || '';
+  root.querySelector('.fdmy').textContent = c.date || '';
+  return t;
+}
+
 function renderStage(s) {
   $('app').style.display = 'none';
+  $('flip').style.display = 'none'; $('stageText').style.display = '';
   const stage = $('stage'); stage.style.display = 'flex';
   const text = $('stageText'); const note = $('stageNote');
   renderBand(s);
@@ -691,6 +801,17 @@ function renderStage(s) {
     renderMessage(stage, text, s.message); return;
   }
   if (s.blank) return;
+  // The time of day fills the screen as a flip clock in the host's theme;
+  // a banner keeps its band and the clock the room that is left.
+  if (s.clock && !s.message && !card) {
+    const bandH = s.banner ? 20 : 0;
+    stage.style.paddingTop = s.banner && s.banner.position === 'top' ? bandH + 'vh' : '';
+    stage.style.paddingBottom = s.banner && s.banner.position !== 'top' ? bandH + 'vh' : '';
+    const theme = renderFlip(s, w, h * (1 - bandH / 100));
+    stage.style.background = theme.background;
+    clear(text); note.textContent = ''; text.style.display = 'none';
+    return;
+  }
   // A coloured full-screen cue in its colour, amber's in warm white, with
   // its colour in the rule too; otherwise white, or red in overtime.
   text.style.color = card ? cardInk(s.color) : s.color || (s.overtime ? '#ff4d4d' : '#fff');

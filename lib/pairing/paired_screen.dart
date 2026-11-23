@@ -2,6 +2,7 @@ import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/programs/send_program_views.dart';
 import 'package:flutter/services.dart';
@@ -172,7 +173,7 @@ class _PairedScreenState extends State<PairedScreen> {
     final rows = (data?['rundown'] as List?) ?? [];
     if (stage)
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: stageBackdropOf(data),
         body: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: revealTools,

@@ -21,6 +21,7 @@ export 'package:church_service_timer/domain/review_notes.dart';
 export 'package:church_service_timer/domain/bulk_delete.dart';
 export 'package:church_service_timer/domain/program_io.dart';
 export 'package:church_service_timer/domain/stage_output.dart';
+export 'package:church_service_timer/domain/stage_clock.dart';
 export 'package:church_service_timer/domain/time_recovery.dart';
 export 'package:church_service_timer/domain/core.dart';
 export 'package:church_service_timer/domain/text_layout.dart';
