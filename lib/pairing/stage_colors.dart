@@ -107,7 +107,8 @@ Color stageBackdropOf(Json? data) {
   if (data == null ||
       data['stageSharing'] == false ||
       data['blank'] == true ||
-      data['quickMessage'] is Map) {
+      data['quickMessage'] is Map ||
+      stageHasLyrics(data)) {
     return Colors.black;
   }
   final shown = stageForLayout(data, stageLayoutValue(data['stageLayout']));
@@ -135,4 +136,11 @@ bool stageOvertimeSolid(Json data, String layout) =>
 
 /// Whether this snapshot's picture fills its whole screen in the theme's
 /// colours (the clock, the countdown), so a host adds no margin of its own.
-bool stageFillsScreen(Json? data) => stageBackdropOf(data) != Colors.black;
+bool stageFillsScreen(Json? data) =>
+    stageHasLyrics(data) || stageBackdropOf(data) != Colors.black;
+
+/// Whether a lyric slide is what this snapshot shows: lyrics are present
+/// and no quick message is covering them. The slide paints its own
+/// background to the edges, so the screen behind it stays black.
+bool stageHasLyrics(Json? data) =>
+    data != null && data['lyrics'] is Map && data['quickMessage'] is! Map;

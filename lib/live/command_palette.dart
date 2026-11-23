@@ -403,26 +403,28 @@ extension CommandPalette on HomeState {
         ),
       // Go to.
       if (!focused)
-        for (final (i, name) in const [
-          'Live',
-          'Programs',
-          'Reports',
-          'Settings',
-        ].indexed)
-          if (i != page)
+        for (final p in homePageOrder)
+          if (p.page != page)
             PaletteCommand(
-              id: 'go-$i',
-              label: 'Go to $name',
-              icon: const [
-                Icons.radio_button_checked,
-                Icons.view_timeline_outlined,
-                Icons.assessment_outlined,
-                Icons.settings_outlined,
-              ][i],
+              id: 'go-${p.page}',
+              label: 'Go to ${p.name}',
+              icon: p.icon,
               group: 'Go to',
-              words: 'open tab page',
-              run: () => goToPage(i),
+              words: p.page == lyricsPage
+                  ? 'open tab page songs hymns words bible verses announcements slides'
+                  : 'open tab page',
+              run: () => goToPage(p.page),
             ),
+      if (c.lyrics.showing && !controlsLocked)
+        PaletteCommand(
+          id: 'clear-lyrics',
+          label: 'Clear slide',
+          detail: 'Every screen goes back to what it showed before',
+          icon: Icons.lyrics_outlined,
+          group: 'This window',
+          words: 'songs words slide remove black hide',
+          run: c.lyrics.clear,
+        ),
       PaletteCommand(
         id: 'appearance',
         label: 'Appearance',

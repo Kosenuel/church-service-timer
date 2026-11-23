@@ -135,6 +135,10 @@ class AppState {
   /// for (x.y.z or x.y.z-pre), or null when nothing was seen. Local to this
   /// device; not part of backups.
   String? seenVersion;
+
+  /// Stored songs, Bible verses and announcements, and how their slides
+  /// look and where they go. In backups (except Your picture).
+  LyricsLibrary lyrics;
   AppState(
     this.templates,
     this.defaults,
@@ -166,6 +170,7 @@ class AppState {
     List<QuickTimerChoice>? recentQuickTimers,
     AutoUpdateSettings? autoUpdate,
     this.seenVersion,
+    this.lyrics = const LyricsLibrary(),
     this.outputDestination,
     List<QuickMessage>? quickMessages,
     this.appearance = const AppearancePreferences(),
@@ -372,6 +377,8 @@ class AppState {
       ].take(quickTimerRecentLimit).toList(),
       autoUpdate: AutoUpdateSettings.fromJson(j['autoUpdate']),
       seenVersion: readSeenVersion(j['seenVersion']),
+      // Missing in saved data from before lyrics: an empty library.
+      lyrics: LyricsLibrary.fromJson(j['lyrics']),
       reports: (j['reports'] as List? ?? [])
           .map((e) => ServiceReport.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -520,6 +527,11 @@ class AppState {
     'recentQuickTimers': [for (final r in recentQuickTimers) r.toJson()],
     'autoUpdate': autoUpdate.toJson(),
     if (seenVersion != null) 'seenVersion': seenVersion,
+    if (!lyrics.isEmpty ||
+        lyrics.lastUsed.isNotEmpty ||
+        jsonEncode(lyrics.look.toJson()) !=
+            jsonEncode(const LyricsLook().toJson()))
+      'lyrics': lyrics.toJson(),
     'settingsLock': settingsLock?.toJson(),
     'clickerControls': clickerControls,
     'fullScreenLayout': fullScreenLayout,

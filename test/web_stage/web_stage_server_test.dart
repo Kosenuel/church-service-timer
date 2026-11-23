@@ -242,6 +242,99 @@ void main() {
     expect(s, 401);
   });
 
+  test('Lyric photos are served only to browsers that joined', () async {
+    server.lyricImage = (kind, id) async => kind == 'photo' && id == 'candle'
+        ? File('assets/lyrics/photos/candle.jpg').readAsBytesSync()
+        : null;
+    Future<HttpClientResponse> get(String path) async => (await client.getUrl(
+      Uri.parse('http://127.0.0.1:${server.port}$path'),
+    )).close();
+    expect((await get('/lyrics/photo?id=candle&token=nobody')).statusCode, 404);
+    final (_, join) = await call('/api/join', {
+      'code': server.teamCode,
+      'role': 'stage',
+    });
+    final token = join['token'];
+    final res = await get('/lyrics/photo?id=candle&token=$token');
+    expect(res.statusCode, 200);
+    expect(res.headers.contentType?.mimeType, 'image/jpeg');
+    await res.drain<void>();
+    expect(
+      (await get('/lyrics/photo?id=../secret&token=$token')).statusCode,
+      404,
+    );
+    expect(
+      (await get('/lyrics/picture?name=other&token=$token')).statusCode,
+      404,
+    );
+  });
+
+  test(
+    'The page draws lyric slides itself, with nothing from the internet',
+    () async {
+      final (_, body) = await call('/');
+      final html = body['html'] as String;
+      expect(html, isNot(contains('http')));
+      for (final part in [
+        'function renderLyrics(',
+        'function lyDraw(',
+        'function lyFit(',
+        '/lyrics/photo?id=',
+        'prefers-reduced-motion',
+      ]) {
+        expect(html, contains(part));
+      }
+      // The same twelve designs as the app.
+      for (final id in lyricDrawnBackgrounds.keys.where((k) => k != 'black')) {
+        expect(html, contains("id === '$id'"), reason: id);
+      }
+    },
+  );
+
+  test('A lyric slide reaches Stage displays only, checked', () async {
+    final view = viewFor(WebRole.stage, {
+      ...snapshot(),
+      'lyrics': {
+        'key': 'a',
+        'kind': 'song',
+        'text': 'Amazing grace',
+        'bg': 'aurora',
+        'dim': 70,
+        'size': 'm',
+        'align': 'center',
+        'motion': true,
+        'chip': '12:30',
+      },
+    }, settings);
+    expect(view['lyrics']['text'], 'Amazing grace');
+    expect(view['lyrics']['chip'], '12:30');
+    expect(
+      viewFor(WebRole.order, {
+        ...snapshot(),
+        'lyrics': {'text': 'x'},
+      }, settings).containsKey('lyrics'),
+      isFalse,
+    );
+    expect(
+      viewFor(WebRole.overview, {
+        ...snapshot(),
+        'lyrics': {'text': 'x'},
+      }, settings).containsKey('lyrics'),
+      isFalse,
+    );
+    final odd = webLyrics({
+      'bg': '<script>',
+      'dim': 900,
+      'size': 'huge',
+      'chip': 'soon',
+      'text': 'x',
+    });
+    expect(odd['bg'], 'black');
+    expect(odd['dim'], 90);
+    expect(odd['size'], 'm');
+    expect(odd.containsKey('chip'), isFalse);
+  });
+
   test('Church names become short, easy .local names', () {
     expect(localNameFor('Grace Chapel'), 'grace-chapel');
     expect(localNameFor('Grace Community Church'), 'grace-community');

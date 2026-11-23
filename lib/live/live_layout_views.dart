@@ -105,30 +105,19 @@ extension LiveLayout on HomeState {
               backgroundColor: finishLook(context).active
                   ? Colors.transparent
                   : colors.surface,
-              selectedIndex: page,
+              selectedIndex: homePageSlot(page),
               labelType: NavigationRailLabelType.all,
               // Clear of the top edge, in line with the header beside it.
               leading: const SizedBox(height: 12),
               onDestinationSelected: (v) {
-                if (!controlsLocked) goToPage(v);
+                if (!controlsLocked) goToPage(homePageOrder[v].page);
               },
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.radio_button_checked),
-                  label: Text('Live'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.view_timeline_outlined),
-                  label: Text('Programs'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.assessment_outlined),
-                  label: Text('Reports'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  label: Text('Settings'),
-                ),
+              destinations: [
+                for (final p in homePageOrder)
+                  NavigationRailDestination(
+                    icon: Icon(p.icon),
+                    label: Text(p.name),
+                  ),
               ],
             ),
           ),

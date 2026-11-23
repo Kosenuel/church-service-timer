@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/web_stage/web_page.dart';
@@ -302,6 +303,10 @@ class WebStageServer {
   bool _requestsFor(WebDevice d) =>
       d.team && d.role == WebRole.stage && (requestsOpen?.call() ?? false);
 
+  /// A lyric slide's picture: a bundled photo (`photo`, by id) or Your
+  /// picture (`picture`, by name), or null when there is none.
+  Future<Uint8List?> Function(String kind, String id)? lyricImage;
+
   WebStageServer({required this.settings, required this.snapshot});
 
   HttpServer? _server;
@@ -524,6 +529,25 @@ class WebStageServer {
           ok ? {'sent': true} : {'error': 'Not sent.'},
           ok ? 200 : 409,
         );
+      } else if (r.method == 'GET' &&
+          (path == '/lyrics/photo' || path == '/lyrics/picture')) {
+        // Pictures for lyric slides, for browsers that joined only.
+        final q = r.uri.queryParameters;
+        final device = devices[q['token']];
+        final id = q[path == '/lyrics/photo' ? 'id' : 'name'] ?? '';
+        final bytes =
+            device == null || !RegExp(r'^[a-z0-9-]{1,40}$').hasMatch(id)
+            ? null
+            : await lyricImage?.call(path.substring(8), id);
+        if (bytes == null) {
+          res.statusCode = HttpStatus.notFound;
+        } else {
+          res.headers.contentType = bytes.length > 3 && bytes[0] == 0x89
+              ? ContentType('image', 'png')
+              : ContentType('image', 'jpeg');
+          res.headers.set('Cache-Control', 'private, max-age=3600');
+          res.add(bytes);
+        }
       } else if (r.method == 'GET' && path == '/api/state') {
         final device = devices[r.uri.queryParameters['token']];
         if (device == null ||
@@ -712,6 +736,9 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
             s['clockBlink'] != false &&
             (shown['outputMode'] == 'Clock' ||
                 (shown['displayIsTimer'] == true && s['paused'] != true)),
+        // A slide from the Lyrics page, when web screens are ticked for
+        // it; only known values reach the page.
+        if (s['lyrics'] case final Map l) 'lyrics': webLyrics(l),
         if (s['quickMessage'] case final Map q)
           'message': {
             'headline': q['headline'] ?? '',
@@ -751,6 +778,46 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         ],
       };
   }
+}
+
+/// A lyric slide as the web page gets it: only known fields, checked.
+Json webLyrics(Map l) {
+  String text(String key, int most) {
+    final v = l[key];
+    return v is String ? (v.length > most ? v.substring(0, most) : v) : '';
+  }
+
+  final bg = l['bg'];
+  return {
+    'key': text('key', 80),
+    if (l['black'] == true)
+      'black': true
+    else ...{
+      'kind': const {'song', 'scripture', 'announcement'}.contains(l['kind'])
+          ? l['kind']
+          : 'song',
+      'text': text('text', 4000),
+      'reference': text('reference', 120),
+      'title': text('title', 120),
+      'detail': text('detail', 160),
+    },
+    'bg':
+        bg is String &&
+            RegExp(
+              r'^(?:[a-z_]{1,30}|photo:[a-z0-9-]{1,40}|custom:[a-z0-9-]{1,40})$',
+            ).hasMatch(bg)
+        ? bg
+        : 'black',
+    'dim': ((l['dim'] as num?)?.round() ?? 70).clamp(0, 90),
+    'size': const {'s', 'm', 'l'}.contains(l['size']) ? l['size'] : 'm',
+    'align': l['align'] == 'left' ? 'left' : 'center',
+    'motion': l['motion'] != false,
+    if (l['chip'] case final String chip
+        when RegExp(r'^[+-]?\d{1,3}(:\d\d){1,2}$').hasMatch(chip)) ...{
+      'chip': chip,
+      'chipOver': l['chipOver'] == true,
+    },
+  };
 }
 
 /// The flip clock as the web page draws it, or null for no clock.

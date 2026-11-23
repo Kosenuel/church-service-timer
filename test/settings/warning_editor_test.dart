@@ -73,7 +73,7 @@ void main() {
     if (tab.evaluate().isNotEmpty) {
       await t.tap(tab);
     } else if (find.byType(NavigationDestination).evaluate().isNotEmpty) {
-      await t.tap(find.byType(NavigationDestination).at(3));
+      await t.tap(find.byType(NavigationDestination).at(4));
     } else {
       await t.tap(find.text('Settings').first);
     }
@@ -471,7 +471,7 @@ void main() {
     await t.pumpAndSettle();
     t.state<HomeState>(find.byType(Home)).lockControls();
     await t.pumpAndSettle();
-    await t.tap(find.byType(NavigationDestination).at(3));
+    await t.tap(find.byType(NavigationDestination).at(4));
     await t.pumpAndSettle();
     expect(find.text('Warnings & alerts'), findsNothing);
     expect(find.byType(WarningEditor), findsNothing);

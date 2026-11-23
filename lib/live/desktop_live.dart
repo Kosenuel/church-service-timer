@@ -89,12 +89,13 @@ extension DesktopLive on HomeState {
 
   Widget desktopTabs() {
     final colors = appColors(context);
-    const names = ['Live', 'Programs', 'Reports', 'Settings'];
     return Row(
       key: const ValueKey('desktop-tabs'),
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (var i = 0; i < names.length; i++)
+        for (final (i, name) in [
+          for (final p in homePageOrder) (p.page, p.name),
+        ])
           Semantics(
             selected: page == i,
             button: true,
@@ -115,7 +116,7 @@ extension DesktopLive on HomeState {
                     ),
                   ),
                   child: Text(
-                    names[i],
+                    name,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,

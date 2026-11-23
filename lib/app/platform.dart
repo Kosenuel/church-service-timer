@@ -1,5 +1,8 @@
 import 'package:flutter/services.dart';
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:path_provider/path_provider.dart';
 
 import 'package:church_service_timer/app/update_checker.dart';
 import 'package:church_service_timer/app/update_installer.dart';
@@ -141,6 +144,20 @@ abstract class DevicePort {
   /// 1600 px on its longer side, as base64 JPEG or PNG. Cropping to a
   /// square happens in the app.
   Future<String?> pickChurchPhoto() async => null;
+
+  /// Your picture for lyric slides: one picture, kept with the app's data
+  /// on this device (not in backups). Here, in memory only, as tests and
+  /// devices without storage need.
+  Uint8List? _lyricPicture;
+  Future<Uint8List?> loadLyricPicture() async => _lyricPicture;
+  Future<void> saveLyricPicture(Uint8List bytes) async => _lyricPicture = bytes;
+
+  /// Where Your picture is kept, for the second screen to read; null when
+  /// it is not a file.
+  Future<String?> lyricPicturePath() async => null;
+
+  /// Picks a plain-text file of song words: `{name, content}`, or null.
+  Future<Map<String, dynamic>?> pickTextFile() async => null;
 
   /// Opens an https web page in the phone's browser; false if none could.
   Future<bool> openWebPage(String url) async => false;
@@ -471,6 +488,29 @@ class AndroidPort extends DevicePort with LocalNetworkPairing {
   @override
   Future<String?> pickChurchPhoto() =>
       channel.invokeMethod<String>('pickChurchPhoto');
+  Future<File> _lyricPictureFile() async => File(
+    '${(await getApplicationSupportDirectory()).path}/lyric-picture.jpg',
+  );
+  @override
+  Future<Uint8List?> loadLyricPicture() async {
+    final f = await _lyricPictureFile();
+    return await f.exists() ? f.readAsBytes() : null;
+  }
+
+  @override
+  Future<void> saveLyricPicture(Uint8List bytes) async {
+    final f = await _lyricPictureFile();
+    await f.writeAsBytes(bytes, flush: true);
+  }
+
+  @override
+  Future<String?> lyricPicturePath() async => (await _lyricPictureFile()).path;
+  @override
+  Future<Map<String, dynamic>?> pickTextFile() async {
+    final result = await channel.invokeMethod<Map>('pickText');
+    return result == null ? null : Map<String, dynamic>.from(result);
+  }
+
   @override
   Future<bool> openWebPage(String url) async =>
       await channel.invokeMethod<bool>('openWebPage', {'url': url}) ?? false;

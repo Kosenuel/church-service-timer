@@ -130,7 +130,7 @@ void main() {
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('metrics-chip')), findsNothing);
-    await t.tap(find.byType(NavigationDestination).at(3));
+    await t.tap(find.byType(NavigationDestination).at(4));
     await t.pumpAndSettle();
     final about = find.text('About');
     await t.ensureVisible(about.first);

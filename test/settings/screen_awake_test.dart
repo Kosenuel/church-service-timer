@@ -128,6 +128,82 @@ void main() {
     );
   });
 
+  group('slides on the screens count as the job', () {
+    Future<(AppController, AwakePort)> withSong() async {
+      final (c, port) = await open();
+      await c.lyrics.save(
+        LyricItem(
+          id: 'amazing',
+          kind: 'song',
+          title: 'Amazing Grace',
+          words: 'Verse 1\nAmazing grace\n\nVerse 2\nHow sweet the sound',
+        ),
+      );
+      return (c, port);
+    }
+
+    test(
+      'a slide holds the screen with no service, clearing lets go',
+      () async {
+        final (c, port) = await withSong();
+        expect(port.held, isFalse);
+        c.lyrics.show('amazing', 0);
+        await pumpEventQueue();
+        expect(c.wantsScreenAwake, isTrue);
+        expect(port.held, isTrue);
+        c.lyrics.clear();
+        await pumpEventQueue();
+        expect(c.wantsScreenAwake, isFalse);
+        expect(port.held, isFalse);
+      },
+    );
+
+    test(
+      'Black from the Slides page holds it too, until the slide is gone',
+      () async {
+        final (c, port) = await withSong();
+        c.lyrics.toggleBlack();
+        await pumpEventQueue();
+        expect(port.held, isTrue);
+        c.lyrics.toggleBlack();
+        await pumpEventQueue();
+        expect(port.held, isFalse);
+      },
+    );
+
+    test('clearing keeps the screen while a service still runs', () async {
+      final (c, port) = await withSong();
+      await c.act('load', value: timeline());
+      await c.act('start');
+      c.lyrics.show('amazing', 0);
+      await pumpEventQueue();
+      c.lyrics.clear();
+      await pumpEventQueue();
+      expect(port.held, isTrue, reason: 'the service is running');
+      await c.act('end');
+      expect(port.held, isFalse);
+    });
+
+    test('a slide sent to no screen does not hold it', () async {
+      final (c, port) = await withSong();
+      await c.lyrics.setLook(
+        c.lyrics.look.copyWith(toSecond: false, toWeb: false, toStage: false),
+      );
+      c.lyrics.show('amazing', 0);
+      await pumpEventQueue();
+      expect(c.lyrics.showing, isTrue);
+      expect(port.held, isFalse);
+    });
+
+    test('Never still lets the screen sleep with a slide up', () async {
+      final (c, port) = await withSong();
+      await c.commit((d, _) => d.screenAwake = 'never');
+      c.lyrics.show('amazing', 0);
+      await pumpEventQueue();
+      expect(port.held, isFalse);
+    });
+  });
+
   group('saved data', () {
     Json old(Object? awake) {
       final j = AppState.fresh(epoch).toJson()..remove('keepScreenAlways');
@@ -174,7 +250,7 @@ void main() {
       final (c, port) = await open(dispose: false);
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      for (var i = 0; i < 4; i++) {
+      for (var i = 0; i < 5; i++) {
         await t.tap(find.byType(NavigationDestination).at(i));
         await t.pumpAndSettle();
         expect(port.held, isFalse, reason: 'page $i');
@@ -187,7 +263,7 @@ void main() {
       final (c, port) = await open(dispose: false);
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(3));
+      await t.tap(find.byType(NavigationDestination).at(4));
       await t.pumpAndSettle();
       await t.ensureVisible(find.byKey(const ValueKey('screen-awake')));
       await t.pumpAndSettle();

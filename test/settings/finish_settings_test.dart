@@ -280,7 +280,7 @@ void main() {
         });
         await t.pumpWidget(TimerApp(controller: c));
         await t.pumpAndSettle();
-        await t.tap(find.byType(NavigationDestination).at(3));
+        await t.tap(find.byType(NavigationDestination).at(4));
         await t.pumpAndSettle();
         await t.tap(find.text('Appearance'));
         await t.pumpAndSettle();
@@ -393,7 +393,7 @@ void main() {
       await t.pumpAndSettle();
       // Settings › Appearance, as a person gets there.
       if (size.width < 840) {
-        await t.tap(find.byType(NavigationDestination).at(3));
+        await t.tap(find.byType(NavigationDestination).at(4));
       } else {
         await t.tap(
           find.descendant(

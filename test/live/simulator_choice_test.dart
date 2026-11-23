@@ -706,22 +706,25 @@ void main() {
       await t.pumpWidget(const SizedBox());
     });
 
-    testWidgets('a composer given no stage choice keeps the sign preview alone', (t) async {
-      setScreen(t);
-      await t.pumpWidget(
-        const MaterialApp(
-          home: TextComposer(
-            initial: TextLayout('THANK YOU'),
-            title: 'End screen',
-            button: 'Save',
+    testWidgets(
+      'a composer given no stage choice keeps the sign preview alone',
+      (t) async {
+        setScreen(t);
+        await t.pumpWidget(
+          const MaterialApp(
+            home: TextComposer(
+              initial: TextLayout('THANK YOU'),
+              title: 'End screen',
+              button: 'Save',
+            ),
           ),
-        ),
-      );
-      await t.pump(const Duration(milliseconds: 100));
-      expect(find.byType(CuePreviewSwitch), findsNothing);
-      expect(find.byType(LedMatrix), findsOneWidget);
-      await t.pumpWidget(const SizedBox());
-    });
+        );
+        await t.pump(const Duration(milliseconds: 100));
+        expect(find.byType(CuePreviewSwitch), findsNothing);
+        expect(find.byType(LedMatrix), findsOneWidget);
+        await t.pumpWidget(const SizedBox());
+      },
+    );
 
     testWidgets('fits a small phone and wide windows', (t) async {
       for (final size in const [

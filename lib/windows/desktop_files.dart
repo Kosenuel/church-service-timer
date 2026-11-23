@@ -111,3 +111,21 @@ Future<void> writeWhole(String path, Uint8List bytes) async {
   await next.writeAsBytes(bytes, flush: true);
   await next.rename(path);
 }
+
+/// A song's words from a text file: UTF-8 (with or without a byte order
+/// mark), or Windows-1252 as Notepad once saved, at most 256 KB.
+Future<Map<String, dynamic>> readTextFile(String path) async {
+  final file = File(path);
+  require(await file.length() <= 262144, 'Choose a text file under 256 KB.');
+  final bytes = await file.readAsBytes();
+  String content;
+  try {
+    content = utf8.decode(bytes);
+  } on FormatException {
+    content = latin1.decode(bytes);
+  }
+  return {
+    'name': fileName(path),
+    'content': content.replaceFirst('\ufeff', ''),
+  };
+}

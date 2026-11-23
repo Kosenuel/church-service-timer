@@ -49,6 +49,8 @@ import 'package:church_service_timer/live/mini_timer.dart';
 import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/reports/report_library_views.dart';
 import 'package:church_service_timer/reports/reports_desktop.dart';
+import 'package:church_service_timer/lyrics/lyrics_page.dart';
+import 'package:church_service_timer/shared/home_pages.dart';
 
 export 'package:church_service_timer/settings/appearance_views.dart';
 export 'package:church_service_timer/reports/report_views.dart';
@@ -82,6 +84,8 @@ export 'package:church_service_timer/settings/warning_settings_views.dart';
 export 'package:church_service_timer/shared/format_labels.dart';
 export 'package:church_service_timer/shared/item_menu_views.dart';
 export 'package:church_service_timer/shared/selection_views.dart';
+export 'package:church_service_timer/shared/home_pages.dart';
+export 'package:church_service_timer/lyrics/lyrics_page.dart';
 export 'package:church_service_timer/shared/undo_actions.dart';
 export 'package:church_service_timer/live/live_actions.dart';
 export 'package:church_service_timer/programs/program_edit_actions.dart';
@@ -363,7 +367,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     });
     if (!changed) return;
     // A page that fills the window always sits right under the header.
-    final offset = liveFillsWindow || programsFillWindow || reportsFillWindow
+    final offset =
+        liveFillsWindow ||
+            programsFillWindow ||
+            reportsFillWindow ||
+            lyricsFillsWindow
         ? 0.0
         : tabScrollOffsets[value] ?? 0;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -379,9 +387,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   /// (-1) one. Live keeps a loaded or running service in view, so swiping
   /// away from it waits until the service is over; the bar still works.
   bool canSwipeTab(int direction) {
-    final target = page + direction;
-    return target >= 0 &&
-        target <= 3 &&
+    final target = homePageAt(homePageSlot(page) + direction);
+    return target != null &&
         c.ready &&
         !c.corrupt &&
         c.pairing.localControl &&
@@ -392,8 +399,12 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
         !(page == 0 && !liveStandingBy);
   }
 
-  void swipeTab(int direction) =>
-      unawaited(goToPage(page + direction, slide: direction));
+  void swipeTab(int direction) => unawaited(
+    goToPage(
+      homePageAt(homePageSlot(page) + direction) ?? page,
+      slide: direction,
+    ),
+  );
   DateTime? _clickerNextArmed;
 
   /// How long a key can be held before its repeats count as one press.
@@ -494,6 +505,10 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
       unawaited(openShortcutsSheet());
       return true;
     }
+    // The Lyrics page has keys of its own (→ Space next slide, ← back,
+    // Esc clear, B black). Live's keys work only on Live, so the two never
+    // clash.
+    if (page == lyricsPage) return lyricsKey(event);
     // A PC keyboard adds its own keys on top of the clicker's; they open
     // the same confirmations as the buttons on screen. The clicker's keys
     // follow Clicker and foot pedal on every device: a computer cannot
@@ -954,7 +969,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                       physics:
                           liveFillsWindow ||
                               programsFillWindow ||
-                              reportsFillWindow
+                              reportsFillWindow ||
+                              lyricsFillsWindow
                           ? const NeverScrollableScrollPhysics()
                           : null,
                       slivers: [
@@ -1064,6 +1080,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                     : () => unawaited(setHostFullScreen(true)),
                                 icon: const Icon(Icons.fullscreen),
                               ),
+                            if (c.ready && page == 0 && liveFillsWindow)
+                              lyricsHeaderButton(),
                             if (c.ready && page == 0 && c.liveSession.active)
                               IconButton(
                                 key: const ValueKey('control-lock'),
@@ -1155,7 +1173,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                           )
                         else if (liveFillsWindow ||
                             programsFillWindow ||
-                            reportsFillWindow)
+                            reportsFillWindow ||
+                            lyricsFillsWindow)
                           SliverFillRemaining(
                             child: SafeArea(
                               top: false,
@@ -1184,6 +1203,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                           ? programsDesktop()
                                           : page == 2
                                           ? reportsDesktop()
+                                          : page == lyricsPage
+                                          ? lyricsPanel()
                                           : live(),
                                     ),
                                   ),
@@ -1296,27 +1317,16 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                   : useNavigationRail || useTopTabs
                   ? null
                   : NavigationBar(
-                      selectedIndex: page,
+                      selectedIndex: homePageSlot(page),
                       onDestinationSelected: (v) {
-                        if (!controlsLocked) goToPage(v);
+                        if (!controlsLocked) goToPage(homePageOrder[v].page);
                       },
-                      destinations: const [
-                        NavigationDestination(
-                          icon: Icon(Icons.radio_button_checked),
-                          label: 'Live',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.view_timeline_outlined),
-                          label: 'Programs',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.assessment_outlined),
-                          label: 'Reports',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.settings_outlined),
-                          label: 'Settings',
-                        ),
+                      destinations: [
+                        for (final p in homePageOrder)
+                          NavigationDestination(
+                            icon: Icon(p.icon),
+                            label: p.name,
+                          ),
                       ],
                     ),
             ),

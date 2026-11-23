@@ -373,6 +373,28 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
     return raw == null ? null : churchPhotoFrom(raw);
   }
 
+  @override
+  Future<Uint8List?> loadLyricPicture() async {
+    final f = File(_path('lyric-picture.jpg'));
+    return await f.exists() ? f.readAsBytes() : null;
+  }
+
+  @override
+  Future<void> saveLyricPicture(Uint8List bytes) =>
+      writeWhole(_path('lyric-picture.jpg'), bytes);
+
+  @override
+  Future<String?> lyricPicturePath() async => _path('lyric-picture.jpg');
+
+  @override
+  Future<Map<String, dynamic>?> pickTextFile() async {
+    final path = await dialogs.open(
+      label: 'Song words (TXT)',
+      extensions: const ['txt'],
+    );
+    return path == null ? null : readTextFile(path);
+  }
+
   // ---- Secrets ------------------------------------------------------------
 
   @override
