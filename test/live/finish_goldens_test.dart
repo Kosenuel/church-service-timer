@@ -173,6 +173,81 @@ void main() {
     }
   }
 
+  // Papery: the finish that comes with the Paper & Ink themes, whatever
+  // finish is saved (here Flat, to show the theme alone brings it).
+  for (final theme in ['paper_ink', 'paper_ink_blue']) {
+    for (final strength in finishStrengths) {
+      testWidgets('Papery $theme $strength on a computer', (t) async {
+        final keep = theme == 'paper_ink' && strength == 'full';
+        if (scratch.isEmpty && !keep) return;
+        await start(
+          t,
+          size: desktop,
+          theme: theme,
+          finish: 'flat',
+          strength: strength,
+          crop: scratch.isEmpty ? const Size(560, 315) : null,
+        );
+        await shot(t, 'live-papery-$theme-$strength-1366');
+      });
+      for (final (name, tab) in [
+        ('live', -1),
+        ('settings', 3),
+        ('programs', 1),
+        ('reports', 2),
+      ]) {
+        testWidgets('Papery $theme $strength $name on a phone', (t) async {
+          final keep =
+              (theme == 'paper_ink_blue' && strength == 'subtle' && tab == 3) ||
+              (theme == 'paper_ink' && strength == 'full' && tab == -1);
+          if (scratch.isEmpty && !keep) return;
+          await start(
+            t,
+            size: phone,
+            theme: theme,
+            finish: 'flat',
+            strength: strength,
+          );
+          if (tab >= 0) {
+            await t.tap(find.byType(NavigationDestination).at(tab));
+            await t.pumpAndSettle();
+          }
+          await shot(t, 'papery-$theme-$strength-$name-phone');
+        });
+      }
+    }
+    testWidgets('the Finish section of $theme is a note', (t) async {
+      if (scratch.isEmpty && theme != 'paper_ink') return;
+      await start(
+        t,
+        size: phone,
+        theme: theme,
+        finish: 'brick',
+        strength: 'subtle',
+        live: false,
+      );
+      await t.tap(find.byType(NavigationDestination).at(3));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Appearance'));
+      await t.pumpAndSettle();
+      await t.scrollUntilVisible(
+        find.byKey(const ValueKey('finish-title')),
+        300,
+        scrollable: find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('finish-papery-note')), findsOneWidget);
+      expect(find.byKey(const ValueKey('finish-brick')), findsNothing);
+      expect(find.byKey(const ValueKey('finish-strength')), findsOneWidget);
+      await shot(t, 'papery-appearance-note-$theme');
+    });
+  }
+
   // Every desktop layout, in a few window sizes and at larger text, draws in
   // a finish without overflowing, and the cues and Pause stay in view.
   for (final layout in [
@@ -222,13 +297,13 @@ void main() {
 
   // A destructive button keeps its danger colour in every finish: the keycap
   // and gloss of Console and Plastic only shade it.
-  for (final finish in finishes) {
+  for (final finish in [...finishes, 'papery']) {
     testWidgets('End service is red in $finish', (t) async {
       await start(
         t,
         size: desktop,
-        theme: dark,
-        finish: finish,
+        theme: finish == 'papery' ? 'paper_ink' : dark,
+        finish: finish == 'papery' ? 'flat' : finish,
         strength: 'full',
       );
       final button = find.byKey(const ValueKey('end-service'));

@@ -59,6 +59,19 @@ final _specs = <String, _Spec>{
     panelDark: 0.06,
     panelAlpha: .72,
   ),
+  // Papery: a warm sheet with a fine tooth, and brighter sheets stacked on
+  // it. Only for the Paper & Ink themes (see paperyThemeIds); the panel stays
+  // the theme's own white, so its ink keeps its full contrast.
+  'papery': _Spec(
+    wallMat: _by(const Color(0xffe3d9c2), const Color(0xffe3d9c2)),
+    wallMix: .7,
+    wallLight: .08,
+    wallDark: .13,
+    panelMat: _surface,
+    panelMix: 0,
+    panelLight: .02,
+    panelDark: .035,
+  ),
   'console': _Spec(
     wallMat: _by(const Color(0xff7d868e), const Color(0xffaab2b9)),
     wallMix: .42,

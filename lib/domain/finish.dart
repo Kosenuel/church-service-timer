@@ -24,7 +24,21 @@ const defaultFinish = 'flat';
 const finishStrengths = ['subtle', 'full'];
 const defaultFinishStrength = 'subtle';
 
+/// The themes that carry their own finish, Papery, whatever finish is saved.
+/// Papery is not in [finishIds]: it is never chosen, never saved and never
+/// shown among the tiles; it comes with these themes and with nothing else
+/// (a custom theme is not one of them, even with the same colours).
+const paperyThemeIds = {'paper_ink', 'paper_ink_blue'};
+const paperyFinish = 'papery';
+
+/// The finish drawn with [themeId] when [saved] is the chosen one: Papery
+/// for a Paper & Ink theme, else [saved]. The saved choice is not touched,
+/// so going back to another theme restores it.
+String effectiveFinish(String themeId, String saved) =>
+    paperyThemeIds.contains(themeId) ? paperyFinish : saved;
+
 String finishName(String id) => switch (id) {
+  'papery' => 'Papery',
   'glass' => 'Glass',
   'console' => 'Bridge console',
   'brick' => 'Brick',
@@ -40,6 +54,7 @@ String finishName(String id) => switch (id) {
 };
 
 String finishDescription(String id) => switch (id) {
+  'papery' => 'Fine paper, with panels as loose sheets',
   'glass' => 'Frosted panes over a soft glow',
   'console' => 'Brushed steel plates, bolted down',
   'brick' => 'Signboards on a brick wall',

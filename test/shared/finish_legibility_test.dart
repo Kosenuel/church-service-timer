@@ -24,7 +24,10 @@ void main() {
     'custom:e91e63:fff7f0:fffdfb',
     'custom:00bcd4:001018:0b2230',
   ];
-  final finishesOn = finishIds.where((f) => f != 'flat');
+  final finishesOn = [...finishIds.where((f) => f != 'flat'), paperyFinish];
+  // Papery belongs to the Paper & Ink themes only.
+  bool applies(String finish, String id) =>
+      finish != paperyFinish || paperyThemeIds.contains(id);
 
   double bar(double flat, double max) => flat < max ? flat : max;
 
@@ -32,6 +35,7 @@ void main() {
     for (final id in looks) {
       final p = paletteFor(id);
       for (final finish in finishesOn) {
+        if (!applies(finish, id)) continue;
         for (final strength in finishStrengths) {
           test(
             '$finish at $strength keeps text readable in ${p.name} ($id)',
@@ -122,6 +126,7 @@ void main() {
         for (final id in looks) {
           final p = paletteFor(id);
           for (final finish in finishesOn) {
+            if (!applies(finish, id)) continue;
             final full = FinishLook.resolve(p, finish, 1);
             final subtle = FinishLook.resolve(p, finish, .5);
             // Some of the material survives the legibility limit.
@@ -223,6 +228,7 @@ void main() {
 
     for (final id in themes) {
       for (final finish in finishesOn) {
+        if (!applies(finish, id)) continue;
         for (final strength in finishStrengths) {
           testWidgets('$finish at $strength draws legible pixels in $id', (
             t,

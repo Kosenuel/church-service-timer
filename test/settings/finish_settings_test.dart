@@ -112,10 +112,10 @@ void main() {
         expect(old.finish, 'flat');
         expect(old.finishStrength, 'subtle');
         // A plain look is written as before, so its backup opens in an
-      // earlier version.
-      expect(old.toJson().containsKey('finish'), isFalse);
-      expect(old.toJson().containsKey('finishStrength'), isFalse);
-      // Reset to the default look puts the plain panels back.
+        // earlier version.
+        expect(old.toJson().containsKey('finish'), isFalse);
+        expect(old.toJson().containsKey('finishStrength'), isFalse);
+        // Reset to the default look puts the plain panels back.
         expect(defaultLook.applyTo(applied).finish, 'flat');
       },
     );
@@ -177,6 +177,197 @@ void main() {
         );
         await t.pumpAndSettle();
         expect(painted(), isFalse);
+      },
+    );
+  });
+
+  group('Papery, the finish of the Paper & Ink themes', () {
+    test('a Paper & Ink theme always has Papery, whatever is saved', () {
+      for (final theme in ['paper_ink', 'paper_ink_blue']) {
+        for (final saved in finishIds) {
+          expect(
+            effectiveFinish(theme, saved),
+            'papery',
+            reason: '$theme $saved',
+          );
+          final look = appTheme(
+            theme,
+            appearance: AppearancePreferences(finish: saved),
+          ).extension<FinishLook>()!;
+          expect(look.id, 'papery');
+          expect(look.active, isTrue);
+        }
+      }
+      // Any other theme, custom ones included, draws what is saved, and
+      // never Papery.
+      for (final theme in [
+        'midnight_lime',
+        'warm_ivory',
+        'custom:1f2937:f5f5f2:ffffff',
+      ]) {
+        expect(effectiveFinish(theme, 'oak'), 'oak');
+        expect(effectiveFinish(theme, 'flat'), 'flat');
+        expect(
+          appTheme(theme).extension<FinishLook>()!.id,
+          'flat',
+          reason: theme,
+        );
+      }
+    });
+
+    test('Papery is never a choice: not listed, not saved, not read back', () {
+      expect(finishIds, isNot(contains('papery')));
+      final read = AppearancePreferences.fromJson({'finish': 'papery'});
+      expect(read.finish, 'flat');
+      final saved = AppearancePreferences(finish: 'brick');
+      expect(saved.toJson()['finish'], 'brick');
+      // Resolving a theme does not write anything into the preferences.
+      appTheme('paper_ink', appearance: saved);
+      expect(saved.finish, 'brick');
+    });
+
+    test(
+      'Subtle and Full still apply to it, and High contrast makes it Flat',
+      () {
+        final subtle = appTheme('paper_ink').extension<FinishLook>()!;
+        final full = appTheme(
+          'paper_ink',
+          appearance: const AppearancePreferences(finishStrength: 'full'),
+        ).extension<FinishLook>()!;
+        expect(subtle.strength, .5);
+        expect(full.strength, 1);
+        expect(full.wallScale, greaterThan(subtle.wallScale));
+        final plain = appTheme(
+          'paper_ink_blue',
+          appearance: const AppearancePreferences(
+            finishStrength: 'full',
+            highContrast: true,
+          ),
+        );
+        expect(plain.extension<FinishLook>()!.active, isFalse);
+        expect(plain.scaffoldBackgroundColor, isNot(Colors.transparent));
+      },
+    );
+
+    test(
+      'a saved look keeps the saved finish, and applying it to a Paper & Ink theme shows Papery',
+      () {
+        const look = SavedLook(
+          name: 'Paper',
+          layout: 'classic',
+          themeId: 'paper_ink',
+          finish: 'leather',
+          finishStrength: 'full',
+        );
+        final back = SavedLook.fromJson(
+          Map<String, dynamic>.from(jsonDecode(jsonEncode(look.toJson()))),
+        );
+        expect(back.finish, 'leather');
+        final applied = back.applyTo(const AppearancePreferences());
+        expect(effectiveFinish(back.themeId, applied.finish), 'papery');
+        expect(effectiveFinish('midnight_lime', applied.finish), 'leather');
+      },
+    );
+
+    testWidgets(
+      'the editor shows a note for Paper & Ink, and the choice survives going back',
+      (t) async {
+        setScreen(t, const Size(430, 900));
+        final c = AppController(FakePort());
+        await c.initialize(startTicker: false);
+        await c.commit((draft, _) {
+          draft.appearance = draft.appearance.copyWith(finish: 'brick');
+        });
+        await t.pumpWidget(TimerApp(controller: c));
+        await t.pumpAndSettle();
+        await t.tap(find.byType(NavigationDestination).at(3));
+        await t.pumpAndSettle();
+        await t.tap(find.text('Appearance'));
+        await t.pumpAndSettle();
+        final list = find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+        Future<void> toFinish() async {
+          await t.scrollUntilVisible(
+            find.byKey(const ValueKey('finish-title')),
+            300,
+            scrollable: list,
+          );
+          await t.pumpAndSettle();
+        }
+
+        await toFinish();
+        expect(find.byKey(const ValueKey('finish-brick')), findsOneWidget);
+        expect(find.byKey(const ValueKey('finish-papery')), findsNothing);
+        // Pick Paper & Ink: tiles give way to the note; Strength stays.
+        await t.scrollUntilVisible(
+          find.byKey(const ValueKey('theme-paper_ink')),
+          -300,
+          scrollable: list,
+        );
+        await t.ensureVisible(find.byKey(const ValueKey('theme-paper_ink')));
+        await t.pumpAndSettle();
+        await t.tap(find.byKey(const ValueKey('theme-paper_ink')));
+        await t.pumpAndSettle();
+        await toFinish();
+        expect(
+          find.byKey(const ValueKey('finish-papery-note')),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Papery · Paper & Ink comes with its own paper finish.'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('finish-brick')), findsNothing);
+        final strength = t.widget<SegmentedButton<String>>(
+          find.byKey(const ValueKey('finish-strength')),
+        );
+        expect(strength.onSelectionChanged, isNotNull);
+        expect(
+          Theme.of(
+            t.element(find.byType(AppearancePage)),
+          ).extension<FinishLook>()!.id,
+          'papery',
+        );
+        // The saved choice underneath was not touched.
+        expect(c.appearanceSelection.value.finish, 'brick');
+        // Back to another theme: the tiles return with Brick still chosen.
+        await t.scrollUntilVisible(
+          find.byKey(const ValueKey('theme-midnight_lime')),
+          -300,
+          scrollable: list,
+        );
+        await t.ensureVisible(
+          find.byKey(const ValueKey('theme-midnight_lime')),
+        );
+        await t.pumpAndSettle();
+        await t.tap(find.byKey(const ValueKey('theme-midnight_lime')));
+        await t.pumpAndSettle();
+        await toFinish();
+        expect(find.byKey(const ValueKey('finish-papery-note')), findsNothing);
+        expect(
+          Theme.of(
+            t.element(find.byType(AppearancePage)),
+          ).extension<FinishLook>()!.id,
+          'brick',
+        );
+        // Saving with Paper & Ink writes Brick, never Papery.
+        await t.scrollUntilVisible(
+          find.byKey(const ValueKey('theme-paper_ink')),
+          -300,
+          scrollable: list,
+        );
+        await t.ensureVisible(find.byKey(const ValueKey('theme-paper_ink')));
+        await t.pumpAndSettle();
+        await t.tap(find.byKey(const ValueKey('theme-paper_ink')));
+        await t.pumpAndSettle();
+        await t.tap(find.text('Save appearance'));
+        await t.pumpAndSettle();
+        expect(c.state.themeId, 'paper_ink');
+        expect(c.state.appearance.finish, 'brick');
       },
     );
   });

@@ -12,11 +12,16 @@ class FinishSection extends StatelessWidget {
 
   /// The theme being edited, so each tile shows its material in those colours.
   final AppPalette palette;
+
+  /// The theme being edited: Paper & Ink comes with its own finish, which is
+  /// not a choice, so its tiles give way to a note.
+  final String themeId;
   final ValueChanged<AppearancePreferences>? onChanged;
   const FinishSection({
     super.key,
     required this.value,
     required this.palette,
+    required this.themeId,
     required this.onChanged,
   });
 
@@ -41,56 +46,66 @@ class FinishSection extends StatelessWidget {
           style: TextStyle(color: colors.muted),
         ),
         const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, space) {
-            final columns = space.maxWidth >= 760
-                ? 4
-                : space.maxWidth >= 520
-                ? 3
-                : 2;
-            final rows = <List<String>>[
-              for (var i = 0; i < finishIds.length; i += columns)
-                finishIds.sublist(
-                  i,
-                  i + columns > finishIds.length
-                      ? finishIds.length
-                      : i + columns,
-                ),
-            ];
-            return Column(
-              children: [
-                for (final row in rows) ...[
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (var i = 0; i < columns; i++) ...[
-                          if (i > 0) const SizedBox(width: 10),
-                          Expanded(
-                            child: i < row.length
-                                ? FinishTile(
-                                    id: row[i],
-                                    strength: strength,
-                                    palette: palette,
-                                    selected: value.finish == row[i],
-                                    onTap: onChanged == null
-                                        ? null
-                                        : () => onChanged!(
-                                            value.copyWith(finish: row[i]),
-                                          ),
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                        ],
-                      ],
-                    ),
+        if (paperyThemeIds.contains(themeId))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              '${finishName(paperyFinish)} · Paper & Ink comes with its own paper finish.',
+              key: const ValueKey('finish-papery-note'),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, space) {
+              final columns = space.maxWidth >= 760
+                  ? 4
+                  : space.maxWidth >= 520
+                  ? 3
+                  : 2;
+              final rows = <List<String>>[
+                for (var i = 0; i < finishIds.length; i += columns)
+                  finishIds.sublist(
+                    i,
+                    i + columns > finishIds.length
+                        ? finishIds.length
+                        : i + columns,
                   ),
-                  const SizedBox(height: 10),
+              ];
+              return Column(
+                children: [
+                  for (final row in rows) ...[
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (var i = 0; i < columns; i++) ...[
+                            if (i > 0) const SizedBox(width: 10),
+                            Expanded(
+                              child: i < row.length
+                                  ? FinishTile(
+                                      id: row[i],
+                                      strength: strength,
+                                      palette: palette,
+                                      selected: value.finish == row[i],
+                                      onTap: onChanged == null
+                                          ? null
+                                          : () => onChanged!(
+                                              value.copyWith(finish: row[i]),
+                                            ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                 ],
-              ],
-            );
-          },
-        ),
+              );
+            },
+          ),
         Wrap(
           spacing: 12,
           runSpacing: 8,
@@ -112,7 +127,10 @@ class FinishSection extends StatelessWidget {
                 ButtonSegment(value: 'full', label: Text('Full')),
               ],
               selected: {value.finishStrength},
-              onSelectionChanged: onChanged == null || value.finish == 'flat'
+              onSelectionChanged:
+                  onChanged == null ||
+                      (value.finish == 'flat' &&
+                          !paperyThemeIds.contains(themeId))
                   ? null
                   : (v) => onChanged!(value.copyWith(finishStrength: v.first)),
             ),

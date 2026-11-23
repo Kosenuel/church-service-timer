@@ -322,6 +322,8 @@ class FinishWallPainter extends CustomPainter {
         );
       case 'marble':
         _veins(canvas, size, l, wl, wd, 1);
+      case 'papery':
+        _paperWall(canvas, size, l);
       case 'carbon':
         _speckle(canvas, area, _Tiles.weave, wl * .5, wd * .5);
         canvas.drawRect(
@@ -340,6 +342,52 @@ class FinishWallPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(FinishWallPainter old) => !identical(old.look, look);
+}
+
+/// A sheet of paper: a fine tooth, and short fibres lying every which way.
+/// The fibres are drawn into one layer and laid on at their budget, so ones
+/// that cross never add up past it.
+void _paperWall(Canvas c, Size size, FinishLook l) {
+  final area = Offset.zero & size;
+  final wl = l.wallLight, wd = l.wallDark;
+  _speckle(c, area, _Tiles.fine, wl * .45, wd * .4);
+  final r = math.Random(17);
+  final count = (size.width * size.height / 1800).round().clamp(0, 1400);
+  for (final white in [false, true]) {
+    c.saveLayer(
+      area,
+      Paint()
+        ..color = (white ? Colors.white : Colors.black).withValues(
+          alpha: (white ? wl : wd) * .55,
+        ),
+    );
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = .8
+      ..color = white ? Colors.white : Colors.black;
+    for (var i = 0; i < count; i++) {
+      final at = Offset(
+        r.nextDouble() * size.width,
+        r.nextDouble() * size.height,
+      );
+      final a = r.nextDouble() * math.pi, len = 5 + r.nextDouble() * 14;
+      final bend = (r.nextDouble() - .5) * 6;
+      final end = at + Offset(math.cos(a), math.sin(a)) * len;
+      final mid =
+          Offset.lerp(at, end, .5)! + Offset(-math.sin(a), math.cos(a)) * bend;
+      p.color = (white ? Colors.white : Colors.black).withValues(
+        alpha: .35 + r.nextDouble() * .65,
+      );
+      c.drawPath(
+        Path()
+          ..moveTo(at.dx, at.dy)
+          ..quadraticBezierTo(mid.dx, mid.dy, end.dx, end.dy),
+        p,
+      );
+    }
+    c.restore();
+  }
 }
 
 /// Running-bond brickwork, each brick a little lighter or darker.
@@ -520,6 +568,7 @@ void _veins(
 /// How round a finish's panels are.
 double finishRadius(String id) => switch (id) {
   'glass' => 18,
+  'papery' => 4,
   'console' => 5,
   'brick' => 6,
   'cashmere' => 22,
@@ -636,6 +685,8 @@ class FinishPanelPainter extends CustomPainter {
             stop: .18,
           ),
         );
+      case 'papery':
+        _speckle(canvas, area, _Tiles.fine, pl * .5, pd * .6);
       case 'walnut' || 'oak':
         canvas.drawRect(
           area,
@@ -708,6 +759,21 @@ class FinishPanelPainter extends CustomPainter {
     switch (l.id) {
       case 'brick':
         alpha *= 1.5;
+      case 'papery':
+        // A short, soft shadow, and the edge of a second sheet beneath.
+        blur = 3 + 3 * s;
+        dy = 1 + 1.5 * s;
+        alpha = (l.light ? .10 : .25) * (.6 + .6 * s);
+        canvas.drawRRect(
+          rr.shift(Offset(1.5 + 1.5 * s, 2.5 + 2 * s)),
+          Paint()..color = _toward(l.panel, l.palette.text, .05),
+        );
+        canvas.drawRRect(
+          rr.shift(Offset(1.5 + 1.5 * s, 2.5 + 2 * s)).deflate(.5),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..color = _toward(l.panel, l.palette.text, .2),
+        );
       case 'cashmere':
         blur *= 1.6;
         alpha *= .8;
@@ -782,6 +848,16 @@ class FinishPanelPainter extends CustomPainter {
         canvas.drawRRect(
           rr.deflate(1.5),
           line..color = Colors.white.withValues(alpha: pl * .8),
+        );
+      case 'papery':
+        // A crisp hairline edge, and a pale line just inside it.
+        canvas.drawRRect(
+          rr.deflate(.5),
+          line..color = _toward(l.panel, l.palette.text, .22),
+        );
+        canvas.drawRRect(
+          rr.deflate(1.5),
+          line..color = Colors.white.withValues(alpha: .6),
         );
       case 'walnut' || 'oak':
         // The panel is set into a frame of the desk's own wood.

@@ -1212,6 +1212,7 @@ class _AppearancePageState extends State<AppearancePage> {
                       child: FinishSection(
                         value: appearance,
                         palette: palette,
+                        themeId: selected,
                         onChanged: saving
                             ? null
                             : (value) {

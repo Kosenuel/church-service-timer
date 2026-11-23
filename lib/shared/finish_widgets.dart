@@ -117,6 +117,8 @@ ButtonStyle? finishButtonStyle(FinishLook look, {required bool filled}) {
     'carbon' => 6.0,
     'denim' => 8.0,
     'glass' => 12.0,
+    // Printed labels: square, like a letterpress plate.
+    'papery' => 3.0,
     _ => 10.0,
   };
   final shape = WidgetStatePropertyAll<OutlinedBorder>(

@@ -7,6 +7,7 @@ import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/domain/domain.dart'
     show
         AppearancePreferences,
+        effectiveFinish,
         stageCardBackground,
         desktopLayoutMinHeight,
         desktopLayoutMinWidth,
@@ -412,7 +413,8 @@ ThemeData appTheme(
   // text it asks for are never under a texture.
   final finish = FinishLook.resolve(
     p,
-    appearance.finish,
+    // A Paper & Ink theme always has Papery; the saved choice is kept.
+    effectiveFinish(id, appearance.finish),
     appearance.finishStrength == 'full' ? 1 : .5,
   );
   final brightness = p.light ? Brightness.light : Brightness.dark;
