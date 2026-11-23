@@ -25,11 +25,11 @@
   },
   {
     "id": "steel",
-    "title": "Grey Plaster",
-    "author": "Rob Tuytel",
+    "title": "Metal 009",
+    "author": "Lennart Demes (ambientCG)",
     "license": "CC0",
-    "source": "https://polyhaven.com/a/grey_plaster",
-    "use": "Bridge console plates: the fine grain of this photograph drawn out sideways into brushed steel. Grey detail tile, 1024 px."
+    "source": "https://ambientcg.com/a/Metal009",
+    "use": "Bridge console plates: brushed steel. Grey detail tile, 1024 px."
   },
   {
     "id": "knit",
@@ -49,58 +49,58 @@
   },
   {
     "id": "leather",
-    "title": "Brown Leather",
-    "author": "Rob Tuytel",
+    "title": "Leather 037",
+    "author": "Lennart Demes (ambientCG)",
     "license": "CC0",
-    "source": "https://polyhaven.com/a/brown_leather",
-    "use": "Leather: pebbled hide. Grey detail tile from the 2K photograph, 1024 px."
+    "source": "https://ambientcg.com/a/Leather037",
+    "use": "Leather: the embossed grain, lit from the top left from the material’s normal map. Grey detail tile, 1024 px."
   },
   {
     "id": "walnut",
-    "title": "Wood Table 001",
-    "author": "Dimitrios Savva, Rico Cilliers",
+    "title": "Wood 051",
+    "author": "Lennart Demes (ambientCG)",
     "license": "CC0",
-    "source": "https://polyhaven.com/a/wood_table_001",
-    "use": "Walnut: close, straight grain, turned to run across. Grey detail tile, 1024 px."
+    "source": "https://ambientcg.com/a/Wood051",
+    "use": "Walnut: espresso hardwood, straight cathedral grain running across, no knots. Grey detail tile, 1024 px."
   },
   {
     "id": "oak",
-    "title": "Oak Wood Planks",
-    "author": "Dimitrios Savva",
+    "title": "Wood 049",
+    "author": "Lennart Demes (ambientCG)",
     "license": "CC0",
-    "source": "https://polyhaven.com/a/oak_wood_planks",
-    "use": "Oak: open grain running across. Grey detail tile, 1024 px."
+    "source": "https://ambientcg.com/a/Wood049",
+    "use": "Oak: plain, straight open grain running across, no knots or plank gaps. Grey detail tile, 1024 px."
   },
   {
     "id": "marble",
-    "title": "Veined marble",
-    "author": "Church Service Timer",
+    "title": "Marble 014",
+    "author": "Lennart Demes (ambientCG)",
     "license": "CC0",
-    "source": "Made for this app (docs/FINISH-TEXTURES.md)",
-    "use": "Marble: veining drawn from filtered noise for this app (Poly Haven has no plain veined slab). Grey detail tile, 1024 px."
+    "source": "https://ambientcg.com/a/Marble014",
+    "use": "Marble: a polished slab with gentle veining, its fine mottling quietened so the veins lead. Grey detail tile, 1024 px."
   },
   {
     "id": "carbon",
-    "title": "Carbon weave",
-    "author": "Church Service Timer",
+    "title": "Fabric 004",
+    "author": "Lennart Demes (ambientCG)",
     "license": "CC0",
-    "source": "Made for this app (docs/FINISH-TEXTURES.md)",
-    "use": "Carbon fibre: a 2 x 2 twill of flat tows drawn for this app (neither library has one). Grey detail tile, 512 px."
+    "source": "https://ambientcg.com/a/Fabric004",
+    "use": "Carbon fibre: a 2 x 2 twill weave. Grey detail tile, 1024 px."
   },
   {
     "id": "paper",
-    "title": "Paper tooth",
-    "author": "Church Service Timer",
+    "title": "Paper 001",
+    "author": "Lennart Demes (ambientCG)",
     "license": "CC0",
-    "source": "Made for this app (docs/FINISH-TEXTURES.md)",
-    "use": "Papery: fine tooth and fibres drawn for this app (neither library has a plain paper). Grey detail tile, 512 px."
+    "source": "https://ambientcg.com/a/Paper001",
+    "use": "Papery: the fine tooth of white paper. Grey detail tile, 1024 x 600 px."
   },
   {
-    "id": "frost",
-    "title": "Frost grain",
-    "author": "Church Service Timer",
+    "id": "plastic",
+    "title": "Plastic 004",
+    "author": "Lennart Demes (ambientCG)",
     "license": "CC0",
-    "source": "Made for this app (docs/FINISH-TEXTURES.md)",
-    "use": "Glass: the fine grain of frosted glass, drawn for this app. Grey detail tile, 256 px."
+    "source": "https://ambientcg.com/a/Plastic004",
+    "use": "Plastic: a moulded, pebbled surface, lit from the top left from the material’s normal map; at a finer scale the frost on Glass. Grey detail tile, 1024 px."
   }
 ]

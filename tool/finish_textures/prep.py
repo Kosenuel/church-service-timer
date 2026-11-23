@@ -20,6 +20,8 @@ ap.add_argument('--gamma', type=float, default=1.0)
 ap.add_argument('--quality', type=int, default=88)
 ap.add_argument('--rot', action='store_true', help='turn a quarter, so grain runs across')
 ap.add_argument('--crop', type=float, default=1.0, help='keep this share of the photo (a seamless crop only at 1)')
+ap.add_argument('--normal', action='store_true', help='SRC is an OpenGL normal map: the tile is its relief lit from the top left')
+ap.add_argument('--quiet', type=float, default=1.0, help='power > 1 quiets small variation, keeping the strong marks (veins)')
 ap.add_argument('--hblur', type=float, default=0, help='horizontal streak blur in px (brushed metal)')
 a = ap.parse_args()
 
@@ -33,7 +35,12 @@ w, h = im.size
 H = round(a.width * h / w)
 im = im.resize((a.width, H), Image.Resampling.LANCZOS)
 rgb = np.asarray(im).astype(np.float64) / 255
-lum = (0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2]) ** (1 / max(a.gamma, .01))
+if a.normal:
+    n = rgb * 2 - 1
+    light = np.array([-.55, .55, .63]); light /= np.linalg.norm(light)
+    lum = n[..., 0] * light[0] + n[..., 1] * light[1] + n[..., 2] * light[2]
+else:
+    lum = (0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2]) ** (1 / max(a.gamma, .01))
 
 def wrap_blur(x, radius, horizontal_only=False):
     """Gaussian blur that wraps round the edges (circular, by FFT), so the
@@ -59,6 +66,8 @@ d = pos + neg
 if a.soft > 0:
     d = np.tanh(d * a.soft * 1.3) / np.tanh(a.soft * 1.3)
 d = np.clip(d, -1, 1)
+if a.quiet != 1:
+    d = np.sign(d) * np.abs(d) ** a.quiet
 out = np.clip(np.round(128 + d * 127), 0, 255).astype(np.uint8)
 Image.fromarray(out, mode='L').save(a.out, quality=a.quality, optimize=True)
 print(a.out, out.shape, 'mean', round(out.mean(), 1), 'std', round(out.std(), 1))
