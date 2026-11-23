@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.ActivityNotFoundException
 import android.os.SystemClock
@@ -29,7 +30,23 @@ import java.nio.charset.CodingErrorAction
 import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
-    companion object { var bridge: DeviceBridge? = null }
+    companion object {
+        var bridge: DeviceBridge? = null
+
+        /** Marks an intent as a tap on one of the app's notifications. */
+        const val OPEN_LIVE = "org.kosenuel.churchservicetimer.extra.OPEN_LIVE"
+
+        /** What tapping any of the app's notifications does: bring the running
+         * app forward on Live. It is the launcher's own intent, so an existing
+         * task is resumed (CLEAR_TOP with singleTop reuses the one activity and
+         * calls onNewIntent) instead of a second activity being created. Each
+         * caller passes its own [code] so their pending intents stay apart. */
+        fun openApp(c: Context, code: Int): PendingIntent = PendingIntent.getActivity(c, code,
+            Intent(c, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(OPEN_LIVE, true),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
     override fun provideFlutterEngine(context: Context): FlutterEngine? = FlutterEngineCache.getInstance().get("service-timer")
     override fun shouldDestroyEngineWithHost() = false
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -42,13 +59,16 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
         // A recreated Activity or one reopened from Recents carries the old
         // intent; only a fresh "Open with"/Share delivers a file.
-        if (savedInstanceState == null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0)
+        if (savedInstanceState == null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
             bridge?.receive(intent)
+            bridge?.openLiveIfTapped(intent)
+        }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         bridge?.receive(intent)
+        bridge?.openLiveIfTapped(intent)
     }
     override fun onDestroy() { bridge?.detach(this); super.onDestroy() }
     @Deprecated("Activity result bridge")
@@ -90,6 +110,14 @@ class DeviceBridge(private val context: Context, engine: FlutterEngine) {
     fun pulse() { channel.invokeMethod("backgroundTick", null) }
     /** Forwards a Pause or Next tap from the active-service notification. */
     fun notificationAction(action: String) { channel.invokeMethod("notificationAction", action) }
+    /** A tap on one of the app's notifications: Live comes to the front. The
+     * mark is removed so the same intent is never acted on twice. A fresh
+     * process has no Dart handler yet and starts on Live anyway. */
+    fun openLiveIfTapped(intent: Intent?) {
+        if (intent?.getBooleanExtra(MainActivity.OPEN_LIVE, false) != true) return
+        intent.removeExtra(MainActivity.OPEN_LIVE)
+        notificationAction("open")
+    }
     fun closeDisplay() { displayIo.execute { w2.disconnect() } }
 
     private val io = Executors.newSingleThreadExecutor()

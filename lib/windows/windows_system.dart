@@ -44,6 +44,7 @@ class WindowsSystem implements DesktopSystem {
     String body, {
     int clearSeconds = 30,
     bool sound = false,
+    void Function()? onClick,
   }) {
     unawaited(() async {
       try {
@@ -62,6 +63,7 @@ class WindowsSystem implements DesktopSystem {
           body: body,
           silent: !sound,
         );
+        notification.onClick = onClick;
         _shown = notification;
         await notification.show();
         if (clearSeconds > 0) {

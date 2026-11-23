@@ -106,9 +106,7 @@ object WarningNotifications {
 
     @Suppress("DEPRECATION")
     private fun post(c: Context, title: String, body: String) {
-        val launch = PendingIntent.getActivity(c, 0, Intent(c, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val launch = MainActivity.openApp(c, 0)
         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(c, CHANNEL) else Notification.Builder(c)
         builder.setSmallIcon(R.drawable.ic_warning_notification).setContentTitle(title).setContentText(body)
             .setStyle(Notification.BigTextStyle().bigText(body)).setContentIntent(launch)

@@ -40,12 +40,13 @@ abstract class DesktopSystem {
 
   /// Shows a Windows notification and takes it down again after
   /// [clearSeconds] (0 leaves it until dismissed). It is silent unless
-  /// [sound] is on.
+  /// [sound] is on. Clicking it calls [onClick].
   void notify(
     String title,
     String body, {
     int clearSeconds = 30,
     bool sound = false,
+    void Function()? onClick,
   });
 
   /// Brings the window to the front.
@@ -178,7 +179,26 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
   /// does that by itself while a screen is being duplicated or presented).
   void _warn(String title, String body) {
     system.flash();
-    system.notify(title, body, clearSeconds: _clearSeconds, sound: _sound);
+    system.notify(
+      title,
+      body,
+      clearSeconds: _clearSeconds,
+      sound: _sound,
+      onClick: _openFromNotification,
+    );
+  }
+
+  Future<void> Function(String action)? _notificationHandler;
+  @override
+  void setNotificationActionHandler(
+    Future<void> Function(String action)? handler,
+  ) => _notificationHandler = handler;
+
+  /// Clicking a warning's notification brings the window forward, restored
+  /// if it was minimised, and shows Live.
+  void _openFromNotification() {
+    system.raise();
+    unawaited(_notificationHandler?.call('open'));
   }
 
   WindowsPort._(

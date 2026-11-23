@@ -93,7 +93,13 @@ class ServiceNotificationController {
 
   /// Pause/Resume and Next from the notification follow the same rules as
   /// the Live buttons: local control, unlocked, not app.busy, current revision.
+  /// Tapping the notification itself ("open") only brings Live forward: it
+  /// changes nothing in the service, so it works whatever is locked or busy.
   Future<void> handleAction(String action) async {
+    if (action == 'open') {
+      app.liveNavigation.value++;
+      return;
+    }
     if (!app.ready ||
         !app.state.session.active ||
         !app.pairing.localControl ||

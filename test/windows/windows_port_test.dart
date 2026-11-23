@@ -49,13 +49,21 @@ class FakeSystem implements DesktopSystem {
   final awake = <String>[];
   int flashes = 0, raises = 0;
   final notices = <String>[];
+
+  /// What Windows would call when the latest notification is clicked.
+  void Function()? clickLatest;
   @override
   void notify(
     String title,
     String body, {
     int clearSeconds = 30,
     bool sound = false,
-  }) => notices.add('$title | $body | $clearSeconds${sound ? ' | sound' : ''}');
+    void Function()? onClick,
+  }) {
+    notices.add('$title | $body | $clearSeconds${sound ? ' | sound' : ''}');
+    clickLatest = onClick;
+  }
+
   bool canOpen = true;
   @override
   bool open(String target) {
@@ -389,6 +397,27 @@ void main() {
     expect(system.notices.last, 'Time | Sermon | 0');
     p.dispose();
   });
+
+  test(
+    'clicking a warning notification raises the window and opens Live',
+    () async {
+      final p = port();
+      final opened = <String>[];
+      p.setNotificationActionHandler((action) async => opened.add(action));
+      await p.testNotification();
+      expect(system.clickLatest, isNotNull);
+      final raised = system.raises;
+      system.clickLatest!();
+      expect(system.raises, raised + 1);
+      expect(opened, ['open']);
+      // No handler yet (the app is still starting): the window still comes up.
+      p.setNotificationActionHandler(null);
+      system.clickLatest!();
+      expect(system.raises, raised + 2);
+      expect(opened, ['open']);
+      p.dispose();
+    },
+  );
 
   test(
     'the warning sound is a setting, off until turned on, and kept',
