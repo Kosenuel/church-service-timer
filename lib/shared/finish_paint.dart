@@ -22,12 +22,12 @@ class FinishMaterial {
 }
 
 const finishMaterials = <String, FinishMaterial>{
-  'glass': FinishMaterial(panel: 'frost', panelTile: 128),
+  'glass': FinishMaterial(panel: 'plastic', panelTile: 240),
   'papery': FinishMaterial(
     wall: 'paper',
-    wallTile: 512,
+    wallTile: 720,
     panel: 'paper',
-    panelTile: 420,
+    panelTile: 560,
   ),
   'console': FinishMaterial(
     wall: 'hull',
@@ -53,7 +53,12 @@ const finishMaterials = <String, FinishMaterial>{
     panel: 'denim',
     panelTile: 560,
   ),
-  'plastic': FinishMaterial(),
+  'plastic': FinishMaterial(
+    wall: 'plastic',
+    wallTile: 620,
+    panel: 'plastic',
+    panelTile: 520,
+  ),
   'walnut': FinishMaterial(
     wall: 'walnut',
     wallTile: 900,
@@ -80,9 +85,9 @@ const finishMaterials = <String, FinishMaterial>{
   ),
   'carbon': FinishMaterial(
     wall: 'carbon',
-    wallTile: 144,
+    wallTile: 340,
     panel: 'carbon',
-    panelTile: 120,
+    panelTile: 290,
   ),
 };
 
@@ -293,6 +298,7 @@ class _Art {
     'glass' => (.3, .4),
     'console' => (.5, .6),
     'carbon' => (.7, .7),
+    'plastic' => (.4, .35),
     'brick' => (.6, .7),
     _ => (1, 1),
   };
@@ -313,7 +319,8 @@ class _Art {
     if (_wall == null && !_wallTried) {
       _wall = _fill(
         material.wall,
-        look.wall,
+        // Plastic's moulded grain lies over its drawn table-top light.
+        look.id == 'plastic' ? null : look.wall,
         look.wallLight,
         look.wallDark,
         material.wallTile,
@@ -617,14 +624,26 @@ class _Art {
         c.restore();
         c.drawRRect(rr.deflate(1.5), bevel(.10 + pl * .6, 0, 1));
       case 'plastic':
+        // A moulded shell: its rounded lip catches the light, and a parting
+        // line runs just inside it where the two halves of the mould met.
         c.drawRRect(rr.deflate(.5), line(l.border));
         c.drawRRect(rr.deflate(1.5), bevel(.25 + pl, .05, 1.2));
+        c.drawRRect(
+          rr.deflate(4.5),
+          line(Colors.black.withValues(alpha: l.light ? .10 : .22), .8),
+        );
+        c.drawRRect(
+          rr.deflate(5.3),
+          line(Colors.white.withValues(alpha: .06 + pl * .5), .8),
+        );
       case 'papery':
         c.drawRRect(
           rr.deflate(.5),
           line(_toward(l.panel, l.palette.text, .22)),
         );
-        c.drawRRect(rr.deflate(1.5), line(Colors.white.withValues(alpha: .6)));
+        // A cut sheet: a crisp, bright cut edge along the top and left, and
+        // the faint shade of its thickness along the foot.
+        c.drawRRect(rr.deflate(1.3), bevel(.75, .10, 1.2));
       case 'walnut' || 'oak':
         // A panel set into the desk: the frame's outer edge, the groove
         // where the panel meets it, and light on the frame's lip.
@@ -642,13 +661,31 @@ class _Art {
             rr.deflate(_frameWidth + 1.5),
             line(Colors.black.withValues(alpha: .12)),
           );
+          // The inlay's lip: lit along the top where it rises from the
+          // groove, shaded along the foot.
+          c.drawRRect(
+            rr.deflate(_frameWidth - .8),
+            bevel(.14 + pl * .6, .28, 1.2),
+          );
         }
       case 'marble':
         c.drawRRect(
           rr.deflate(.5),
           line(_toward(l.panel, l.palette.text, .18)),
         );
-        c.drawRRect(rr.deflate(1.5), bevel(.18 + pl, .08, 1));
+        // A polished chamfer round the slab, with a soft specular edge
+        // where the light from the top left runs along it.
+        c.drawRRect(rr.deflate(1.8), bevel(.22 + pl, .12, 2.2));
+        c.drawRRect(
+          rr.deflate(1.2),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1
+            ..shader = ui.Gradient.linear(area.topLeft, area.center, [
+              Colors.white.withValues(alpha: .45 + pl),
+              Colors.white.withValues(alpha: 0),
+            ]),
+        );
       case 'carbon':
         c.drawRRect(rr.deflate(.5), line(Colors.black.withValues(alpha: .6)));
         c.drawRRect(rr.deflate(1.5), bevel(.14 + pl, .25, 1));
@@ -1085,6 +1122,8 @@ class RenderFinishPaint extends RenderBox {
             l.palette.background,
           ]),
       );
+      final grain = _art.wallFill;
+      if (grain != null) c.drawRect(area, grain);
       return;
     }
     c.drawRect(area, _art.wallFill ?? (Paint()..color = l.wall));
@@ -1121,7 +1160,8 @@ class RenderFinishPaint extends RenderBox {
         final frost = art.panelFill;
         if (frost != null) c.drawRRect(rr, frost);
       case 'plastic':
-        c.drawRRect(rr, Paint()..color = l.panel);
+        // The moulded surface, then the gloss of the shell over it.
+        c.drawRRect(rr, art.panelFill ?? (Paint()..color = l.panel));
         // Gloss: a wash of light over the top of the shell, and its shade.
         final pl = l.panelLight, pd = l.panelDark;
         c.drawRRect(
@@ -1131,7 +1171,7 @@ class RenderFinishPaint extends RenderBox {
               area.topCenter,
               Offset(area.center.dx, area.top + math.min(area.height * .5, 90)),
               [
-                Colors.white.withValues(alpha: pl * .85),
+                Colors.white.withValues(alpha: pl * .6),
                 Colors.white.withValues(alpha: 0),
               ],
             ),
@@ -1146,7 +1186,7 @@ class RenderFinishPaint extends RenderBox {
                 area.bottom - math.min(area.height * .2, 30),
               ),
               [
-                Colors.black.withValues(alpha: pd * .8),
+                Colors.black.withValues(alpha: pd * .6),
                 Colors.black.withValues(alpha: 0),
               ],
             ),

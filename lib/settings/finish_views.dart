@@ -169,8 +169,8 @@ Future<List<Map<String, dynamic>>> finishTextureCredits() async {
   ];
 }
 
-/// Where the finish textures come from: photographs from Poly Haven and a
-/// few made for the app, every one CC0.
+/// Where the finish textures come from: photographs from Poly Haven and
+/// ambientCG, every one CC0.
 Future<void> showFinishTextureCredits(BuildContext context) => showDialog<void>(
   context: context,
   builder: (context) => AlertDialog(
@@ -195,7 +195,7 @@ Future<void> showFinishTextureCredits(BuildContext context) => showDialog<void>(
                   isThreeLine: true,
                 ),
               const Text(
-                'The photographs are from Poly Haven. Every texture is CC0: none needs credit to be shown on screen; they are listed here with thanks.',
+                'The photographs are from Poly Haven and ambientCG. Every one is CC0: none needs credit to be shown on screen; they are listed here with thanks.',
               ),
             ],
           );

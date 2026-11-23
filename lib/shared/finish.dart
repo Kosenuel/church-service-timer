@@ -143,8 +143,8 @@ final _specs = <String, _Spec>{
   'plastic': _Spec(
     wallMat: _text,
     wallMix: .07,
-    wallLight: 0,
-    wallDark: 0.06,
+    wallLight: 0.06,
+    wallDark: 0.08,
     panelMat: _surface,
     panelMix: 0,
     panelLight: 0.24,
