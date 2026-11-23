@@ -7,6 +7,7 @@ import 'package:church_service_timer/lyrics/bible_loader.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/lyrics/lyric_editors.dart';
 import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_paint.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -167,6 +168,8 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     await BibleLibrary.load();
   });
+  // The finish photographs, decoded before any shot draws them.
+  setUpAll(FinishTextures.instance.loadAll);
 
   testWidgets('Slides sits after Programs in the navigation', (t) async {
     await openLyrics(

@@ -50,6 +50,7 @@ extension SettingsViews on HomeState {
     MaterialPageRoute(
       builder: (context) => Scaffold(
         appBar: AppBar(
+          flexibleSpace: finishBar(context),
           title: Text(title),
           bottom: c.liveSession.active
               ? RunningServiceBar.forContext(context, controller: c)
@@ -1230,6 +1231,7 @@ class _AppearancePageState extends State<AppearancePage> {
       initialIndex: widget.initialTab,
       child: Scaffold(
         appBar: AppBar(
+          flexibleSpace: finishBar(context),
           title: const Text('Appearance'),
           bottom: widget.controller.liveSession.active
               ? RunningServiceBar.forContext(

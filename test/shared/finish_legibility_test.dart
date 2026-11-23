@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_paint.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -17,6 +18,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// On the bare background (a title or button outside any panel) muted text
 /// and the accent need 3:1, the bar for large text, and body text 4.5:1.
 void main() {
+  // The photographs, decoded before the pixel tests draw with them.
+  setUpAll(FinishTextures.instance.loadAll);
   final looks = [
     ...appPalettes.map((p) => p.id),
     'custom:2f6f4f:101820:1b2833',

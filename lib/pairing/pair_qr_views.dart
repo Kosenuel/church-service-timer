@@ -3,6 +3,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 
 class PairQrDialog extends StatefulWidget {
   final PairHub hub;
@@ -154,7 +155,10 @@ class _PairScannerPageState extends State<PairScannerPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Scan host QR code')),
+    appBar: AppBar(
+      flexibleSpace: finishBar(context),
+      title: const Text('Scan host QR code'),
+    ),
     body: Column(
       children: [
         Expanded(
