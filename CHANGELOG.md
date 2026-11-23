@@ -2,7 +2,7 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built. From 0.35.0, version numbers follow [Semantic Versioning](https://semver.org) (MAJOR.MINOR.PATCH); see [Versioning](docs/BUILD.md#versioning) for how each release's number is chosen.
 
-## Unreleased
+## 0.38.0, 23/November/2026
 
 - **Keep screen awake is now one tidy row.** In Settings it used to take a whole card of its own, with three choices always showing. It is now a single row like **Warnings & alerts**, with the sun icon, the title, your current choice under it (for example **While a service is running**) and a small arrow. Tap the row to open the three choices, each with its short note: **While a service is running** (recommended), **Always** and **Never**. The one you have now is ticked, and the one you tap is used straight away, exactly as before. It works with the keyboard and a screen reader, and with large text on a small phone. If the screen setting could not be applied, the message and **Retry screen setting** still show under the row, and the retry button now goes away once it works. Searching Settings for "awake" finds it.
 - **Song words, Bible verses and announcements on the screens.** A new **Slides** page, after Programs in the navigation, and a **Slides** button on Live under the display preview, put words on the second screen, web screens and stage screens.
