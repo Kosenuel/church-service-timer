@@ -102,7 +102,16 @@ void main() {
   Future<void> holdStill(WidgetTester t) async {
     await press(t, find.byKey(const ValueKey('effect-choice')));
     await t.pump(const Duration(milliseconds: 400));
-    await t.tap(find.text('Static (must fit)').last);
+    // "(must fit)" is only said when a sign is the display in use.
+    await t.tap(
+      find
+          .byWidgetPredicate(
+            (w) =>
+                w is Text &&
+                RegExp(r'^Static( \(must fit\))?$').hasMatch(w.data ?? ''),
+          )
+          .last,
+    );
     await settle(t);
     await t.ensureVisible(find.byKey(kindSwitch));
     await settle(t);
