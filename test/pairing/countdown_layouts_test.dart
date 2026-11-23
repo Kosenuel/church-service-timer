@@ -827,11 +827,11 @@ void main() {
 
   group('web screens', () {
     final base = const WebStageSettings(orderCode: 'abcd', localName: 'church');
-    Json view(String layout, [Json? data]) => viewFor(
-      WebRole.stage,
-      data ?? countdown(),
-      base.copyWith(stageLayout: layout),
-    );
+    // The snapshot carries the display's group's layout.
+    Json view(String layout, [Json? data]) => viewFor(WebRole.stage, {
+      ...data ?? countdown(),
+      'stageLayout': layout,
+    }, base);
 
     test('every layout is offered and saved, and an unknown one is timer', () {
       for (final layout in stageLayouts.keys) {

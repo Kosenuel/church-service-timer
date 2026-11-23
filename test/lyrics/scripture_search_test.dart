@@ -7,6 +7,7 @@ import 'package:church_service_timer/lyrics/ready_tray.dart';
 import 'package:church_service_timer/lyrics/scripture_search.dart';
 import 'package:church_service_timer/lyrics/scripture_search_ui.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,6 +47,11 @@ Future<AppController> open(
 }
 
 ReadyTray trayOf(AppController c) => ReadyTray.of(c);
+
+class _Wire implements PairWire {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
 
 void main() {
   setUpAll(() async {
@@ -130,7 +136,14 @@ void main() {
     expect(field['bg'], l.look.background);
     expect(field['dim'], l.look.dim);
     expect(l.field(LyricTarget.web), isNotNull);
-    expect(l.field(LyricTarget.stage), isNull, reason: 'Stage is not ticked');
+    // And only to the groups showing slides: Church Auditorium, not Stage.
+    final phone = PairPeer('p', 'Pulpit', 'stage', _Wire());
+    expect(
+      c.decoratePairedSnapshot(phone, c.pairedSnapshot(false))['lyrics'],
+      isNull,
+      reason: 'Stage shows the timer',
+    );
+    expect(c.stageWindowSnapshot()['lyrics'], isA<Map>());
     // The library did not grow.
     expect(c.state.lyrics.items.where((i) => i.kind == 'scripture'), isEmpty);
     // The slide cards in the middle show what is on the screens.
@@ -138,21 +151,24 @@ void main() {
     expect(t.takeException(), isNull);
   });
 
-  testWidgets('Send respects Send to, Dim and Clear slide', (t) async {
+  testWidgets('Send follows the screen groups, Dim and Clear slide', (t) async {
     final c = await open(t);
-    await c.lyrics.setLook(
-      c.lyrics.look.copyWith(toSecond: false, toWeb: true, dim: 25),
-    );
+    await t.runAsync(() async {
+      await c.lyrics.setLook(c.lyrics.look.copyWith(dim: 25));
+      // This computer in Stage (the timer); web screens stay in Church Auditorium.
+      await c.screens.move(thisScreenKey, 'stage');
+    });
     await type(t, 'john 3:16');
     await ctrlEnter(t);
     final l = c.lyrics;
     expect(l.showing, isTrue);
-    expect(l.field(LyricTarget.second), isNull);
-    expect(l.field(LyricTarget.web)!['dim'], 25);
+    // A passage from Ready goes exactly where a Library slide goes.
+    expect(c.stageWindowSnapshot().containsKey('lyrics'), isFalse);
+    expect((c.webStageSnapshot()['lyrics'] as Map)['dim'], 25);
     await t.tap(find.byKey(const ValueKey('lyrics-clear')));
     await settle(t);
     expect(l.showing, isFalse);
-    expect(l.field(LyricTarget.web, always: true), isNull);
+    expect(l.field(LyricTarget.web), isNull);
     // Ready is still there to send again.
     expect(trayOf(c).items, hasLength(1));
   });

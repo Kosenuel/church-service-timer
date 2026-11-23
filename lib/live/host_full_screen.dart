@@ -1,4 +1,4 @@
-import 'package:church_service_timer/shared/stage_layout_tiles.dart';
+import 'package:church_service_timer/screens/screen_group_note.dart';
 import 'dart:async';
 
 import 'package:church_service_timer/app/platform.dart';
@@ -123,14 +123,9 @@ extension HostFullScreenMode on HomeState {
   /// and over the stage in full screen.
   bool get compactQuestions => miniTimer || hostFullScreen.showing;
 
-  /// Timer only, with the segment name, or with the next segment. A PC
-  /// uses its second screen's choice; a phone or tablet has its own.
-  String get hostFullScreenLayout =>
-      c.secondScreen?.layout ?? c.state.fullScreenLayout;
-
-  /// What the stage shows now, as the second screen would get it.
-  Json hostStageSnapshot() =>
-      c.stageWindowSnapshot()..['stageLayout'] = hostFullScreenLayout;
+  /// What the stage shows now, as the second screen would get it: this
+  /// device's own screen, in its group.
+  Json hostStageSnapshot() => c.stageWindowSnapshot();
 
   /// Shows the stage full screen or goes back to Live. Opening needs a
   /// running service and nothing else open on top; otherwise nothing
@@ -218,23 +213,20 @@ extension HostFullScreenMode on HomeState {
           const SizedBox(height: 4),
           Text(
             deviceText(
-              'During a service, Full screen on Live shows the stage on this phone’s own screen. Choose what it shows.',
+              'During a service, Full screen on Live shows the stage on this phone’s own screen, as its group in Screens shows it.',
             ),
             style: muted,
           ),
           const SizedBox(height: 8),
-          StageLayoutTiles(
-            keyPrefix: 'full-screen-layout',
-            value: c.state.fullScreenLayout,
-            onChanged: controlsLocked
-                ? null
-                : (layout) =>
-                      c.commit((draft, _) => draft.fullScreenLayout = layout),
+          ScreenGroupNote(
+            controller: c,
+            screen: thisScreenKey,
+            locked: controlsLocked,
           ),
           const SizedBox(height: 4),
           Text(
             deviceText(
-              'Only this phone. Paired stage screens keep their own choice.',
+              'This phone’s full screen and its stage simulator are one screen in the Screens panel.',
             ),
             style: muted,
           ),

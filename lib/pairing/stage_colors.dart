@@ -111,6 +111,8 @@ Color stageBackdropOf(Json? data) {
       stageHasLyrics(data)) {
     return Colors.black;
   }
+  // The confidence monitor is drawn on the theme's background.
+  if (data['confidence'] is Map) return StageColors.of(data).background;
   final shown = stageForLayout(data, stageLayoutValue(data['stageLayout']));
   final under = stageBannerPosition(shown) == null
       ? shown
@@ -137,7 +139,12 @@ bool stageOvertimeSolid(Json data, String layout) =>
 /// Whether this snapshot's picture fills its whole screen in the theme's
 /// colours (the clock, the countdown), so a host adds no margin of its own.
 bool stageFillsScreen(Json? data) =>
-    stageHasLyrics(data) || stageBackdropOf(data) != Colors.black;
+    stageHasLyrics(data) ||
+    (data != null &&
+        data['confidence'] is Map &&
+        data['quickMessage'] is! Map &&
+        data['stageSharing'] != false) ||
+    stageBackdropOf(data) != Colors.black;
 
 /// Whether a lyric slide is what this snapshot shows: lyrics are present
 /// and no quick message is covering them. The slide paints its own

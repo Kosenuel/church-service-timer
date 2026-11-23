@@ -378,7 +378,9 @@ void main() {
 
     testWidgets('while it runs it shows the stage and a warning', (t) async {
       await open(t, size: const Size(430, 932));
-      await t.runAsync(() => c.setSimulatorLayout('next'));
+      await t.runAsync(
+        () => c.screens.setShow(c.screens.groupOf(thisScreenKey).id, 'next'),
+      );
       await begin(t);
       final page = t.state<ServiceCheckPageState>(
         find.byType(ServiceCheckPage),

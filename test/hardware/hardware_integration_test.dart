@@ -122,7 +122,11 @@ void main() {
         await flush();
       });
       await tester.pumpWidget(TimerApp(controller: c));
-      await tester.pumpAndSettle();
+      // The stage picture beside the sign's moves with the cue, so the
+      // screen never settles: a few frames are drawn instead.
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
       expect(find.text('Dismiss warning'), findsNothing);
       expect(c.hardware.accepted!.layout?.text, 'WARN');
       expect(c.hardware.accepted!.reason, HardwareOutputReason.automaticCue);

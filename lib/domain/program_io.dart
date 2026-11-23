@@ -20,6 +20,8 @@ Timeline programWithoutNotes(Timeline program) => Timeline(
         seconds: s.seconds,
         speaker: s.speaker,
         protected: s.protected,
+        sceneId: s.sceneId,
+        sceneName: s.sceneName,
       ),
   ],
   program.display,
