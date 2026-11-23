@@ -1,4 +1,5 @@
 import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
@@ -99,7 +100,10 @@ class _ImportMappingPageState extends State<ImportMappingPage> {
     final result = applyMapping(widget.rows, mapping, programName: name);
     final preview = widget.rows.take(6).toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('Match spreadsheet columns')),
+      appBar: AppBar(
+        flexibleSpace: finishBar(context),
+        title: const Text('Match spreadsheet columns'),
+      ),
       body: SafeArea(
         child: ListView(
           padding: widePagePadding(

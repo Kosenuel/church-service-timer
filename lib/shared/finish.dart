@@ -24,7 +24,12 @@ class _Spec {
   /// How much of a panel is its own colour; below 1 the wall shows through
   /// (Glass).
   final double panelAlpha;
+
+  /// More colours the wall is lit with besides [wallMat], each mixed in up
+  /// to [wallMix] at the middle of a soft field of light (Glass).
+  final List<Color Function(AppPalette)> wallFields;
   const _Spec({
+    this.wallFields = const [],
     required this.wallMat,
     required this.wallMix,
     required this.wallLight,
@@ -39,17 +44,40 @@ class _Spec {
 
 Color _surface(AppPalette p) => p.surface;
 Color _text(AppPalette p) => p.text;
-Color _accent(AppPalette p) => p.accent;
 Color Function(AppPalette) _by(Color dark, Color light) =>
     (p) => p.light ? light : dark;
 
+/// A light the colour of the accent turned round the colour wheel by
+/// [degrees], about as bright as the background: colour changes the look of
+/// the wall far more than brightness does, and leaves the words on it as
+/// readable as on the background itself.
+Color Function(AppPalette) _glow(double degrees) => (p) {
+  final h = HSLColor.fromColor(p.accent);
+  final hue = (h.hue + degrees) % 360;
+  final bg = p.background.computeLuminance();
+  final want = p.light ? bg * .9 : math.max(bg * 6, bg + .06);
+  var lo = 0.0, hi = 1.0;
+  for (var i = 0; i < 24; i++) {
+    final mid = (lo + hi) / 2;
+    final l = HSLColor.fromAHSL(1, hue, .75, mid).toColor().computeLuminance();
+    if (l < want) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return HSLColor.fromAHSL(1, hue, .75, lo).toColor();
+};
+
 final _specs = <String, _Spec>{
-  // Glass is a translucent panel over a soft glow, with no backdrop blur: the
-  // wall behind it is a smooth gradient, where a blur would change nothing
-  // you could see, and a blur costs a full-screen pass for every panel on a
-  // phone. So it is cheap on every device, with nothing to fall back from.
+  // Glass: frosted panes over soft fields of coloured light. The wall is
+  // drawn once, and so is a blurred copy of it that each pane shows through
+  // itself, so a pane looks as if it blurs what is behind it with no
+  // backdrop blur at all (which would cost a full-screen pass for every
+  // pane, every frame).
   'glass': _Spec(
-    wallMat: _accent,
+    wallMat: _glow(0),
+    wallFields: [_glow(70), _glow(-80)],
     wallMix: .85,
     wallLight: 0,
     wallDark: 0,
@@ -57,7 +85,7 @@ final _specs = <String, _Spec>{
     panelMix: 0,
     panelLight: 0.21,
     panelDark: 0.06,
-    panelAlpha: .72,
+    panelAlpha: .55,
   ),
   // Papery: a warm sheet with a fine tooth, and brighter sheets stacked on
   // it. Only for the Paper & Ink themes (see paperyThemeIds); the panel stays
@@ -115,8 +143,8 @@ final _specs = <String, _Spec>{
   'plastic': _Spec(
     wallMat: _text,
     wallMix: .07,
-    wallLight: 0,
-    wallDark: 0.06,
+    wallLight: 0.06,
+    wallDark: 0.08,
     panelMat: _surface,
     panelMix: 0,
     panelLight: 0.24,
@@ -214,6 +242,10 @@ class FinishLook extends ThemeExtension<FinishLook> {
   /// The material colour, for painters that draw it (bricks, thread).
   final Color wallMaterial, panelMaterial, thread;
 
+  /// Glass: the colours at the middle of each field of light on the wall
+  /// (the first is [wall]); empty for the other finishes.
+  final List<Color> wallFields;
+
   /// How far the texture may go toward white and black, at this scale.
   final double wallLight, wallDark, panelLight, panelDark, panelAlpha;
 
@@ -231,6 +263,7 @@ class FinishLook extends ThemeExtension<FinishLook> {
     required this.wallMaterial,
     required this.panelMaterial,
     required this.thread,
+    this.wallFields = const [],
     required this.wallLight,
     required this.wallDark,
     required this.panelLight,
@@ -308,6 +341,11 @@ class FinishLook extends ThemeExtension<FinishLook> {
     Color toward(Color c, Color to, double t) => Color.lerp(c, to, t)!;
     final wallMat = spec.wallMat(p), panelMat = spec.panelMat(p);
     final wall = toward(p.background, wallMat, spec.wallMix * ws);
+    final fields = [
+      if (spec.wallFields.isNotEmpty) wall,
+      for (final f in spec.wallFields)
+        toward(p.background, f(p), spec.wallMix * ws),
+    ];
     final wl = spec.wallLight * ws, wd = spec.wallDark * ws;
     final pl = spec.panelLight * ps, pd = spec.panelDark * ps;
     final panel = toward(p.surface, panelMat, spec.panelMix * ps);
@@ -315,7 +353,9 @@ class FinishLook extends ThemeExtension<FinishLook> {
     // over each colour the wall can have; as the scale falls the panel turns
     // solid, so at none it is the plain surface.
     final alpha = 1 - (1 - spec.panelAlpha) * ps;
-    final under = alpha < 1 ? [p.background, wall] : [Colors.transparent];
+    final under = alpha < 1
+        ? [p.background, wall, ...fields.skip(1)]
+        : [Colors.transparent];
     final panelSamples = <Color>[];
     for (final u in under) {
       final base = alpha < 1
@@ -336,7 +376,15 @@ class FinishLook extends ThemeExtension<FinishLook> {
       panel: alpha < 1 ? panelSamples.first : panel,
       wallMaterial: wallMat,
       panelMaterial: panelMat,
-      thread: p.light ? const Color(0xff9a6a2c) : const Color(0xffe2b35e),
+      // Thread that suits the cloth: the gold of jeans, the cream of a
+      // saddler's waxed linen.
+      thread: switch ((id, p.light)) {
+        ('leather', false) => const Color(0xffe8d6b0),
+        ('leather', true) => const Color(0xff7a5434),
+        (_, false) => const Color(0xffe0a64e),
+        _ => const Color(0xffa8701f),
+      },
+      wallFields: fields,
       wallLight: wl,
       wallDark: wd,
       panelLight: pl,
@@ -347,6 +395,7 @@ class FinishLook extends ThemeExtension<FinishLook> {
         toward(wall, Colors.white, wl),
         toward(wall, Colors.black, wd),
         if (alpha < 1) p.background,
+        ...fields.skip(1),
       ],
       panelSamples: panelSamples,
     );

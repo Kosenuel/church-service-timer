@@ -64,11 +64,19 @@ extension MissionControlLive on HomeState {
         // Ready has a strip of the same height, so the ring keeps its
         // place when the service starts.
         if (s.active) ...[
-          FinishPane(strip: true, child: missionStatus(endService)),
+          FinishPane(
+            strip: true,
+            seams: finishSeamBelow,
+            child: missionStatus(endService),
+          ),
           rule,
         ],
         if (s.phase == 'ready') ...[
-          FinishPane(strip: true, child: missionReadyStatus()),
+          FinishPane(
+            strip: true,
+            seams: finishSeamBelow,
+            child: missionReadyStatus(),
+          ),
           rule,
         ],
         Expanded(
@@ -201,6 +209,7 @@ extension MissionControlLive on HomeState {
         FinishPane(
           flatSurface: true,
           strip: true,
+          seams: finishSeamAbove,
           child: timelineStrip(enabled, rich: richTimeline),
         ),
         if (showKeyHints && s.active) ...[

@@ -1,4 +1,5 @@
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -455,6 +456,7 @@ class _HardwareConnectionPageState extends State<HardwareConnectionPage> {
       final found = h.devices.isNotEmpty;
       return Scaffold(
         appBar: AppBar(
+          flexibleSpace: finishBar(context),
           title: const Text('Connect the LED sign'),
           actions: [
             PopupMenuButton<String>(

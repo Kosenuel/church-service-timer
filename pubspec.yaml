@@ -39,6 +39,7 @@ flutter:
     - assets/bible/kjv.txt.gz
     - assets/lyrics/photos/
     - assets/lyrics/photos/thumbs/
+    - assets/finish/
     - CHANGELOG.md
   fonts:
     - family: Roboto

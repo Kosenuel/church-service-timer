@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 
 /// One release from CHANGELOG.md: its heading and plain-text entries.
@@ -74,7 +75,10 @@ class WhatsNewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('What’s new')),
+    appBar: AppBar(
+      flexibleSpace: finishBar(context),
+      title: const Text('What’s new'),
+    ),
     // A wide window keeps the notes to a readable line length.
     body: isWideWindow(context)
         ? Align(
