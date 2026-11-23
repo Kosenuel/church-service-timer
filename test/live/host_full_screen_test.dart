@@ -13,6 +13,7 @@ import 'package:church_service_timer/windows/atomic_store.dart';
 import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/window_memory.dart';
 import 'package:flutter/gestures.dart';
+import 'package:church_service_timer/pairing/flip_clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1488,7 +1489,8 @@ void main() {
         stageClockText(c.now.wall, c.state.session.clockFormat),
       );
       expect(snapshot.toString(), isNot(contains('Hallelujah')));
-      expect(find.byType(ClockText), findsOneWidget);
+      // The clock fills the screen as a flip clock.
+      expect(find.byType(FlipClock), findsOneWidget);
       // The clock is already showing: the tray's Clock has nothing to do.
       await t.dragFrom(const Offset(683, 748), const Offset(0, -150));
       await step(t);

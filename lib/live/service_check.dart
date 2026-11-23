@@ -8,6 +8,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 
 /// "Check this service": runs a program through at high speed on the
 /// Simulator, then lists what fired. See [ServiceCheckRun].
@@ -181,9 +182,14 @@ class ServiceCheckPageState extends State<ServiceCheckPage> {
                 aspectRatio: 16 / 9,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: ColoredBox(
-                    color: Colors.black,
-                    child: StageSurface(data: stageSnapshot(), stale: false),
+                  child: Builder(
+                    builder: (context) {
+                      final data = stageSnapshot();
+                      return ColoredBox(
+                        color: stageBackdropOf(data),
+                        child: StageSurface(data: data, stale: false),
+                      );
+                    },
                   ),
                 ),
               )

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/pairing/flip_clock.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 
 /// The face every stage screen is drawn in: Roboto, which the app carries,
 /// so a screen looks the same on Windows (whose own font is Segoe UI),
@@ -78,14 +80,26 @@ class StageSurface extends StatelessWidget {
     // for amber) on charcoal, with a rule in its colour along the bottom
     // edge (see [stageColouredCard]).
     final card = stageColouredCard(data);
-    final timer = StageMessage(
-      data: under,
-      stale: stale,
-      fullscreen: true,
-      ink: card
-          ? Color(0xff000000 | stageCardInkFor(stageCueRgb(data)!))
-          : null,
-    );
+    // Whenever the screen is filled with the time of day, it is a flip
+    // clock in the host's theme (see [stageShowsClock]).
+    final clock = under['displayIsTimer'] == true
+        ? null
+        : stageClockFace(under);
+    final colors = StageColors.of(data);
+    final timer = clock != null
+        ? FlipClock(
+            face: clock,
+            colors: colors,
+            animate: !stale && !reduceAppMotion(context),
+          )
+        : StageMessage(
+            data: under,
+            stale: stale,
+            fullscreen: true,
+            ink: card
+                ? Color(0xff000000 | stageCardInkFor(stageCueRgb(data)!))
+                : null,
+          );
     Widget surface(double rule) => StageBannerFrame(
       banner: position == null ? null : stageBannerText(data),
       top: position == 'top',
@@ -119,7 +133,14 @@ class StageSurface extends StatelessWidget {
                 Positioned.fill(
                   bottom: below,
                   child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: clear),
+                    // The flip clock fills its box, so it gives up the
+                    // whole band, not only the empty part of a line.
+                    padding: clock != null
+                        ? EdgeInsets.only(
+                            top: top ? band : 0,
+                            bottom: top ? 0 : band,
+                          )
+                        : EdgeInsets.symmetric(vertical: clear),
                     child: timer,
                   ),
                 ),
@@ -147,6 +168,8 @@ class StageSurface extends StatelessWidget {
           data: position == null ? data : null,
           base: card
               ? const Color(0xff000000 | stageCardBackground)
+              : clock != null
+              ? colors.background
               : Colors.transparent,
           child: Stack(
             fit: StackFit.passthrough,

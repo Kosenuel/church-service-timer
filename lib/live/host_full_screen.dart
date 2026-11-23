@@ -9,6 +9,7 @@ import 'package:church_service_timer/shared/screen_orientation.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:flutter/services.dart';
 
 /// F11 shows the stage full screen on this screen, and leaves it again.
@@ -608,14 +609,17 @@ class _HostFullScreenViewState extends State<HostFullScreenView> {
                     onVerticalDragUpdate: (details) =>
                         _dragBy += details.primaryDelta ?? 0,
                     onVerticalDragEnd: (details) => _dragEnd(details, size),
-                    child: SafeArea(
-                      child: AnimatedBuilder(
-                        animation: Listenable.merge([c, c.liveClock]),
-                        builder: (context, _) => StageSurface(
-                          data: home.hostStageSnapshot(),
-                          stale: false,
-                        ),
-                      ),
+                    child: AnimatedBuilder(
+                      animation: Listenable.merge([c, c.liveClock]),
+                      builder: (context, _) {
+                        final data = home.hostStageSnapshot();
+                        return ColoredBox(
+                          color: stageBackdropOf(data),
+                          child: SafeArea(
+                            child: StageSurface(data: data, stale: false),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
