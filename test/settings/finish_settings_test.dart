@@ -158,7 +158,7 @@ void main() {
         );
         bool painted() => find
             .byWidgetPredicate(
-              (w) => w is CustomPaint && w.painter is FinishPanelPainter,
+              (w) => w is FinishPaint && w.part == FinishPart.panel,
             )
             .evaluate()
             .isNotEmpty;

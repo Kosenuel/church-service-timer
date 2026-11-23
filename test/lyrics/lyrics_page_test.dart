@@ -6,6 +6,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/lyrics/lyric_editors.dart';
 import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_paint.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -160,6 +161,8 @@ Future<void> settle(WidgetTester t) async {
 
 void main() {
   setUpAll(loadAppFonts);
+  // The finish photographs, decoded before any shot draws them.
+  setUpAll(FinishTextures.instance.loadAll);
 
   testWidgets('Slides sits after Programs in the navigation', (t) async {
     await openLyrics(
