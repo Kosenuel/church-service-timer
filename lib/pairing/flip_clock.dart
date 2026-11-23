@@ -415,12 +415,15 @@ class _FlipDigitState extends State<FlipDigit>
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(h * .07),
                     boxShadow: [
+                      // On a light theme a black shadow reads as a hard
+                      // grey foot under each card, so it is the theme's own
+                      // ink, much fainter and spread wider.
                       BoxShadow(
-                        color: Colors.black.withValues(
-                          alpha: widget.colors.light ? .14 : .35,
-                        ),
-                        blurRadius: h * .12,
-                        offset: Offset(0, h * .03),
+                        color: widget.colors.light
+                            ? widget.colors.text.withValues(alpha: .07)
+                            : Colors.black.withValues(alpha: .35),
+                        blurRadius: h * (widget.colors.light ? .22 : .12),
+                        offset: Offset(0, h * (widget.colors.light ? .02 : .03)),
                       ),
                     ],
                   ),
