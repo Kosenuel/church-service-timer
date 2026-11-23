@@ -1,0 +1,106 @@
+[
+  {
+    "id": "brick",
+    "title": "Red Brick 03",
+    "author": "Rob Tuytel",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/red_brick_03",
+    "use": "Bricks: a calm, evenly lit wall of red brick in running bond. Grey detail tile, 1024 px."
+  },
+  {
+    "id": "plaster",
+    "title": "White Plaster 02",
+    "author": "Rob Tuytel",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/white_plaster_02",
+    "use": "Brick panels: painted plaster for the signboards. Grey detail tile, 512 px."
+  },
+  {
+    "id": "hull",
+    "title": "Blue Metal Plate",
+    "author": "Rob Tuytel",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/blue_metal_plate",
+    "use": "Bridge console wall: steel hull plates. Grey detail tile, 1024 px."
+  },
+  {
+    "id": "steel",
+    "title": "Grey Plaster",
+    "author": "Rob Tuytel",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/grey_plaster",
+    "use": "Bridge console plates: the fine grain of this photograph drawn out sideways into brushed steel. Grey detail tile, 1024 px."
+  },
+  {
+    "id": "knit",
+    "title": "Knitted Fleece",
+    "author": "colormass, Rico Cilliers",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/knitted_fleece",
+    "use": "Cashmere: a fine knit. Grey detail tile from the 2K photograph, 1024 px."
+  },
+  {
+    "id": "denim",
+    "title": "Denim Fabric 03",
+    "author": "colormass, Rico Cilliers",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/denim_fabric_03",
+    "use": "Denim: twill weave. Grey detail tile from the 2K photograph, 1024 px."
+  },
+  {
+    "id": "leather",
+    "title": "Brown Leather",
+    "author": "Rob Tuytel",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/brown_leather",
+    "use": "Leather: pebbled hide. Grey detail tile from the 2K photograph, 1024 px."
+  },
+  {
+    "id": "walnut",
+    "title": "Wood Table 001",
+    "author": "Dimitrios Savva, Rico Cilliers",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/wood_table_001",
+    "use": "Walnut: close, straight grain, turned to run across. Grey detail tile, 1024 px."
+  },
+  {
+    "id": "oak",
+    "title": "Oak Wood Planks",
+    "author": "Dimitrios Savva",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/oak_wood_planks",
+    "use": "Oak: open grain running across. Grey detail tile, 1024 px."
+  },
+  {
+    "id": "marble",
+    "title": "Veined marble",
+    "author": "Church Service Timer",
+    "license": "CC0",
+    "source": "Made for this app (docs/FINISH-TEXTURES.md)",
+    "use": "Marble: veining drawn from filtered noise for this app (Poly Haven has no plain veined slab). Grey detail tile, 1024 px."
+  },
+  {
+    "id": "carbon",
+    "title": "Carbon weave",
+    "author": "Church Service Timer",
+    "license": "CC0",
+    "source": "Made for this app (docs/FINISH-TEXTURES.md)",
+    "use": "Carbon fibre: a 2 x 2 twill of flat tows drawn for this app (neither library has one). Grey detail tile, 512 px."
+  },
+  {
+    "id": "paper",
+    "title": "Paper tooth",
+    "author": "Church Service Timer",
+    "license": "CC0",
+    "source": "Made for this app (docs/FINISH-TEXTURES.md)",
+    "use": "Papery: fine tooth and fibres drawn for this app (neither library has a plain paper). Grey detail tile, 512 px."
+  },
+  {
+    "id": "frost",
+    "title": "Frost grain",
+    "author": "Church Service Timer",
+    "license": "CC0",
+    "source": "Made for this app (docs/FINISH-TEXTURES.md)",
+    "use": "Glass: the fine grain of frosted glass, drawn for this app. Grey detail tile, 256 px."
+  }
+]
