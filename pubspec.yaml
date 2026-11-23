@@ -36,6 +36,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/licenses/OFL-Tinos.txt
+    - assets/bible/kjv.txt.gz
+    - assets/lyrics/photos/
     - CHANGELOG.md
   fonts:
     - family: Roboto
