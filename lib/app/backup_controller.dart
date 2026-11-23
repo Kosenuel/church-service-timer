@@ -22,20 +22,21 @@ class BackupController {
         'End or cancel the loaded service before restoring a backup.',
       );
       for (final t in restored.templates) {
-        validateTimelinePixels(t);
+        validateTimelinePixels(t, signFit: false);
       }
       for (final cue in restored.stageCues) {
-        validateLayout(cue);
+        validateLayout(cue, signFit: false);
       }
-      if (restored.defaults.end != null) validateLayout(restored.defaults.end!);
+      if (restored.defaults.end != null)
+        validateLayout(restored.defaults.end!, signFit: false);
       for (final cue in restored.defaults.cues) {
-        validateLayout(cue);
+        validateLayout(cue, signFit: false);
       }
       for (final warning in restored.defaults.warnings) {
-        validateLayout(warning.cue);
+        validateLayout(warning.cue, signFit: false);
       }
       if (restored.defaults.zero != null)
-        validateLayout(restored.defaults.zero!);
+        validateLayout(restored.defaults.zero!, signFit: false);
       draft.templates = restored.templates;
       draft.defaults = restored.defaults;
       draft.reports = restored.reports;

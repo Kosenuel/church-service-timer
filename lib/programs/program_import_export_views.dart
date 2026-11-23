@@ -111,7 +111,7 @@ extension ProgramImportExportViews on HomeState {
           Session(id: 'import-preview', anchor: c.now),
         ),
       );
-      validateTimelinePixels(candidate);
+      validateTimelinePixels(candidate, signFit: c.signFitRequired);
     }
     if (!mounted) return;
     final accepted = await showDialog<bool>(
