@@ -319,29 +319,36 @@ void main() {
     expect(await p.joinPairWifi('host-1'), isFalse);
   });
 
-  test(
-    'the PC stays awake while a service runs or screens are shared',
-    () async {
-      final p = port();
-      await p.setKeepScreenAwake(true);
-      expect(system.awake.last, '-/display');
-      await p.updateServiceNotification({'active': true, 'title': 'Welcome'});
-      expect(system.awake.last, 'system/display');
-      await p.setKeepScreenAwake(false);
-      expect(system.awake.last, 'system/display');
-      await p.updateServiceNotification({'active': false});
-      expect(system.awake.last, '-/-');
-      expect(await p.setActiveService(true), isTrue);
-      expect(await p.activeServiceRunning(), isTrue);
-      expect(system.awake.last, 'system/display');
-      expect(await p.setActiveService(false), isFalse);
-      expect(system.awake.last, '-/-');
-      // The card is updated every second; Windows is only told on a change.
-      final before = system.awake.length;
-      await p.updateServiceNotification({'active': false});
-      expect(system.awake.length, before);
-    },
-  );
+  test('the PC never sleeps while a service runs or screens are shared, and '
+      'the monitor follows the app', () async {
+    final p = port();
+    // Idle: nothing is held.
+    await p.setKeepScreenAwake(false);
+    expect(system.awake.last, '-/-');
+    // The app asks for the monitor (a service, a stage screen).
+    await p.setKeepScreenAwake(true);
+    expect(system.awake.last, '-/display');
+    await p.updateServiceNotification({'active': true, 'title': 'Welcome'});
+    expect(system.awake.last, 'system/display');
+    // The operator chose Never: the PC stays up, the monitor may sleep.
+    await p.setKeepScreenAwake(false);
+    expect(system.awake.last, 'system/-');
+    await p.updateServiceNotification({'active': false});
+    expect(system.awake.last, '-/-');
+    // Sharing alone holds the PC but not the monitor.
+    expect(await p.setActiveService(true), isTrue);
+    expect(await p.activeServiceRunning(), isTrue);
+    expect(system.awake.last, 'system/-');
+    await p.setKeepScreenAwake(true);
+    expect(system.awake.last, 'system/display');
+    await p.setKeepScreenAwake(false);
+    expect(await p.setActiveService(false), isFalse);
+    expect(system.awake.last, '-/-');
+    // The card is updated every second; Windows is only told on a change.
+    final before = system.awake.length;
+    await p.updateServiceNotification({'active': false});
+    expect(system.awake.length, before);
+  });
 
   test('warnings notify, flash the taskbar and never make a sound', () async {
     final p = port();

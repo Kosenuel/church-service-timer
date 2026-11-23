@@ -606,8 +606,12 @@ class WindowsPort extends DevicePort with LocalNetworkPairing {
 
   bool _keepScreen = false, _sharing = false, _serviceRunning = false;
   void _applyAwake() {
+    // Windows must not sleep while a service runs or screens are shared,
+    // but the display follows the app's own choice (it already says when
+    // a service, a stage screen or sharing needs it), so an idle or
+    // sharing-only PC can turn its monitor off and save power.
     final busy = _sharing || _serviceRunning;
-    system.keepAwake(system: busy, display: busy || _keepScreen);
+    system.keepAwake(system: busy, display: _keepScreen);
   }
 
   @override

@@ -260,6 +260,7 @@ class AppController extends ChangeNotifier {
 
   void _stageWindowChanged() {
     _feedStageWindow();
+    unawaited(syncScreenAwake());
     if (!_disposed) notifyListeners();
   }
 
@@ -384,6 +385,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> syncActiveService() async {
+    await syncScreenAwake();
     final desired =
         pairing.hosting ||
         pairing.joined ||
@@ -597,18 +599,51 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> syncDeviceSettings() async {
-    unawaited(refreshBatteryStatus());
-    appearancePreview.sync(state);
+  /// Whether the screen should be held awake right now. Only while the
+  /// device is doing the job: a service or quick timer is running (paused
+  /// included) or counting down to its start, this device is a stage
+  /// screen, or it is sharing to other screens. Idle on Live, Settings,
+  /// Programs or Reports, the screen may sleep. "Never" still keeps a
+  /// stage screen on, since nobody is there to touch it; "Always" keeps it
+  /// on whenever the app is open.
+  bool get wantsScreenAwake {
+    if (!ready) return false;
+    final stage =
+        pairing.mode == 'stage' || port.stageOutput?.connected == true;
+    if (stage) return true;
+    if (!state.keepScreenAwake) return false;
+    if (state.keepScreenAlways) return true;
+    final s = state.session;
+    final counting = s.phase == 'ready' && s.startsAtWall != null;
+    return s.active || counting || pairing.hosting || pairing.mode == 'viewer';
+  }
+
+  bool? _awakeApplied;
+
+  /// Tells the device to hold or release the screen when that changes; it
+  /// follows the service without the operator doing anything.
+  Future<void> syncScreenAwake() async {
+    if (_disposed) return;
+    final wanted = wantsScreenAwake;
+    if (wanted == _awakeApplied) return;
+    await _applyScreenAwake(wanted);
+  }
+
+  Future<void> _applyScreenAwake(bool wanted) async {
     try {
-      await port.setKeepScreenAwake(
-        state.keepScreenAwake || pairing.mode == 'stage',
-      );
+      await port.setKeepScreenAwake(wanted);
+      _awakeApplied = wanted;
       deviceSettingsError = null;
     } catch (e) {
       deviceSettingsError =
           'Screen-awake preference is saved but could not be applied: $e';
     }
+  }
+
+  Future<void> syncDeviceSettings() async {
+    unawaited(refreshBatteryStatus());
+    appearancePreview.sync(state);
+    await _applyScreenAwake(wantsScreenAwake);
   }
 
   Json get notificationState => phoneWarnings.status;
@@ -795,6 +830,7 @@ class AppController extends ChangeNotifier {
     }
     await secondScreen?.load();
     ready = true;
+    await syncScreenAwake();
     // Create the order-of-service code and easy name once, so they stay the
     // same week after week (and slides stay valid).
     final web = webStageSettings;
@@ -935,7 +971,6 @@ class AppController extends ChangeNotifier {
       );
       final draft = state.copy();
       final previous = state.session;
-      final previousAwake = state.keepScreenAwake;
       mutation(draft, at);
       draft.clockFormat = readClockFormat(draft.clockFormat);
       draft.session.clockFormat = draft.clockFormat;
@@ -978,7 +1013,7 @@ class AppController extends ChangeNotifier {
       if (state.session.phase == 'idle' && state.session.id != previous.id)
         simulator.clear();
       appearancePreview.sync(state);
-      if (previousAwake != state.keepScreenAwake) await syncDeviceSettings();
+      await syncScreenAwake();
       await syncPhoneWarnings(previous: previous);
       error = null;
       retry = null;
