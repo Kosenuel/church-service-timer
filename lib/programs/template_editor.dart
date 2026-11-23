@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -779,6 +780,7 @@ class TemplateEditorState extends State<TemplateEditor> {
     );
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: finishBar(context),
         title: Text(
           widget.upcomingOnly ? 'Upcoming segments' : 'Program editor',
         ),

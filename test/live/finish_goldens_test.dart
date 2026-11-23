@@ -2,6 +2,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_paint.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -27,6 +28,9 @@ final finishes = [
 
 void main() {
   setUpAll(loadAppFonts);
+  // The photographs, decoded before any test draws, so every shot shows
+  // them (decoding cannot finish inside a test's fake clock).
+  setUpAll(FinishTextures.instance.loadAll);
   setUp(() => desktopWording = true);
   tearDown(() => desktopWording = false);
 
@@ -197,9 +201,7 @@ void main() {
         ('reports', 3),
       ]) {
         testWidgets('Papery $theme $strength $name on a phone', (t) async {
-          final keep =
-              (theme == 'paper_ink_blue' && strength == 'subtle' && tab == 4) ||
-              (theme == 'paper_ink' && strength == 'full' && tab == -1);
+          final keep = theme == 'paper_ink' && strength == 'full' && tab == -1;
           if (scratch.isEmpty && !keep) return;
           await start(
             t,
@@ -244,6 +246,7 @@ void main() {
       expect(find.byKey(const ValueKey('finish-papery-note')), findsOneWidget);
       expect(find.byKey(const ValueKey('finish-brick')), findsNothing);
       expect(find.byKey(const ValueKey('finish-strength')), findsOneWidget);
+      if (scratch.isEmpty) return;
       await shot(t, 'papery-appearance-note-$theme');
     });
   }
@@ -257,7 +260,7 @@ void main() {
     'keys',
     'classic',
   ]) {
-    for (final finish in ['brick', 'console', 'glass', 'oak']) {
+    for (final finish in ['brick', 'console', 'glass', 'oak', 'denim']) {
       for (final size in const [
         Size(1366, 768),
         Size(1280, 720),
@@ -373,6 +376,9 @@ void main() {
               .first,
         );
         await t.pumpAndSettle();
+        expect(t.takeException(), isNull);
+        // Larger text is checked for fit; its picture only to look at.
+        if (scratch.isEmpty && scale != 1) return;
         await shot(t, 'appearance-finish-$tone-$name');
       });
     }

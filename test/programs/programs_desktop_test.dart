@@ -2,6 +2,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_paint.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,6 +32,8 @@ Timeline harvest() => Timeline('Harvest Sunday', const [
 
 void main() {
   setUpAll(loadAppFonts);
+  // Paper & Ink and the Finish tiles draw the finish photographs.
+  setUpAll(FinishTextures.instance.loadAll);
   setUp(() => desktopWording = true);
   tearDown(() => desktopWording = false);
 

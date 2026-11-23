@@ -1,4 +1,5 @@
 import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
@@ -104,7 +105,10 @@ extension SegmentLibraryViews on HomeState {
       builder: (pageContext, _) {
         final library = c.state.segmentLibrary;
         return Scaffold(
-          appBar: AppBar(title: const Text('Segment library')),
+          appBar: AppBar(
+            flexibleSpace: finishBar(context),
+            title: const Text('Segment library'),
+          ),
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [

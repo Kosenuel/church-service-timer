@@ -1,4 +1,5 @@
 import 'package:church_service_timer/settings/settings_wide.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -128,6 +129,7 @@ extension QuickMessageViews on HomeState {
         animation: Listenable.merge([c, settingsRefresh]),
         builder: (ctx, _) => Scaffold(
           appBar: AppBar(
+            flexibleSpace: finishBar(context),
             leading: IconButton(
               tooltip: 'Close',
               icon: const Icon(Icons.close),
@@ -296,6 +298,7 @@ extension QuickMessageViews on HomeState {
       MaterialPageRoute(
         builder: (ctx) => Scaffold(
           appBar: AppBar(
+            flexibleSpace: finishBar(context),
             title: Text(
               index == null ? 'New message preset' : 'Edit message preset',
             ),

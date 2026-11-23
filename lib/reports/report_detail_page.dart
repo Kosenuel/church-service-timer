@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/reports/report_outcome.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
@@ -302,6 +303,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       return Material(color: colors.background, child: content);
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: finishBar(context),
         title: const Text('Service report'),
         actions: [actions, const SizedBox(width: 4)],
         bottom: widget.controller?.liveSession.active == true

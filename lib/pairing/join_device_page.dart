@@ -1,4 +1,5 @@
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'dart:async';
 import 'package:nsd/nsd.dart' as nsd;
 import 'package:church_service_timer/pairing/pairing_pin.dart';
@@ -640,6 +641,7 @@ class _JoinDevicePageState extends State<JoinDevicePage>
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
+      flexibleSpace: finishBar(context),
       // One name for joining, whichever role is chosen below.
       title: const Text('Join a service'),
     ),

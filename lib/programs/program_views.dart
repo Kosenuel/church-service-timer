@@ -1,4 +1,5 @@
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -764,6 +765,7 @@ extension TemplateViews on HomeState {
           if (embedded) return Material(color: colors.surface, child: body);
           return Scaffold(
             appBar: AppBar(
+              flexibleSpace: finishBar(context),
               title: const Text('Program details'),
               actions: [...actions, const SizedBox(width: 4)],
               bottom: c.liveSession.active
