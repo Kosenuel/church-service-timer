@@ -25,7 +25,7 @@ void main() {
     await c.initialize(startTicker: false);
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
-    await t.tap(find.byType(NavigationDestination).at(3));
+    await t.tap(find.byType(NavigationDestination).at(4));
     await t.pumpAndSettle();
     await t.ensureVisible(find.text('Feedback centre'));
     await t.pumpAndSettle();

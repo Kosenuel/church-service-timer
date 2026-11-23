@@ -81,10 +81,22 @@ extension LyricsPageViews on HomeState {
 
   /// The Lyrics button under the display preview on Live, and while
   /// lyrics are on the screens, what they show with Clear lyrics.
-  List<Widget> lyricsOnLive() {
-    if (!c.ready) return const [];
+  Widget lyricsButton() => OutlinedButton.icon(
+    key: const ValueKey('live-lyrics-button'),
+    onPressed: controlsLocked ? null : () => goToPage(lyricsPage),
+    icon: const Icon(Icons.lyrics_outlined, size: 20),
+    label: const Text('Lyrics'),
+  );
+
+  /// With [button] false the Lyrics button is placed by the caller, and
+  /// only the line saying what is on the screens is added here.
+  List<Widget> lyricsOnLive({bool button = true}) {
+    // A desktop layout keeps its panes to the window; the button is in
+    // the header there (see [lyricsHeaderButton]).
+    if (!c.ready || liveFillsWindow) return const [];
     final l = c.lyrics;
     final colors = appColors(context);
+    if (!button && !l.showing) return const [];
     return [
       const SizedBox(height: 12),
       Wrap(
@@ -93,12 +105,7 @@ extension LyricsPageViews on HomeState {
         runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          OutlinedButton.icon(
-            key: const ValueKey('live-lyrics-button'),
-            onPressed: controlsLocked ? null : () => goToPage(lyricsPage),
-            icon: const Icon(Icons.lyrics_outlined, size: 20),
-            label: const Text('Lyrics'),
-          ),
+          if (button) lyricsButton(),
           if (l.showing) ...[
             Text(
               'On the screens: ${l.statusLine}',
@@ -114,6 +121,24 @@ extension LyricsPageViews on HomeState {
         ],
       ),
     ];
+  }
+}
+
+/// The Lyrics button in the header on Live in a desktop layout, whose
+/// panes have no room for another row. Lit while lyrics are on the
+/// screens.
+extension LyricsHeaderButton on HomeState {
+  Widget lyricsHeaderButton() {
+    final l = c.lyrics;
+    final on = l.showing;
+    return IconButton(
+      key: const ValueKey('live-lyrics-button'),
+      tooltip: on ? 'Lyrics · on the screens: ${l.statusLine}' : 'Lyrics',
+      isSelected: on,
+      onPressed: controlsLocked ? null : () => goToPage(lyricsPage),
+      icon: const Icon(Icons.lyrics_outlined),
+      selectedIcon: const Icon(Icons.lyrics),
+    );
   }
 }
 

@@ -1470,15 +1470,23 @@ extension LivePage on HomeState {
                 ],
                 if (!dense) ...[
                   const SizedBox(height: 12),
-                  button(
-                    'Change display',
-                    Icons.devices,
-                    c.busy || c.corrupt ? null : chooseDisplay,
+                  // Lyrics beside it, so the panel is no taller.
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      button(
+                        'Change display',
+                        Icons.devices,
+                        c.busy || c.corrupt ? null : chooseDisplay,
+                      ),
+                      lyricsButton(),
+                    ],
                   ),
                 ],
                 ...secondScreenControl(),
                 ...fullScreenControl(),
-                ...lyricsOnLive(),
+                ...lyricsOnLive(button: false),
               ],
             ),
           );

@@ -286,7 +286,7 @@ void main() {
       final c = await setup(port);
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(3));
+      await t.tap(find.byType(NavigationDestination).at(4));
       await t.pumpAndSettle();
       await tap(t, 'Feedback centre');
       await t.enterText(find.byKey(const ValueKey('feedback-title')), 'Test');
@@ -345,7 +345,7 @@ void main() {
         ),
       );
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(3));
+      await t.tap(find.byType(NavigationDestination).at(4));
       await t.pumpAndSettle();
       await tap(t, 'Display settings');
       expect(t.takeException(), isNull);

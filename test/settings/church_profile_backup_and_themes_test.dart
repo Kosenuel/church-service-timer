@@ -51,7 +51,7 @@ void main() {
   }
 
   Future<void> settings(WidgetTester t) async {
-    await t.tap(find.byType(NavigationDestination).at(3));
+    await t.tap(find.byType(NavigationDestination).at(4));
     await t.pumpAndSettle();
   }
 
@@ -369,7 +369,7 @@ void main() {
         expect(t.takeException(), isNull);
         port.at = at(60);
         await c.act('end');
-        await t.tap(find.byType(NavigationDestination).at(2));
+        await t.tap(find.byType(NavigationDestination).at(3));
         await t.pumpAndSettle();
         expect(t.takeException(), isNull);
         await t.pumpWidget(const SizedBox());

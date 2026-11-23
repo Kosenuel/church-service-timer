@@ -156,7 +156,7 @@ void main() {
       final nav = t.widget<NavigationBar>(find.byType(NavigationBar));
       expect(
         nav.destinations.cast<NavigationDestination>().map((d) => d.label),
-        ['Live', 'Programs', 'Reports', 'Settings'],
+        ['Live', 'Programs', 'Lyrics', 'Reports', 'Settings'],
       );
       await t.tap(find.byKey(const ValueKey('header-connection')));
       await t.pumpAndSettle();

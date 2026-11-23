@@ -31,25 +31,31 @@ void main() {
   Future<void> left(WidgetTester t) => swipe(t, -300);
   Future<void> right(WidgetTester t) => swipe(t, 300, fromX: 110);
 
-  testWidgets('Swiping moves between Live, Programs and Reports in order', (
-    t,
-  ) async {
-    await open(t);
-    expect(home(t).page, 0);
-    await right(t);
-    expect(home(t).page, 0, reason: 'nothing before Live');
-    await left(t);
-    expect(home(t).page, 1);
-    expect(find.byKey(const ValueKey('new-template')), findsOneWidget);
-    await left(t);
-    expect(home(t).page, 2);
-    await right(t);
-    expect(home(t).page, 1);
-    await right(t);
-    expect(home(t).page, 0);
-    expect(t.takeException(), isNull);
-    await t.pumpWidget(const SizedBox());
-  });
+  testWidgets(
+    'Swiping moves between Live, Programs, Lyrics and Reports in order',
+    (t) async {
+      await open(t);
+      expect(home(t).page, 0);
+      await right(t);
+      expect(home(t).page, 0, reason: 'nothing before Live');
+      await left(t);
+      expect(home(t).page, 1);
+      expect(find.byKey(const ValueKey('new-template')), findsOneWidget);
+      // Lyrics comes after Programs, as the bar shows it, then Reports.
+      await left(t);
+      expect(home(t).page, lyricsPage);
+      await left(t);
+      expect(home(t).page, 2);
+      await right(t);
+      expect(home(t).page, lyricsPage);
+      await right(t);
+      expect(home(t).page, 1);
+      await right(t);
+      expect(home(t).page, 0);
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    },
+  );
 
   testWidgets('A swipe from the screen edge is left to Android Back', (
     t,
@@ -102,8 +108,8 @@ void main() {
     scroll.jumpTo(240);
     await t.pumpAndSettle();
     await left(t);
-    expect(home(t).page, 2);
-    expect(scroll.offset, 0, reason: 'Reports opens at its own position');
+    expect(home(t).page, lyricsPage);
+    expect(scroll.offset, 0, reason: 'Lyrics opens at its own position');
     await right(t);
     expect(home(t).page, 1);
     expect(scroll.offset, 240);

@@ -1077,6 +1077,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                     : () => unawaited(setHostFullScreen(true)),
                                 icon: const Icon(Icons.fullscreen),
                               ),
+                            if (c.ready && page == 0 && liveFillsWindow)
+                              lyricsHeaderButton(),
                             if (c.ready && page == 0 && c.liveSession.active)
                               IconButton(
                                 key: const ValueKey('control-lock'),

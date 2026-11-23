@@ -304,6 +304,28 @@ void main() {
     expect(home(t).page, lyricsPage);
   });
 
+  testWidgets('Live in a desktop layout has the Lyrics button in the header', (
+    t,
+  ) async {
+    final c = await openLyrics(t, size: const Size(1920, 1080));
+    await home(t).goToPage(0);
+    await settle(t);
+    c.lyrics.show('amazing', 1);
+    await settle(t);
+    // A desktop layout keeps its panes to the window: the button is in
+    // the header, lit while lyrics are on the screens.
+    final button = t.widget<IconButton>(
+      find.byKey(const ValueKey('live-lyrics-button')),
+    );
+    expect(button.isSelected, isTrue);
+    expect(button.tooltip, 'Lyrics · on the screens: Amazing Grace · Verse 2');
+    expect(t.takeException(), isNull);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/lyrics-live-button-1920.png'),
+    );
+  });
+
   testWidgets('add a song: words, headings, lines on a slide, a text file', (
     t,
   ) async {

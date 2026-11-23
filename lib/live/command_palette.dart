@@ -415,6 +415,16 @@ extension CommandPalette on HomeState {
                   : 'open tab page',
               run: () => goToPage(p.page),
             ),
+      if (c.lyrics.showing && !controlsLocked)
+        PaletteCommand(
+          id: 'clear-lyrics',
+          label: 'Clear lyrics',
+          detail: 'Every screen goes back to what it showed before',
+          icon: Icons.lyrics_outlined,
+          group: 'This window',
+          words: 'songs words slide remove black hide',
+          run: c.lyrics.clear,
+        ),
       PaletteCommand(
         id: 'appearance',
         label: 'Appearance',
