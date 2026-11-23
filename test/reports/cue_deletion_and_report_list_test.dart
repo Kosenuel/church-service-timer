@@ -9,6 +9,7 @@ import 'report_export_and_end_screen_cases.dart';
 import '../support/fake_port.dart';
 import '../support/ports.dart';
 import '../support/widget_setup.dart';
+import '../support/stock_end_screen.dart';
 
 void main() {
   for (final e in revision04Cases.entries) {
@@ -143,6 +144,7 @@ void main() {
       size(t, const Size(700, 1500));
       final c = AppController(FakePort()..at = epoch);
       await c.initialize(startTicker: false);
+      await useStockEndScreen(c);
       await c.setSharedWarnings([]);
       await c.act('load', value: c.state.templates.first);
       await t.pumpWidget(TimerApp(controller: c));

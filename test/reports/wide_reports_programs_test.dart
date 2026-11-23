@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../live/desktop_layout_test.dart' show DesktopFakePort, sunday;
 import '../support/fake_port.dart';
 import '../support/widget_setup.dart';
+import '../support/stock_end_screen.dart';
 
 /// Reports, Programs and what opens from Live, in a wide desktop window:
 /// panes beside each other and centred dialogs, not stretched phone pages.
@@ -64,6 +65,7 @@ void main() {
     final port = DesktopFakePort();
     final c = AppController(port);
     await c.initialize(startTicker: false);
+    await useStockEndScreen(c);
     await c.commit((draft, _) {
       draft.appearance = draft.appearance.copyWith(
         desktopLayout: 'three_panes',

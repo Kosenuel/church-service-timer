@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/feedback/feedback_message.dart';
 import 'feature_cases.dart' show epoch, at, equal, rejects, service;
+import '../support/stock_end_screen.dart';
 
 final revision10Cases = <String, void Function()>{
   'Legacy Times selections migrate to bundled Tinos with formatting intact':
@@ -207,7 +208,7 @@ final revision10Cases = <String, void Function()>{
     equal(feedbackRecipient, 'immanuelproton@gmail.com');
   },
   'New schema versions retain zero and per-template end choices': () {
-    final state = AppState.fresh(epoch);
+    final state = stockEndState(epoch);
     state.defaults = state.defaults.withZero(const TextLayout('STOP'));
     state.templates[0] = state.templates[0].withDisplay(
       state.templates[0].display.withEnd(const TextLayout('AMEN')),

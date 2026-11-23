@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:church_service_timer/domain/domain.dart';
 import '../domain/feature_cases.dart' show epoch, at, equal;
+import '../support/stock_end_screen.dart';
 
 List<ServiceReport> reportFixtures() => [
   ServiceReport(
@@ -48,7 +49,7 @@ List<ServiceReport> reportFixtures() => [
 final revision04Cases = <String, void Function()>{
   'Fresh end screens match requested style and remain independently replaceable':
       () {
-        final a = AppState.fresh(epoch);
+        final a = stockEndState(epoch);
         equal(a.defaults.zero, null);
         equal(
           a.defaults.end!.toJson(),
@@ -113,7 +114,7 @@ final revision04Cases = <String, void Function()>{
       },
   'Shared zero survives prior-session restoration and does not change end ownership':
       () {
-        final a = AppState.fresh(epoch);
+        final a = stockEndState(epoch);
         a.session = transition(
           a.session,
           'load',

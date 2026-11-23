@@ -8,6 +8,7 @@ import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import '../support/fake_port.dart';
 import '../support/widget_setup.dart';
+import '../support/stock_end_screen.dart';
 
 void main() {
   setUpAll(loadAppFonts);
@@ -158,6 +159,7 @@ void main() {
       size(t);
       final c = AppController(FakePort());
       await c.initialize(startTicker: false);
+      await useStockEndScreen(c);
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await tap(t, 'Programs');

@@ -271,6 +271,8 @@ class AppState {
     link(session);
   }
 
+  /// A new install ends on the clock: no end screen until one is made.
+  /// Saved state always holds its own choice, so this never reaches it.
   factory AppState.fresh(Stamp now) => AppState(
     [
       Timeline('Sunday Service', const [
@@ -278,7 +280,7 @@ class AppState {
         Segment('Announcements', 5),
         Segment('Sermon', 30),
         Segment('Closing', 5),
-      ], DisplaySettings()),
+      ], DisplaySettings(end: null)),
       Timeline(
         'Quick rehearsal',
         const [
@@ -286,11 +288,11 @@ class AppState {
           Segment('Message', 2),
           Segment('Closing', 1),
         ],
-        DisplaySettings(),
+        DisplaySettings(end: null),
         type: 'rehearsal',
       ),
     ],
-    DisplaySettings(),
+    DisplaySettings(end: null),
     Session(id: 'idle', anchor: now),
   );
   factory AppState.fromJson(Json j, {Stamp? now}) {

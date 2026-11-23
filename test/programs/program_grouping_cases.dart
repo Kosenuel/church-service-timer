@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:church_service_timer/domain/domain.dart';
 import '../domain/feature_cases.dart' show epoch, equal, rejects;
+import '../support/stock_end_screen.dart';
 
 final revision06Cases = <String, void Function()>{
   'Legacy state and templates migrate without losing display settings': () {
-    final old = AppState.fresh(epoch).toJson()..['version'] = 5;
+    final old = stockEndState(epoch).toJson()..['version'] = 5;
     old.remove('groupTemplates');
     for (final t in old['templates'] as List) {
       t['schemaVersion'] = 2;

@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/fake_port.dart';
 import '../support/widget_setup.dart';
 import 'desktop_layout_test.dart' show DesktopFakePort, sunday;
+import '../support/stock_end_screen.dart';
 
 /// The Send message composer, the end screen and the zero screen follow
 /// the simulator as the cue editor does: a switch over the preview that
@@ -39,6 +40,7 @@ void main() {
     await t.runAsync(() async {
       c = AppController(port);
       await c.initialize(startTicker: false);
+      await useStockEndScreen(c);
       await c.setSimulatorKind(kind);
       await c.act('load', value: sunday());
       if (start) await c.act('start');
@@ -350,6 +352,7 @@ void main() {
         setScreen(t);
         final c = AppController(FakePort());
         await t.runAsync(() => c.initialize(startTicker: false));
+        await t.runAsync(() => useStockEndScreen(c));
         await t.pumpWidget(
           MaterialApp(
             home: TemplateEditor(

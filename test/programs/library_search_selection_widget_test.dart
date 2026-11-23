@@ -14,6 +14,7 @@ import 'program_library_and_wifi_rejoin_test.dart' show RejoinPort;
 import '../support/fake_port.dart';
 import '../support/w2_port.dart';
 import '../support/widget_setup.dart';
+import '../support/stock_end_screen.dart';
 
 class SelectedExportPort extends FakePort {
   final exports = <String>[];
@@ -196,6 +197,7 @@ void main() {
       final p = FakePort();
       final c = AppController(p);
       await c.initialize(startTicker: false);
+      await useStockEndScreen(c);
       await c.act('load', value: timeline());
       await c.act('start');
       p.at = after(20);

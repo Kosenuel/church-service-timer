@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_port.dart';
 import '../support/widget_setup.dart';
+import '../support/stock_end_screen.dart';
 
 /// A program segment can name a scene, chosen in the program editor next
 /// to the segment's other fields.
@@ -18,6 +19,7 @@ void main() {
     await t.runAsync(() async {
       c = AppController(FakePort());
       await c.initialize(startTicker: false);
+      await useStockEndScreen(c);
       await c.screens.setShow('stage', 'monitor');
       await c.screens.saveScene('Worship');
       await c.screens.setShow('stage', 'next');
