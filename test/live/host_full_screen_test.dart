@@ -12,7 +12,6 @@ import 'package:church_service_timer/shared/screen_orientation.dart';
 import 'package:church_service_timer/windows/atomic_store.dart';
 import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/window_memory.dart';
-import 'package:church_service_timer/shared/stage_layout_tiles.dart';
 import 'package:flutter/gestures.dart';
 import 'package:church_service_timer/pairing/flip_clock.dart';
 import 'package:flutter/material.dart';
@@ -548,6 +547,9 @@ void main() {
 
     testWidgets('+ opens Adjust time, and digits send cues', (t) async {
       final (c, _) = await running(t);
+      // Full screen is This computer, in Room 1: cues show there once
+      // Room 1 shows cues (it does not at first, facing the room).
+      await c.screens.setCues('room', true);
       await press(t, LogicalKeyboardKey.f11);
       await press(t, LogicalKeyboardKey.equal);
       expect(find.byType(TimeAdjustmentDialog), findsOneWidget);
@@ -582,6 +584,7 @@ void main() {
 
     testWidgets('a warning shows on it as on a stage screen', (t) async {
       final (c, port) = await running(t);
+      await c.screens.setCues('room', true);
       await press(t, LogicalKeyboardKey.f11);
       // Into overtime: what the stage is sent is what is drawn.
       port.at = after(340 + 2400 + 75);
@@ -666,27 +669,30 @@ void main() {
       await press(t, LogicalKeyboardKey.f11);
       expect(find.text('Sermon'), findsNothing);
       expect(find.text('UP NEXT'), findsNothing);
-      await c.commit((draft, _) => draft.fullScreenLayout = 'current');
+      await c.screens.setShow('room', 'current');
       await t.pumpAndSettle();
       expect(find.text('Sermon'), findsOneWidget);
-      await c.commit((draft, _) => draft.fullScreenLayout = 'next');
+      await c.screens.setShow('room', 'next');
       await t.pumpAndSettle();
       expect(find.text('UP NEXT'), findsOneWidget);
       expect(find.text('Response'), findsOneWidget);
       expect(find.text('10 min'), findsOneWidget);
       expect(time(t), '12:38');
       // Up next only: the next item and no time.
-      await c.commit((draft, _) => draft.fullScreenLayout = 'only');
+      await c.screens.setShow('room', 'only');
       await t.pumpAndSettle();
       expect(find.text('UP NEXT'), findsOneWidget);
       expect(find.text('Response'), findsOneWidget);
       expect(find.byType(ClockText), findsNothing);
-      await c.commit((draft, _) => draft.fullScreenLayout = 'next');
+      await c.screens.setShow('room', 'next');
       await t.pumpAndSettle();
-      // Kept on this device: in its saved state, never in a backup.
-      expect(c.state.toJson()['fullScreenLayout'], 'next');
-      expect(AppState.fromJson(c.state.toJson()).fullScreenLayout, 'next');
-      expect(exportBackup(c.state, c.now), isNot(contains('fullScreenLayout')));
+      // Kept on this device with the groups.
+      expect(
+        AppState.fromJson(
+          c.state.toJson(),
+        ).screens!.groupOf(thisScreenKey).show,
+        'next',
+      );
       await done(t);
     });
 
@@ -700,15 +706,13 @@ void main() {
       await c.initialize(startTicker: false);
       await c.act('load', value: sunday());
       await c.act('start');
-      // The phone's choice is not the one a computer uses.
-      await c.commit((draft, _) => draft.fullScreenLayout = 'current');
       await c.commit((d, _) => d.dismissedHints.add(gesturesTipHint));
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
       await press(t, LogicalKeyboardKey.f11);
       expect(stage, findsOneWidget);
       expect(find.text('Welcome'), findsNothing);
-      await c.secondScreen!.setLayout('next');
+      await c.screens.setShow('room', 'next');
       await t.pumpAndSettle();
       expect(find.text('UP NEXT'), findsOneWidget);
       expect(find.text('Sermon'), findsOneWidget);
@@ -818,22 +822,13 @@ void main() {
         ).openSettingsDetail('Screens & devices', home(t).pairedDeviceSettings),
       );
       await t.pumpAndSettle();
-      await t.ensureVisible(key('full-screen-layout-next'));
+      final note = key('screen-group-note-this');
+      await t.ensureVisible(note);
       await t.pumpAndSettle();
       expect(find.text('Full screen on this phone'), findsOneWidget);
-      expect(
-        find.text(
-          'Only this phone. Paired stage screens keep their own choice.',
-        ),
-        findsOneWidget,
-      );
-      await t.tap(key('full-screen-layout-next'));
-      await t.pumpAndSettle();
-      expect(c.state.fullScreenLayout, 'next');
-      expect(
-        t.widget<StageLayoutTile>(key('full-screen-layout-next')).selected,
-        isTrue,
-      );
+      // What it shows is its group's, set in Screens.
+      expect(key('full-screen-layout-next'), findsNothing);
+      expect(key('open-screens-this'), findsOneWidget);
       await done(t);
     });
 
@@ -1113,7 +1108,7 @@ void main() {
         t.platformDispatcher.textScaleFactorTestValue = scale;
         addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
         final (c, _) = await running(t, desktop: desktop, size: size);
-        await c.commit((draft, _) => draft.fullScreenLayout = 'next');
+        await c.screens.setShow('room', 'next');
         await t.pumpAndSettle();
         // The header with its new button.
         expect(key('full-screen-button'), findsOneWidget, reason: '$size');
@@ -2018,7 +2013,7 @@ void main() {
 
     testWidgets('looks right with a confirmation showing', (t) async {
       final (c, _) = await running(t, size: const Size(1920, 1080));
-      await c.commit((draft, _) => draft.fullScreenLayout = 'next');
+      await c.screens.setShow('room', 'next');
       await press(t, LogicalKeyboardKey.f11);
       await settleControl(t);
       await press(t, LogicalKeyboardKey.space);

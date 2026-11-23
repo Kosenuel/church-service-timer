@@ -155,7 +155,8 @@ class ServiceCheckPageState extends State<ServiceCheckPage> {
       ..remove('rundown')
       ..remove('connection'),
     'stageSharing': true,
-    'stageLayout': c.state.simulatorLayout,
+    // The simulator shows this device's own screen, in its group.
+    'stageLayout': c.screens.groupOf(thisScreenKey).layout,
     if (_warning) 'effect': 'static',
   };
 

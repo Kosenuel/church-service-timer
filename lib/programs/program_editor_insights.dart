@@ -120,6 +120,8 @@ extension EditorInsights on TemplateEditorState {
           speaker: s.speaker,
           notes: s.notes,
           protected: s.protected,
+          sceneId: s.sceneId,
+          sceneName: s.sceneName,
         );
       }
     });

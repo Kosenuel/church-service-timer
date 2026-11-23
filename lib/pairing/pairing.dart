@@ -148,8 +148,19 @@ Stream<String> pairLines(Socket socket) async* {
   }
 }
 
+/// What a paired screen's app can draw beyond the countdown, as its hello
+/// lists it: 'confidence' for Slides and timer. A screen from before this
+/// lists nothing and is sent the countdown in its place.
+const confidenceMonitorFeature = 'confidence';
+const pairFeatures = [confidenceMonitorFeature];
+
 class PairPeer {
   final String id, name, role;
+
+  /// The app version and features its hello named; empty from an older
+  /// app.
+  String appVersion = '';
+  Set<String> features = const {};
   final PairWire wire;
   bool approved = false, requestedControl = false, suspended = false;
   bool get connected => approved && !suspended && !wire.closed;
@@ -536,6 +547,15 @@ class PairHub extends ChangeNotifier {
       );
       peer.approved = approval != null;
       peer.suspended = approval?.suspended ?? false;
+      if (hello['app'] case final String v when v.length <= 40) {
+        peer.appVersion = v;
+      }
+      if (hello['features'] case final List f) {
+        peer.features = {
+          for (final x in f.take(20))
+            if (x is String && x.length <= 40) x,
+        };
+      }
       peers.add(peer);
       changed();
       await wire.send({'type': 'pending', 'id': peer.id});
@@ -880,7 +900,13 @@ class PairHub extends ChangeNotifier {
         final key = await srp.finish(verified['proof'], challenge['challenge']);
         require(lifecycle == _lifecycle && !_disposed, 'Pairing cancelled.');
         _client = PairWire(socket, key, challenge['challenge']);
-        await _client!.send({'type': 'hello', 'name': name, 'role': role});
+        await _client!.send({
+          'type': 'hello',
+          'name': name,
+          'role': role,
+          'app': appVersion,
+          'features': pairFeatures,
+        });
       } else {
         final exchange = X25519();
         final kp = await exchange.newKeyPair();
@@ -894,6 +920,8 @@ class PairHub extends ChangeNotifier {
           'type': 'hello',
           'name': name,
           'role': role,
+          'app': appVersion,
+          'features': pairFeatures,
           'public': base64Encode(public.bytes),
         });
         final shared = await exchange.sharedSecretKey(

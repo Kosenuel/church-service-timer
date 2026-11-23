@@ -47,11 +47,12 @@ Future<AppController> ready({bool running = true}) async {
 Json withoutLyrics(Json j) => {...j}..remove('lyrics');
 
 void main() {
-  group('Send to', () {
+  group('Which screens show slides (their group)', () {
     test(
-      'stage screens are off by default and really keep the countdown',
+      'the Stage group shows the timer at first and really keeps the countdown',
       () async {
         final c = await ready();
+        await c.screens.move('pair:phone', 'stage');
         final peer = PairPeer('phone', 'Pulpit phone', 'stage', _Wire());
         final before = c.decoratePairedSnapshot(peer, c.pairedSnapshot(false));
         c.lyrics.show('amazing', 0);
@@ -63,11 +64,11 @@ void main() {
           jsonEncode(before),
           reason: 'nothing else changes for the speaker',
         );
-        // The second screen and web screens do get the slide.
+        // The second screen and web screens (Room 1) do get the slide.
         expect(c.stageWindowSnapshot()['lyrics'], isA<Map>());
         expect(c.webStageSnapshot()['lyrics'], isA<Map>());
-        // Ticked, stage screens get it too.
-        await c.lyrics.setLook(c.lyrics.look.copyWith(toStage: true));
+        // Stage set to Slides, stage screens get it too.
+        await c.screens.setShow('stage', 'slides');
         expect(
           c.decoratePairedSnapshot(peer, c.pairedSnapshot(false))['lyrics'],
           isA<Map>(),
@@ -83,22 +84,23 @@ void main() {
       },
     );
 
-    test('unticked screens get nothing; the LED sign never does', () async {
-      final c = await ready();
-      await c.lyrics.setLook(
-        c.lyrics.look.copyWith(toSecond: false, toWeb: false),
-      );
-      c.lyrics.show('amazing', 1);
-      expect(c.stageWindowSnapshot().containsKey('lyrics'), isFalse);
-      expect(c.webStageSnapshot().containsKey('lyrics'), isFalse);
-      // The sign's output is the session's, which lyrics never touch.
-      expect(c.state.session.intended(c.now)?.text, isNot(contains('grace')));
-      expect(
-        c.lyrics.previewField(),
-        isA<Map>(),
-        reason: 'the operator still sees it',
-      );
-    });
+    test(
+      'groups not showing slides get nothing; the LED sign never does',
+      () async {
+        final c = await ready();
+        await c.screens.setShow('room', 'timer');
+        c.lyrics.show('amazing', 1);
+        expect(c.stageWindowSnapshot().containsKey('lyrics'), isFalse);
+        expect(c.webStageSnapshot().containsKey('lyrics'), isFalse);
+        // The sign's output is the session's, which lyrics never touch.
+        expect(c.state.session.intended(c.now)?.text, isNot(contains('grace')));
+        expect(
+          c.lyrics.previewField(),
+          isA<Map>(),
+          reason: 'the operator still sees it',
+        );
+      },
+    );
 
     test('Clear slide gives each screen back exactly what it had', () async {
       final c = await ready();
@@ -185,7 +187,8 @@ void main() {
       'the slide is one new optional field; everything else is as before',
       () async {
         final c = await ready();
-        await c.lyrics.setLook(c.lyrics.look.copyWith(toStage: true));
+        await c.screens.move('pair:phone', 'stage');
+        await c.screens.setShow('stage', 'slides');
         final peer = PairPeer('phone', 'Pulpit phone', 'stage', _Wire());
         final before = c.decoratePairedSnapshot(peer, c.pairedSnapshot(false));
         c.lyrics.show('amazing', 0);
@@ -202,6 +205,7 @@ void main() {
       await loadAppFonts();
       setScreen(t, const Size(960, 540));
       final c = await t.runAsync(ready);
+      await t.runAsync(() => c!.screens.move('pair:phone', 'stage'));
       c!.lyrics.show('amazing', 0);
       final peer = PairPeer('phone', 'Pulpit phone', 'stage', _Wire());
       // As a phone gets it while the host shares to stage screens.

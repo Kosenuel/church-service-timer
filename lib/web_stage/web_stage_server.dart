@@ -270,6 +270,10 @@ class WebDevice {
   final String token, label, address;
   WebRole role;
   int lastSeen;
+
+  /// The screen group the browser named when it joined, or was moved to
+  /// in the Screens panel; null for the default group.
+  String? group;
   WebDevice(this.token, this.role, this.label, this.address)
     : lastSeen = DateTime.now().millisecondsSinceEpoch;
   bool get team => role.team || _team;
@@ -302,6 +306,13 @@ class WebStageServer {
   Json? Function(WebDevice device)? requestFor;
   bool _requestsFor(WebDevice d) =>
       d.team && d.role == WebRole.stage && (requestsOpen?.call() ?? false);
+
+  /// What a Stage display's group adds to the snapshot (its layout, and a
+  /// slide or the confidence monitor), and the group's id and name for the
+  /// page to remember. Without them every display shows the snapshot as
+  /// it is, in [WebStageSettings.stageLayout].
+  Json Function(WebDevice device, Json snapshot)? stageFor;
+  ({String id, String name}) Function(WebDevice device)? groupFor;
 
   /// A lyric slide's picture: a bundled photo (`photo`, by id) or Your
   /// picture (`picture`, by name), or null when there is none.
@@ -471,12 +482,20 @@ class WebStageServer {
                       .firstOrNull ??
                   WebRole.stage)
             : WebRole.order;
-        final device = WebDevice(
-          _token(),
-          role,
-          _label(r.headers.value('user-agent') ?? ''),
-          ip,
-        ).._team = team;
+        final device =
+            WebDevice(
+                _token(),
+                role,
+                _label(r.headers.value('user-agent') ?? ''),
+                ip,
+              )
+              .._team = team
+              // The group the browser remembers, or its link names.
+              ..group = switch (body['group']) {
+                final String g when RegExp(r'^[a-z0-9-]{1,24}$').hasMatch(g) =>
+                  g,
+                _ => null,
+              };
         devices[device.token] = device;
         if (team) onJoined?.call(device);
         onChanged?.call();
@@ -558,10 +577,21 @@ class WebStageServer {
         final wasActive = device.active;
         device.lastSeen = DateTime.now().millisecondsSinceEpoch;
         if (!wasActive) onChanged?.call();
+        final base = snapshot();
+        final group = device.role == WebRole.stage
+            ? groupFor?.call(device)
+            : null;
         _json(res, {
           'role': device.role.name,
           'team': device.team,
-          ...viewFor(device.role, snapshot(), settings())..removeWhere(
+          if (group != null) 'group': {'id': group.id, 'name': group.name},
+          ...viewFor(
+            device.role,
+            device.role == WebRole.stage && stageFor != null
+                ? stageFor!(device, base)
+                : base,
+            settings(),
+          )..removeWhere(
             (k, _) =>
                 k == 'message' &&
                 showsMessage != null &&
@@ -656,7 +686,10 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
     case WebRole.stage:
       // On the last segment, in a Quick timer or with no program, 'Up next
       // only' shows the end screen set for the program, or the clock.
-      s = stageForLayout(s, settings.stageLayout);
+      // The layout the display's group uses (always one of the four
+      // countdown layouts); the saved one from a host without groups.
+      final layout = stageLayoutValue(s['stageLayout'] ?? settings.stageLayout);
+      s = stageForLayout(s, layout);
       // A banner cue: the page shows the countdown or clock as usual and
       // the cue in a band over it.
       final position = stageBannerPosition(s);
@@ -713,7 +746,37 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
             'words': ?stageWordGroups(s),
             ...effectsOf(s),
           },
-        'layout': settings.stageLayout,
+        'layout': layout,
+        // What the display's group shows: a countdown layout, 'slides' or
+        // 'monitor'. An older page goes by `layout` alone.
+        'show': screenShowValue(s['stageShow'] ?? layout),
+        // A cue over a slide or the confidence monitor, sent only to a
+        // group that shows cues: still, wrapped, in its colour.
+        if ((s['lyrics'] is Map || s['confidence'] is Map) &&
+            stageCueOverSlide(s))
+          'slideCue': {
+            'text': '${s['displayText']}',
+            'position': stageSlideCueEdge(s),
+            'color': stageColorHex(color ?? 0xffffff),
+            'bold': s['bold'] == true,
+            'italic': s['italic'] == true,
+          },
+        if (s['confidence'] case final Map m)
+          'confidence': {
+            ...webConfidence(m),
+            // The monitor's time: the countdown while a service runs (over
+            // a cue or Blank too), else the time of day.
+            'time': {
+              'active': phase == 'active',
+              'text': switch (phase == 'active' ? s['remaining'] : m['clock']) {
+                final String t when stageTimePattern.hasMatch(t) => t,
+                _ => '',
+              },
+              'moment': phase == 'active' ? stageMoment(s) : 'normal',
+              'alert': overtimeAlertValue(s['overtimeAlert']),
+              'paused': s['paused'] == true,
+            },
+          },
         // The countdown's own look: how far through the segment it is and
         // the moment it is in (see [stageMoment]), the bands for the
         // segment now and what is next, and how strongly overtime shows.
@@ -817,6 +880,29 @@ Json webLyrics(Map l) {
       'chip': chip,
       'chipOver': l['chipOver'] == true,
     },
+  };
+}
+
+/// The confidence monitor's words as the web page gets them: only known
+/// fields, checked and cut to length.
+Json webConfidence(Map m) {
+  String text(Map from, String key, int most) {
+    final v = from[key];
+    return v is String ? (v.length > most ? v.substring(0, most) : v) : '';
+  }
+
+  return {
+    'key': text(m, 'key', 80),
+    'kind': const {'song', 'scripture', 'announcement'}.contains(m['kind'])
+        ? m['kind']
+        : 'song',
+    'label': text(m, 'label', 80),
+    'text': text(m, 'text', 4000),
+    'title': text(m, 'title', 120),
+    'detail': text(m, 'detail', 160),
+    'reference': text(m, 'reference', 120),
+    if (m['next'] case final Map n)
+      'next': {'label': text(n, 'label', 80), 'line': text(n, 'line', 200)},
   };
 }
 

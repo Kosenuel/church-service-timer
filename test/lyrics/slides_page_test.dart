@@ -193,9 +193,7 @@ void main() {
       await settle(t);
       expect(t.widget<Text>(status).data, 'Black on the screens');
       c.lyrics.toggleBlack();
-      await c.lyrics.setLook(
-        c.lyrics.look.copyWith(toSecond: false, toWeb: false, toStage: false),
-      );
+      await t.runAsync(() => c.screens.setShow('room', 'timer'));
       await settle(t);
       expect(
         t.widget<Text>(status).data,
@@ -402,38 +400,52 @@ void main() {
       expect(t.takeException(), isNull);
     });
 
-    testWidgets('Screens is one row; Change opens the same choices', (t) async {
+    testWidgets('Screens is one row: the groups showing slides, and Screens', (
+      t,
+    ) async {
       final c = await openLyrics(t, size: tall, running: false);
       final header = find.byKey(k('lyrics-screens-row-header'));
       expect(
-        find.descendant(
-          of: header,
-          matching: find.text('Second screen · Web screens'),
-        ),
+        find.descendant(of: header, matching: find.text('Room 1')),
         findsOneWidget,
       );
+      // The old Send to chips are gone.
       expect(find.byKey(k('lyrics-send-stage')), findsNothing);
       expect(find.byKey(k('lyrics-send-note')), findsNothing);
       await openRow(t, 'lyrics-screens-row');
-      await t.tap(find.byKey(k('lyrics-send-stage')));
+      expect(find.byKey(k('lyrics-send-note')), findsOneWidget);
+      expect(find.byKey(k('lyrics-open-screens')), findsOneWidget);
+      await t.runAsync(() => c.screens.setShow('stage', 'monitor'));
       await settle(t);
-      expect(c.lyrics.look.toStage, isTrue);
       expect(
         find.descendant(
           of: header,
-          matching: find.text('Second screen · Web screens · Stage screens'),
+          matching: find.text('Room 1 · Stage (with the timer)'),
         ),
         findsOneWidget,
       );
-      expect(find.byKey(k('lyrics-send-note')), findsOneWidget);
-      await c.lyrics.setLook(
-        c.lyrics.look.copyWith(toSecond: false, toWeb: false, toStage: false),
-      );
+      await t.runAsync(() async {
+        await c.screens.setShow('room', 'timer');
+        await c.screens.setShow('stage', 'timer');
+      });
       await settle(t);
       expect(
-        find.descendant(of: header, matching: find.text('None chosen')),
+        find.descendant(
+          of: header,
+          matching: find.text('No screens are showing slides'),
+        ),
         findsOneWidget,
       );
+      // One tap fixes it, in the row and beside the status line.
+      expect(find.byKey(k('lyrics-fix-groups')), findsOneWidget);
+      expect(find.byKey(k('lyrics-fix-groups-top')), findsOneWidget);
+      await t.runAsync(() async {
+        await t.tap(find.byKey(k('lyrics-fix-groups')));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+      await settle(t);
+      expect(c.screens.groupOf(thisScreenKey).show, 'slides');
+      expect(find.byKey(k('lyrics-fix-groups')), findsNothing);
     });
 
     testWidgets('Tab reaches the rows, Enter and Space open and close them, '
@@ -703,7 +715,7 @@ void main() {
     expect(preview.data['text'], shown);
     for (final target in LyricTarget.values) {
       expect(
-        c.lyrics.field(target, always: true)!['text'],
+        c.lyrics.field(target)!['text'],
         shown,
         reason: '$target',
       );
