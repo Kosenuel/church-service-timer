@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
+import 'package:church_service_timer/lyrics/lyric_photos.dart';
+
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
@@ -31,7 +34,25 @@ class WebStageCoordinator {
           '${d.label} (web)',
           kind,
         ))
-        ..requestFor = ((d) => app.stageRequests.statusFor('web:${d.token}'));
+        ..requestFor = ((d) => app.stageRequests.statusFor('web:${d.token}'))
+        ..lyricImage = _lyricImage;
+
+  /// A bundled photo by id, or Your picture when its name is the one in
+  /// use, for web screens showing a slide.
+  Future<Uint8List?> _lyricImage(String kind, String id) async {
+    if (kind == 'photo') {
+      final photo = lyricPhotoById(id);
+      if (photo == null) return null;
+      try {
+        return (await rootBundle.load(photo.asset)).buffer.asUint8List();
+      } catch (_) {
+        return null;
+      }
+    }
+    return app.lyrics.look.background == 'custom:$id'
+        ? app.lyrics.pictureBytes
+        : null;
+  }
 
   final mdns = MdnsResponder();
 

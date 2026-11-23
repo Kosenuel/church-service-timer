@@ -82,6 +82,33 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
 #stage .msg p { font-size:6vh; line-height:1.2; margin:0; white-space:pre-wrap; word-break:break-word; }
+#lyr { position:fixed; inset:0; overflow:hidden; background:#000; display:none; z-index:3; container-type:inline-size; }
+#lyr .bgl, #lyr .fx, #lyr .dim, #lyr canvas, #lyr img { position:absolute; inset:0; width:100%; height:100%; }
+#lyr img { object-fit:cover; }
+#lyr .bgl { will-change:transform; }
+#lyr .dim { background:#000; }
+#lyr.move .bgl.a-zoom { animation:ly-zoom 28s ease-in-out infinite alternate; }
+#lyr.move .bgl.a-drift { left:-8%; width:116%; animation:ly-drift 22s ease-in-out infinite alternate; }
+#lyr.move .bgl.a-shimmer { animation:ly-shimmer 16s ease-in-out infinite alternate; }
+@keyframes ly-zoom { from { transform:scale(1); } to { transform:scale(1.12) translate(-1.5%, -1%); } }
+@keyframes ly-drift { from { transform:translateX(-6%) scale(1.02); } to { transform:translateX(6%) scale(1.06); } }
+@keyframes ly-shimmer { from { transform:scale(1.05) rotate(-1.5deg); filter:hue-rotate(-18deg) brightness(.95); } to { transform:scale(1.2) rotate(1.5deg); filter:hue-rotate(22deg) brightness(1.1); } }
+#lyr .fx i { position:absolute; border-radius:50%; background:#fff; opacity:.5; }
+#lyr .fx.embers i { background:radial-gradient(circle, rgba(255,214,150,.9), rgba(255,170,80,0) 70%); opacity:0; }
+#lyr.move .fx.twinkle i { animation:ly-twinkle 3.2s ease-in-out infinite; }
+#lyr.move .fx.embers i { animation:ly-rise 9s linear infinite; }
+@keyframes ly-twinkle { 0%, 100% { opacity:.1; } 50% { opacity:.95; } }
+@keyframes ly-rise { 0% { opacity:0; transform:translateY(0) scale(.7); } 15% { opacity:.8; } 100% { opacity:0; transform:translateY(-45cqw) scale(1.25); } }
+@media (prefers-reduced-motion: reduce) { #lyr .bgl, #lyr .fx i { animation:none !important; } }
+#lyr .words { position:absolute; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:#fff; font-family:Roboto, system-ui, "Segoe UI", sans-serif; font-weight:500; line-height:1.22; text-shadow:0 .2cqw 1.2cqw rgba(0,0,0,.65); }
+#lyr .words div { max-width:100%; white-space:normal; overflow-wrap:normal; word-break:normal; text-wrap:balance; }
+#lyr .words .num { font-size:.55em; font-weight:700; color:var(--ly-accent); }
+#lyr .words .acc { color:var(--ly-accent); }
+#lyr.left .words { align-items:flex-start; text-align:left; }
+#lyr.dark .words { color:#1b2420; text-shadow:none; }
+#lyr .chip { position:absolute; right:2.4cqw; top:2.4cqw; background:rgba(0,0,0,.55); color:#fff; border-radius:99px; padding:.7cqw 2cqw; font-size:3cqw; font-weight:500; font-variant-numeric:tabular-nums; display:none; z-index:2; }
+#lyr .chip.over { color:#ff6b5e; }
+#lyr.stale .words { opacity:.4; }
 #lost { position:fixed; left:0; right:0; top:0; z-index:8; display:none; align-items:center; justify-content:center; gap:10px; padding:12px 16px; background:#7a1f1f; color:#fff; font-weight:700; font-size:16px; text-align:center; }
 #lost .dot { width:10px; height:10px; border-radius:50%; background:#ffb3b3; animation: pulse 1.2s infinite; }
 @keyframes pulse { 50% { opacity:.25; } }
@@ -102,6 +129,7 @@ body.stale #app { opacity:.6; }
 <body>
 <div id="app" class="wrap"></div>
 <div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="rule" id="stageRule"></div><div class="line" id="stageLine"></div><div class="note" id="stageNote"></div></div>
+<div id="lyr"><div class="bgl" id="lyrBg"></div><div class="fx" id="lyrFx"></div><div class="dim" id="lyrDim"></div><div class="words" id="lyrWords"></div><div class="chip" id="lyrChip"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
 <div id="req"><span id="reqNote"></span><button class="chip" id="reqBtn">Request</button></div>
@@ -131,7 +159,7 @@ function clear(node) { while (node.firstChild) node.removeChild(node.firstChild)
 async function loadInfo() { try { info = (await api('/api/info')).body; } catch (_) {} }
 
 function showJoin(message) {
-  stop(); stopMotion(); token = null; save(); setLost(false); $('req').style.display = 'none';
+  stop(); stopMotion(); renderLyrics(null); token = null; save(); setLost(false); $('req').style.display = 'none';
   $('stage').style.display = 'none'; clear($('tools'));
   const app = $('app'); clear(app); app.style.display = 'block';
   app.append(el('div', 'tag', 'Church Service Timer'), el('h1', '', info.church || 'Welcome'));
@@ -326,7 +354,7 @@ function render(s) {
   lastState = s;
   showRequests(s);
   if (s.role === 'stage') return renderStage(s);
-  stopMotion(); renderBand(null);
+  renderLyrics(null); stopMotion(); renderBand(null);
   $('stage').style.display = 'none';
   const app = $('app'); app.style.display = 'block'; clear(app);
   const head = el('div', 'bar');
@@ -639,6 +667,8 @@ setInterval(() => {
 
 function renderStage(s) {
   $('app').style.display = 'none';
+  // A slide covers the countdown, which keeps running underneath.
+  renderLyrics(s);
   const stage = $('stage'); stage.style.display = 'flex';
   const text = $('stageText'); const note = $('stageNote');
   renderBand(s);
@@ -758,6 +788,128 @@ function renderMessage(stage, text, msg) {
     m.querySelectorAll('h2, p').forEach((n) => { n.style.fontSize = (parseFloat(n.style.fontSize) * 0.95) + 'vh'; });
   }
 }
+// ---- Lyrics: a slide from the Lyrics page, over the countdown ------------
+// Drawn here as the app draws it: the same twelve designs (shapes on a
+// 160 × 90 grid stretched to the screen), photos fetched from the host,
+// the Dim layer, the words as large as they fit, and the countdown chip.
+const LY_MOTION = { midnight: 'zoom', sunrise: 'zoom', mountain_dusk: 'zoom', royal_velvet: 'zoom', aurora: 'shimmer', stained_glass: 'shimmer', ocean: 'drift', forest_mist: 'drift', starry_night: 'twinkle', candlelight: 'embers' };
+const LY_PHOTO_MOTION = { 'deep-sea': 'drift', 'golden-sky': 'drift', candle: 'embers' };
+function lyGrad(ctx, stops) { const g = ctx.createLinearGradient(0, 0, 0, 90); stops.forEach((c, i) => g.addColorStop(stops.length === 3 ? [0, .6, 1][i] : i, c)); ctx.fillStyle = g; ctx.fillRect(0, 0, 160, 90); }
+function lyFill(ctx, d, c) { ctx.fillStyle = c; ctx.fill(new Path2D(d)); }
+function lyGlow(ctx, w, h, cx, cy, rx, ry, stops) {
+  ctx.save(); ctx.translate(cx * w, cy * h); ctx.scale(rx * w, ry * h);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1); stops.forEach(([at, c]) => g.addColorStop(at, c));
+  ctx.fillStyle = g; ctx.fillRect(-cx / rx, -cy / ry, 1 / rx, 1 / ry); ctx.restore();
+}
+function lyDraw(canvas, id) {
+  const w = canvas.width, h = canvas.height, ctx = canvas.getContext('2d');
+  const grid = (f) => { ctx.save(); ctx.scale(w / 160, h / 90); f(); ctx.restore(); };
+  const clear = 'rgba(0,0,0,0)';
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+  if (id === 'midnight') lyGlow(ctx, w, h, .5, 1.1, 1.2, .9, [[0, '#24407a'], [.6, '#0a1330'], [1, '#05081a']]);
+  else if (id === 'aurora') { ctx.fillStyle = '#06121c'; ctx.fillRect(0, 0, w, h); lyGlow(ctx, w, h, .2, .3, .6, .5, [[0, 'rgba(72,221,160,.75)'], [.7, clear]]); lyGlow(ctx, w, h, .78, .22, .55, .55, [[0, 'rgba(120,110,255,.7)'], [.7, clear]]); lyGlow(ctx, w, h, .55, .9, .7, .5, [[0, 'rgba(30,160,190,.6)'], [.7, clear]]); }
+  else if (id === 'sunrise') grid(() => { lyGrad(ctx, ['#2a2f6b', '#e9746a', '#ffc27a']); ctx.fillStyle = 'rgba(255,227,166,.9)'; ctx.beginPath(); ctx.arc(80, 74, 16, 0, 7); ctx.fill(); lyFill(ctx, 'M0 78 Q40 70 80 76 T160 72 V90 H0Z', '#3a2350'); });
+  else if (id === 'mountain_dusk') grid(() => { lyGrad(ctx, ['#1b2550', '#7a5a8c', '#f0a077']); lyFill(ctx, 'M0 62 L28 40 L46 54 L70 30 L98 58 L120 42 L160 64 V90 H0Z', '#4a3f6b'); lyFill(ctx, 'M0 72 L22 58 L50 70 L84 52 L112 70 L138 60 L160 72 V90 H0Z', '#2c2748'); lyFill(ctx, 'M0 82 L40 72 L80 82 L120 74 L160 82 V90 H0Z', '#17152b'); });
+  else if (id === 'starry_night') grid(() => { lyGrad(ctx, ['#040716', '#0f1f4a']); let x = 7; for (let i = 0; i < 70; i++) { x = (x * 73 + 41) % 997; const y = (x * 31 + i * 17) % 90, r = i % 5 === 0 ? .5 : .25; ctx.fillStyle = 'rgba(255,255,255,' + (.4 + (i % 4) * .15) + ')'; ctx.beginPath(); ctx.ellipse(x % 160, y, r, r * (w / 160) / (h / 90), 0, 0, 7); ctx.fill(); } });
+  else if (id === 'candlelight') { ctx.fillStyle = '#1a0e06'; ctx.fillRect(0, 0, w, h); [[.18, .7, .18, .3, '255,190,90', .75], [.4, .3, .14, .24, '255,160,70', .55], [.72, .62, .2, .34, '255,205,120', .65], [.88, .22, .12, .2, '255,170,80', .5], [.58, .84, .1, .18, '255,220,150', .5]].forEach(([cx, cy, rx, ry, c, a]) => lyGlow(ctx, w, h, cx, cy, rx, ry, [[0, 'rgba(' + c + ',' + a + ')'], [.7, clear]])); }
+  else if (id === 'ocean') grid(() => { lyGrad(ctx, ['#0b2a4a', '#2f7fa8']); lyFill(ctx, 'M0 58 Q20 52 40 58 T80 58 T120 58 T160 58 V90 H0Z', 'rgba(31,102,144,.8)'); lyFill(ctx, 'M0 68 Q20 62 40 68 T80 68 T120 68 T160 68 V90 H0Z', '#144d74'); lyFill(ctx, 'M0 79 Q20 74 40 79 T80 79 T120 79 T160 79 V90 H0Z', '#0b3355'); });
+  else if (id === 'forest_mist') grid(() => { lyGrad(ctx, ['#b9cfc6', '#4f7268']); lyFill(ctx, 'M0 60 Q30 44 60 58 T120 52 T160 58 V90 H0Z', 'rgba(62,98,89,.7)'); lyFill(ctx, 'M0 72 Q40 58 80 70 T160 66 V90 H0Z', '#27463f'); lyFill(ctx, 'M0 84 Q50 74 100 82 T160 80 V90 H0Z', '#132a25'); });
+  else if (id === 'stained_glass') { const cs = ['#7a1f3d', '#b9462f', '#d9a23a', '#2f7d5b', '#24508f', '#5a2f86', '#7a1f3d']; let g; if (ctx.createConicGradient) { g = ctx.createConicGradient((20 - 90) * Math.PI / 180, .3 * w, .4 * h); cs.forEach((c, i) => g.addColorStop(i / 6, c)); } else { g = ctx.createLinearGradient(0, 0, w, h); cs.forEach((c, i) => g.addColorStop(i / 6, c)); } ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
+  else if (id === 'royal_velvet') lyGlow(ctx, w, h, .5, 0, .9, 1.2, [[0, '#6b2fa0'], [.6, '#2a0f4a'], [1, '#12051f']]);
+  else if (id === 'linen') { ctx.fillStyle = '#efe9dc'; ctx.fillRect(0, 0, w, h); const step = Math.max(3, w / 640); ctx.fillStyle = 'rgba(0,0,0,.035)'; for (let y = 0; y < h; y += step) ctx.fillRect(0, y, w, step / 3); for (let x = 0; x < w; x += step) ctx.fillRect(x, 0, step / 3, h); }
+}
+const LY_DRAWN = ['black', 'midnight', 'aurora', 'sunrise', 'mountain_dusk', 'starry_night', 'candlelight', 'ocean', 'forest_mist', 'stained_glass', 'royal_velvet', 'linen'];
+function lyBackground(bg) {
+  const layer = $('lyrBg'); const w = window.innerWidth, h = window.innerHeight;
+  const key = bg + '|' + w + '|' + h;
+  if (layer.dataset.key === key) return;
+  layer.dataset.key = key; clear(layer);
+  if (bg.startsWith('photo:') || bg.startsWith('custom:')) {
+    const img = el('img'); img.alt = '';
+    img.src = bg.startsWith('photo:') ? '/lyrics/photo?id=' + encodeURIComponent(bg.slice(6)) + '&token=' + encodeURIComponent(token) : '/lyrics/picture?name=' + encodeURIComponent(bg.slice(7)) + '&token=' + encodeURIComponent(token);
+    // A picture the host cannot send shows Midnight.
+    img.onerror = () => { layer.dataset.key = ''; lyBackground('midnight'); };
+    layer.append(img); return;
+  }
+  const canvas = el('canvas'); const scale = Math.min(window.devicePixelRatio || 1, 1920 / Math.max(1, w));
+  canvas.width = Math.round(w * scale); canvas.height = Math.round(h * scale);
+  layer.append(canvas); lyDraw(canvas, LY_DRAWN.includes(bg) ? bg : 'midnight');
+}
+function lyParticles(kind) {
+  const fx = $('lyrFx'); if (fx.dataset.k === kind) return;
+  fx.dataset.k = kind; fx.className = 'fx ' + kind; clear(fx);
+  if (kind !== 'twinkle' && kind !== 'embers') return;
+  for (let k = 0, x = 11; k < (kind === 'twinkle' ? 26 : 12); k++) {
+    x = (x * 61 + 17) % 991; const d = el('i'), size = kind === 'twinkle' ? .5 + (k % 3) * .25 : 2 + (k % 4);
+    d.style.left = (x % 100) + '%'; d.style.top = kind === 'twinkle' ? ((x * 7) % 70) + '%' : (60 + (x % 35)) + '%';
+    d.style.width = d.style.height = size + 'cqw'; d.style.animationDelay = (-(x % 90) / 10) + 's'; fx.append(d);
+  }
+}
+// One line of words, with verse numbers (sent as raised digits) drawn
+// small in the accent colour.
+const RAISED = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+function lyLine(text, cls) {
+  const d = el('div', cls || ''); let plain = '';
+  const flush = () => { if (plain) { d.append(document.createTextNode(plain)); plain = ''; } };
+  for (let i = 0; i < text.length; i++) {
+    const n = RAISED.indexOf(text[i]);
+    if (n < 0) { plain += text[i]; continue; }
+    flush(); let num = ''; while (i < text.length && RAISED.indexOf(text[i]) >= 0) { num += RAISED.indexOf(text[i]); i++; } i--;
+    d.append(el('span', 'num', num));
+  }
+  flush(); if (!d.firstChild) d.textContent = ' ';
+  return d;
+}
+// The largest size, up to [most] px, at which every line fits across
+// with no word broken and the whole fits the room. Measured as drawn.
+function lyFit(box, most, roomH) {
+  const fits = (size) => { box.style.fontSize = size + 'px'; if (box.scrollHeight > roomH + 1) return false; for (const d of box.children) if (d.scrollWidth > d.clientWidth + 1) return false; return true; };
+  if (fits(most)) return most;
+  let lo = 4, hi = most; for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+  box.style.fontSize = lo + 'px'; return lo;
+}
+function renderLyrics(s) {
+  const lyr = $('lyr'), l = s && s.sharing && !s.message ? s.lyrics : null;
+  if (!l) { if (lyr.style.display !== 'none') { lyr.style.display = 'none'; lyr.dataset.key = ''; } return false; }
+  lyr.style.display = 'block'; lyr.classList.toggle('stale', document.body.classList.contains('stale'));
+  const chip = $('lyrChip');
+  if (l.black) { lyr.style.background = '#000'; ['lyrBg', 'lyrFx', 'lyrDim', 'lyrWords'].forEach((i) => { $(i).style.display = 'none'; }); chip.style.display = 'none'; lyr.dataset.key = 'black'; return true; }
+  ['lyrBg', 'lyrFx', 'lyrDim', 'lyrWords'].forEach((i) => { $(i).style.display = ''; });
+  chip.style.display = l.chip ? 'block' : 'none'; chip.textContent = l.chip || ''; chip.classList.toggle('over', l.chipOver === true);
+  const w = window.innerWidth, h = window.innerHeight;
+  const key = [l.key, l.text, l.title, l.detail, l.reference, l.bg, l.dim, l.size, l.align, l.motion, w, h].join('|');
+  if (lyr.dataset.key === key) return true;
+  lyr.dataset.key = key;
+  const bg = String(l.bg || 'black'), dark = bg === 'linen';
+  const motion = bg.startsWith('photo:') ? (LY_PHOTO_MOTION[bg.slice(6)] || 'zoom') : bg.startsWith('custom:') ? 'zoom' : (LY_MOTION[bg] || '');
+  lyr.classList.toggle('move', l.motion !== false); lyr.classList.toggle('dark', dark); lyr.classList.toggle('left', l.align === 'left');
+  lyr.style.setProperty('--ly-accent', dark ? '#7a4e0c' : '#f5d88c');
+  lyBackground(bg);
+  const layer = $('lyrBg'); layer.className = 'bgl' + (motion && motion !== 'twinkle' && motion !== 'embers' ? ' a-' + motion : motion ? ' a-zoom' : '');
+  lyParticles(motion === 'twinkle' || motion === 'embers' ? motion : '');
+  $('lyrDim').style.opacity = dark ? 0 : Math.min(90, Math.max(0, Number(l.dim) || 0)) / 100;
+  const box = $('lyrWords'); clear(box);
+  const padX = w * .07, padY = Math.min(w * .06, h * .1);
+  box.style.left = box.style.right = padX + 'px'; box.style.top = box.style.bottom = padY + 'px';
+  const blocks = [];
+  if (l.kind === 'announcement') {
+    if (l.title) blocks.push([l.title, 1.35, 'acc', 700]);
+    if (l.text) blocks.push([l.text, 1, '', 500]);
+    if (l.detail) blocks.push([l.detail, .62, 'acc', 500]);
+  } else {
+    if (l.text) blocks.push([l.text, 1, '', 500]);
+    if (l.reference) blocks.push([l.reference, .55, 'acc', 500]);
+  }
+  blocks.forEach(([text, scale, cls, weight], i) => {
+    String(text).split('\n').forEach((line) => { const d = lyLine(line, cls); d.style.fontSize = scale + 'em'; d.style.fontWeight = String(weight); box.append(d); });
+    // The space after a block, as the app leaves it.
+    if (i < blocks.length - 1) { const gap = el('div'); gap.style.height = (l.kind === 'announcement' && i === 0 ? .55 : .65) + 'em'; box.append(gap); }
+  });
+  const basis = Math.min(w, h * 16 / 9);
+  lyFit(box, basis * (l.size === 's' ? .045 : l.size === 'l' ? .064 : .054), h - padY * 2);
+  return true;
+}
+window.addEventListener('resize', () => { if (lastState && lastState.role === 'stage') renderLyrics(lastState); });
 window.addEventListener('resize', () => { if (lastState && lastState.role === 'stage') renderStage(lastState); });
 
 (async () => { await loadInfo(); if (token && role) start(); else showJoin(); })();
