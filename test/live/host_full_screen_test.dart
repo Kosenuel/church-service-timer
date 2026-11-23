@@ -665,14 +665,24 @@ void main() {
       final (c, _) = await running(t);
       await press(t, LogicalKeyboardKey.f11);
       expect(find.text('Sermon'), findsNothing);
-      expect(find.text('Next: Response'), findsNothing);
+      expect(find.text('UP NEXT'), findsNothing);
       await c.commit((draft, _) => draft.fullScreenLayout = 'current');
       await t.pumpAndSettle();
       expect(find.text('Sermon'), findsOneWidget);
       await c.commit((draft, _) => draft.fullScreenLayout = 'next');
       await t.pumpAndSettle();
-      expect(find.text('Next: Response · 10 min'), findsOneWidget);
+      expect(find.text('UP NEXT'), findsOneWidget);
+      expect(find.text('Response'), findsOneWidget);
+      expect(find.text('10 min'), findsOneWidget);
       expect(time(t), '12:38');
+      // Up next only: the next item and no time.
+      await c.commit((draft, _) => draft.fullScreenLayout = 'only');
+      await t.pumpAndSettle();
+      expect(find.text('UP NEXT'), findsOneWidget);
+      expect(find.text('Response'), findsOneWidget);
+      expect(find.byType(ClockText), findsNothing);
+      await c.commit((draft, _) => draft.fullScreenLayout = 'next');
+      await t.pumpAndSettle();
       // Kept on this device: in its saved state, never in a backup.
       expect(c.state.toJson()['fullScreenLayout'], 'next');
       expect(AppState.fromJson(c.state.toJson()).fullScreenLayout, 'next');
@@ -700,7 +710,9 @@ void main() {
       expect(find.text('Welcome'), findsNothing);
       await c.secondScreen!.setLayout('next');
       await t.pumpAndSettle();
-      expect(find.text('Next: Sermon · 40 min'), findsOneWidget);
+      expect(find.text('UP NEXT'), findsOneWidget);
+      expect(find.text('Sermon'), findsOneWidget);
+      expect(find.text('40 min'), findsOneWidget);
       expect(home(t).hostStageSnapshot(), c.stageWindowSnapshot());
       // No window to change here: the stage fills the one there is.
       expect(t.getSize(key('full-screen-stage')), const Size(1366, 768));
