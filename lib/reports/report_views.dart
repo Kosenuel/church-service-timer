@@ -51,8 +51,13 @@ String reportMode(ServiceReport r) => r.quickTimer
     ? 'Rehearsal ${r.rate}×'
     : 'Live';
 
+/// A report's card: a panel of the finish, or set into the panel it is on.
 Widget reportSurface(BuildContext context, {required Widget child}) =>
-    FinishSurface(radius: 18, child: child);
+    FinishCard(
+      radius: 18,
+      flat: (child) => FinishSurface(radius: 18, child: child),
+      child: child,
+    );
 
 Widget reportMetric(
   BuildContext context,

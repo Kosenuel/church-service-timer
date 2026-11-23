@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
@@ -1240,10 +1241,17 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                               child: Padding(
                                 // During a service, room below End service for
                                 // the short notes at the bottom of the screen.
+                                // A list or Settings on a finish's panel
+                                // has the panel's own margin, so the page
+                                // gives up as much of its own.
                                 padding: EdgeInsets.fromLTRB(
-                                  20,
+                                  page != 0 && finishLook(context).active
+                                      ? 8
+                                      : 20,
                                   12,
-                                  20,
+                                  page != 0 && finishLook(context).active
+                                      ? 8
+                                      : 20,
                                   page == 0 && c.liveSession.active ? 96 : 32,
                                 ),
                                 child: Center(
@@ -1268,13 +1276,21 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                             reduceMotion: reduceAppMotion(
                                               context,
                                             ),
+                                            // With a finish, the lists and
+                                            // Settings are on one panel of
+                                            // it, their cards set into it,
+                                            // so nothing is on the bare
+                                            // wall; Live has cards of its
+                                            // own.
                                             child: page == 0
                                                 ? live()
                                                 : page == 1
                                                 ? programsResponsive()
                                                 : page == 2
                                                 ? reportsResponsive()
-                                                : settingsHub(),
+                                                : FinishPanelled(
+                                                    child: settingsHub(),
+                                                  ),
                                           ),
                                         ),
                                       ],

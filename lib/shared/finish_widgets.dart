@@ -401,6 +401,10 @@ class FinishBarPlate extends StatelessWidget {
   }
 }
 
+/// The room round a list page on its panel: little at the sides, as a
+/// phone has little width to give.
+const listPanelPadding = EdgeInsets.fromLTRB(8, 14, 8, 14);
+
 /// [child] on a panel of the finish, inset by [padding]; in Flat, [child]
 /// as it was, with no card or padding. For content that would otherwise
 /// sit straight on the finish's wall.

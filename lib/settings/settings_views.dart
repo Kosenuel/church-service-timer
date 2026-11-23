@@ -1171,8 +1171,9 @@ class _AppearancePageState extends State<AppearancePage> {
                   ),
                   const SizedBox(height: 20),
                   // On a panel, so its words are never straight on the finish.
-                  FinishSurface(
+                  FinishCard(
                     radius: 18,
+                    flat: (child) => FinishSurface(radius: 18, child: child),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: FinishSection(

@@ -1,6 +1,7 @@
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 
 extension ReportLibraryViews on HomeState {
   bool reportMatches(ServiceReport r) {
@@ -35,12 +36,15 @@ extension ReportLibraryViews on HomeState {
   }
 
   Widget reportsResponsive() {
-    if (!useMasterDetail || reportsPage.view == 'graph') return reports();
+    // With a finish the list is on a panel of it (see FinishPanelled).
+    if (!useMasterDetail || reportsPage.view == 'graph') {
+      return FinishPanelled(padding: listPanelPadding, child: reports());
+    }
     final r = c.state.reports
         .where((r) => r.id == reportsPage.open && reportMatches(r))
         .firstOrNull;
     return masterDetail(
-      reports(),
+      FinishPanelled(padding: listPanelPadding, child: reports()),
       r == null
           ? panel(
               child: const Center(
