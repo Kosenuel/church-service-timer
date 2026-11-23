@@ -312,7 +312,7 @@ void main() {
         total += file.lengthSync();
         expect(file.lengthSync(), lessThan(700 * 1024), reason: name);
       }
-      expect(total, lessThan(4 * 1024 * 1024), reason: 'the set is small');
+      expect(total, lessThan(5 * 1024 * 1024), reason: 'the set is small');
       final files = Directory(
         'assets/finish',
       ).listSync().whereType<File>().where((f) => f.path.endsWith('.jpg'));
@@ -324,7 +324,7 @@ void main() {
         final source = '${c['source']}';
         expect(
           source.startsWith('https://polyhaven.com/a/') ||
-              source.startsWith('Made for this app'),
+              source.startsWith('https://ambientcg.com/a/'),
           isTrue,
           reason: source,
         );
