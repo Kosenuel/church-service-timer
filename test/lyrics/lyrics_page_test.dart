@@ -208,6 +208,27 @@ void main() {
     }
   });
 
+  testWidgets('the background picker and the look, at full HD', (t) async {
+    final c = await openLyrics(t, size: const Size(1920, 1080));
+    c.lyrics.selectedId = 'amazing';
+    c.lyrics.show('amazing', 0);
+    await settle(t);
+    // Scrolled as a person would, inside the column only.
+    await t.drag(
+      find.byKey(const ValueKey('lyrics-column-screens')),
+      const Offset(0, -700),
+    );
+    await settle(t);
+    // Let the photo thumbnails decode.
+    await t.runAsync(() => Future<void>.delayed(const Duration(seconds: 1)));
+    await settle(t);
+    expect(t.takeException(), isNull);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/lyrics-backgrounds-1920.png'),
+    );
+  });
+
   testWidgets('one click or key per slide; keys only on the Lyrics page', (
     t,
   ) async {

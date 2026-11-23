@@ -793,7 +793,7 @@ function renderMessage(stage, text, msg) {
 // 160 × 90 grid stretched to the screen), photos fetched from the host,
 // the Dim layer, the words as large as they fit, and the countdown chip.
 const LY_MOTION = { midnight: 'zoom', sunrise: 'zoom', mountain_dusk: 'zoom', royal_velvet: 'zoom', aurora: 'shimmer', stained_glass: 'shimmer', ocean: 'drift', forest_mist: 'drift', starry_night: 'twinkle', candlelight: 'embers' };
-const LY_PHOTO_MOTION = { 'deep-sea': 'drift', 'golden-sky': 'drift', candle: 'embers' };
+const LY_PHOTO_MOTION = { 'deep-sea': 'drift', 'golden-sky': 'drift', 'beach-silhouette-dusk': 'drift', 'grass-road-sunrise': 'drift', candle: 'embers' };
 function lyGrad(ctx, stops) { const g = ctx.createLinearGradient(0, 0, 0, 90); stops.forEach((c, i) => g.addColorStop(stops.length === 3 ? [0, .6, 1][i] : i, c)); ctx.fillStyle = g; ctx.fillRect(0, 0, 160, 90); }
 function lyFill(ctx, d, c) { ctx.fillStyle = c; ctx.fill(new Path2D(d)); }
 function lyGlow(ctx, w, h, cx, cy, rx, ry, stops) {

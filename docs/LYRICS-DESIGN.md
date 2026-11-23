@@ -199,8 +199,9 @@ clock, a cue, the end screen or black.
 
 ## Pictures on screens
 
-- **Bundled photos** (`assets/lyrics/photos/*.jpg`, at most 1920 ×
-  1080, each with a CC0 or public-domain entry in
+- **Bundled photos**: 24 (`assets/lyrics/photos/*.jpg`, 1920 × 1080,
+  about 6.5 MB in all, from the photo research set; 16 landscapes, then
+  8 of people in silhouette or from behind), each with a CC0 or public-domain entry in
   `assets/lyrics/photos/credits.json`, listed in the app under
   Lyrics › Background › Photo credits and in `docs/LYRICS-PHOTOS.md`).
   Screens get them by name: paired phones and the second screen have the
