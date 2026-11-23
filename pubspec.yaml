@@ -38,6 +38,7 @@ flutter:
     - assets/licenses/OFL-Tinos.txt
     - assets/bible/kjv.txt.gz
     - assets/lyrics/photos/
+    - assets/lyrics/photos/thumbs/
     - CHANGELOG.md
   fonts:
     - family: Roboto

@@ -190,6 +190,8 @@ clock, a cue, the end screen or black.
   small gold digits (Roboto has no raised 4 to 9). Nothing is clipped
   or scaled out of shape. Slides cross-fade, except with reduced motion.
 - The same sizing in the web page's script, measured in the browser.
+- The picker groups them as Designs (12), Nature (16), People (7) and
+  Your picture, and shows the small copies, never decoding full HD.
 - `lyric_backgrounds.dart`: the twelve drawn designs as painters, drawn
   from the mockup's shapes on a 160 × 90 grid and stretched to the
   screen, and the web page draws the same shapes on a canvas. Gentle
@@ -199,9 +201,10 @@ clock, a cue, the end screen or black.
 
 ## Pictures on screens
 
-- **Bundled photos**: 24 (`assets/lyrics/photos/*.jpg`, 1920 × 1080,
-  about 6.5 MB in all, from the photo research set; 16 landscapes, then
-  8 of people in silhouette or from behind), each with a CC0 or public-domain entry in
+- **Bundled photos**: 23 (`assets/lyrics/photos/*.jpg`, 1920 × 1080 at
+  JPEG quality 80, about 6.5 MB in all with their 320 × 180 picker copies
+  in `thumbs/`, from the photo research set; 16 under Nature and 7 under
+  People, in silhouette or from behind), each with a CC0 or public-domain entry in
   `assets/lyrics/photos/credits.json`, listed in the app under
   Lyrics › Background › Photo credits and in `docs/LYRICS-PHOTOS.md`).
   Screens get them by name: paired phones and the second screen have the

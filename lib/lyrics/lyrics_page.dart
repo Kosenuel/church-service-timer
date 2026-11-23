@@ -1015,32 +1015,64 @@ class _LyricsPanelState extends State<LyricsPanel> {
                   : null,
             ),
           );
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: [
-              for (final e in lyricDrawnBackgrounds.entries)
-                tile(e.key, e.value),
-              for (final p in lyricPhotos) tile('photo:${p.id}', p.title),
-              if (custom && l.pictureBytes != null)
-                tile(look.background, 'Your picture'),
-              SizedBox(
-                width: width,
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: OutlinedButton(
-                    key: const ValueKey('lyrics-bg-own'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.all(4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+          // Grouped, so 35 backgrounds stay easy to scan.
+          Widget group(String name, List<Widget> tiles) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colors.muted,
+                      fontWeight: FontWeight.w600,
                     ),
-                    onPressed: enabled ? _pickPicture : null,
-                    child: const FittedBox(child: Text('+ Your picture')),
                   ),
                 ),
-              ),
+                Wrap(spacing: gap, runSpacing: gap, children: tiles),
+              ],
+            ),
+          );
+          return Column(
+            key: const ValueKey('lyrics-backgrounds'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              group('Designs', [
+                for (final e in lyricDrawnBackgrounds.entries)
+                  tile(e.key, e.value),
+              ]),
+              group('Nature', [
+                for (final p in lyricPhotos)
+                  if (p.kind == 'nature') tile('photo:${p.id}', p.title),
+              ]),
+              group('People', [
+                for (final p in lyricPhotos)
+                  if (p.kind == 'people') tile('photo:${p.id}', p.title),
+              ]),
+              group('Your picture', [
+                if (custom && l.pictureBytes != null)
+                  tile(look.background, 'Your picture'),
+                SizedBox(
+                  width: width,
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: OutlinedButton(
+                      key: const ValueKey('lyrics-bg-own'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.all(4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: enabled ? _pickPicture : null,
+                      child: const FittedBox(child: Text('+ Your picture')),
+                    ),
+                  ),
+                ),
+              ]),
             ],
           );
         },
@@ -1414,9 +1446,8 @@ class LyricBackgroundTile extends StatelessWidget {
       final photo = lyricPhotoById(id.substring(6));
       if (photo != null) {
         return Image.asset(
-          photo.asset,
+          photo.thumbnail,
           fit: BoxFit.cover,
-          cacheWidth: 240,
           gaplessPlayback: true,
         );
       }

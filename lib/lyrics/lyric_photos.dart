@@ -7,35 +7,40 @@ import 'package:flutter/services.dart';
 /// a test holds this list to.
 class LyricPhoto {
   final String id, title, motion;
-  const LyricPhoto(this.id, this.title, this.motion);
+
+  /// `nature` or `people`, the picker's groups.
+  final String kind;
+  const LyricPhoto(this.id, this.title, this.motion, this.kind);
   String get asset => 'assets/lyrics/photos/$id.jpg';
+
+  /// A 320 × 180 copy for the picker, so it never decodes full HD.
+  String get thumbnail => 'assets/lyrics/photos/thumbs/$id.jpg';
 }
 
 const lyricPhotos = [
-  LyricPhoto('waterfall-blue', 'Blue waterfall', 'zoom'),
-  LyricPhoto('waterfall-rainbow', 'Waterfall rainbow', 'zoom'),
-  LyricPhoto('grass-road-sunrise', 'Morning grass', 'drift'),
-  LyricPhoto('milky-way-hills', 'Milky Way', 'zoom'),
-  LyricPhoto('joshua-trees-stars', 'Desert stars', 'zoom'),
-  LyricPhoto('misty-lake-sunrise', 'Misty lake', 'zoom'),
-  LyricPhoto('red-rocks-sunset', 'Red rocks', 'zoom'),
-  LyricPhoto('kirkjufell-falls', 'Mountain falls', 'zoom'),
-  LyricPhoto('calm-water', 'Calm water', 'zoom'),
-  LyricPhoto('deep-sea', 'Deep sea', 'drift'),
-  LyricPhoto('northern-lights', 'Northern lights', 'zoom'),
-  LyricPhoto('dunes-dusk', 'Dunes at dusk', 'zoom'),
-  LyricPhoto('forest-light', 'Forest light', 'zoom'),
-  LyricPhoto('mountain-lake', 'Mountain lake', 'zoom'),
-  LyricPhoto('golden-sky', 'Golden sky', 'drift'),
-  LyricPhoto('candle', 'Candle', 'embers'),
-  LyricPhoto('worship-crowd-hands', 'Hands raised', 'zoom'),
-  LyricPhoto('sunset-arms-raised', 'Arms raised at sunset', 'zoom'),
-  LyricPhoto('hilltop-group-sunset', 'Hilltop at sunset', 'zoom'),
-  LyricPhoto('crowd-hands-light-beams', 'Light beams', 'zoom'),
-  LyricPhoto('crowd-hands-mono', 'Crowd in black and white', 'zoom'),
-  LyricPhoto('beach-silhouette-dusk', 'Beach at dusk', 'drift'),
-  LyricPhoto('field-dancer-golden', 'Golden field', 'zoom'),
-  LyricPhoto('man-watching-sunset', 'Watching the sunset', 'zoom'),
+  LyricPhoto('waterfall-blue', 'Blue waterfall', 'zoom', 'nature'),
+  LyricPhoto('waterfall-rainbow', 'Rainbow falls', 'zoom', 'nature'),
+  LyricPhoto('grass-road-sunrise', 'Morning grass', 'drift', 'nature'),
+  LyricPhoto('milky-way-hills', 'Milky Way', 'zoom', 'nature'),
+  LyricPhoto('joshua-trees-stars', 'Desert stars', 'zoom', 'nature'),
+  LyricPhoto('misty-lake-sunrise', 'Misty lake', 'zoom', 'nature'),
+  LyricPhoto('red-rocks-sunset', 'Red rocks', 'zoom', 'nature'),
+  LyricPhoto('kirkjufell-falls', 'Mountain falls', 'zoom', 'nature'),
+  LyricPhoto('calm-water', 'Calm water', 'zoom', 'nature'),
+  LyricPhoto('deep-sea', 'Deep sea', 'drift', 'nature'),
+  LyricPhoto('northern-lights', 'Northern lights', 'zoom', 'nature'),
+  LyricPhoto('dunes-dusk', 'Dunes at dusk', 'zoom', 'nature'),
+  LyricPhoto('forest-light', 'Forest light', 'zoom', 'nature'),
+  LyricPhoto('mountain-lake', 'Mountain lake', 'zoom', 'nature'),
+  LyricPhoto('golden-sky', 'Golden sky', 'drift', 'nature'),
+  LyricPhoto('candle', 'Candle', 'embers', 'nature'),
+  LyricPhoto('worship-crowd-hands', 'Hands raised', 'zoom', 'people'),
+  LyricPhoto('sunset-arms-raised', 'Arms raised', 'zoom', 'people'),
+  LyricPhoto('hilltop-group-sunset', 'Hilltop sunset', 'zoom', 'people'),
+  LyricPhoto('crowd-hands-light-beams', 'Light beams', 'zoom', 'people'),
+  LyricPhoto('crowd-hands-mono', 'Crowd, mono', 'zoom', 'people'),
+  LyricPhoto('beach-silhouette-dusk', 'Beach at dusk', 'drift', 'people'),
+  LyricPhoto('man-watching-sunset', 'Watching sunset', 'zoom', 'people'),
 ];
 
 final lyricPhotoIds = {for (final p in lyricPhotos) p.id};

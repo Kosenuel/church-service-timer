@@ -2,6 +2,7 @@
   {
     "id": "waterfall-blue",
     "title": "Blue waterfall",
+    "kind": "nature",
     "motion": "zoom",
     "license": "CC0",
     "author": "Jason Zhang",
@@ -9,7 +10,8 @@
   },
   {
     "id": "waterfall-rainbow",
-    "title": "Waterfall rainbow",
+    "title": "Rainbow falls",
+    "kind": "nature",
     "motion": "zoom",
     "license": "CC0",
     "author": "Sorasak (Unsplash)",
@@ -18,6 +20,7 @@
   {
     "id": "grass-road-sunrise",
     "title": "Morning grass",
+    "kind": "nature",
     "motion": "drift",
     "license": "CC0",
     "author": "Daniel Chen (Unsplash)",
@@ -26,6 +29,7 @@
   {
     "id": "milky-way-hills",
     "title": "Milky Way",
+    "kind": "nature",
     "motion": "zoom",
     "license": "Public domain",
     "author": "NPS/Jacob W. Frank",
@@ -34,6 +38,7 @@
   {
     "id": "joshua-trees-stars",
     "title": "Desert stars",
+    "kind": "nature",
     "motion": "zoom",
     "license": "Public domain",
     "author": "Joshua Tree National Park",
@@ -42,6 +47,7 @@
   {
     "id": "misty-lake-sunrise",
     "title": "Misty lake",
+    "kind": "nature",
     "motion": "zoom",
     "license": "Public domain",
     "author": "Pseudopanax at English Wikipedia",
@@ -50,6 +56,7 @@
   {
     "id": "red-rocks-sunset",
     "title": "Red rocks",
+    "kind": "nature",
     "motion": "zoom",
     "license": "CC0",
     "author": "deborah.soltesz",
@@ -58,6 +65,7 @@
   {
     "id": "kirkjufell-falls",
     "title": "Mountain falls",
+    "kind": "nature",
     "motion": "zoom",
     "license": "CC0",
     "author": "Steven Diaz (Unsplash)",
@@ -66,6 +74,7 @@
   {
     "id": "calm-water",
     "title": "Calm water",
+    "kind": "nature",
     "motion": "zoom",
     "license": "CC0",
     "author": "Unknown author",
@@ -74,6 +83,7 @@
   {
     "id": "deep-sea",
     "title": "Deep sea",
+    "kind": "nature",
     "motion": "drift",
     "license": "CC0",
     "author": "Tim Marshall (Unsplash)",
@@ -82,6 +92,7 @@
   {
     "id": "northern-lights",
     "title": "Northern lights",
+    "kind": "nature",
     "motion": "zoom",
     "license": "CC0",
     "author": "Johannes Groll (Unsplash)",
@@ -90,6 +101,7 @@
   {
     "id": "dunes-dusk",
     "title": "Dunes at dusk",
+    "kind": "nature",
     "motion": "zoom",
     "license": "CC0",
     "author": "Joe Mania (Unsplash)",
@@ -98,6 +110,7 @@
   {
     "id": "forest-light",
     "title": "Forest light",
+    "kind": "nature",
     "motion": "zoom",
     "license": "Public domain",
     "author": "Steve Redman (MORA)",
@@ -106,6 +119,7 @@
   {
     "id": "mountain-lake",
     "title": "Mountain lake",
+    "kind": "nature",
     "motion": "zoom",
     "license": "Public domain",
     "author": "Lyn Topinka",
@@ -114,6 +128,7 @@
   {
     "id": "golden-sky",
     "title": "Golden sky",
+    "kind": "nature",
     "motion": "drift",
     "license": "Public domain",
     "author": "Bureau of Land Management Oregon and Washington",
@@ -122,6 +137,7 @@
   {
     "id": "candle",
     "title": "Candle",
+    "kind": "nature",
     "motion": "embers",
     "license": "CC0",
     "author": "ViajeroExtraviado",
@@ -130,6 +146,7 @@
   {
     "id": "worship-crowd-hands",
     "title": "Hands raised",
+    "kind": "people",
     "motion": "zoom",
     "license": "CC0",
     "author": "Bill Hamway (Unsplash)",
@@ -137,7 +154,8 @@
   },
   {
     "id": "sunset-arms-raised",
-    "title": "Arms raised at sunset",
+    "title": "Arms raised",
+    "kind": "people",
     "motion": "zoom",
     "license": "CC0",
     "author": "Allef Vinicius (Unsplash)",
@@ -145,7 +163,8 @@
   },
   {
     "id": "hilltop-group-sunset",
-    "title": "Hilltop at sunset",
+    "title": "Hilltop sunset",
+    "kind": "people",
     "motion": "zoom",
     "license": "CC0",
     "author": "Ms.Sue Huan (Unsplash)",
@@ -154,6 +173,7 @@
   {
     "id": "crowd-hands-light-beams",
     "title": "Light beams",
+    "kind": "people",
     "motion": "zoom",
     "license": "CC0",
     "author": "Daniel Robert (Unsplash)",
@@ -161,7 +181,8 @@
   },
   {
     "id": "crowd-hands-mono",
-    "title": "Crowd in black and white",
+    "title": "Crowd, mono",
+    "kind": "people",
     "motion": "zoom",
     "license": "CC0",
     "author": "Hannah Rodrigo (Unsplash)",
@@ -170,22 +191,16 @@
   {
     "id": "beach-silhouette-dusk",
     "title": "Beach at dusk",
+    "kind": "people",
     "motion": "drift",
     "license": "CC0",
     "author": "Igor Kasalovic (Unsplash)",
     "source": "https://commons.wikimedia.org/wiki/File:Male_silhouette_Sydney_sunset_(Unsplash).jpg"
   },
   {
-    "id": "field-dancer-golden",
-    "title": "Golden field",
-    "motion": "zoom",
-    "license": "CC0",
-    "author": "Jesse Uli (Unsplash)",
-    "source": "https://commons.wikimedia.org/wiki/File:Dancing_in_the_Sun_(Unsplash).jpg"
-  },
-  {
     "id": "man-watching-sunset",
-    "title": "Watching the sunset",
+    "title": "Watching sunset",
+    "kind": "people",
     "motion": "zoom",
     "license": "CC0",
     "author": "Joshua Earle (Unsplash)",

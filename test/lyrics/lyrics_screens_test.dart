@@ -319,6 +319,15 @@ void main() {
         final file = File('assets/lyrics/photos/${c['id']}.jpg');
         // A starry sky compresses least; the rest are well under.
         expect(file.lengthSync(), lessThan(750000));
+        final thumb = img.decodeJpg(
+          File('assets/lyrics/photos/thumbs/${c['id']}.jpg').readAsBytesSync(),
+        )!;
+        expect(
+          [thumb.width, thumb.height],
+          [320, 180],
+          reason: 'the picker never decodes full HD',
+        );
+        expect(const {'nature', 'people'}, contains(c['kind']));
         final image = img.decodeJpg(file.readAsBytesSync())!;
         expect(image.width, lessThanOrEqualTo(1920));
         expect(image.height, lessThanOrEqualTo(1080));
