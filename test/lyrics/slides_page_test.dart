@@ -406,7 +406,7 @@ void main() {
       final c = await openLyrics(t, size: tall, running: false);
       final header = find.byKey(k('lyrics-screens-row-header'));
       expect(
-        find.descendant(of: header, matching: find.text('Room 1')),
+        find.descendant(of: header, matching: find.text('Church Auditorium')),
         findsOneWidget,
       );
       // The old Send to chips are gone.
@@ -420,7 +420,7 @@ void main() {
       expect(
         find.descendant(
           of: header,
-          matching: find.text('Room 1 · Stage (with the timer)'),
+          matching: find.text('Church Auditorium · Stage (with the timer)'),
         ),
         findsOneWidget,
       );

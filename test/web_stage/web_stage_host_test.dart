@@ -21,7 +21,7 @@ void main() {
       final c = AppController(FakePort());
       await c.initialize(startTicker: false);
       addTearDown(c.dispose);
-      // Web screens join Room 1, which shows no messages until asked to.
+      // Web screens join Church Auditorium, which shows no messages until asked to.
       await c.screens.setCues('room', true);
       final joined = <String>[];
       c.onWebJoined = joined.add;

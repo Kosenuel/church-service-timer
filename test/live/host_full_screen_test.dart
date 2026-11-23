@@ -547,8 +547,8 @@ void main() {
 
     testWidgets('+ opens Adjust time, and digits send cues', (t) async {
       final (c, _) = await running(t);
-      // Full screen is This computer, in Room 1: cues show there once
-      // Room 1 shows cues (it does not at first, facing the room).
+      // Full screen is This computer, in Church Auditorium: cues show there once
+      // Church Auditorium shows cues (it does not at first, facing the room).
       await c.screens.setCues('room', true);
       await press(t, LogicalKeyboardKey.f11);
       await press(t, LogicalKeyboardKey.equal);

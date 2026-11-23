@@ -488,7 +488,7 @@ typedef OldScreenChoice = ({String layout, bool slides});
 /// screen changes what it shows until the operator changes it (see
 /// docs/SCREENS-PANEL-DESIGN.md, Migration):
 ///
-/// - **Room 1**: this device's own picture (the second screen, Full
+/// - **Church Auditorium**: this device's own picture (the second screen, Full
 ///   screen, the stage simulator) and the web screens, or only this
 ///   device, with **Web screens** for the browsers, when the two differed;
 /// - **Stage**: the paired phones and tablets, split into **Stage 2**,
@@ -524,7 +524,7 @@ ScreenSetup migrateScreens({
   final webChoice = (layout: stageLayoutValue(web.layout), slides: web.slides);
   final together = selfChoice == webChoice;
   final groups = <ScreenGroup>[
-    group('room', 'Room 1', selfChoice),
+    group('room', 'Church Auditorium', selfChoice),
     if (!together) group('web', 'Web screens', webChoice),
   ];
   final members = <String, String>{

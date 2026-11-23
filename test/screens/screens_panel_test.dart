@@ -153,7 +153,7 @@ void main() {
 
   testWidgets('golden: 1366 × 768 with a scene showing', (t) async {
     await open(t, PcPort(), const Size(1366, 768));
-    expect(find.text('Room 1'), findsWidgets);
+    expect(find.text('Church Auditorium'), findsWidgets);
     await golden(t, '1366');
   });
 

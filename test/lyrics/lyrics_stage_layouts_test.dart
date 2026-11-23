@@ -65,7 +65,7 @@ void main() {
         'Clear slide gives back "${stageLayouts[layout]}" $when exactly',
         () async {
           final (c, port) = await open();
-          // Every screen in Room 1, which keeps the layout for when no
+          // Every screen in Church Auditorium, which keeps the layout for when no
           // slide is up.
           await c.screens.setShow('room', layout);
           await c.screens.setShow('room', 'slides');

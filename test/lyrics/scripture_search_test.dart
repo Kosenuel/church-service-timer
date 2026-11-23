@@ -136,7 +136,7 @@ void main() {
     expect(field['bg'], l.look.background);
     expect(field['dim'], l.look.dim);
     expect(l.field(LyricTarget.web), isNotNull);
-    // And only to the groups showing slides: Room 1, not Stage.
+    // And only to the groups showing slides: Church Auditorium, not Stage.
     final phone = PairPeer('p', 'Pulpit', 'stage', _Wire());
     expect(
       c.decoratePairedSnapshot(phone, c.pairedSnapshot(false))['lyrics'],
@@ -155,7 +155,7 @@ void main() {
     final c = await open(t);
     await t.runAsync(() async {
       await c.lyrics.setLook(c.lyrics.look.copyWith(dim: 25));
-      // This computer in Stage (the timer); web screens stay in Room 1.
+      // This computer in Stage (the timer); web screens stay in Church Auditorium.
       await c.screens.move(thisScreenKey, 'stage');
     });
     await type(t, 'john 3:16');

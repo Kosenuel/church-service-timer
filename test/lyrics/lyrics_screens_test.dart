@@ -64,7 +64,7 @@ void main() {
           jsonEncode(before),
           reason: 'nothing else changes for the speaker',
         );
-        // The second screen and web screens (Room 1) do get the slide.
+        // The second screen and web screens (Church Auditorium) do get the slide.
         expect(c.stageWindowSnapshot()['lyrics'], isA<Map>());
         expect(c.webStageSnapshot()['lyrics'], isA<Map>());
         // Stage set to Slides, stage screens get it too.
