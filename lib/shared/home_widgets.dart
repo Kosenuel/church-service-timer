@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/live/desktop_live.dart';
@@ -96,13 +97,9 @@ class AppPanel extends StatelessWidget {
         child: child,
       );
     }
-    return Material(
-      color: appColors(context).surface,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: appColors(context).border),
-        borderRadius: BorderRadius.circular(20),
-      ),
+    // The plain card, or the finish's material.
+    return FinishSurface(
+      radius: 20,
       child: Padding(padding: pad, child: child),
     );
   }

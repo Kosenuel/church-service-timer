@@ -1,3 +1,5 @@
+import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -40,8 +42,17 @@ extension MissionControlLive on HomeState {
   }) {
     final colors = appColors(context);
     final s = c.liveSession;
-    final line = VerticalDivider(width: 1, thickness: 1, color: colors.border);
-    final rule = Divider(height: 1, thickness: 1, color: colors.border);
+    final line = finishRule(
+      context,
+      VerticalDivider(width: 1, thickness: 1, color: colors.border),
+    );
+    final rule = finishRule(
+      context,
+      Divider(height: 1, thickness: 1, color: colors.border),
+    );
+    // A finish floats each pane with a gap round it, which the timer's
+    // size must leave out.
+    final floating = finishLook(context).active;
     // A large window has height to spare for a fuller timeline.
     final richTimeline =
         (s.active || s.phase == 'ready') &&
@@ -52,8 +63,14 @@ extension MissionControlLive on HomeState {
       children: [
         // Ready has a strip of the same height, so the ring keeps its
         // place when the service starts.
-        if (s.active) ...[missionStatus(endService), rule],
-        if (s.phase == 'ready') ...[missionReadyStatus(), rule],
+        if (s.active) ...[
+          FinishPane(strip: true, child: missionStatus(endService)),
+          rule,
+        ],
+        if (s.phase == 'ready') ...[
+          FinishPane(strip: true, child: missionReadyStatus()),
+          rule,
+        ],
         Expanded(
           child: LayoutBuilder(
             builder: (context, space) {
@@ -82,76 +99,95 @@ extension MissionControlLive on HomeState {
                 children: [
                   SizedBox(
                     width: timerWidth,
-                    child: SingleChildScrollView(
-                      key: const ValueKey('live-timer-pane'),
-                      // Page Down is Next segment here, not a scroll key.
-                      primary: false,
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          ...notices,
-                          timer ??
-                              missionTimer(
-                                header: header,
-                                enabled: enabled,
-                                canJump: canJump,
-                                width: timerWidth - 40,
-                                height: height - 16,
-                                fill: fill,
-                              ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  line,
-                  SizedBox(
-                    width: stageWidth,
-                    child: SingleChildScrollView(
-                      key: const ValueKey('live-stage-pane'),
-                      primary: false,
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: FlatPanels(
+                    child: FinishPane(
+                      child: SingleChildScrollView(
+                        key: const ValueKey('live-timer-pane'),
+                        // Page Down is Next segment here, not a scroll key.
+                        primary: false,
+                        // A floating pane has its gap outside, so it takes
+                        // less inside and the timer keeps the size it has in
+                        // Flat.
+                        padding: EdgeInsets.fromLTRB(
+                          floating ? 20 - finishGapX : 20,
+                          floating ? 2 : 8,
+                          floating ? 20 - finishGapX : 20,
+                          floating ? 2 : 8,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            if (c.stageRequests.open.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
-                                  8,
-                                  16,
-                                  0,
+                            ...notices,
+                            timer ??
+                                missionTimer(
+                                  header: header,
+                                  enabled: enabled,
+                                  canJump: canJump,
+                                  width: timerWidth - 40,
+                                  height:
+                                      height -
+                                      (floating ? 2 * finishGapY + 4 : 16),
+                                  fill: fill,
                                 ),
-                                child: stageRequestCards(),
-                              ),
-                            display,
-                            if (c.destination == 'mobile') ...[
-                              const AppDivider(),
-                              quickMessagePanel(),
-                            ],
-                            if (tall) ...[const AppDivider(), screensSection()],
                           ],
                         ),
                       ),
                     ),
                   ),
                   line,
-                  Expanded(
-                    child: SingleChildScrollView(
-                      key: const ValueKey('live-cue-pane'),
-                      primary: false,
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: FlatPanels(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            cues,
-                            if (tall) ...[
-                              const AppDivider(),
-                              activitySection(latest: fill ? 24 : 8),
+                  SizedBox(
+                    width: stageWidth,
+                    child: FinishPane(
+                      child: SingleChildScrollView(
+                        key: const ValueKey('live-stage-pane'),
+                        primary: false,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: FlatPanels(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (c.stageRequests.open.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    8,
+                                    16,
+                                    0,
+                                  ),
+                                  child: stageRequestCards(),
+                                ),
+                              display,
+                              if (c.destination == 'mobile') ...[
+                                const AppDivider(),
+                                quickMessagePanel(),
+                              ],
+                              if (tall) ...[
+                                const AppDivider(),
+                                screensSection(),
+                              ],
                             ],
-                          ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  line,
+                  Expanded(
+                    child: FinishPane(
+                      child: SingleChildScrollView(
+                        key: const ValueKey('live-cue-pane'),
+                        primary: false,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: FlatPanels(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              cues,
+                              if (tall) ...[
+                                const AppDivider(),
+                                activitySection(latest: fill ? 24 : 8),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -162,8 +198,9 @@ extension MissionControlLive on HomeState {
           ),
         ),
         rule,
-        ColoredBox(
-          color: colors.surface,
+        FinishPane(
+          flatSurface: true,
+          strip: true,
           child: timelineStrip(enabled, rich: richTimeline),
         ),
         if (showKeyHints && s.active) ...[

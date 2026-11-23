@@ -1,3 +1,5 @@
+import 'package:church_service_timer/settings/finish_views.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/settings/desktop_layout_views.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/layout_device.dart';
@@ -1201,6 +1203,25 @@ class _AppearancePageState extends State<AppearancePage> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 20),
+                  // On a panel, so its words are never straight on the finish.
+                  FinishSurface(
+                    radius: 18,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: FinishSection(
+                        value: appearance,
+                        palette: palette,
+                        onChanged: saving
+                            ? null
+                            : (value) {
+                                setState(() => appearance = value);
+                                widget.controller.previewAppearance(value);
+                              },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                 ],
               ),
               SingleChildScrollView(
