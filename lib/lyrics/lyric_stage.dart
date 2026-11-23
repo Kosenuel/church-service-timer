@@ -180,14 +180,18 @@ LyricFit fitLyricBlocks(
       );
 
   // The height the blocks take at [size], or null if a word is too wide.
-  double? height(double size) {
+  // The height the blocks take at [size], or null if a word is too wide
+  // (or, with [whole], if any typed line would have to wrap).
+  double? height(double size, {bool whole = false}) {
     var total = 0.0;
     for (final b in blocks) {
       final s = size * b.scale;
       for (final line in b.text.split('\n')) {
         final p = painter(line.isEmpty ? ' ' : line, s, b.weight)
           ..layout(maxWidth: room.width);
-        final wide = p.minIntrinsicWidth > room.width + .5;
+        final wide =
+            (whole ? p.maxIntrinsicWidth : p.minIntrinsicWidth) >
+            room.width + .5;
         total += p.height;
         p.dispose();
         if (wide) return null;
@@ -197,15 +201,14 @@ LyricFit fitLyricBlocks(
     return total;
   }
 
-  bool fits(double size) {
-    final h = height(size);
-    return h != null && h <= room.height;
-  }
+  double largest({bool whole = false}) {
+    bool fits(double size) {
+      final h = height(size, whole: whole);
+      return h != null && h <= room.height;
+    }
 
-  var lo = 2.0, hi = math.max(lo, most);
-  if (fits(hi)) {
-    lo = hi;
-  } else {
+    var lo = 2.0, hi = math.max(lo, most);
+    if (fits(hi)) return hi;
     for (var i = 0; i < 16; i++) {
       final mid = (lo + hi) / 2;
       if (fits(mid)) {
@@ -214,8 +217,14 @@ LyricFit fitLyricBlocks(
         hi = mid;
       }
     }
+    return lo;
   }
-  final size = lo;
+
+  // Each typed line on a line of its own reads best, as the words were
+  // written; it is kept when it costs no more than a fifth of the size.
+  // Otherwise lines wrap, evenly.
+  final any = largest(), whole = largest(whole: true);
+  final size = whole >= any * .8 ? whole : any;
   // Each line that wraps, at the narrowest width that keeps its number
   // of lines: the lines come out even.
   final widths = <List<double>>[];

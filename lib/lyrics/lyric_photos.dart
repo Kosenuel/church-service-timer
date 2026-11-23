@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:flutter/services.dart';
+
 /// The photos that come with the app for slide backgrounds. Each has a
 /// CC0 or public-domain entry in assets/lyrics/photos/credits.json, which
 /// a test holds this list to.
@@ -25,4 +29,13 @@ LyricPhoto? lyricPhotoById(String id) {
     if (p.id == id) return p;
   }
   return null;
+}
+
+/// The credits for the bundled photos, from assets/lyrics/photos/credits.json.
+Future<List<Map<String, dynamic>>> lyricPhotoCredits() async {
+  final raw = await rootBundle.loadString('assets/lyrics/photos/credits.json');
+  return [
+    for (final e in jsonDecode(raw) as List)
+      Map<String, dynamic>.from(e as Map),
+  ];
 }

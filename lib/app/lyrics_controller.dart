@@ -28,6 +28,11 @@ class LyricsController {
   final AppController app;
   LyricsController(this.app);
 
+  /// The item chosen on the Lyrics page, whose slides it shows; Next
+  /// with nothing on the screens starts it. Kept here so it survives
+  /// leaving the page.
+  String? selectedId;
+
   String? _itemId;
   int? _index;
   bool _black = false;
@@ -164,8 +169,8 @@ class LyricsController {
   /// The `lyrics` field for [target]'s picture, or null when nothing is
   /// showing or [target] is not ticked. Older screens ignore it and keep
   /// showing the countdown.
-  Json? field(LyricTarget target) {
-    if (!app.ready || !showing || !sendsTo(target)) return null;
+  Json? field(LyricTarget target, {bool always = false}) {
+    if (!app.ready || !showing || (!always && !sendsTo(target))) return null;
     final s = app.state.session, now = app.now;
     final bg = backgroundFor(target);
     final slide = this.slide;
@@ -196,6 +201,11 @@ class LyricsController {
       },
     };
   }
+
+  /// What the panel's preview shows: the slide as the second screen
+  /// gets it, whatever is ticked, so the operator always sees it.
+  Json? previewField() =>
+      field(LyricTarget.second, always: true)?..remove('picture');
 
   /// Adds [target]'s `lyrics` field to [data], or takes it away.
   Json decorate(Json data, LyricTarget target) {

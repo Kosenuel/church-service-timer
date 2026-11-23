@@ -403,25 +403,17 @@ extension CommandPalette on HomeState {
         ),
       // Go to.
       if (!focused)
-        for (final (i, name) in const [
-          'Live',
-          'Programs',
-          'Reports',
-          'Settings',
-        ].indexed)
-          if (i != page)
+        for (final p in homePageOrder)
+          if (p.page != page)
             PaletteCommand(
-              id: 'go-$i',
-              label: 'Go to $name',
-              icon: const [
-                Icons.radio_button_checked,
-                Icons.view_timeline_outlined,
-                Icons.assessment_outlined,
-                Icons.settings_outlined,
-              ][i],
+              id: 'go-${p.page}',
+              label: 'Go to ${p.name}',
+              icon: p.icon,
               group: 'Go to',
-              words: 'open tab page',
-              run: () => goToPage(i),
+              words: p.page == lyricsPage
+                  ? 'open tab page songs hymns words bible verses announcements slides'
+                  : 'open tab page',
+              run: () => goToPage(p.page),
             ),
       PaletteCommand(
         id: 'appearance',

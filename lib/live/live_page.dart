@@ -1380,6 +1380,7 @@ extension LivePage on HomeState {
                 stageSharingControls(),
                 ...secondScreenControl(),
                 ...fullScreenControl(),
+                ...lyricsOnLive(),
               ],
             ),
           )
@@ -1477,6 +1478,7 @@ extension LivePage on HomeState {
                 ],
                 ...secondScreenControl(),
                 ...fullScreenControl(),
+                ...lyricsOnLive(),
               ],
             ),
           );
