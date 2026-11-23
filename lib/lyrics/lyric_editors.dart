@@ -604,17 +604,12 @@ class _LyricEditorPageState extends State<LyricEditorPage> {
             builder: (context, space) {
               final count = math.max(1, (space.maxWidth / 170).floor());
               final width = (space.maxWidth - 8 * (count - 1)) / count;
-              return Wrap(
+              return LyricSlideRows(
                 key: const ValueKey('lyrics-editor-slides'),
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (var i = 0; i < slides.length; i++)
-                    SizedBox(
-                      width: width,
-                      child: LyricSlideCard(slide: slides[i], number: i + 1),
-                    ),
-                ],
+                count: slides.length,
+                columns: count,
+                width: width,
+                card: (i) => LyricSlideCard(slide: slides[i], number: i + 1),
               );
             },
           ),

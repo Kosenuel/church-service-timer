@@ -997,29 +997,26 @@ class _LyricsPanelState extends State<LyricsPanel>
         final count = columns ?? math.max(1, (space.maxWidth / 170).floor());
         const gap = 8.0;
         final width = (space.maxWidth - gap * (count - 1)) / count;
-        return Wrap(
+        Widget card(int i) => LyricSlideCard(
+          key: ValueKey('lyrics-slide-$i'),
+          slide: item.slides[i],
+          number: i + 1,
+          live: i == live,
+          next: i == next && !(l.black && live == null),
+          onTap: enabled
+              ? () {
+                  _takeKeys();
+                  l.show(item.id, i);
+                }
+              : null,
+        );
+        return LyricSlideRows(
           key: const ValueKey('lyrics-slides'),
-          spacing: gap,
-          runSpacing: gap,
-          children: [
-            for (var i = 0; i < item.slides.length; i++)
-              SizedBox(
-                width: width,
-                child: LyricSlideCard(
-                  key: ValueKey('lyrics-slide-$i'),
-                  slide: item.slides[i],
-                  number: i + 1,
-                  live: i == live,
-                  next: i == next && !(l.black && live == null),
-                  onTap: enabled
-                      ? () {
-                          _takeKeys();
-                          l.show(item.id, i);
-                        }
-                      : null,
-                ),
-              ),
-          ],
+          count: item.slides.length,
+          columns: count,
+          width: width,
+          gap: gap,
+          card: card,
         );
       },
     );
@@ -1545,6 +1542,43 @@ class _LyricsPanelState extends State<LyricsPanel>
   }
 }
 
+/// Slide cards in rows. Built by hand, not with a Wrap: every card in a
+/// row is as tall as the tallest one, so the gaps between rows line up.
+class LyricSlideRows extends StatelessWidget {
+  final int count, columns;
+  final double width, gap;
+  final Widget Function(int index) card;
+  const LyricSlideRows({
+    super.key,
+    required this.count,
+    required this.columns,
+    required this.width,
+    required this.card,
+    this.gap = 8,
+  });
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (var r = 0; r < count; r += columns) ...[
+        if (r > 0) SizedBox(height: gap),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = r; i < r + columns; i++) ...[
+                if (i > r) SizedBox(width: gap),
+                SizedBox(width: width, child: i < count ? card(i) : null),
+              ],
+            ],
+          ),
+        ),
+      ],
+    ],
+  );
+}
+
 /// A slide on the operator's grid: its name, number and words, ringed
 /// while it is on the screens and dashed when it is next.
 class LyricSlideCard extends StatelessWidget {
@@ -1607,7 +1641,7 @@ class LyricSlideCard extends StatelessWidget {
                     ExcludeSemantics(
                       child: Row(
                         children: [
-                          Flexible(
+                          Expanded(
                             child: Text(
                               slide.label.toUpperCase(),
                               maxLines: 1,
@@ -1642,8 +1676,7 @@ class LyricSlideCard extends StatelessWidget {
                                 ),
                               ),
                             )
-                          else ...[
-                            const Spacer(),
+                          else
                             Text(
                               '$number',
                               style: TextStyle(
@@ -1651,7 +1684,6 @@ class LyricSlideCard extends StatelessWidget {
                                 color: colors.muted,
                               ),
                             ),
-                          ],
                         ],
                       ),
                     ),
