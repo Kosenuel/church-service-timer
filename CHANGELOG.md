@@ -21,6 +21,7 @@ A test version. Please try these on the PC and phone before the real 0.39.0:
 - **Finishes.** In **Settings › Appearance › Finish**, choose each finish in turn and use the app as normal: start a service, scroll Settings and Programs, open the Slides page. It should feel as quick as **Flat**. Look at Marble, Carbon fibre, Plastic, Walnut, Oak, Leather and Bridge console at **Subtle** and **Full**, in a dark and a light theme, and at the Paper & Ink themes.
 - **Keep screen awake** in Settings is now one row that opens three choices.
 - **Add Bible verses** reads loosely typed references (john 3 9, Joh3: 9, Jhon 3 16).
+- **The Windows installer** has its new dark look. Install this test version over the one you have and check it finishes and the app opens.
 
 The full notes for these are under **Unreleased** above and move into 0.39.0.
 
