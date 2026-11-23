@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/lyrics/bible_loader.dart';
 import 'package:church_service_timer/lyrics/lyric_photos.dart';
@@ -204,6 +205,7 @@ class _LyricEditorPageState extends State<LyricEditorPage> {
           };
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: finishBar(context),
         title: Text(title),
         actions: [
           if (widget.item != null)

@@ -1,4 +1,5 @@
 import 'package:church_service_timer/shared/wide_layout.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -172,6 +173,7 @@ class _ImageCropPageState extends State<ImageCropPage> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
     appBar: AppBar(
+      flexibleSpace: finishBar(context),
       backgroundColor: Colors.black,
       foregroundColor: Colors.white,
       title: Text(widget.title),

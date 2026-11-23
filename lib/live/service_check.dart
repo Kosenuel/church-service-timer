@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
@@ -396,6 +397,7 @@ class ServiceCheckPageState extends State<ServiceCheckPage> {
     canPop: !locked,
     child: Scaffold(
       appBar: AppBar(
+        flexibleSpace: finishBar(context),
         title: Text(
           'Check ${widget.program.name}',
           maxLines: 1,

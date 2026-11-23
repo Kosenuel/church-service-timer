@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:church_service_timer/display/native_fonts.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/live/cue_preview.dart';
@@ -622,6 +623,7 @@ class _WarningEditorState extends State<WarningEditor> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
+          flexibleSpace: finishBar(context),
           backgroundColor: Colors.transparent,
           automaticallyImplyLeading: false,
           titleSpacing: 0,
