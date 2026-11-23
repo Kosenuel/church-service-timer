@@ -14,9 +14,14 @@ components replace the mockup's own styling.
   `homePageOrder`, so Live, Programs, Reports and Settings keep 0 to 3 and
   every existing test, key and setting that names them is unchanged.
   Swiping between tabs follows the order on screen.
-- A **Lyrics** button on Live, under the display preview in every
-  layout, opens the same page. While lyrics are on the screens, Live says
-  what is showing there, with **Clear lyrics**.
+- A **Lyrics** button on Live opens the same page. In Classic and on a
+  phone or tablet it sits beside **Change display** under the display
+  preview (stage screens: under the stage preview), and while lyrics are
+  on the screens a line says what is showing, with **Clear lyrics**. A
+  desktop layout (Three panes, The dial, Mission control, Keys) keeps its
+  panes to the window, so the button is an icon in the header there, lit
+  while lyrics show, with what is showing in its tooltip; **Clear lyrics**
+  is also in Commands (Ctrl+K) whenever lyrics show.
 - The page fills the window. At 1100 wide and more it has the mockup's
   three columns (Stored songs, the slides, On the screens now), each
   scrolling on its own. Narrower (phones, tablets upright, small windows)
@@ -179,8 +184,10 @@ clock, a cue, the end screen or black.
   Words are white with a soft shadow on dark backgrounds and near-black
   on Linen. The size is the largest that fits (S, M or L sets the most it
   may be), found by measuring: every line fits across without a word
-  being broken, the whole fits the height, and a typed line that has to
-  wrap is wrapped into lines of nearly equal length. Nothing is clipped
+  being broken and the whole fits the height. Each typed line stays one
+  line when that costs at most a fifth of the size; otherwise a long line
+  wraps into lines of nearly equal length. Verse numbers are drawn as
+  small gold digits (Roboto has no raised 4 to 9). Nothing is clipped
   or scaled out of shape. Slides cross-fade, except with reduced motion.
 - The same sizing in the web page's script, measured in the browser.
 - `lyric_backgrounds.dart`: the twelve drawn designs as painters, drawn
