@@ -11,7 +11,7 @@ OldScreenChoice old(String layout, {bool slides = false}) =>
 
 void main() {
   group('Migration from the settings of before groups', () {
-    test('a new install: Room 1 shows slides, Stage the timer', () {
+    test('a new install: Church Auditorium shows slides, Stage the timer', () {
       // The old defaults: Send to second screen and web on, stage off.
       final s = migrateScreens(
         self: old('timer', slides: true),
@@ -19,14 +19,17 @@ void main() {
         paired: const [],
         pairedSlides: false,
       );
-      expect([for (final g in s.groups) g.name], ['Room 1', 'Stage']);
-      expect(s.groupOf(thisScreenKey).name, 'Room 1');
+      expect(
+        [for (final g in s.groups) g.name],
+        ['Church Auditorium', 'Stage'],
+      );
+      expect(s.groupOf(thisScreenKey).name, 'Church Auditorium');
       expect(s.groupOf(thisScreenKey).show, 'slides');
       expect(s.groupOf(thisScreenKey).layout, 'timer');
       expect(s.byId('stage')!.show, 'timer');
-      // A new paired screen joins Stage; a browser with no link Room 1.
+      // A new paired screen joins Stage; a browser with no link Church Auditorium.
       expect(s.defaultOne.name, 'Stage');
-      expect(s.groupForWeb(null).name, 'Room 1');
+      expect(s.groupForWeb(null).name, 'Church Auditorium');
     });
 
     test('second screen and web screens that differ are split', () {
@@ -38,7 +41,7 @@ void main() {
       );
       expect(
         [for (final g in s.groups) g.name],
-        ['Room 1', 'Web screens', 'Stage'],
+        ['Church Auditorium', 'Web screens', 'Stage'],
       );
       expect(s.groupOf(thisScreenKey).show, 'slides');
       expect(s.groupOf(thisScreenKey).fallback, 'current');
@@ -67,7 +70,10 @@ void main() {
         paired: const [(id: 'a', layout: 'next'), (id: 'b', layout: 'next')],
         pairedSlides: true,
       );
-      expect([for (final g in s.groups) g.name], ['Room 1', 'Stage']);
+      expect(
+        [for (final g in s.groups) g.name],
+        ['Church Auditorium', 'Stage'],
+      );
       expect(s.groupOf(pairedScreenKey('a')).name, 'Stage');
       expect(s.groupOf(pairedScreenKey('b')).name, 'Stage');
       // Send to Stage screens ticked: slides, the countdown as it was.
@@ -90,7 +96,7 @@ void main() {
       // The most common choice keeps the name Stage; the rest in order.
       expect(
         [for (final g in s.groups) g.name],
-        ['Room 1', 'Stage', 'Stage 2', 'Stage 3'],
+        ['Church Auditorium', 'Stage', 'Stage 2', 'Stage 3'],
       );
       expect(s.groupOf(pairedScreenKey('choir')).name, 'Stage');
       expect(s.groupOf(pairedScreenKey('band')).show, 'only');
@@ -155,7 +161,7 @@ void main() {
   group('One group per screen', () {
     ScreenSetup two() => ScreenSetup(
       groups: const [
-        ScreenGroup('room', 'Room 1', 'slides'),
+        ScreenGroup('room', 'Church Auditorium', 'slides'),
         ScreenGroup('stage', 'Stage', 'timer'),
       ],
       defaultGroup: 'room',
@@ -229,9 +235,9 @@ void main() {
     test('unreadable saved groups are left out, not fatal', () {
       final back = ScreenSetup.tryRead({
         'groups': [
-          {'id': 'room', 'name': 'Room 1', 'show': 'sparkles'},
+          {'id': 'room', 'name': 'Church Auditorium', 'show': 'sparkles'},
           {'id': 'BAD ID', 'name': 'x', 'show': 'timer'},
-          {'id': 'two', 'name': 'room 1', 'show': 'timer'},
+          {'id': 'two', 'name': 'church auditorium', 'show': 'timer'},
           'nonsense',
         ],
         'default': 'missing',
@@ -249,7 +255,7 @@ void main() {
   group('Scenes', () {
     ScreenSetup setup() => ScreenSetup(
       groups: const [
-        ScreenGroup('room', 'Room 1', 'slides'),
+        ScreenGroup('room', 'Church Auditorium', 'slides'),
         ScreenGroup('stage', 'Stage', 'monitor'),
       ],
       defaultGroup: 'room',

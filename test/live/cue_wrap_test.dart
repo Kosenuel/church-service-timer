@@ -154,7 +154,7 @@ void main() {
     Future<AppController> running() async {
       final c = AppController(FakePort());
       await c.initialize(startTicker: false);
-      // This computer's screen is in Room 1, which shows cues once asked.
+      // This computer's screen is in Church Auditorium, which shows cues once asked.
       await c.screens.setCues('room', true);
       await c.act(
         'load',

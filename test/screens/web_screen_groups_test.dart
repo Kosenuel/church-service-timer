@@ -63,7 +63,7 @@ void main() {
   test('a browser naming no group joins the default one', () async {
     final token = await join();
     final (_, state) = await call('/api/state?token=$token');
-    expect(state['group'], {'id': 'room', 'name': 'Room 1'});
+    expect(state['group'], {'id': 'room', 'name': 'Church Auditorium'});
     expect(state['show'], 'slides');
   });
 

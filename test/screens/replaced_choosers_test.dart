@@ -49,14 +49,14 @@ void main() {
       // The Screens row says which groups; opened, it leads to Screens.
       final header = find.byKey(const ValueKey('lyrics-screens-row-header'));
       expect(
-        find.descendant(of: header, matching: find.text('Room 1')),
+        find.descendant(of: header, matching: find.text('Church Auditorium')),
         findsOneWidget,
       );
       await t.ensureVisible(header);
       await t.tap(header);
       await settle(t);
       expect(find.byKey(const ValueKey('lyrics-groups')), findsOneWidget);
-      expect(find.text('Room 1'), findsWidgets);
+      expect(find.text('Church Auditorium'), findsWidgets);
       final line = find.byKey(const ValueKey('lyrics-groups'));
       await t.ensureVisible(line);
       await settle(t);
@@ -86,7 +86,7 @@ void main() {
         final fix = find.byKey(const ValueKey('lyrics-fix-groups'));
         await t.ensureVisible(fix);
         await settle(t);
-        expect(find.text('Show slides in Room 1'), findsNWidgets(2));
+        expect(find.text('Show slides in Church Auditorium'), findsNWidgets(2));
         expect(t.takeException(), isNull);
         await expectLater(
           find.byType(MaterialApp),
@@ -186,23 +186,24 @@ void main() {
         find.byType(AlertDialog),
         matchesGoldenFile('../goldens/screens-paired-dialog.png'),
       );
-      // Move it to Room 1 and save.
-      await t.tap(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.text('Room 1'),
-        ),
+      // Move it to Church Auditorium and save.
+      // The name is too long for chips, so the field opens a list.
+      await t.tap(find.byKey(const ValueKey('screen-options-group')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Church Auditorium').last);
+      await t.pumpAndSettle();
+      await t.pumpAndSettle();
+      expect(
+        find.textContaining('Shows what Church Auditorium shows'),
+        findsOneWidget,
       );
-      await t.pumpAndSettle();
-      await t.pumpAndSettle();
-      expect(find.textContaining('Shows what Room 1 shows'), findsOneWidget);
       await t.runAsync(() async {
         await t.tap(find.text('Save'));
         await Future<void>.delayed(const Duration(milliseconds: 100));
       });
       await t.pumpAndSettle();
       expect(find.textContaining('Could not save'), findsNothing);
-      expect(c.screens.groupOf('pair:tab').name, 'Room 1');
+      expect(c.screens.groupOf('pair:tab').name, 'Church Auditorium');
     });
   });
 

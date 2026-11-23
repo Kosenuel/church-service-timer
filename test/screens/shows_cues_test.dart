@@ -51,7 +51,7 @@ void main() {
   });
 
   test(
-    'the migration: Stage shows cues, Room 1 does not; new groups do not',
+    'the migration: Stage shows cues, Church Auditorium does not; new groups do not',
     () async {
       final c = await ready();
       expect(c.screens.setup.byId('stage')!.cues, isTrue);
@@ -66,7 +66,12 @@ void main() {
       );
       expect(
         {for (final g in split.groups) g.name: g.cues},
-        {'Room 1': false, 'Web screens': false, 'Stage': true, 'Stage 2': true},
+        {
+          'Church Auditorium': false,
+          'Web screens': false,
+          'Stage': true,
+          'Stage 2': true,
+        },
       );
     },
   );

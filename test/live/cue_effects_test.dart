@@ -20,7 +20,7 @@ Json roundTrip(TextLayout l) =>
 Future<AppController> running([FakePort? port]) async {
   final c = AppController(port ?? FakePort());
   await c.initialize(startTicker: false);
-  // This computer's screen is in Room 1, which shows cues once asked.
+  // This computer's screen is in Church Auditorium, which shows cues once asked.
   await c.screens.setCues('room', true);
   await c.act(
     'load',
@@ -266,7 +266,7 @@ void main() {
       final c = AppController(port);
       addTearDown(c.dispose);
       await c.initialize(startTicker: false);
-      // This computer's screen is in Room 1, which shows cues once asked.
+      // This computer's screen is in Church Auditorium, which shows cues once asked.
       await c.screens.setCues('room', true);
       expect(
         await c.setSharedWarnings(const [

@@ -90,8 +90,8 @@ was ticked, else its layout; the fallback is its layout either way.
 
 | Old settings | Groups made |
 |---|---|
-| this and web the same | **Room 1** {this, web} (default) |
-| this and web differ | **Room 1** {this}, **Web screens** {web} (default) |
+| this and web the same | **Church Auditorium** {this, web} (default) |
+| this and web differ | **Church Auditorium** {this}, **Web screens** {web} (default) |
 | no paired screens | **Stage** {} with the Stage screens choice |
 | all paired screens the same | **Stage** {all paired} |
 | paired screens differ | **Stage** {the most common choice; ties: the first saved}, then **Stage 2**, **Stage 3** ... for each other choice in the order first seen |
@@ -99,9 +99,9 @@ was ticked, else its layout; the fallback is its layout either way.
 The default group is Stage: a phone or tablet paired for the first time
 is a speaker's screen, as it always was (Timer only, with cues). Every
 browser joins as a new screen after the update, so the group for new web
-screens is the one holding the web screens (Room 1, or Web screens),
+screens is the one holding the web screens (Church Auditorium, or Web screens),
 and they keep showing what web screens showed. A new install runs the same migration with the
-old defaults: Room 1 shows Slides (Send to Second and Web were on), Stage
+old defaults: Church Auditorium shows Slides (Send to Second and Web were on), Stage
 shows Timer only (Send to Stage was off).
 
 What is not carried over: the stage simulator's own layout. The
@@ -203,7 +203,7 @@ are not cues and apply as before.
   the speaker).
 - Cues on, Slides and timer: the cue takes the time's place in the right
   panel, the time stays in the panel's heading, the words stay.
-- Defaults: the migration sets Stage (and Stage 2...) on, Room 1 and Web
+- Defaults: the migration sets Stage (and Stage 2...) on, Church Auditorium and Web
   screens off. New groups start off, with the switch on the card. This
   changes what the second screen and web screens did (they showed every
   cue); the CHANGELOG says so.
@@ -249,12 +249,12 @@ are not cues and apply as before.
 
 | Before | Now |
 |---|---|
-| Settings › Screens & devices › Second screen: layout tiles | "Shows: Room 1 · Slides" and **Screens** |
+| Settings › Screens & devices › Second screen: layout tiles | "Shows: Church Auditorium · Slides" and **Screens** |
 | Paired device › Screen options: layout tiles | the group chooser, what that group shows, and **Screens**; the old "Screen group" (who gets quick messages) is now called **Message group** |
-| Web screens: "Stage displays show" tiles | "Web screens join Room 1 ..." and **Screens**, with per-group links |
+| Web screens: "Stage displays show" tiles | "Web screens join Church Auditorium ..." and **Screens**, with per-group links |
 | Full screen's layout tiles (phone) | the group line and **Screens** |
 | Simulator's layout tiles in Choose display | the group line and **Screens** |
-| Slides page Send to (the Screens row's chips behind Change) | the Screens row shows the groups showing slides ("Room 1 · Stage"); opened, what that means for cues and an **Open Screens** button. With none: "No screens are showing slides" in the row, and **Show slides in Room 1** under the row and under the status line. Passages sent from Ready follow the groups exactly as Library slides do |
+| Slides page Send to (the Screens row's chips behind Change) | the Screens row shows the groups showing slides ("Church Auditorium · Stage"); opened, what that means for cues and an **Open Screens** button. With none: "No screens are showing slides" in the row, and **Show slides in Church Auditorium** under the row and under the status line. Passages sent from Ready follow the groups exactly as Library slides do |
 
 ## Screen awake
 
@@ -265,7 +265,7 @@ screen in it shows Slides or Slides and timer.
 ## Decisions the owner may overrule
 
 - The default group (new paired phones) is Stage; browsers that open the
-  plain address have their own setting, New web screens (Room 1 at
+  plain address have their own setting, New web screens (Church Auditorium at
   first).
 - The stage simulator's own old layout is not migrated; it follows This
   computer's group (and always shows cues).

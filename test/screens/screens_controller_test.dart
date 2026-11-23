@@ -116,7 +116,7 @@ void main() {
       final s = c.state.screens!;
       expect(
         [for (final g in s.groups) g.name],
-        ['Room 1', 'Web screens', 'Stage', 'Stage 2'],
+        ['Church Auditorium', 'Web screens', 'Stage', 'Stage 2'],
       );
       expect(c.screens.groupOf(thisScreenKey).show, 'slides');
       expect(c.screens.groupOf(thisScreenKey).layout, 'current');
@@ -146,7 +146,10 @@ void main() {
           toWeb: false,
         ),
       );
-      expect(c.state.screens!.groups.map((g) => g.name), ['Room 1', 'Stage']);
+      expect(c.state.screens!.groups.map((g) => g.name), [
+        'Church Auditorium',
+        'Stage',
+      ]);
       expect(c.screens.groupOf(thisScreenKey).show, 'next');
       expect(c.stageSimulatorSnapshot()['stageLayout'], 'next');
     });
@@ -168,12 +171,15 @@ void main() {
       },
     );
 
-    test('a new install starts with Room 1 and Stage', () async {
+    test('a new install starts with Church Auditorium and Stage', () async {
       final c = await boot(FakePort());
-      expect(c.state.screens!.groups.map((g) => g.name), ['Room 1', 'Stage']);
+      expect(c.state.screens!.groups.map((g) => g.name), [
+        'Church Auditorium',
+        'Stage',
+      ]);
       expect(c.screens.groupOf(thisScreenKey).show, 'slides');
       expect(c.screens.setup.defaultOne.name, 'Stage');
-      expect(c.screens.webDefault.name, 'Room 1');
+      expect(c.screens.webDefault.name, 'Church Auditorium');
     });
   });
 
@@ -319,28 +325,31 @@ void main() {
       c.webStage.devices['c'] = WebDevice('c', WebRole.stage, 'Old', '3')
         ..group = 'deleted-long-ago';
       expect(c.screens.groupOf('web:a').name, 'Lobby');
-      expect(c.screens.groupOf('web:b').name, 'Room 1');
-      expect(c.screens.groupOf('web:c').name, 'Room 1');
+      expect(c.screens.groupOf('web:b').name, 'Church Auditorium');
+      expect(c.screens.groupOf('web:c').name, 'Church Auditorium');
       expect(await c.screens.move('web:b', added!), isTrue);
       expect(c.webStage.devices['b']!.group, added);
       // Deleting a group sends its screens to the default group.
       expect(await c.screens.deleteGroup(added), isTrue);
-      expect(c.screens.groupOf('web:a').name, 'Room 1');
+      expect(c.screens.groupOf('web:a').name, 'Church Auditorium');
     });
 
     test('a new screen joins the default group', () async {
       final c = await boot(FakePort());
       expect(c.screens.groupOf('pair:new').name, 'Stage');
       await c.screens.setDefault('room');
-      expect(c.screens.groupOf('pair:new').name, 'Room 1');
-      expect(c.screens.groupOf(thisScreenKey).name, 'Room 1');
+      expect(c.screens.groupOf('pair:new').name, 'Church Auditorium');
+      expect(c.screens.groupOf(thisScreenKey).name, 'Church Auditorium');
     });
 
     test('rename and delete; the last group stays', () async {
       final c = await boot(FakePort());
       expect(await c.screens.renameGroup('stage', 'Pulpit'), isTrue);
       expect(c.screens.setup.byId('stage')!.name, 'Pulpit');
-      expect(await c.screens.renameGroup('stage', 'room 1'), isFalse);
+      expect(
+        await c.screens.renameGroup('stage', 'church auditorium'),
+        isFalse,
+      );
       expect(c.error, contains('already a group'));
       expect(await c.screens.deleteGroup('room'), isTrue);
       expect(c.screens.groupOf(thisScreenKey).name, 'Pulpit');
