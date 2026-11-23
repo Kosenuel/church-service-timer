@@ -9,6 +9,7 @@ import 'package:church_service_timer/domain/domain.dart'
     show
         AppearancePreferences,
         effectiveFinish,
+        finishStrengthFor,
         stageCardBackground,
         desktopLayoutMinHeight,
         desktopLayoutMinWidth,
@@ -412,11 +413,13 @@ ThemeData appTheme(
   final layout = AppLayout.resolve(appearance, size);
   // High contrast always draws Flat (FinishLook.resolve), so the outlines and
   // text it asks for are never under a texture.
+  // A Paper & Ink theme always has Papery; the saved choice is kept.
+  final finishId = effectiveFinish(id, appearance.finish);
   final finish = FinishLook.resolve(
     p,
-    // A Paper & Ink theme always has Papery; the saved choice is kept.
-    effectiveFinish(id, appearance.finish),
-    appearance.finishStrength == 'full' ? 1 : .5,
+    finishId,
+    // The strength chosen, or the finish's own.
+    finishStrengthFor(finishId, appearance.finishStrength) == 'full' ? 1 : .5,
   );
   // Its photographs start loading now, so the first frame that shows the
   // finish can draw them.

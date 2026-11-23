@@ -18,9 +18,13 @@ class AppearancePreferences {
   /// keyboard key ('automatic' shows them on a computer).
   final String desktopLayout, keyHints;
 
-  /// The material of the background and panels, and how much of it shows
-  /// (see finish.dart).
-  final String finish, finishStrength;
+  /// The material of the background and panels (see finish.dart).
+  final String finish;
+
+  /// How much of it shows, when one has been chosen; null until then, so
+  /// each finish shows at its own default ([finishStrengthFor]) and choosing
+  /// another finish keeps a strength that was chosen.
+  final String? finishStrength;
   final bool highContrast, reducedMotion;
   const AppearancePreferences({
     this.density = 'automatic',
@@ -31,7 +35,7 @@ class AppearancePreferences {
     this.desktopLayout = defaultDesktopLayout,
     this.keyHints = 'automatic',
     this.finish = defaultFinish,
-    this.finishStrength = defaultFinishStrength,
+    this.finishStrength,
   });
   factory AppearancePreferences.fromJson(Json j) {
     require(
@@ -74,11 +78,15 @@ class AppearancePreferences {
       reducedMotion: j['reducedMotion'] ?? false,
       desktopLayout: j['desktopLayout'] ?? defaultDesktopLayout,
       keyHints: j['keyHints'] ?? 'automatic',
-      // Saved before finishes existed, or by a later version: Flat, Subtle.
+      // Saved before finishes existed, or by a later version: Flat.
       finish: finishValue(j['finish']),
-      finishStrength: finishStrengthValue(j['finishStrength']),
+      finishStrength: readFinishStrength(j),
     );
   }
+
+  /// The strength [finishStrength] draws for [finish] (see
+  /// [finishStrengthFor]).
+  String get strength => finishStrengthFor(finish, finishStrength);
   AppearancePreferences copyWith({
     String? density,
     String? dividers,
@@ -89,6 +97,7 @@ class AppearancePreferences {
     String? keyHints,
     String? finish,
     String? finishStrength,
+    bool defaultStrength = false,
   }) => AppearancePreferences(
     density: density ?? this.density,
     dividers: dividers ?? this.dividers,
@@ -98,7 +107,9 @@ class AppearancePreferences {
     desktopLayout: desktopLayout ?? this.desktopLayout,
     keyHints: keyHints ?? this.keyHints,
     finish: finish ?? this.finish,
-    finishStrength: finishStrength ?? this.finishStrength,
+    finishStrength: defaultStrength
+        ? null
+        : finishStrength ?? this.finishStrength,
   );
   Json toJson() => {
     'density': density,
@@ -109,7 +120,10 @@ class AppearancePreferences {
     'desktopLayout': desktopLayout,
     'keyHints': keyHints,
     'finish': finish,
-    'finishStrength': finishStrength,
+    // The strength drawn, for an earlier version, which reads only this; and
+    // whether it was chosen, so this version can tell a choice from a default.
+    'finishStrength': strength,
+    'finishStrengthChosen': finishStrength != null,
   };
   @override
   bool operator ==(Object other) =>
@@ -136,6 +150,23 @@ class AppearancePreferences {
     finishStrength,
   );
 }
+
+/// The strength saved in [j], an appearance: the choice, or null when none
+/// was made. 0.39.0-beta.1 and earlier wrote Subtle, the default then,
+/// whether or not anyone chose it, and no `finishStrengthChosen`; so a Subtle
+/// from them reads as not chosen (each finish's own default), once, and only
+/// Full, which had to be chosen, is kept.
+String? readFinishStrength(Json j) {
+  final chosen = j['finishStrengthChosen'];
+  if (chosen is bool) {
+    return chosen ? finishStrengthValue(j['finishStrength']) : null;
+  }
+  return j['finishStrength'] == 'full' ? 'full' : null;
+}
+
+/// Whether [j], an appearance, was saved before strengths could be left to
+/// the finish (see [readFinishStrength]).
+bool savedBeforeFinishDefaults(Json j) => j['finishStrengthChosen'] is! bool;
 
 const themeIds = {
   'midnight_lime',

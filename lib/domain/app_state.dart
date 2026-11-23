@@ -359,7 +359,14 @@ class AppState {
       churchBanner: churchBannerValue(j['churchBanner'] ?? ''),
       churchLogo: churchLogoValue(j['churchLogo'] ?? ''),
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
-      savedLooks: readSavedLooks(j['savedLooks']),
+      // The one-time reading of a Subtle saved before 0.39.0 as not chosen
+      // covers the looks saved with it.
+      savedLooks: readSavedLooks(
+        j['savedLooks'],
+        legacy: savedBeforeFinishDefaults(
+          Map<String, dynamic>.from(j['appearance'] ?? {}),
+        ),
+      ),
       keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
       keepScreenAlways: boolSetting(j['keepScreenAlways'] ?? false),
       lockScreenControls: boolSetting(j['lockScreenControls'] ?? true),
