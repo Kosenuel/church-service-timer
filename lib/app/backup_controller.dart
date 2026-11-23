@@ -50,6 +50,9 @@ class BackupController {
       draft.churchLogo = restored.churchLogo;
       draft.themeId = restored.themeId;
       draft.savedLooks = restored.savedLooks;
+      // Stored songs come back with the backup; a backup from before
+      // lyrics leaves the songs on this device as they are.
+      if (!restored.lyrics.isEmpty) draft.lyrics = restored.lyrics;
       draft.keepScreenAwake = restored.keepScreenAwake;
       draft.notificationClearSeconds = restored.notificationClearSeconds;
       draft.printPreferences = restored.printPreferences;

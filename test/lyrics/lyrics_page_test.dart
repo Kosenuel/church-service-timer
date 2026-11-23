@@ -14,7 +14,11 @@ class DesktopPort extends FakePort {
   @override
   bool get isDesktop => true;
   @override
-  Future<Json> notificationStatus() async => {'enabled': true, 'exact': true, 'sound': false};
+  Future<Json> notificationStatus() async => {
+    'enabled': true,
+    'exact': true,
+    'sound': false,
+  };
   @override
   Future<bool> setActiveService(bool enabled) async => enabled;
   Map<String, dynamic>? textFile;
@@ -67,10 +71,22 @@ Future<AppController> openLyrics(
   await c.initialize(startTicker: false);
   for (final (id, title, words, by) in [
     ('amazing', 'Amazing Grace', amazing, 'John Newton'),
-    ('holy', 'Holy, Holy, Holy', 'Verse 1\nHoly, holy, holy! Lord God Almighty!\nEarly in the morning our song shall rise to Thee.\n\nVerse 2\nHoly, holy, holy! All the saints adore Thee,\nCasting down their golden crowns around the glassy sea.', 'Reginald Heber'),
-    ('well', 'It Is Well with My Soul', 'Verse 1\nWhen peace like a river attendeth my way,\nWhen sorrows like sea billows roll;\n\nChorus\nIt is well with my soul,\nIt is well, it is well with my soul.', 'Horatio Spafford'),
+    (
+      'holy',
+      'Holy, Holy, Holy',
+      'Verse 1\nHoly, holy, holy! Lord God Almighty!\nEarly in the morning our song shall rise to Thee.\n\nVerse 2\nHoly, holy, holy! All the saints adore Thee,\nCasting down their golden crowns around the glassy sea.',
+      'Reginald Heber',
+    ),
+    (
+      'well',
+      'It Is Well with My Soul',
+      'Verse 1\nWhen peace like a river attendeth my way,\nWhen sorrows like sea billows roll;\n\nChorus\nIt is well with my soul,\nIt is well, it is well with my soul.',
+      'Horatio Spafford',
+    ),
   ]) {
-    await c.lyrics.save(LyricItem(id: id, kind: 'song', title: title, words: words, by: by));
+    await c.lyrics.save(
+      LyricItem(id: id, kind: 'song', title: title, words: words, by: by),
+    );
   }
   await c.lyrics.setLook(c.lyrics.look.copyWith(dim: 40));
   if (running) {
@@ -79,7 +95,9 @@ Future<AppController> openLyrics(
   }
   await t.pumpWidget(
     MediaQuery(
-      data: MediaQueryData.fromView(t.view).copyWith(textScaler: TextScaler.linear(textScale)),
+      data: MediaQueryData.fromView(
+        t.view,
+      ).copyWith(textScaler: TextScaler.linear(textScale)),
       child: TimerApp(controller: c),
     ),
   );
@@ -108,29 +126,39 @@ void main() {
   setUpAll(loadAppFonts);
 
   testWidgets('Lyrics sits after Programs in the navigation', (t) async {
-    await openLyrics(t, size: const Size(390, 844), desktop: false, running: false);
+    await openLyrics(
+      t,
+      size: const Size(390, 844),
+      desktop: false,
+      running: false,
+    );
     final bar = t.widget<NavigationBar>(find.byType(NavigationBar));
-    expect([for (final d in bar.destinations) (d as NavigationDestination).label], [
-      'Live',
-      'Programs',
-      'Lyrics',
-      'Reports',
-      'Settings',
-    ]);
+    expect(
+      [for (final d in bar.destinations) (d as NavigationDestination).label],
+      ['Live', 'Programs', 'Lyrics', 'Reports', 'Settings'],
+    );
     expect(bar.selectedIndex, 2);
     expect(home(t).page, lyricsPage);
   });
 
-  testWidgets('desktop at 1366 × 768: a song chosen and a slide live', (t) async {
+  testWidgets('desktop at 1366 × 768: a song chosen and a slide live', (
+    t,
+  ) async {
     final c = await openLyrics(t);
     await t.tap(find.byKey(const ValueKey('lyrics-item-amazing')));
     await settle(t);
     await t.tap(find.byKey(const ValueKey('lyrics-slide-1')));
     await settle(t);
     expect(c.lyrics.statusLine, 'Amazing Grace · Verse 2');
-    expect(find.byKey(const ValueKey('lyrics-on-screens-badge')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('lyrics-on-screens-badge')),
+      findsOneWidget,
+    );
     expect(t.takeException(), isNull);
-    await expectLater(find.byType(MaterialApp), matchesGoldenFile('../goldens/lyrics-page-1366.png'));
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/lyrics-page-1366.png'),
+    );
   });
 
   testWidgets('phone upright: a song chosen and a slide live', (t) async {
@@ -140,10 +168,15 @@ void main() {
     await settle(t);
     expect(find.byKey(const ValueKey('lyrics-bar')), findsOneWidget);
     expect(t.takeException(), isNull);
-    await expectLater(find.byType(MaterialApp), matchesGoldenFile('../goldens/lyrics-page-phone.png'));
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/lyrics-page-phone.png'),
+    );
   });
 
-  testWidgets('nothing overflows at any usual size or at text scale 1.6', (t) async {
+  testWidgets('nothing overflows at any usual size or at text scale 1.6', (
+    t,
+  ) async {
     for (final (size, desktop) in const [
       (Size(360, 780), false),
       (Size(780, 360), false),
@@ -152,7 +185,12 @@ void main() {
       (Size(1024, 768), true),
     ]) {
       for (final scale in [1.0, 1.6]) {
-        final c = await openLyrics(t, size: size, desktop: desktop, textScale: scale);
+        final c = await openLyrics(
+          t,
+          size: size,
+          desktop: desktop,
+          textScale: scale,
+        );
         c.lyrics.selectedId = 'amazing';
         c.lyrics.show('amazing', 1);
         await settle(t);
@@ -170,7 +208,9 @@ void main() {
     }
   });
 
-  testWidgets('one click or key per slide; keys only on the Lyrics page', (t) async {
+  testWidgets('one click or key per slide; keys only on the Lyrics page', (
+    t,
+  ) async {
     final c = await openLyrics(t);
     await t.tap(find.byKey(const ValueKey('lyrics-item-amazing')));
     await settle(t);
@@ -236,14 +276,22 @@ void main() {
     expect(c.lyrics.showing, isFalse);
   });
 
-  testWidgets('the Lyrics button on Live opens the page and shows what is on', (t) async {
+  testWidgets('the Lyrics button on Live opens the page and shows what is on', (
+    t,
+  ) async {
     final c = await openLyrics(t, size: const Size(390, 844), desktop: false);
     await home(t).goToPage(0);
     await settle(t);
-    await t.scrollUntilVisible(find.byKey(const ValueKey('live-lyrics-button')), 300);
+    await t.scrollUntilVisible(
+      find.byKey(const ValueKey('live-lyrics-button')),
+      300,
+    );
     c.lyrics.show('amazing', 3);
     await settle(t);
-    expect(find.text('On the screens: Amazing Grace · Verse 4'), findsOneWidget);
+    expect(
+      find.text('On the screens: Amazing Grace · Verse 4'),
+      findsOneWidget,
+    );
     await expectLater(
       find.byKey(const ValueKey('live-lyrics')),
       matchesGoldenFile('../goldens/lyrics-live-button.png'),
@@ -256,27 +304,44 @@ void main() {
     expect(home(t).page, lyricsPage);
   });
 
-  testWidgets('add a song: words, headings, lines on a slide, a text file', (t) async {
+  testWidgets('add a song: words, headings, lines on a slide, a text file', (
+    t,
+  ) async {
     final c = await openLyrics(t, size: const Size(1366, 900), running: false);
     (c.port as DesktopPort).textFile = {
       'name': 'Be Thou My Vision.txt',
-      'content': 'Verse 1\r\nBe Thou my vision, O Lord of my heart;\r\nNaught be all else to me, save that Thou art.\r\nThou my best thought, by day or by night,\r\nWaking or sleeping, Thy presence my light.\r\n\r\nVerse 2\r\nBe Thou my wisdom, and Thou my true word;\r\nI ever with Thee and Thou with me, Lord.\r\nThou my great Father, I Thy true son;\r\nThou in me dwelling, and I with Thee one.\r\n\r\nHigh King of heaven, my victory won,\r\nMay I reach heaven’s joys, O bright heaven’s Sun!',
+      'content':
+          'Verse 1\r\nBe Thou my vision, O Lord of my heart;\r\nNaught be all else to me, save that Thou art.\r\nThou my best thought, by day or by night,\r\nWaking or sleeping, Thy presence my light.\r\n\r\nVerse 2\r\nBe Thou my wisdom, and Thou my true word;\r\nI ever with Thee and Thou with me, Lord.\r\nThou my great Father, I Thy true son;\r\nThou in me dwelling, and I with Thee one.\r\n\r\nHigh King of heaven, my victory won,\r\nMay I reach heaven’s joys, O bright heaven’s Sun!',
     };
     await t.tap(find.byKey(const ValueKey('lyrics-add-song')));
     await settle(t);
     await t.tap(find.byKey(const ValueKey('lyrics-editor-open')));
     await settle(t);
-    expect(find.text('Be Thou My Vision'), findsOneWidget, reason: 'the file name becomes the title');
+    expect(
+      find.text('Be Thou My Vision'),
+      findsOneWidget,
+      reason: 'the file name becomes the title',
+    );
     expect(find.text('VERSE 2'), findsOneWidget);
     expect(find.text('3 slides'), findsOneWidget);
     expect(t.takeException(), isNull);
-    await expectLater(find.byType(MaterialApp), matchesGoldenFile('../goldens/lyrics-add-song.png'));
-    await t.tap(find.descendant(of: find.byKey(const ValueKey('lyrics-editor-lines')), matching: find.text('2')));
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../goldens/lyrics-add-song.png'),
+    );
+    await t.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('lyrics-editor-lines')),
+        matching: find.text('2'),
+      ),
+    );
     await settle(t);
     expect(find.text('5 slides'), findsOneWidget);
     await t.tap(find.byKey(const ValueKey('lyrics-editor-save')));
     await settle(t);
-    final saved = c.state.lyrics.items.firstWhere((i) => i.title == 'Be Thou My Vision');
+    final saved = c.state.lyrics.items.firstWhere(
+      (i) => i.title == 'Be Thou My Vision',
+    );
     expect(saved.linesPerSlide, 2);
     expect(c.lyrics.selectedId, saved.id);
   });
@@ -285,7 +350,10 @@ void main() {
     await openLyrics(t, running: false);
     await t.tap(find.byKey(const ValueKey('lyrics-add-song')));
     await settle(t);
-    await t.enterText(find.byKey(const ValueKey('lyrics-editor-title')), 'Nothing yet');
+    await t.enterText(
+      find.byKey(const ValueKey('lyrics-editor-title')),
+      'Nothing yet',
+    );
     await t.tap(find.byKey(const ValueKey('lyrics-editor-save')));
     await settle(t);
     expect(find.text('Type or paste the words.'), findsOneWidget);
@@ -310,39 +378,72 @@ void main() {
     expect(c.state.lyrics.byId('holy'), isNull);
   });
 
-  testWidgets('Bible verses from a reference, with a helpful message for a bad one', (t) async {
-    final c = await openLyrics(t, size: const Size(1366, 900), running: false);
-    await t.tap(find.byKey(const ValueKey('lyrics-add-scripture')));
-    await settle(t);
-    await t.enterText(find.byKey(const ValueKey('lyrics-editor-reference')), 'John 40');
-    await t.tap(find.byKey(const ValueKey('lyrics-editor-find')));
-    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 500)));
-    await settle(t);
-    expect(find.text('There is no chapter 40 in John: it has 21 chapters.'), findsOneWidget);
-    await t.enterText(find.byKey(const ValueKey('lyrics-editor-reference')), '1 cor 13:4-7');
-    await t.tap(find.byKey(const ValueKey('lyrics-editor-find')));
-    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 500)));
-    await settle(t);
-    expect(find.textContaining('1 Corinthians 13:4'), findsWidgets);
-    await t.tap(find.byKey(const ValueKey('lyrics-editor-save')));
-    await settle(t);
-    final item = c.state.lyrics.items.firstWhere((i) => i.kind == 'scripture');
-    expect(item.title, '1 Corinthians 13:4-7');
-    expect(item.version, 'KJV');
-    expect(item.verses, hasLength(4));
-  });
+  testWidgets(
+    'Bible verses from a reference, with a helpful message for a bad one',
+    (t) async {
+      final c = await openLyrics(
+        t,
+        size: const Size(1366, 900),
+        running: false,
+      );
+      await t.tap(find.byKey(const ValueKey('lyrics-add-scripture')));
+      await settle(t);
+      await t.enterText(
+        find.byKey(const ValueKey('lyrics-editor-reference')),
+        'John 40',
+      );
+      await t.tap(find.byKey(const ValueKey('lyrics-editor-find')));
+      await t.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 500)),
+      );
+      await settle(t);
+      expect(
+        find.text('There is no chapter 40 in John: it has 21 chapters.'),
+        findsOneWidget,
+      );
+      await t.enterText(
+        find.byKey(const ValueKey('lyrics-editor-reference')),
+        '1 cor 13:4-7',
+      );
+      await t.tap(find.byKey(const ValueKey('lyrics-editor-find')));
+      await t.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 500)),
+      );
+      await settle(t);
+      expect(find.textContaining('1 Corinthians 13:4'), findsWidgets);
+      await t.tap(find.byKey(const ValueKey('lyrics-editor-save')));
+      await settle(t);
+      final item = c.state.lyrics.items.firstWhere(
+        (i) => i.kind == 'scripture',
+      );
+      expect(item.title, '1 Corinthians 13:4-7');
+      expect(item.version, 'KJV');
+      expect(item.verses, hasLength(4));
+    },
+  );
 
   testWidgets('an announcement is saved like a song', (t) async {
     final c = await openLyrics(t, size: const Size(1366, 900), running: false);
     await t.tap(find.byKey(const ValueKey('lyrics-add-announcement')));
     await settle(t);
-    await t.enterText(find.byKey(const ValueKey('lyrics-editor-title')), 'Harvest lunch');
-    await t.enterText(find.byKey(const ValueKey('lyrics-editor-words')), 'Tea, coffee and cake in the hall. Everyone is welcome.');
-    await t.enterText(find.byKey(const ValueKey('lyrics-editor-detail')), 'Sunday 30 November · 12:30');
+    await t.enterText(
+      find.byKey(const ValueKey('lyrics-editor-title')),
+      'Harvest lunch',
+    );
+    await t.enterText(
+      find.byKey(const ValueKey('lyrics-editor-words')),
+      'Tea, coffee and cake in the hall. Everyone is welcome.',
+    );
+    await t.enterText(
+      find.byKey(const ValueKey('lyrics-editor-detail')),
+      'Sunday 30 November · 12:30',
+    );
     await settle(t);
     await t.tap(find.byKey(const ValueKey('lyrics-editor-save')));
     await settle(t);
-    final item = c.state.lyrics.items.firstWhere((i) => i.kind == 'announcement');
+    final item = c.state.lyrics.items.firstWhere(
+      (i) => i.kind == 'announcement',
+    );
     expect(item.slides.single.title, 'Harvest lunch');
     expect(item.slides.single.detail, 'Sunday 30 November · 12:30');
     expect(jsonEncode(c.state.toJson()), contains('Harvest lunch'));

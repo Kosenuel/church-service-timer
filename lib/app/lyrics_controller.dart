@@ -94,7 +94,7 @@ class LyricsController {
     // Stored songs lists the most recently used first.
     if (fresh) {
       unawaited(
-        app.commit((draft, at) {
+        _commit((draft, at) {
           draft.lyrics = draft.lyrics.usedAt(id, at.wall);
         }),
       );
@@ -220,9 +220,19 @@ class LyricsController {
 
   // ---- Saving --------------------------------------------------------------
 
+  /// Saves after any save already under way, so a change made just after
+  /// putting a slide up (which notes the song as used) is never dropped.
+  Future<bool> _commit(void Function(AppState draft, Stamp at) change) async {
+    for (var i = 0; i < 50 && app.busy; i++) {
+      await (app.pendingWrite ??
+          Future<void>.delayed(const Duration(milliseconds: 20)));
+    }
+    return app.commit(change);
+  }
+
   Future<bool> setLook(LyricsLook next) async {
     if (jsonEncode(next.toJson()) == jsonEncode(look.toJson())) return true;
-    final saved = await app.commit(
+    final saved = await _commit(
       (draft, _) => draft.lyrics = draft.lyrics.withLook(next),
     );
     if (saved) _changed();
@@ -232,7 +242,7 @@ class LyricsController {
   /// Saves [item], new or edited; false with [AppController.error] set
   /// when it cannot be.
   Future<bool> save(LyricItem item) async {
-    final saved = await app.commit((draft, at) {
+    final saved = await _commit((draft, at) {
       draft.lyrics = draft.lyrics.saved(item.copyWith(updated: at.wall));
     });
     if (saved) {
@@ -243,7 +253,7 @@ class LyricsController {
   }
 
   Future<bool> delete(String id) async {
-    final saved = await app.commit(
+    final saved = await _commit(
       (draft, _) => draft.lyrics = draft.lyrics.without(id),
     );
     if (saved) {

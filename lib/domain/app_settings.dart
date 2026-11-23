@@ -306,7 +306,8 @@ String exportBackup(
     ..remove('importMappings')
     ..remove('webStage')
     ..remove('churchLogo')
-    ..remove('savedLooks');
+    ..remove('savedLooks')
+    ..remove('lyrics');
   // The logo only when one is set, so plain backups stay readable by
   // earlier versions.
   if (state.churchLogo.isNotEmpty) data['churchLogo'] = state.churchLogo;
@@ -314,6 +315,9 @@ String exportBackup(
     data['savedLooks'] = [for (final l in state.savedLooks) l.toJson()];
   if (state.segmentLibrary.isNotEmpty)
     data['segmentLibrary'] = [for (final s in state.segmentLibrary) s.toJson()];
+  // Stored songs and the screen look, only when there are songs, so plain
+  // backups stay readable by earlier versions. Your picture stays here.
+  if (!state.lyrics.isEmpty) data['lyrics'] = state.lyrics.toBackupJson();
   // Earlier program versions, keyed by name because IDs stay on the phone.
   final history = <String, dynamic>{
     for (final t in state.templates)
@@ -334,10 +338,12 @@ String exportBackup(
   ];
   final result = const JsonEncoder.withIndent('  ').convert({
     'type': 'church-service-timer-backup',
-    // Version 11 only with saved looks, 10 only with a church logo, 9 only with program history or a
+    // Version 12 only with stored songs, 11 only with saved looks, 10 only with a church logo, 9 only with program history or a
     // segment library, 8 only with sealed passwords, so plain backups
     // remain readable by earlier versions.
-    'schemaVersion': state.savedLooks.isNotEmpty
+    'schemaVersion': !state.lyrics.isEmpty
+        ? 12
+        : state.savedLooks.isNotEmpty
         ? 11
         : state.churchLogo.isNotEmpty
         ? 10
@@ -388,6 +394,7 @@ AppState importBackup(String raw, Stamp now) {
             9,
             10,
             11,
+            12,
           }.contains(envelope['schemaVersion']),
       'Choose a supported Church Service Timer backup.',
     );
@@ -412,11 +419,13 @@ AppState importBackup(String raw, Stamp now) {
       if (envelope['schemaVersion'] >= 9) 'segmentLibrary',
       if (envelope['schemaVersion'] >= 10) 'churchLogo',
       if (envelope['schemaVersion'] >= 11) 'savedLooks',
+      if (envelope['schemaVersion'] >= 12) 'lyrics',
     }, 'Backup data');
     final history = data.remove('programHistory');
     final logo = churchLogoValue(data.remove('churchLogo') ?? '');
     final segments = readSegmentLibrary(data.remove('segmentLibrary'));
     final looks = readSavedLooks(data.remove('savedLooks'));
+    final lyrics = LyricsLibrary.fromJson(data.remove('lyrics'));
     require(
       data.length ==
               (envelope['schemaVersion'] >= 7
@@ -458,6 +467,7 @@ AppState importBackup(String raw, Stamp now) {
     restored.segmentLibrary = segments;
     restored.churchLogo = logo;
     restored.savedLooks = looks;
+    restored.lyrics = lyrics;
     for (final e in versions.entries) {
       final program = restored.templates.where((t) => t.name == e.key);
       require(program.isNotEmpty, 'Backup history names a missing program.');
