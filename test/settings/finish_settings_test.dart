@@ -16,17 +16,17 @@ void main() {
 
   group('the saved choice', () {
     test(
-      'a new install, and a look saved before finishes, is Flat and Subtle',
+      'a new install, and a look saved before finishes, is Flat with no strength chosen',
       () {
         expect(const AppearancePreferences().finish, 'flat');
-        expect(const AppearancePreferences().finishStrength, 'subtle');
+        expect(const AppearancePreferences().finishStrength, isNull);
         final old = AppearancePreferences.fromJson({
           'density': 'spacious',
           'dividers': 'strong',
           'desktopLayout': 'classic',
         });
         expect(old.finish, 'flat');
-        expect(old.finishStrength, 'subtle');
+        expect(old.finishStrength, isNull);
         expect(old.density, 'spacious');
       },
     );
@@ -55,7 +55,7 @@ void main() {
       old['appearance'] = appearance;
       final state = AppState.fromJson(old);
       expect(state.appearance.finish, 'flat');
-      expect(state.appearance.finishStrength, 'subtle');
+      expect(state.appearance.finishStrength, isNull);
     });
 
     test(
@@ -66,7 +66,7 @@ void main() {
           'finishStrength': 'extreme',
         });
         expect(later.finish, 'flat');
-        expect(later.finishStrength, 'subtle');
+        expect(later.finishStrength, isNull);
         expect(finishValue(7), 'flat');
       },
     );
@@ -110,7 +110,7 @@ void main() {
           'highContrast': false,
         });
         expect(old.finish, 'flat');
-        expect(old.finishStrength, 'subtle');
+        expect(old.finishStrength, isNull);
         // A plain look is written as before, so its backup opens in an
         // earlier version.
         expect(old.toJson().containsKey('finish'), isFalse);
@@ -119,6 +119,188 @@ void main() {
         expect(defaultLook.applyTo(applied).finish, 'flat');
       },
     );
+  });
+
+  group('the strength a finish starts at', () {
+    test('Full, except Walnut, Oak and Carbon fibre, which start Subtle', () {
+      for (final id in finishIds) {
+        final want = const {'walnut', 'oak', 'carbon'}.contains(id)
+            ? 'subtle'
+            : 'full';
+        expect(defaultFinishStrength(id), want, reason: id);
+        final a = AppearancePreferences(finish: id);
+        expect(a.finishStrength, isNull);
+        expect(a.strength, want, reason: id);
+        if (id == 'flat') continue;
+        final look = appTheme(
+          'royal_navy',
+          appearance: a,
+        ).extension<FinishLook>()!;
+        expect(look.strength, want == 'full' ? 1 : .5, reason: id);
+      }
+      // Papery, which comes with Paper & Ink, starts Full like the rest.
+      expect(appTheme('paper_ink').extension<FinishLook>()!.strength, 1);
+    });
+
+    test('a strength that was chosen is kept for every finish', () {
+      for (final id in finishIds) {
+        for (final chosen in finishStrengths) {
+          final a = AppearancePreferences(finish: id, finishStrength: chosen);
+          expect(a.strength, chosen, reason: id);
+          // Choosing another finish does not overwrite it.
+          expect(a.copyWith(finish: 'denim').strength, chosen);
+          expect(a.copyWith(finish: 'walnut').strength, chosen);
+        }
+      }
+      // Going back to the finish's own forgets the choice.
+      const chosen = AppearancePreferences(
+        finish: 'walnut',
+        finishStrength: 'full',
+      );
+      expect(chosen.copyWith(defaultStrength: true).finishStrength, isNull);
+      expect(chosen.copyWith(defaultStrength: true).strength, 'subtle');
+    });
+
+    test('a choice, and no choice, survive saving and loading', () {
+      for (final chosen in [null, 'subtle', 'full']) {
+        final a = AppearancePreferences(
+          finish: 'denim',
+          finishStrength: chosen,
+        );
+        final back = AppearancePreferences.fromJson(
+          Map<String, dynamic>.from(jsonDecode(jsonEncode(a.toJson()))),
+        );
+        expect(back.finishStrength, chosen);
+        expect(back, a);
+      }
+      // An earlier version reads only finishStrength: it is given the
+      // strength drawn, so it shows the same look.
+      expect(
+        const AppearancePreferences(finish: 'denim').toJson()['finishStrength'],
+        'full',
+      );
+      expect(
+        const AppearancePreferences(finish: 'oak').toJson()['finishStrength'],
+        'subtle',
+      );
+    });
+
+    test(
+      'once, a Subtle saved by an earlier version reads as not chosen, and a Full as chosen',
+      () {
+        // 0.39.0-beta.1 wrote Subtle, then the default, for everyone.
+        final subtle = AppearancePreferences.fromJson({
+          'finish': 'denim',
+          'finishStrength': 'subtle',
+        });
+        expect(subtle.finishStrength, isNull);
+        expect(subtle.strength, 'full');
+        final full = AppearancePreferences.fromJson({
+          'finish': 'walnut',
+          'finishStrength': 'full',
+        });
+        expect(full.finishStrength, 'full');
+        expect(full.strength, 'full');
+        // Written by this version, a Subtle that was chosen stays chosen.
+        final kept = AppearancePreferences.fromJson({
+          'finish': 'denim',
+          'finishStrength': 'subtle',
+          'finishStrengthChosen': true,
+        });
+        expect(kept.finishStrength, 'subtle');
+        // Nonsense loads, as no choice.
+        expect(
+          AppearancePreferences.fromJson({
+            'finish': 'denim',
+            'finishStrength': 7,
+            'finishStrengthChosen': 'yes',
+          }).finishStrength,
+          isNull,
+        );
+      },
+    );
+
+    test('the saved looks of an earlier version are read the same way', () {
+      final old = AppState.fresh(start).toJson();
+      old['appearance'] = {
+        ...Map<String, dynamic>.from(old['appearance'] as Map),
+        'finish': 'denim',
+        'finishStrength': 'subtle',
+      }..remove('finishStrengthChosen');
+      old['savedLooks'] = [
+        {
+          'name': 'Jeans',
+          'layout': 'classic',
+          'themeId': 'royal_navy',
+          'density': 'automatic',
+          'keyHints': 'automatic',
+          'highContrast': false,
+          'finish': 'denim',
+          'finishStrength': 'subtle',
+        },
+        {
+          'name': 'Desk',
+          'layout': 'classic',
+          'themeId': 'royal_navy',
+          'density': 'automatic',
+          'keyHints': 'automatic',
+          'highContrast': false,
+          'finish': 'walnut',
+          'finishStrength': 'full',
+        },
+      ];
+      final state = AppState.fromJson(old);
+      expect(state.appearance.finishStrength, isNull);
+      expect(state.savedLooks[0].finishStrength, isNull);
+      expect(state.savedLooks[1].finishStrength, 'full');
+      // Saved again by this version, the reading is not repeated: a Subtle
+      // chosen now stays.
+      state.savedLooks[0] = const SavedLook(
+        name: 'Jeans',
+        layout: 'classic',
+        themeId: 'royal_navy',
+        finish: 'denim',
+        finishStrength: 'subtle',
+      );
+      final again = AppState.fromJson(
+        jsonDecode(jsonEncode(state.toJson())) as Map<String, dynamic>,
+      );
+      expect(again.savedLooks[0].finishStrength, 'subtle');
+      expect(again.appearance.finishStrength, isNull);
+      // A look with no strength chosen writes none, and applying it puts
+      // the finish's own back.
+      const plain = SavedLook(
+        name: 'Oak',
+        layout: 'classic',
+        themeId: 'royal_navy',
+        finish: 'oak',
+      );
+      expect(plain.toJson().containsKey('finishStrength'), isFalse);
+      final applied = plain.applyTo(
+        const AppearancePreferences(finishStrength: 'full'),
+      );
+      expect(applied.finishStrength, isNull);
+      expect(applied.strength, 'subtle');
+    });
+  });
+
+  group('the order of the finishes', () {
+    test('Flat, cloths, Glass, woods, Plastic, metals, Marble, the rest', () {
+      expect(finishIds, [
+        'flat',
+        'cashmere',
+        'denim',
+        'leather',
+        'glass',
+        'walnut',
+        'oak',
+        'plastic',
+        'console',
+        'carbon',
+        'marble',
+        'brick',
+      ]);
+    });
   });
 
   group('the theme', () {
@@ -229,7 +411,10 @@ void main() {
     test(
       'Subtle and Full still apply to it, and High contrast makes it Flat',
       () {
-        final subtle = appTheme('paper_ink').extension<FinishLook>()!;
+        final subtle = appTheme(
+          'paper_ink',
+          appearance: const AppearancePreferences(finishStrength: 'subtle'),
+        ).extension<FinishLook>()!;
         final full = appTheme(
           'paper_ink',
           appearance: const AppearancePreferences(finishStrength: 'full'),
@@ -458,7 +643,9 @@ void main() {
           // Tiles in one row are the same height and the same width.
           expect(t.takeException(), isNull);
           final first = t.getRect(find.byKey(const ValueKey('finish-flat')));
-          final second = t.getRect(find.byKey(const ValueKey('finish-glass')));
+          final second = t.getRect(
+            find.byKey(const ValueKey('finish-cashmere')),
+          );
           expect(second.top, first.top);
           expect(second.height, first.height);
           expect(second.width, first.width);
@@ -478,7 +665,16 @@ void main() {
         await t.tap(find.byKey(const ValueKey('finish-brick')));
         await t.pumpAndSettle();
         expect(c.appearanceSelection.value.finish, 'brick');
-        expect(c.appearanceSelection.value.finishStrength, 'subtle');
+        // None chosen yet: Brick shows at its own, Full.
+        expect(c.appearanceSelection.value.finishStrength, isNull);
+        expect(
+          t
+              .widget<SegmentedButton<String>>(
+                find.byKey(const ValueKey('finish-strength')),
+              )
+              .selected,
+          {'full'},
+        );
         expect(c.state.appearance.finish, 'flat');
         // The app behind the editor takes the finish's theme straight away.
         final theme = Theme.of(t.element(find.byType(AppearancePage)));
@@ -488,15 +684,79 @@ void main() {
         await t.tap(
           find.descendant(
             of: find.byKey(const ValueKey('finish-strength')),
-            matching: find.text('Full'),
+            matching: find.text('Subtle'),
           ),
         );
         await t.pumpAndSettle();
-        expect(c.appearanceSelection.value.finishStrength, 'full');
+        expect(c.appearanceSelection.value.finishStrength, 'subtle');
         await t.tap(find.text('Save appearance'));
         await t.pumpAndSettle();
         expect(c.state.appearance.finish, 'brick');
-        expect(c.state.appearance.finishStrength, 'full');
+        expect(c.state.appearance.finishStrength, 'subtle');
+      },
+    );
+
+    testWidgets('the tiles are in the order of the finishes', (t) async {
+      await open(t, const Size(1366, 768), 1.0);
+      final rects = [
+        for (final id in finishIds)
+          t.getRect(find.byKey(ValueKey('finish-$id'))),
+      ];
+      for (var i = 1; i < rects.length; i++) {
+        final a = rects[i - 1], b = rects[i];
+        expect(
+          b.top > a.top + 1 || (b.top - a.top).abs() < 1 && b.left > a.left,
+          isTrue,
+          reason: '${finishIds[i]} comes after ${finishIds[i - 1]}',
+        );
+      }
+    });
+
+    testWidgets(
+      'a strength chosen stays when the finish changes, and can go back to the finish’s own',
+      (t) async {
+        final c = await open(t, const Size(430, 900), 1.0);
+        SegmentedButton<String> strength() =>
+            t.widget(find.byKey(const ValueKey('finish-strength')));
+        Future<void> pick(String id) async {
+          await t.ensureVisible(find.byKey(ValueKey('finish-$id')));
+          await t.pumpAndSettle();
+          await t.tap(find.byKey(ValueKey('finish-$id')));
+          await t.pumpAndSettle();
+        }
+
+        await pick('walnut');
+        expect(strength().selected, {'subtle'});
+        await pick('denim');
+        expect(strength().selected, {'full'}, reason: 'Denim starts Full');
+        expect(
+          find.byKey(const ValueKey('finish-strength-default')),
+          findsNothing,
+        );
+        await t.ensureVisible(find.byKey(const ValueKey('finish-strength')));
+        await t.pumpAndSettle();
+        await t.tap(
+          find.descendant(
+            of: find.byKey(const ValueKey('finish-strength')),
+            matching: find.text('Subtle'),
+          ),
+        );
+        await t.pumpAndSettle();
+        expect(c.appearanceSelection.value.finishStrength, 'subtle');
+        // Another finish keeps the choice.
+        await pick('glass');
+        expect(strength().selected, {'subtle'});
+        expect(c.appearanceSelection.value.finishStrength, 'subtle');
+        // And offers its own back.
+        final back = find.byKey(const ValueKey('finish-strength-default'));
+        await t.ensureVisible(back);
+        await t.pumpAndSettle();
+        expect(find.text('Glass looks best at Full'), findsOneWidget);
+        await t.tap(back);
+        await t.pumpAndSettle();
+        expect(c.appearanceSelection.value.finishStrength, isNull);
+        expect(strength().selected, {'full'});
+        expect(back, findsNothing);
       },
     );
 

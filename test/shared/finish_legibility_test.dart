@@ -7,6 +7,14 @@ import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:church_service_timer/app/controller.dart';
+import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/shared/finish_popups.dart';
+import 'package:church_service_timer/shared/device_words.dart';
+
+import '../support/fake_port.dart';
+import '../support/widget_setup.dart';
+import '../live/screen_sizes_test.dart' show DesktopPort, sunday;
 
 /// Words stay legible in every finish: for every finish, both strengths and
 /// every built-in theme (and some custom ones), body text, muted text and the
@@ -305,6 +313,272 @@ void main() {
           });
         }
       }
+    }
+  });
+
+  group('popups', () {
+    // The sheet of a dialog and of a menu is the panel material, laid on by
+    // FinishPopupFrame, Glass showing the wall of the page behind it: the
+    // words in it keep the contrast they have on a panel.
+    final themes = ['royal_navy', 'warm_ivory', 'custom:00bcd4:001018:0b2230'];
+    Future<List<int>> window(WidgetTester t, Rect area) async {
+      final view = t.binding.renderViews.first;
+      return (await t.runAsync(() async {
+        final image = await (view.debugLayer! as OffsetLayer).toImage(area);
+        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        return [
+          for (var i = 0; i < data!.lengthInBytes; i += 4)
+            0xff000000 |
+                (data.getUint8(i) << 16) |
+                (data.getUint8(i + 1) << 8) |
+                data.getUint8(i + 2),
+        ];
+      }))!;
+    }
+
+    double least(List<int> px, Color color) {
+      final seen = <int, double>{};
+      var low = 99.0;
+      for (final v in px) {
+        final c = seen[v] ??= contrast(color, Color(v));
+        if (c < low) low = c;
+      }
+      return low;
+    }
+
+    for (final id in themes) {
+      for (final finish in finishesOn.where((f) => f != paperyFinish)) {
+        for (final strength in finishStrengths) {
+          for (final kind in ['dialog', 'menu']) {
+            testWidgets('$finish at $strength: a $kind is legible in $id', (
+              t,
+            ) async {
+              t.view.physicalSize = const Size(800, 600);
+              t.view.devicePixelRatio = 1;
+              addTearDown(t.view.resetPhysicalSize);
+              addTearDown(t.view.resetDevicePixelRatio);
+              final p = paletteFor(id);
+              await t.pumpWidget(
+                MaterialApp(
+                  theme: appTheme(
+                    id,
+                    appearance: AppearancePreferences(
+                      finish: finish,
+                      finishStrength: strength,
+                    ),
+                  ),
+                  home: Scaffold(
+                    body: Builder(
+                      builder: (context) => Center(
+                        child: TextButton(
+                          onPressed: () => kind == 'dialog'
+                              ? showDialog<void>(
+                                  context: context,
+                                  builder: (_) => const Dialog(
+                                    key: ValueKey('sheet'),
+                                    child: SizedBox(width: 360, height: 200),
+                                  ),
+                                )
+                              : showMenu<void>(
+                                  context: context,
+                                  position: const RelativeRect.fromLTRB(
+                                    200,
+                                    100,
+                                    200,
+                                    100,
+                                  ),
+                                  items: const [
+                                    PopupMenuItem(
+                                      enabled: false,
+                                      height: 160,
+                                      child: SizedBox(
+                                        key: ValueKey('sheet'),
+                                        width: 220,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                          child: const Text('Open'),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+              await t.tap(find.text('Open'));
+              await t.pumpAndSettle();
+              final frame = t.allRenderObjects
+                  .whereType<RenderFinishPopupFrame>()
+                  .firstWhere((f) => f.sheet != null);
+              final sheet = frame.sheet!;
+              final area = (sheet.localToGlobal(Offset.zero) & sheet.size)
+                  .deflate(
+                    // Clear of the edge, its stitches and screws.
+                    kind == 'menu' ? 18 : 30,
+                  );
+              final px = await window(t, area);
+              final text = bar(contrast(p.text, p.surface), 4.5);
+              final muted = bar(contrast(p.muted, p.surface), 4.5);
+              final accent = bar(contrast(p.accent, p.surface), 4.5);
+              expect(least(px, p.text), greaterThanOrEqualTo(text - .01));
+              expect(least(px, p.muted), greaterThanOrEqualTo(muted - .01));
+              expect(least(px, p.accent), greaterThanOrEqualTo(accent - .01));
+            });
+          }
+        }
+      }
+    }
+  });
+
+  group('no words on the bare wall', () {
+    // Real letters, so the pages lay out as they do in the app.
+    setUpAll(loadAppFonts);
+    // Every word on these pages is on a panel of the finish (a column, a
+    // card, a bar), not straight on its wall: the wall's budgets are only
+    // for large text, and the owner asked for nothing to float on it.
+    bool onMaterial(Element e) {
+      var ok = false;
+      e.visitAncestorElements((a) {
+        final w = a.widget;
+        if (w is FinishSurface ||
+            w is FinishPopupFrame ||
+            w is AppBar ||
+            w is NavigationBar ||
+            w is FloatingActionButton) {
+          ok = true;
+          return false;
+        }
+        // A plain Material of the theme's surface is a card of its own.
+        if (w is Material &&
+            w.type != MaterialType.transparency &&
+            (w.color?.a ?? 0) == 1) {
+          ok = true;
+          return false;
+        }
+        return true;
+      });
+      return ok;
+    }
+
+    Future<void> open(
+      WidgetTester t,
+      Size size,
+      Future<void> Function(AppController, FakePort) setup,
+    ) async {
+      t.view.physicalSize = size;
+      t.view.devicePixelRatio = 1;
+      t.view.display.size = size;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      addTearDown(t.view.display.resetSize);
+      final port = size.width >= 1200 ? DesktopPort() : FakePort();
+      // Words for a computer on one, as the app has there.
+      desktopWording = size.width >= 1200;
+      addTearDown(() => desktopWording = false);
+      final c = AppController(port);
+      await c.initialize(startTicker: false);
+      await c.commit((d, _) {
+        d.appearance = d.appearance.copyWith(
+          finish: 'denim',
+          desktopLayout: 'mission_control',
+        );
+      });
+      await setup(c, port);
+      await t.pumpWidget(TimerApp(controller: c));
+      await t.pumpAndSettle();
+    }
+
+    List<String> bare(WidgetTester t) => [
+      for (final e in find.byType(Text).hitTestable().evaluate())
+        if (!onMaterial(e))
+          (e.widget as Text).data ??
+              (e.widget as Text).textSpan?.toPlainText() ??
+              '?',
+    ];
+
+    Future<void> live(AppController c, FakePort p) async {
+      await c.act('load', value: sunday());
+      await c.act('start');
+      p.at = after(60);
+      await c.tick();
+    }
+
+    Future<void> reported(AppController c, FakePort p) async {
+      await live(c, p);
+      p.at = after(400);
+      await c.tick();
+      await c.act('end');
+      p.at = after(4000);
+      await c.tick();
+    }
+
+    Future<void> nothing(AppController c, FakePort p) async {}
+
+    Future<void> tab(WidgetTester t, String name, Size size) async {
+      await t.tap(
+        size.width >= 840
+            ? find
+                  .descendant(
+                    of: find.byKey(const ValueKey('navigation-rail')),
+                    matching: find.text(name),
+                  )
+                  .first
+            : find.descendant(
+                of: find.byType(NavigationBar),
+                matching: find.text(name),
+              ),
+      );
+      await t.pumpAndSettle();
+    }
+
+    const desktop = Size(1366, 768), phone = Size(360, 780);
+    for (final (name, size) in [('a computer', desktop), ('a phone', phone)]) {
+      testWidgets('Live standing by on $name', (t) async {
+        await open(t, size, nothing);
+        expect(bare(t), isEmpty);
+      });
+      testWidgets('Live during a service on $name', (t) async {
+        await open(t, size, live);
+        expect(bare(t), isEmpty);
+      });
+      testWidgets('Programs on $name', (t) async {
+        await open(t, size, live);
+        await tab(t, 'Programs', size);
+        expect(bare(t), isEmpty);
+      });
+      testWidgets('Reports on $name', (t) async {
+        await open(t, size, reported);
+        await tab(t, 'Reports', size);
+        expect(bare(t), isEmpty);
+      });
+      testWidgets('Settings on $name', (t) async {
+        await open(t, size, nothing);
+        await tab(t, 'Settings', size);
+        expect(bare(t), isEmpty);
+      });
+    }
+    for (final page in [
+      'Church profile',
+      'Warnings & alerts',
+      'Stage cues',
+      'Screens & devices',
+      'LED device management',
+      'Backup & restore',
+      'Feedback centre',
+      'About',
+    ]) {
+      testWidgets('Settings › $page on a computer', (t) async {
+        await open(t, desktop, nothing);
+        await tab(t, 'Settings', desktop);
+        final entry = find.text(page).first;
+        await t.ensureVisible(entry);
+        await t.pumpAndSettle();
+        await t.tap(entry);
+        await t.pumpAndSettle();
+        expect(find.text(page), findsWidgets);
+        expect(find.byType(AppBar), findsOneWidget, reason: 'opened');
+        expect(bare(t), isEmpty);
+      });
     }
   });
 }

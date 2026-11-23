@@ -262,10 +262,15 @@ extension LiveLayout on HomeState {
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
     if (bar) {
-      return Material(
+      // A strip of the finish's material when there is one.
+      return FinishCard(
         key: const ValueKey('timing-status-bar'),
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(14),
+        radius: 14,
+        flat: (child) => Material(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          child: child,
+        ),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
           onTap: openDetails,

@@ -228,88 +228,94 @@ class _JoinDevicePageState extends State<JoinDevicePage>
   Widget wifiRejoinSection() {
     final colors = appColors(context);
     final muted = TextStyle(fontSize: 12, color: colors.muted);
-    return Container(
+    return FinishCard(
       key: const ValueKey('wifi-rejoin'),
-      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
+      radius: 16,
+      flat: (child) => Container(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+        ),
+        child: child,
       ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SwitchListTile(
-              value: rememberWifi && wifiName.isNotEmpty,
-              onChanged: busy || wifiName.isEmpty
-                  ? null
-                  : (v) => setState(() => rememberWifi = v),
-              title: const Text('Rejoin this Wi-Fi automatically'),
-              subtitle: Text(
-                wifiName.isEmpty
-                    ? 'Wi-Fi name unavailable. Allow nearby Wi-Fi access to use this.'
-                    : deviceText(
-                        'This phone is on $wifiName. If the link drops, only this network is rejoined.',
-                      ),
-                style: muted,
-              ),
-            ),
-            if (rememberWifi && wifiName.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final kind in const {
-                      'church': 'Church Wi-Fi',
-                      'hotspot': 'Host’s hotspot',
-                      'sign': 'Sign’s Wi-Fi',
-                    }.entries)
-                      ChoiceChip(
-                        label: Text(kind.value),
-                        selected: wifiKind == kind.key,
-                        onSelected: busy
-                            ? null
-                            : (_) => setState(() => wifiKind = kind.key),
-                      ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                child: TextField(
-                  key: const ValueKey('wifi-rejoin-password'),
-                  controller: wifiPassword,
-                  enabled: !busy,
-                  obscureText: true,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  maxLength: 63,
-                  decoration: const InputDecoration(
-                    labelText: 'Wi-Fi password (optional)',
-                    helperText:
-                        'Leave empty if Android already rejoins this network by itself.',
-                    helperMaxLines: 2,
-                  ),
-                ),
-              ),
-              CheckboxListTile(
-                value: storeWifiPassword,
-                controlAffinity: ListTileControlAffinity.leading,
-                onChanged: busy
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SwitchListTile(
+                value: rememberWifi && wifiName.isNotEmpty,
+                onChanged: busy || wifiName.isEmpty
                     ? null
-                    : (v) => setState(() => storeWifiPassword = v ?? true),
-                title: Text(deviceText('Save the password on this phone')),
+                    : (v) => setState(() => rememberWifi = v),
+                title: const Text('Rejoin this Wi-Fi automatically'),
                 subtitle: Text(
-                  'Encrypted. Used only to rejoin $wifiName for this host.',
+                  wifiName.isEmpty
+                      ? 'Wi-Fi name unavailable. Allow nearby Wi-Fi access to use this.'
+                      : deviceText(
+                          'This phone is on $wifiName. If the link drops, only this network is rejoined.',
+                        ),
                   style: muted,
                 ),
               ),
+              if (rememberWifi && wifiName.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final kind in const {
+                        'church': 'Church Wi-Fi',
+                        'hotspot': 'Host’s hotspot',
+                        'sign': 'Sign’s Wi-Fi',
+                      }.entries)
+                        ChoiceChip(
+                          label: Text(kind.value),
+                          selected: wifiKind == kind.key,
+                          onSelected: busy
+                              ? null
+                              : (_) => setState(() => wifiKind = kind.key),
+                        ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                  child: TextField(
+                    key: const ValueKey('wifi-rejoin-password'),
+                    controller: wifiPassword,
+                    enabled: !busy,
+                    obscureText: true,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    maxLength: 63,
+                    decoration: const InputDecoration(
+                      labelText: 'Wi-Fi password (optional)',
+                      helperText:
+                          'Leave empty if Android already rejoins this network by itself.',
+                      helperMaxLines: 2,
+                    ),
+                  ),
+                ),
+                CheckboxListTile(
+                  value: storeWifiPassword,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  onChanged: busy
+                      ? null
+                      : (v) => setState(() => storeWifiPassword = v ?? true),
+                  title: Text(deviceText('Save the password on this phone')),
+                  subtitle: Text(
+                    'Encrypted. Used only to rejoin $wifiName for this host.',
+                    style: muted,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

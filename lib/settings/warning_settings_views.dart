@@ -11,6 +11,7 @@ import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/display/pixels.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 
 class WarningSettingsPanel extends StatelessWidget {
@@ -124,13 +125,17 @@ class WarningSettingsPanel extends StatelessWidget {
               : durationLabel(w.durationSeconds * 1000),
         displayFontNames[w.cue.font] ?? w.cue.font,
       ].join(' · ');
-      return Material(
+      return FinishCard(
         key: ValueKey('warning-rule-$index'),
-        color: colors.surface,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: colors.border),
-          borderRadius: BorderRadius.circular(16),
+        radius: 16,
+        flat: (child) => Material(
+          color: colors.surface,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: colors.border),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: child,
         ),
         child: InkWell(
           onTap: busy ? null : () => edit(index: index),

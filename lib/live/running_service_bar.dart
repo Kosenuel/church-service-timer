@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 
 class RunningServiceBar extends StatelessWidget implements PreferredSizeWidget {
   final AppController controller;
@@ -41,9 +43,13 @@ class RunningServiceBar extends StatelessWidget implements PreferredSizeWidget {
               : warning
               ? ' · Warning'
               : ''}';
-      return Material(
-        color: colors.surface,
-        child: InkWell(
+      // With a finish, a strip of its material across the header's foot,
+      // seamed along its top, not a flat slip laid over the plate.
+      Widget plate(Widget child) => finishLook(ctx).active
+          ? FinishSurface(pane: true, seams: finishSeamAbove, child: child)
+          : Material(color: colors.surface, child: child);
+      return plate(
+        InkWell(
           key: const ValueKey('running-service-bar'),
           onTap: () => c.liveNavigation.value++,
           child: Padding(

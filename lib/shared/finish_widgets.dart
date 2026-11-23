@@ -1,7 +1,12 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/shared/finish_paint.dart';
+import 'package:church_service_timer/shared/finish_popups.dart';
+
+export 'package:church_service_timer/shared/finish_popups.dart'
+    show FinishPopups, FinishPopupFrame, finishPopupColor;
 
 /// Paints the finish's background behind [child] (a whole screen). Flat
 /// draws nothing, so [child] paints its own background as it always did.
@@ -29,7 +34,9 @@ class _FinishWallState extends State<FinishWall> {
           Positioned.fill(
             child: FinishPaint(key: _wall, look: look, part: FinishPart.wall),
           ),
-          widget.child,
+          // Every dialog, sheet and menu opened on this page takes the
+          // finish too.
+          FinishPopups(wallKey: _wall, child: widget.child),
         ],
       ),
     );
@@ -89,7 +96,9 @@ class FinishSurface extends StatelessWidget {
             ? BorderRadius.zero
             : BorderRadius.circular(finishRadius(look.id)));
     final stitched = stitchedFinishes.contains(look.id);
-    final content = Material(type: MaterialType.transparency, child: child);
+    final content = FinishOnPanel(
+      child: Material(type: MaterialType.transparency, child: child),
+    );
     final material = Positioned.fill(
       child: FinishPaint(
         look: look,
@@ -320,3 +329,136 @@ const finishGapX = 10.0, finishGapY = 5.0;
 /// The rule between columns: none where a finish floats the panels apart.
 Widget finishRule(BuildContext context, Widget rule) =>
     finishLook(context).active ? const SizedBox.shrink() : rule;
+
+/// Marks what is drawn on a finish panel, so a card inside it is set into
+/// the panel (inset) instead of standing on it as another panel.
+class FinishOnPanel extends InheritedWidget {
+  const FinishOnPanel({super.key, required super.child});
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<FinishOnPanel>() != null;
+  @override
+  bool updateShouldNotify(FinishOnPanel oldWidget) => false;
+}
+
+/// A small card: a hint, a notice, a banner or a status strip. In Flat it is
+/// exactly the card it always was ([flat], built round [child]). With a
+/// finish it takes the material: on the bare wall it is a panel of its own,
+/// raised like the others; inside a panel it is set into it, a well of the
+/// theme's plain surface with the finish's edge and corners, so the two
+/// never read as one sheet, and its words keep the theme's own contrast.
+class FinishCard extends StatelessWidget {
+  final Widget child;
+
+  /// The card in Flat.
+  final Widget Function(Widget child) flat;
+
+  /// The Flat card's corner, kept for a well.
+  final double radius;
+  const FinishCard({
+    super.key,
+    required this.flat,
+    required this.child,
+    this.radius = 12,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final look = finishLook(context);
+    if (!look.active) return flat(child);
+    if (!FinishOnPanel.of(context)) {
+      return FinishSurface(radius: radius, child: child);
+    }
+    return Material(
+      color: look.palette.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(
+          math.min(radius, finishRadius(look.id)),
+        ),
+        side: BorderSide(color: look.border),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// A page's bar along the foot of the window (Save, Cancel): in Flat the
+/// plain surface it always had, with a finish a strip of its material
+/// seamed along its top, like the bottom navigation.
+class FinishBarPlate extends StatelessWidget {
+  final Widget child;
+  const FinishBarPlate({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) {
+    if (!finishLook(context).active) {
+      return Material(color: appColors(context).surface, child: child);
+    }
+    // At the foot of a panel it is part of the panel, under its rule.
+    if (FinishOnPanel.of(context)) {
+      return Material(type: MaterialType.transparency, child: child);
+    }
+    return FinishSurface(pane: true, seams: finishSeamAbove, child: child);
+  }
+}
+
+/// The room round a list page on its panel: little at the sides, as a
+/// phone has little width to give.
+const listPanelPadding = EdgeInsets.fromLTRB(8, 14, 8, 14);
+
+/// [child] on a panel of the finish, inset by [padding]; in Flat, [child]
+/// as it was, with no card or padding. For content that would otherwise
+/// sit straight on the finish's wall.
+class FinishPanelled extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  final double radius;
+  const FinishPanelled({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.radius = 18,
+  });
+  @override
+  Widget build(BuildContext context) {
+    if (!finishLook(context).active) return child;
+    return FinishSurface(
+      radius: radius,
+      child: Padding(padding: padding, child: child),
+    );
+  }
+}
+
+/// A column painted in the theme's background in Flat (to set it apart
+/// from the surface beside it); with a finish, a floating panel of the
+/// material like the other columns.
+class FinishBackdrop extends StatelessWidget {
+  final Widget child;
+  const FinishBackdrop({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) => finishLook(context).active
+      ? FinishPane(child: child)
+      : ColoredBox(color: appColors(context).background, child: child);
+}
+
+/// What a column inside a pane is laid on, as a [Material] so its rows can
+/// show ink: the plain surface in Flat; with a finish clear, so the pane's
+/// material shows.
+class FinishSurfaceColumn extends StatelessWidget {
+  final Widget child;
+  const FinishSurfaceColumn({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) => finishLook(context).active
+      ? Material(type: MaterialType.transparency, child: child)
+      : Material(color: appColors(context).surface, child: child);
+}
+
+/// A column of a wide page on the plain surface in Flat (a [Material], so
+/// its rows show ink); with a finish a floating panel of the material.
+class FinishColumn extends StatelessWidget {
+  final Widget child;
+  const FinishColumn({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) => finishLook(context).active
+      ? FinishPane(child: child)
+      : Material(color: appColors(context).surface, child: child);
+}

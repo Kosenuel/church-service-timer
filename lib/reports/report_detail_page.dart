@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/reports/report_outcome.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
@@ -299,8 +300,14 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         ],
       ),
     );
+    // Its blocks are panels; with a finish its wall shows between them.
     if (widget.embedded)
-      return Material(color: colors.background, child: content);
+      return Material(
+        color: finishLook(context).active
+            ? Colors.transparent
+            : colors.background,
+        child: content,
+      );
     return Scaffold(
       appBar: AppBar(
         flexibleSpace: finishBar(context),

@@ -3,6 +3,7 @@ import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/app/controller.dart';
@@ -391,12 +392,16 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
     child: Text(text.toUpperCase(), style: sectionLabelStyle(context)),
   );
 
-  Widget card(List<Widget> rows) => Material(
-    color: appColors(context).surface,
-    clipBehavior: Clip.antiAlias,
-    shape: RoundedRectangleBorder(
-      side: BorderSide(color: appColors(context).border),
-      borderRadius: BorderRadius.circular(16),
+  Widget card(List<Widget> rows) => FinishCard(
+    radius: 16,
+    flat: (child) => Material(
+      color: appColors(context).surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: appColors(context).border),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: child,
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -426,152 +431,162 @@ class _DeviceManagementPanelState extends State<DeviceManagementPanel>
     final muted = TextStyle(fontSize: 12, color: colors.muted);
     final wide = isWideWindow(context);
     final top = <Widget>[
-      Container(
+      FinishCard(
         key: const ValueKey('led-status-card'),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.border),
+        radius: 20,
+        flat: (child) => Container(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: colors.border),
+          ),
+          child: child,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: tone.withValues(alpha: .14),
-                    borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: tone.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(Icons.developer_board, color: tone, size: 26),
                   ),
-                  child: Icon(Icons.developer_board, color: tone, size: 26),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        saved ? c.hardware.rememberedName : 'No LED sign saved',
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          saved
+                              ? c.hardware.rememberedName
+                              : 'No LED sign saved',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        profile == null
-                            ? 'W2 controller · connect to read its details'
-                            : '${profile['width']} × ${profile['height']} · ${profile['firmware']}',
-                        style: muted,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: tone.withValues(alpha: .14),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    connected ? 'Connected' : 'Not connected',
-                    style: TextStyle(
-                      color: tone,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                        const SizedBox(height: 2),
+                        Text(
+                          profile == null
+                              ? 'W2 controller · connect to read its details'
+                              : '${profile['width']} × ${profile['height']} · ${profile['firmware']}',
+                          style: muted,
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
                     ),
+                    decoration: BoxDecoration(
+                      color: tone.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      connected ? 'Connected' : 'Not connected',
+                      style: TextStyle(
+                        color: tone,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: busy
+                          ? null
+                          : () => operation(() => c.port.openWifiSettings()),
+                      icon: const Icon(Icons.wifi),
+                      label: const Text(
+                        'Open Wi-Fi',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    // Once connected, Details is no more important than
+                    // Open Wi-Fi, so both are outlined.
+                    child: connected
+                        ? OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                            onPressed:
+                                busy || c.hardware.busy || c.hardware.sending
+                                ? null
+                                : connectFromSettings,
+                            icon: const Icon(Icons.connected_tv),
+                            label: const Text('Details'),
+                          )
+                        : FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                            onPressed:
+                                busy || c.hardware.busy || c.hardware.sending
+                                ? null
+                                : connectFromSettings,
+                            icon: const Icon(Icons.connected_tv),
+                            label: Text(
+                              saved
+                                  ? 'Reconnect LED display'
+                                  : 'Connect LED display',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    wifiConnected ? Icons.wifi : Icons.wifi_off,
+                    size: 16,
+                    color: colors.muted,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      ssid.isNotEmpty
+                          ? ssid
+                          : wifiConnected
+                          ? deviceText('Android has not shared the Wi-Fi name')
+                          : 'No Wi-Fi connection',
+                      style: muted,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Read Wi-Fi name',
+                    icon: const Icon(Icons.refresh, size: 20),
                     onPressed: busy
                         ? null
-                        : () => operation(() => c.port.openWifiSettings()),
-                    icon: const Icon(Icons.wifi),
-                    label: const Text(
-                      'Open Wi-Fi',
-                      textAlign: TextAlign.center,
-                    ),
+                        : () => readNetwork(requestName: true),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  // Once connected, Details is no more important than
-                  // Open Wi-Fi, so both are outlined.
-                  child: connected
-                      ? OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(48),
-                          ),
-                          onPressed:
-                              busy || c.hardware.busy || c.hardware.sending
-                              ? null
-                              : connectFromSettings,
-                          icon: const Icon(Icons.connected_tv),
-                          label: const Text('Details'),
-                        )
-                      : FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(48),
-                          ),
-                          onPressed:
-                              busy || c.hardware.busy || c.hardware.sending
-                              ? null
-                              : connectFromSettings,
-                          icon: const Icon(Icons.connected_tv),
-                          label: Text(
-                            saved
-                                ? 'Reconnect LED display'
-                                : 'Connect LED display',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(
-                  wifiConnected ? Icons.wifi : Icons.wifi_off,
-                  size: 16,
-                  color: colors.muted,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    ssid.isNotEmpty
-                        ? ssid
-                        : wifiConnected
-                        ? deviceText('Android has not shared the Wi-Fi name')
-                        : 'No Wi-Fi connection',
-                    style: muted,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Read Wi-Fi name',
-                  icon: const Icon(Icons.refresh, size: 20),
-                  onPressed: busy ? null : () => readNetwork(requestName: true),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
       sectionLabel(deviceText('Saved on this phone')),

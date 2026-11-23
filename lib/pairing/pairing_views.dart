@@ -8,6 +8,7 @@ import 'package:church_service_timer/shared/device_words.dart';
 import 'dart:async';
 import 'package:church_service_timer/web_stage/web_stage_views.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/pairing/stage_request_views.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/wide_detail.dart';
@@ -974,41 +975,46 @@ extension PairingViews on HomeState {
             key: const ValueKey('screens-devices-wide'),
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // On a panel of the finish, like the pane beside it.
               Expanded(
-                child: SingleChildScrollView(
-                  key: const ValueKey('screens-devices-main'),
-                  primary: false,
-                  padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: two ? 1200 : 640),
-                      child: two
-                          ? Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: devices),
-                                const SizedBox(width: 28),
-                                Expanded(child: own),
-                              ],
-                            )
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                devices,
-                                const SizedBox(height: 28),
-                                own,
-                              ],
-                            ),
+                child: FinishPane(
+                  child: SingleChildScrollView(
+                    key: const ValueKey('screens-devices-main'),
+                    primary: false,
+                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: two ? 1200 : 640),
+                        child: two
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: devices),
+                                  const SizedBox(width: 28),
+                                  Expanded(child: own),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  devices,
+                                  const SizedBox(height: 28),
+                                  own,
+                                ],
+                              ),
+                      ),
                     ),
                   ),
                 ),
               ),
-              VerticalDivider(width: 1, thickness: 1, color: colors.border),
+              finishRule(
+                context,
+                VerticalDivider(width: 1, thickness: 1, color: colors.border),
+              ),
               SizedBox(
                 width: pane,
-                child: Material(
-                  color: colors.surface,
+                child: FinishColumn(
                   child: SingleChildScrollView(
                     key: const ValueKey('web-screens-pane'),
                     primary: false,

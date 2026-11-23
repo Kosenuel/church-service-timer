@@ -7,6 +7,7 @@ import 'package:church_service_timer/shared/app_pickers.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/shared/finish_paint.dart';
+import 'package:church_service_timer/shared/finish_popups.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -186,7 +187,10 @@ void main() {
     await openServiceDate(t, home);
     final colors = appColors(t.element(find.byType(DatePickerDialog)));
     expect(colors.light, isTrue);
-    expect(dialogColour(t), colors.surface);
+    // Paper & Ink has its own finish, Papery: the calendar is laid on a
+    // sheet of its paper, as every dialog is.
+    expect(dialogColour(t), finishPopupColor);
+    expect(find.byType(FinishPopupFrame), findsWidgets);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('../goldens/desktop-date-picker-light.png'),

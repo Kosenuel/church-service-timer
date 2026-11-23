@@ -6,6 +6,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 
 class ProgramChooser extends StatefulWidget {
   final AppController controller;
@@ -188,10 +189,11 @@ extension ProgramLibraryViews on HomeState {
     ],
   );
 
+  // With a finish the list is on a panel of it (see FinishPanelled).
   Widget programsResponsive() => !useMasterDetail
-      ? templates()
+      ? FinishPanelled(padding: listPanelPadding, child: templates())
       : masterDetail(
-          templates(),
+          FinishPanelled(padding: listPanelPadding, child: templates()),
           !c.state.programLibrary
                   .find(
                     c.state.templates,

@@ -115,11 +115,15 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
     final colors = appColors(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Material(
-        color: colors.surface,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: colors.border),
-          borderRadius: BorderRadius.circular(20),
+      child: FinishCard(
+        radius: 20,
+        flat: (child) => Material(
+          color: colors.surface,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: colors.border),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: child,
         ),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -324,8 +328,7 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
             ),
           ),
         ),
-        bottomNavigationBar: Material(
-          color: colors.surface,
+        bottomNavigationBar: FinishBarPlate(
           child: SafeArea(
             top: false,
             child: Container(

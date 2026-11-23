@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish_popups.dart';
 
 const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const _fullDays = [
@@ -108,10 +109,16 @@ ThemeData appPickerTheme(BuildContext context) {
   final theme = Theme.of(context);
   final p = appColors(context);
   final onAccent = readable(p.accent);
-  final shape = RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(24),
-    side: BorderSide(color: p.border),
-  );
+  // Opened on a page with a finish, the picker is laid on its material
+  // (FinishPopupFrame): clear, in the finish's shape, with no shadow.
+  final framed = theme.dialogTheme.backgroundColor == finishPopupColor;
+  final sheet = framed ? finishPopupColor : p.surface;
+  final shape = framed
+      ? theme.dialogTheme.shape!
+      : RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: p.border),
+        );
   WidgetStateProperty<Color?> selected(Color on, Color? off) =>
       WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected) ? on : off,
@@ -136,10 +143,12 @@ ThemeData appPickerTheme(BuildContext context) {
   );
   return theme.copyWith(
     datePickerTheme: DatePickerThemeData(
-      backgroundColor: p.surface,
+      backgroundColor: sheet,
       surfaceTintColor: Colors.transparent,
+      elevation: framed ? 0 : null,
+      shadowColor: framed ? Colors.transparent : null,
       shape: shape,
-      headerBackgroundColor: p.surface,
+      headerBackgroundColor: framed ? Colors.transparent : p.surface,
       headerForegroundColor: p.text,
       headerHelpStyle: theme.textTheme.labelLarge?.copyWith(
         color: p.muted,
@@ -183,9 +192,13 @@ ThemeData appPickerTheme(BuildContext context) {
             : p.text,
       ),
       yearBackgroundColor: selected(p.accent, null),
-      rangePickerBackgroundColor: p.surface,
+      // On a phone the range picker fills the screen, laid on the material
+      // as one sheet.
+      rangePickerBackgroundColor: framed ? Colors.transparent : p.surface,
       rangePickerSurfaceTintColor: Colors.transparent,
-      rangePickerHeaderBackgroundColor: p.surface,
+      rangePickerElevation: framed ? 0 : null,
+      rangePickerShadowColor: framed ? Colors.transparent : null,
+      rangePickerHeaderBackgroundColor: framed ? Colors.transparent : p.surface,
       rangePickerHeaderForegroundColor: p.text,
       rangeSelectionBackgroundColor: p.accent.withValues(
         alpha: p.highContrast ? .32 : .20,
@@ -193,7 +206,8 @@ ThemeData appPickerTheme(BuildContext context) {
       inputDecorationTheme: input,
     ),
     timePickerTheme: TimePickerThemeData(
-      backgroundColor: p.surface,
+      backgroundColor: sheet,
+      elevation: framed ? 0 : null,
       shape: shape,
       helpTextStyle: theme.textTheme.labelLarge?.copyWith(
         color: p.muted,

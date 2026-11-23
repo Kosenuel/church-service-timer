@@ -1358,95 +1358,108 @@ class KeyLegend extends StatelessWidget {
 
     double width(String text) => measure(TextSpan(text: text));
 
-    return Container(
-      key: const ValueKey('key-legend'),
-      color: colors.surface,
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: LayoutBuilder(
-        builder: (context, box) {
-          // What the keys leave room for: the reminder, or enough of the
-          // status line to read.
-          final reminderRoom = reminder ? 24 + width(_reminder) + 2 : 0.0;
-          final statusRoom = status == null
-              ? 0.0
-              : 16 + math.min(width(status!), 220.0) + 2;
-          var shown = keys
-              ? entries(cues: cues, clicker: clicker)
-              : <KeyLegendEntry>[];
-          double keysWidth() =>
-              shown.fold(0.0, (sum, e) => sum + measure(span(e)) + _gap);
-          // Too many keys for the room: the reminder goes first, then
-          // the least needed keys.
-          final withReminder =
-              reminder &&
-              status == null &&
-              keysWidth() + reminderRoom <= box.maxWidth;
-          final room =
-              box.maxWidth - (withReminder ? reminderRoom : statusRoom);
-          while (keysWidth() > room) {
-            final droppable = shown.where((e) => e.rank < pinnedRank);
-            if (droppable.isEmpty) break;
-            final least = droppable.reduce((a, b) => a.rank > b.rank ? a : b);
-            shown = [...shown]..remove(least);
-          }
-          return Row(
-            children: [
-              for (final e in shown) item(e),
-              if (status == null) ...[
-                const Spacer(),
-                if (withReminder) Text(_reminder, style: style),
-              ] else
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, space) {
-                      // The dot and its gap, the status, then the reminder.
-                      final both =
-                          reminder &&
-                          16 + width(status!) + reminderRoom <= space.maxWidth;
-                      return Row(
-                        mainAxisAlignment: keys
-                            ? MainAxisAlignment.end
-                            : MainAxisAlignment.start,
-                        children: [
-                          Flexible(
-                            child: Row(
-                              key: const ValueKey('live-status-line'),
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: statusColour ?? colors.muted,
-                                    shape: BoxShape.circle,
+    // A strip of the surface in Flat; with a finish a strip of its material,
+    // or, at the foot of a panel, part of that panel.
+    final finished = finishLook(context).active;
+    final onPanel = finished && FinishOnPanel.of(context);
+    Widget plate(Widget child) => finished && !onPanel
+        ? FinishSurface(
+            key: const ValueKey('key-legend'),
+            pane: true,
+            child: child,
+          )
+        : KeyedSubtree(key: const ValueKey('key-legend'), child: child);
+    return plate(
+      Container(
+        color: finished ? null : colors.surface,
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: LayoutBuilder(
+          builder: (context, box) {
+            // What the keys leave room for: the reminder, or enough of the
+            // status line to read.
+            final reminderRoom = reminder ? 24 + width(_reminder) + 2 : 0.0;
+            final statusRoom = status == null
+                ? 0.0
+                : 16 + math.min(width(status!), 220.0) + 2;
+            var shown = keys
+                ? entries(cues: cues, clicker: clicker)
+                : <KeyLegendEntry>[];
+            double keysWidth() =>
+                shown.fold(0.0, (sum, e) => sum + measure(span(e)) + _gap);
+            // Too many keys for the room: the reminder goes first, then
+            // the least needed keys.
+            final withReminder =
+                reminder &&
+                status == null &&
+                keysWidth() + reminderRoom <= box.maxWidth;
+            final room =
+                box.maxWidth - (withReminder ? reminderRoom : statusRoom);
+            while (keysWidth() > room) {
+              final droppable = shown.where((e) => e.rank < pinnedRank);
+              if (droppable.isEmpty) break;
+              final least = droppable.reduce((a, b) => a.rank > b.rank ? a : b);
+              shown = [...shown]..remove(least);
+            }
+            return Row(
+              children: [
+                for (final e in shown) item(e),
+                if (status == null) ...[
+                  const Spacer(),
+                  if (withReminder) Text(_reminder, style: style),
+                ] else
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, space) {
+                        // The dot and its gap, the status, then the reminder.
+                        final both =
+                            reminder &&
+                            16 + width(status!) + reminderRoom <=
+                                space.maxWidth;
+                        return Row(
+                          mainAxisAlignment: keys
+                              ? MainAxisAlignment.end
+                              : MainAxisAlignment.start,
+                          children: [
+                            Flexible(
+                              child: Row(
+                                key: const ValueKey('live-status-line'),
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: statusColour ?? colors.muted,
+                                      shape: BoxShape.circle,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    status!,
-                                    maxLines: 1,
-                                    softWrap: false,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: style,
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      status!,
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: style,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          if (keys && both) ...[
-                            const SizedBox(width: 24),
-                            Text(_reminder, style: style),
+                            if (keys && both) ...[
+                              const SizedBox(width: 24),
+                              Text(_reminder, style: style),
+                            ],
                           ],
-                        ],
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

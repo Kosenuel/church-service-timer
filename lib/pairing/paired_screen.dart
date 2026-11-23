@@ -629,9 +629,8 @@ class _PairedScreenState extends State<PairedScreen> {
                   padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
                   children: main,
                 ),
-                side: Material(
+                side: FinishSurfaceColumn(
                   key: const ValueKey('paired-rundown-pane'),
-                  color: appColors(context).surface,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

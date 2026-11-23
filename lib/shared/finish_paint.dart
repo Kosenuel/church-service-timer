@@ -892,6 +892,10 @@ enum FinishPart {
 
   /// Over a stitched panel's content: the hem and the stitches.
   seam,
+
+  /// Over a popup's content: the stitches alone, as a popup's own content
+  /// comes nearer its edge than a panel's.
+  stitches,
 }
 
 /// Which edges of a strip (a bar across the window) carry a seam.
@@ -985,6 +989,7 @@ class RenderFinishPaint extends RenderBox {
   double _dpr;
   GlobalKey? _wall;
 
+  FinishLook get look => _look;
   set look(FinishLook v) {
     if (identical(v, _look)) return;
     _look = v;
@@ -998,6 +1003,7 @@ class RenderFinishPaint extends RenderBox {
     markNeedsPaint();
   }
 
+  BorderRadius get corners => _corners;
   set corners(BorderRadius v) {
     if (v == _corners) return;
     _corners = v;
@@ -1079,6 +1085,9 @@ class RenderFinishPaint extends RenderBox {
       case FinishPart.seam:
         FinishPaintCount.seams++;
         _paintSeam(c);
+      case FinishPart.stitches:
+        FinishPaintCount.seams++;
+        _stitches(c, _corners.toRRect(Offset.zero & size));
     }
     c.restore();
   }

@@ -50,7 +50,7 @@ extension SettingsSearchViews on HomeState {
         ),
       (
         'Appearance',
-        'theme finish material texture glass brick wood walnut oak leather marble carbon denim plastic density compact comfortable spacious dividers contrast motion picker feedback sound haptics',
+        'theme finish material texture flat cashmere denim leather glass wood walnut oak plastic console carbon marble brick density compact comfortable spacious dividers contrast motion picker feedback sound haptics',
         Icons.palette_outlined,
         openAppearance,
       ),

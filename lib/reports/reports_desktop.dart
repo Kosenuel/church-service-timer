@@ -119,8 +119,13 @@ extension ReportsDesktop on HomeState {
               ),
             ),
           ),
-          VerticalDivider(width: 1, thickness: 1, color: colors.border),
-          Expanded(child: main),
+          finishRule(
+            context,
+            VerticalDivider(width: 1, thickness: 1, color: colors.border),
+          ),
+          // The report sits on a panel of the finish, like Live's cards,
+          // not on the bare wall (a report draws its own panes).
+          Expanded(child: shown == null ? FinishPane(child: main) : main),
         ],
       ),
     );
@@ -409,13 +414,17 @@ class _ReportDesktopDetailState extends State<ReportDesktopDetail> {
             ),
           ),
         );
-        if (!aside) return timings;
+        // With a finish the timings are a panel, beside the notes' own.
+        if (!aside) return FinishPane(child: timings);
         return Row(
           key: const ValueKey('report-detail-pane'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: timings),
-            VerticalDivider(width: 1, thickness: 1, color: colors.border),
+            Expanded(child: FinishPane(child: timings)),
+            finishRule(
+              context,
+              VerticalDivider(width: 1, thickness: 1, color: colors.border),
+            ),
             SizedBox(
               width: asideWidth,
               child: FinishPane(
