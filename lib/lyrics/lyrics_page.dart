@@ -11,6 +11,7 @@ import 'package:church_service_timer/lyrics/lyric_stage.dart';
 import 'package:church_service_timer/lyrics/ready_tray.dart';
 import 'package:church_service_timer/lyrics/scripture_search.dart';
 import 'package:church_service_timer/lyrics/scripture_search_ui.dart';
+import 'package:church_service_timer/lyrics/slides_parts.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/finish.dart';
@@ -75,6 +76,9 @@ extension LyricsPageViews on HomeState {
     );
     if (action == null ||
         typingInField ||
+        // Space opens and closes a row that folds open, as Enter does.
+        (event.logicalKey == LogicalKeyboardKey.space &&
+            slidesFoldHasFocus()) ||
         controlsLocked ||
         !c.pairing.localControl ||
         ModalRoute.of(context)?.isCurrent != true) {
@@ -178,9 +182,37 @@ class LyricsPanel extends StatefulWidget {
   State<LyricsPanel> createState() => _LyricsPanelState();
 }
 
-class _LyricsPanelState extends State<LyricsPanel> {
+class _LyricsPanelState extends State<LyricsPanel>
+    with SingleTickerProviderStateMixin {
   AppController get c => widget.controller;
   final _search = TextEditingController();
+
+  /// The Library's tabs, in the order they show.
+  static const _tabs = ['song', 'scripture', 'announcement', 'all'];
+  static const _tabNames = {
+    'song': 'Songs',
+    'scripture': 'Bible verses',
+    'announcement': 'Announcements',
+    'all': 'All',
+  };
+
+  /// Which Library tab shows and which rows are open. Read from this
+  /// device's saved state when the page opens and saved on each change,
+  /// but used from here, so a tap shows at once even while a save is
+  /// under way.
+  late final TabController _tab = TabController(
+    length: _tabs.length,
+    vsync: this,
+    initialIndex: math.max(0, _tabs.indexOf(c.state.slidesTab)),
+  )..addListener(_tabChanged);
+  late final Set<String> _open = {...c.state.slidesOpen};
+
+  /// The Screens row's choices, open until closed again; not remembered.
+  bool _screensOpen = false;
+
+  /// The background group shown in the picker; at first the current
+  /// background's.
+  String? _bgGroup;
 
   /// The box also searches the Bible; see scripture_search.dart.
   late final _bible = ScriptureSearchController(c);
@@ -199,8 +231,34 @@ class _LyricsPanelState extends State<LyricsPanel> {
     _bible.prepare();
   }
 
+  String get _kind => _tabs[_tab.index];
+
+  void _tabChanged() {
+    if (_tab.indexIsChanging) return;
+    setState(() {});
+    final kind = _kind;
+    unawaited(_remember((d) => d.slidesTab = kind));
+  }
+
+  void _toggle(String row) {
+    setState(() => _open.contains(row) ? _open.remove(row) : _open.add(row));
+    final open = {..._open};
+    unawaited(_remember((d) => d.slidesOpen = open));
+  }
+
+  /// Saves a choice kept on this device only, after any save already under
+  /// way, as [LyricsController] does, so a quick tap is not lost.
+  Future<void> _remember(void Function(AppState draft) change) async {
+    for (var i = 0; i < 50 && c.busy; i++) {
+      await (c.pendingWrite ??
+          Future<void>.delayed(const Duration(milliseconds: 20)));
+    }
+    await c.commit((draft, _) => change(draft));
+  }
+
   @override
   void dispose() {
+    _tab.dispose();
     _bible.dispose();
     _search.dispose();
     _focus.dispose();
@@ -213,6 +271,9 @@ class _LyricsPanelState extends State<LyricsPanel> {
         focus != null &&
         (focus.widget is EditableText ||
             focus.findAncestorWidgetOfExactType<EditableText>() != null);
+    if (event.logicalKey == LogicalKeyboardKey.space && slidesFoldHasFocus()) {
+      return KeyEventResult.ignored;
+    }
     return !typing &&
             lyricsKeyFor(
                   event.logicalKey,
@@ -314,6 +375,29 @@ class _LyricsPanelState extends State<LyricsPanel> {
     ),
   );
 
+  /// The Library: the search box, the tabs and the list scroll; the Add
+  /// row stays along the bottom of the card.
+  Widget _libraryColumn() => AppPanel(
+    padding: EdgeInsets.zero,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: ListView(
+            key: const ValueKey('lyrics-column-stored'),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            children: [_label('Library'), ..._stored()],
+          ),
+        ),
+        const SlidesHairline(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          child: _addRow(),
+        ),
+      ],
+    ),
+  );
+
   Widget _wide(BoxConstraints space) {
     _bible.openSheet = null;
     return _wideLayout(space);
@@ -325,9 +409,10 @@ class _LyricsPanelState extends State<LyricsPanel> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          // Wider while searching, so verses read on a few lines.
-          width: _bible.active ? 400 : 280,
-          child: _column('stored', [_label('Library'), ..._stored()]),
+          // Wider while searching, so verses read on a few lines; wide
+          // enough for the four tabs and the Add row by their full names.
+          width: _bible.active ? 400 : 328,
+          child: _libraryColumn(),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -336,7 +421,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
             ReadyTrayPanel(controller: c, enabled: enabled, bare: true),
             const SizedBox(height: 20),
             _slidesHeader(),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _slides(columns: null),
             _tip(),
           ]),
@@ -348,8 +433,11 @@ class _LyricsPanelState extends State<LyricsPanel> {
             _label('On the screens now'),
             _preview(),
             _status(),
+            const SlidesHairline(),
+            const SizedBox(height: 12),
             _controls(),
-            ..._look(),
+            const SizedBox(height: 12),
+            ..._rows(),
           ]),
         ),
       ],
@@ -410,21 +498,13 @@ class _LyricsPanelState extends State<LyricsPanel> {
               ),
               const SizedBox(height: 12),
               AppPanel(
-                child: ExpansionTile(
-                  key: const ValueKey('lyrics-look'),
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: EdgeInsets.zero,
-                  expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
-                  title: Text(
-                    'Screens and look',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  subtitle: Text(
-                    _sendToSummary(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  children: _look(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _rows(first: true),
                 ),
               ),
             ],
@@ -442,10 +522,19 @@ class _LyricsPanelState extends State<LyricsPanel> {
     child: Text(text.toUpperCase(), style: sectionLabelStyle(context)),
   );
 
-  List<LyricItem> get _found => [
-    for (final i in c.lyrics.library.ordered)
-      if (i.matches(_search.text)) i,
-  ];
+  /// What the list shows: the tab's kind, or, while searching, whatever
+  /// matches whatever its kind, so a search never misses a thing because
+  /// another tab was open.
+  List<LyricItem> get _found {
+    final searching = _search.text.trim().isNotEmpty;
+    return [
+      for (final i in c.lyrics.library.ordered)
+        if (searching
+            ? i.matches(_search.text)
+            : _kind == 'all' || i.kind == _kind)
+          i,
+    ];
+  }
 
   List<LyricItem> _libraryFor(String q) => [
     for (final i in c.lyrics.library.ordered)
@@ -539,50 +628,146 @@ class _LyricsPanelState extends State<LyricsPanel> {
         ),
       ];
     }
+    final searching = _search.text.trim().isNotEmpty;
     return [
       field,
-      const SizedBox(height: 10),
-      if (c.lyrics.library.isEmpty)
+      if (!searching) _libraryTabs() else const SizedBox(height: 10),
+      if (found.isEmpty)
         Padding(
+          key: const ValueKey('lyrics-library-empty'),
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Text(
-            'Nothing stored yet. Add a song, Bible verses or an announcement; they stay here for every service.',
-            style: TextStyle(color: colors.muted),
-          ),
-        )
-      else if (found.isEmpty)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(
-            'Nothing matches “${_search.text.trim()}”.',
+            searching
+                ? 'Nothing matches “${_search.text.trim()}”.'
+                : _emptyTab(),
             style: TextStyle(color: colors.muted),
           ),
         ),
       for (final item in found)
         _storedRow(item, item.id == current?.id, picked: picked),
-      const SizedBox(height: 10),
-      FilledButton.tonalIcon(
-        key: const ValueKey('lyrics-add-song'),
-        onPressed: enabled ? () => _edit() : null,
-        icon: const Icon(Icons.add, size: 20),
-        label: const Text('Add a song'),
-      ),
-      const SizedBox(height: 8),
-      OutlinedButton.icon(
-        key: const ValueKey('lyrics-add-scripture'),
-        onPressed: enabled ? () => _edit(null, 'scripture') : null,
-        icon: const Icon(Icons.menu_book_outlined, size: 20),
-        label: const Text('Add Bible verses'),
-      ),
-      const SizedBox(height: 8),
-      OutlinedButton.icon(
-        key: const ValueKey('lyrics-add-announcement'),
-        onPressed: enabled ? () => _edit(null, 'announcement') : null,
-        icon: const Icon(Icons.campaign_outlined, size: 20),
-        label: const Text('Add an announcement'),
-      ),
     ];
   }
+
+  /// What an empty tab says: what goes there and how to add one.
+  String _emptyTab() {
+    if (c.lyrics.library.isEmpty) {
+      return switch (_kind) {
+        'song' =>
+          'No songs yet. Add one with + Song; it stays here for every service.',
+        'scripture' =>
+          'No Bible verses saved yet. Search the Bible above, or add a passage with + Bible verses.',
+        'announcement' => 'No announcements yet. Add one with + Announcement.',
+        _ =>
+          'Nothing stored yet. Add a song, Bible verses or an announcement; they stay here for every service.',
+      };
+    }
+    return switch (_kind) {
+      'song' => 'No songs yet. Add one with + Song.',
+      'scripture' =>
+        'No Bible verses saved yet. Search the Bible above, or add a passage with + Bible verses.',
+      _ => 'No announcements yet. Add one with + Announcement.',
+    };
+  }
+
+  /// Songs, Bible verses, Announcements and All, by their full names.
+  /// Where they do not all fit (a phone, large text) the row scrolls
+  /// sideways and keeps the chosen tab in view.
+  Widget _libraryTabs() {
+    final colors = appColors(context);
+    const style = TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      fontFamily: appFontFamily,
+    );
+    final scaler = MediaQuery.textScalerOf(context);
+    return LayoutBuilder(
+      builder: (context, space) {
+        var words = 0.0;
+        for (final t in _tabs) {
+          final p = TextPainter(
+            text: TextSpan(text: _tabNames[t], style: style),
+            textDirection: Directionality.of(context),
+            textScaler: scaler,
+            maxLines: 1,
+          )..layout();
+          words += p.width + 1;
+          p.dispose();
+        }
+        // The space left over, shared out round the names so the tabs
+        // fill the row; too little, and the row scrolls instead.
+        final share = (space.maxWidth - words) / (_tabs.length * 2);
+        final pad = share >= 5 ? math.min(share.floorToDouble(), 16.0) : 10.0;
+        return _tabBar(colors, pad);
+      },
+    );
+  }
+
+  Widget _tabBar(AppPalette colors, double pad) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: colors.border)),
+        ),
+        child: TabBar(
+          key: const ValueKey('lyrics-tabs'),
+          controller: _tab,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          dividerHeight: 0,
+          labelPadding: EdgeInsets.symmetric(horizontal: pad),
+          padding: EdgeInsets.zero,
+          labelColor: colors.text,
+          unselectedLabelColor: colors.muted,
+          indicatorColor: colors.accent,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+          tabs: [
+            for (final t in _tabs)
+              Tab(
+                key: ValueKey('lyrics-tab-$t'),
+                height: 40,
+                child: Text(_tabNames[t]!, maxLines: 1, softWrap: false),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// + Song, + Bible verses and + Announcement in one quiet row.
+  Widget _addRow() => SlidesAddRow(
+    buttons: [
+      SlidesAdd(
+        'lyrics-add-song',
+        '+ Song',
+        '+ Song',
+        'Add a song',
+        enabled ? () => _edit() : null,
+      ),
+      SlidesAdd(
+        'lyrics-add-scripture',
+        '+ Bible verses',
+        '+ Verses',
+        'Add Bible verses',
+        enabled ? () => _edit(null, 'scripture') : null,
+      ),
+      SlidesAdd(
+        'lyrics-add-announcement',
+        '+ Announcement',
+        '+ Notice',
+        'Add an announcement',
+        enabled ? () => _edit(null, 'announcement') : null,
+      ),
+    ],
+  );
 
   Widget _storedRow(LyricItem item, bool chosen, {VoidCallback? picked}) {
     final colors = appColors(context);
@@ -691,8 +876,11 @@ class _LyricsPanelState extends State<LyricsPanel> {
             padding: EdgeInsets.only(
               bottom: MediaQuery.viewInsetsOf(sheet).bottom,
             ),
-            child: StatefulBuilder(
-              builder: (sheet, update) => ConstrainedBox(
+            // Built again as the search, the tab or the library changes:
+            // the sheet is not rebuilt with the page.
+            child: ListenableBuilder(
+              listenable: Listenable.merge([c, _search, _tab]),
+              builder: (sheet, _) => ConstrainedBox(
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.sizeOf(sheet).height * .85,
                 ),
@@ -701,10 +889,9 @@ class _LyricsPanelState extends State<LyricsPanel> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   children: [
                     _label('Library'),
-                    ...(() {
-                      // The sheet keeps its own search in step with the page.
-                      return _stored(picked: () => Navigator.pop(sheet));
-                    })(),
+                    ..._stored(picked: () => Navigator.pop(sheet)),
+                    const SizedBox(height: 12),
+                    _addRow(),
                   ],
                 ),
               ),
@@ -748,25 +935,42 @@ class _LyricsPanelState extends State<LyricsPanel> {
 
   // ---- Slides ------------------------------------------------------------------
 
+  /// The chosen item's title, with its line from the list under it.
   Widget _slidesHeader() {
     final item = selected;
+    if (item == null) return _label('Slides');
+    final colors = appColors(context);
     return Row(
       children: [
         Expanded(
-          child: Text(
-            (item?.title ?? 'Slides').toUpperCase(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: sectionLabelStyle(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.title,
+                key: const ValueKey('lyrics-slides-title'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: colors.text,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                item.summary,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: colors.muted),
+              ),
+            ],
           ),
         ),
-        if (item != null)
-          TextButton.icon(
-            key: const ValueKey('lyrics-edit-selected'),
-            onPressed: enabled ? () => _edit(item) : null,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Edit'),
-          ),
+        TextButton.icon(
+          key: const ValueKey('lyrics-edit-selected'),
+          onPressed: enabled ? () => _edit(item) : null,
+          icon: const Icon(Icons.edit_outlined, size: 18),
+          label: const Text('Edit'),
+        ),
       ],
     );
   }
@@ -821,15 +1025,17 @@ class _LyricsPanelState extends State<LyricsPanel> {
     );
   }
 
+  /// One quiet line under the slides: the keys on a computer, how to use
+  /// the slides on a touch screen.
   Widget _tip() => Padding(
-    padding: const EdgeInsets.only(top: 10),
-    child: Text(
-      widget.desktop
-          ? 'Click a slide to show it. Right arrow or Space next, Left arrow previous, Esc clear slide, B black. The dashed slide is next.'
-          : 'Tap a slide to show it. The dashed slide is next.',
-      key: const ValueKey('lyrics-tip'),
-      style: TextStyle(fontSize: 12, color: appColors(context).muted),
-    ),
+    padding: const EdgeInsets.only(top: 12),
+    child: widget.desktop
+        ? const SlidesKeysLine()
+        : Text(
+            'Tap a slide to show it. The dashed slide is next.',
+            key: const ValueKey('lyrics-tip'),
+            style: TextStyle(fontSize: 12, color: appColors(context).muted),
+          ),
   );
 
   // ---- On the screens now ------------------------------------------------------------
@@ -862,48 +1068,59 @@ class _LyricsPanelState extends State<LyricsPanel> {
     );
   }
 
-  String _targets() {
-    final l = c.lyrics;
-    final names = [
-      if (l.look.toSecond) widget.desktop ? 'second screen' : 'full screen',
-      if (l.look.toWeb) 'web screens',
-      if (l.look.toStage) 'stage screens',
+  /// The screens the slides go to, as the Screens row lists them.
+  List<String> _targetNames() {
+    final look = c.lyrics.look;
+    return [
+      if (look.toSecond) widget.desktop ? 'Second screen' : 'Full screen',
+      if (look.toWeb) 'Web screens',
+      if (look.toStage) 'Stage screens',
     ];
-    return names.isEmpty
-        ? 'no screens: tick one under Send to'
-        : names.join(', ');
   }
 
-  String _sendToSummary() => 'Sends to ${_targets()}';
-
+  /// One line, never wrapped: what is on the screens and where in it.
   Widget _status() {
     final l = c.lyrics, colors = appColors(context);
     final on = l.showing;
+    final item = l.item, index = l.index;
+    final where = item != null && index != null && item.slides.length > 1
+        ? ' · ${index + 1} of ${item.slides.length}'
+        : '';
+    final nowhere = on && _targetNames().isEmpty ? ' · on no screen' : '';
     final text = l.black
-        ? 'Black on ${_targets()}'
+        ? 'Black on the screens$nowhere'
         : on
-        ? '${l.statusLine} · on ${_targets()}'
+        ? '${l.statusLine}$where$nowhere'
         : c.state.session.active
         ? 'Showing the countdown'
         : 'No slide on the screens';
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 9,
-            height: 9,
+            width: 8,
+            height: 8,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: on ? colors.error : colors.muted,
+              color: on && !l.black ? colors.error : colors.muted,
+              boxShadow: on && !l.black
+                  ? [
+                      BoxShadow(
+                        color: colors.error.withValues(alpha: .25),
+                        spreadRadius: 3,
+                      ),
+                    ]
+                  : null,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
               key: const ValueKey('lyrics-status'),
-              maxLines: 2,
+              maxLines: 1,
+              softWrap: false,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -912,137 +1129,40 @@ class _LyricsPanelState extends State<LyricsPanel> {
     );
   }
 
-  Widget _keyed(String text, String key) => widget.keyHints
-      ? Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(child: Text(text, overflow: TextOverflow.ellipsis)),
-            const SizedBox(width: 8),
-            // Roboto has no arrows; the key is drawn as one.
-            switch (key) {
-              '→' => const _ArrowHint(Icons.arrow_forward),
-              '←' => const _ArrowHint(Icons.arrow_back),
-              _ => KeyHint(key),
-            },
-          ],
-        )
-      : Text(text, overflow: TextOverflow.ellipsis);
-
   void _previous() => c.lyrics.previous(selected: c.lyrics.selectedId);
   void _next() => c.lyrics.next(selected: c.lyrics.selectedId);
 
+  /// Previous, Next, Clear and Black, in one row.
   Widget _controls() {
     final l = c.lyrics;
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        OutlinedButton(
-          key: const ValueKey('lyrics-previous'),
-          onPressed: enabled ? _previous : null,
-          child: _keyed('Previous', '←'),
-        ),
-        FilledButton(
-          key: const ValueKey('lyrics-next'),
-          onPressed: enabled ? _next : null,
-          child: _keyed('Next', '→'),
-        ),
-        OutlinedButton(
-          key: const ValueKey('lyrics-clear'),
-          onPressed: enabled && l.showing ? l.clear : null,
-          child: _keyed('Clear slide', 'Esc'),
-        ),
-        l.black
-            ? FilledButton(
-                key: const ValueKey('lyrics-black'),
-                onPressed: enabled ? l.toggleBlack : null,
-                child: _keyed('Black', 'B'),
-              )
-            : OutlinedButton(
-                key: const ValueKey('lyrics-black'),
-                onPressed: enabled ? l.toggleBlack : null,
-                child: _keyed('Black', 'B'),
-              ),
-      ],
+    return SlidesTransport(
+      enabled: enabled,
+      showing: l.showing,
+      black: l.black,
+      keyHints: widget.keyHints,
+      onPrevious: _previous,
+      onNext: _next,
+      onClear: l.clear,
+      onBlack: l.toggleBlack,
     );
   }
 
   /// On a narrow screen, the four controls along the bottom, under the
   /// thumb.
   Widget _bar() {
-    final l = c.lyrics, colors = appColors(context);
-    Widget cell(Widget child, {int flex = 1}) => Expanded(
-      flex: flex,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3),
-        child: child,
-      ),
-    );
-    const pad = EdgeInsets.symmetric(horizontal: 4, vertical: 12);
-    Text word(String text) => Text(
-      text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      textAlign: TextAlign.center,
-    );
+    final colors = appColors(context);
     final finish = finishLook(context).active;
     final bar = Material(
       color: finish ? Colors.transparent : colors.surface,
       child: Container(
+        key: const ValueKey('lyrics-bar'),
         decoration: finish
             ? null
             : BoxDecoration(
                 border: Border(top: BorderSide(color: colors.border)),
               ),
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-        child: Row(
-          key: const ValueKey('lyrics-bar'),
-          children: [
-            cell(
-              OutlinedButton(
-                key: const ValueKey('lyrics-previous'),
-                style: OutlinedButton.styleFrom(padding: pad),
-                onPressed: enabled ? _previous : null,
-                child: const Icon(
-                  Icons.chevron_left,
-                  semanticLabel: 'Previous',
-                ),
-              ),
-            ),
-            cell(
-              FilledButton(
-                key: const ValueKey('lyrics-next'),
-                style: FilledButton.styleFrom(padding: pad),
-                onPressed: enabled ? _next : null,
-                child: word('Next'),
-              ),
-              flex: 2,
-            ),
-            cell(
-              OutlinedButton(
-                key: const ValueKey('lyrics-clear'),
-                style: OutlinedButton.styleFrom(padding: pad),
-                onPressed: enabled && l.showing ? l.clear : null,
-                child: word('Clear'),
-              ),
-            ),
-            cell(
-              l.black
-                  ? FilledButton(
-                      key: const ValueKey('lyrics-black'),
-                      style: FilledButton.styleFrom(padding: pad),
-                      onPressed: enabled ? l.toggleBlack : null,
-                      child: word('Black'),
-                    )
-                  : OutlinedButton(
-                      key: const ValueKey('lyrics-black'),
-                      style: OutlinedButton.styleFrom(padding: pad),
-                      onPressed: enabled ? l.toggleBlack : null,
-                      child: word('Black'),
-                    ),
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: _controls(),
       ),
     );
     // On a finish the bar is a plate of the material across the window.
@@ -1053,70 +1173,32 @@ class _LyricsPanelState extends State<LyricsPanel> {
 
   void _setLook(LyricsLook next) => unawaited(c.lyrics.setLook(next));
 
-  List<Widget> _look() {
+  /// Screens, Background and Look: one row each, with a hairline
+  /// between, each opening in place. Background and Look are closed to
+  /// begin with and stay as this device left them.
+  List<Widget> _rows({bool first = false}) {
     final l = c.lyrics, look = l.look, colors = appColors(context);
     final muted = TextStyle(fontSize: 12, color: colors.muted);
-    Widget tick(
-      String key,
-      String name,
-      bool on,
-      LyricsLook Function(bool v) change,
-    ) => FilterChip(
-      key: ValueKey('lyrics-send-$key'),
-      label: Text(name),
-      selected: on,
-      onSelected: enabled ? (v) => _setLook(change(v)) : null,
-    );
     final second = c.secondScreen;
     final secondShut =
         widget.desktop && second != null && look.toSecond && !second.host.open;
-    final custom = look.background.startsWith('custom:');
-    final dim = _dimming ?? look.dim.toDouble();
+    final names = _targetNames();
     return [
-      const SizedBox(height: 16),
-      _label('Send to'),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          tick(
-            'second',
-            widget.desktop ? 'Second screen' : 'Full screen',
-            look.toSecond,
-            (v) => look.copyWith(toSecond: v),
-          ),
-          tick(
-            'web',
-            'Web screens',
-            look.toWeb,
-            (v) => look.copyWith(toWeb: v),
-          ),
-          tick(
-            'stage',
-            'Stage screens',
-            look.toStage,
-            (v) => look.copyWith(toStage: v),
-          ),
-        ],
+      if (!first) const SlidesHairline(),
+      SlidesFold(
+        key: const ValueKey('lyrics-screens-row'),
+        name: 'Screens',
+        value: names.isEmpty ? 'None chosen' : names.join(' · '),
+        valueColor: names.isEmpty ? colors.warning : null,
+        action: 'Change',
+        open: _screensOpen,
+        onToggle: () => setState(() => _screensOpen = !_screensOpen),
+        body: _sendTo(muted),
       ),
-      const SizedBox(height: 6),
-      Text(
-        [
-          look.toStage
-              ? 'Stage screens show the slide in place of the speaker’s countdown.'
-              : 'Stage screens keep the speaker’s countdown.',
-          if (look.toSecond)
-            widget.desktop
-                ? 'Full screen and the stage simulator follow the second screen.'
-                : 'Full screen and the stage simulator show the slide.',
-          'The LED sign never shows slides.',
-        ].join(' '),
-        key: const ValueKey('lyrics-send-note'),
-        style: muted,
-      ),
+      // Said even with the row closed: the slides are not being seen.
       if (secondShut)
         Padding(
-          padding: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
           child: Wrap(
             spacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -1131,205 +1213,313 @@ class _LyricsPanelState extends State<LyricsPanel> {
             ],
           ),
         ),
-      const SizedBox(height: 16),
-      _label('Background'),
-      LayoutBuilder(
-        builder: (context, space) {
-          final count = math.max(3, (space.maxWidth / 96).floor());
-          const gap = 8.0;
-          final width = (space.maxWidth - gap * (count - 1)) / count;
-          Widget tile(String id, String name) => SizedBox(
-            width: width,
-            child: LyricBackgroundTile(
-              key: ValueKey('lyrics-bg-$id'),
-              id: id,
-              name: name,
-              selected: look.background == id,
-              onTap: enabled
-                  ? () => _setLook(look.copyWith(background: id))
-                  : null,
+      const SlidesHairline(),
+      SlidesFold(
+        key: const ValueKey('lyrics-background-row'),
+        name: 'Background',
+        value: lyricBackgroundName(look.background),
+        swatch: LyricBackgroundSwatch(
+          key: const ValueKey('lyrics-bg-swatch'),
+          thumb: LyricBackgroundTile.thumb(look.background),
+        ),
+        open: _open.contains('background'),
+        onToggle: () => _toggle('background'),
+        body: _backgrounds(muted),
+      ),
+      const SlidesHairline(),
+      SlidesFold(
+        key: const ValueKey('lyrics-look'),
+        name: 'Look',
+        value: lyricLookSummary(look),
+        open: _open.contains('look'),
+        onToggle: () => _toggle('look'),
+        body: _lookControls(muted),
+      ),
+    ];
+  }
+
+  /// The Screens row's choices: where the slides go, and what each
+  /// screen does with them.
+  Widget _sendTo(TextStyle muted) {
+    final look = c.lyrics.look;
+    Widget tick(
+      String key,
+      String name,
+      bool on,
+      LyricsLook Function(bool v) change,
+    ) => FilterChip(
+      key: ValueKey('lyrics-send-$key'),
+      label: Text(name),
+      selected: on,
+      onSelected: enabled ? (v) => _setLook(change(v)) : null,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            tick(
+              'second',
+              widget.desktop ? 'Second screen' : 'Full screen',
+              look.toSecond,
+              (v) => look.copyWith(toSecond: v),
             ),
-          );
-          // Grouped, so 35 backgrounds stay easy to scan.
-          Widget group(String name, List<Widget> tiles) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    name,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colors.muted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Wrap(spacing: gap, runSpacing: gap, children: tiles),
-              ],
+            tick(
+              'web',
+              'Web screens',
+              look.toWeb,
+              (v) => look.copyWith(toWeb: v),
             ),
-          );
-          return Column(
-            key: const ValueKey('lyrics-backgrounds'),
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              group('Designs', [
-                for (final e in lyricDrawnBackgrounds.entries)
-                  tile(e.key, e.value),
-              ]),
-              group('Nature', [
-                for (final p in lyricPhotos)
-                  if (p.kind == 'nature') tile('photo:${p.id}', p.title),
-              ]),
-              group('People', [
-                for (final p in lyricPhotos)
-                  if (p.kind == 'people') tile('photo:${p.id}', p.title),
-              ]),
-              group('Your picture', [
-                if (custom && l.pictureBytes != null)
-                  tile(look.background, 'Your picture'),
-                SizedBox(
-                  width: width,
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: OutlinedButton(
-                      key: const ValueKey('lyrics-bg-own'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.all(4),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+            tick(
+              'stage',
+              'Stage screens',
+              look.toStage,
+              (v) => look.copyWith(toStage: v),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          [
+            look.toStage
+                ? 'Stage screens show the slide in place of the speaker’s countdown.'
+                : 'Stage screens keep the speaker’s countdown.',
+            if (look.toSecond)
+              widget.desktop
+                  ? 'Full screen and the stage simulator follow the second screen.'
+                  : 'Full screen and the stage simulator show the slide.',
+            'The LED sign never shows slides.',
+          ].join(' '),
+          key: const ValueKey('lyrics-send-note'),
+          style: muted,
+        ),
+      ],
+    );
+  }
+
+  /// The background picker: a chip for each group, then its pictures.
+  Widget _backgrounds(TextStyle muted) {
+    final l = c.lyrics, look = l.look;
+    final custom = look.background.startsWith('custom:');
+    final group = _bgGroup ?? lyricBackgroundGroup(look.background);
+    const groups = {
+      'designs': 'Designs',
+      'nature': 'Nature',
+      'people': 'People',
+      'yours': 'Your picture',
+    };
+    return Column(
+      key: const ValueKey('lyrics-backgrounds'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final g in groups.entries)
+              ChoiceChip(
+                key: ValueKey('lyrics-bg-group-${g.key}'),
+                label: Text(g.value),
+                selected: group == g.key,
+                showCheckmark: false,
+                visualDensity: VisualDensity.compact,
+                onSelected: (_) => setState(() => _bgGroup = g.key),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        LayoutBuilder(
+          builder: (context, space) {
+            final count = math.max(3, (space.maxWidth / 96).floor());
+            const gap = 8.0;
+            final width = (space.maxWidth - gap * (count - 1)) / count;
+            Widget tile(String id, String name) => SizedBox(
+              width: width,
+              child: LyricBackgroundTile(
+                key: ValueKey('lyrics-bg-$id'),
+                id: id,
+                name: name,
+                selected: look.background == id,
+                onTap: enabled
+                    ? () => _setLook(look.copyWith(background: id))
+                    : null,
+              ),
+            );
+            return Wrap(
+              key: ValueKey('lyrics-bg-tiles-$group'),
+              spacing: gap,
+              runSpacing: gap,
+              children: switch (group) {
+                'nature' || 'people' => [
+                  for (final p in lyricPhotos)
+                    if (p.kind == group) tile('photo:${p.id}', p.title),
+                ],
+                'yours' => [
+                  if (custom && l.pictureBytes != null)
+                    tile(look.background, 'Your picture'),
+                  SizedBox(
+                    width: width,
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: OutlinedButton(
+                        key: const ValueKey('lyrics-bg-own'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.all(4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
+                        onPressed: enabled ? _pickPicture : null,
+                        child: const FittedBox(child: Text('+ Your picture')),
                       ),
-                      onPressed: enabled ? _pickPicture : null,
-                      child: const FittedBox(child: Text('+ Your picture')),
                     ),
                   ),
-                ),
-              ]),
-            ],
-          );
-        },
-      ),
-      const SizedBox(height: 6),
-      Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 4,
-        children: [
-          Text(
-            custom
-                ? 'Your picture shows on the second screen, full screen and web screens. Stage screens show Midnight instead.'
-                : 'Photos are public domain or CC0, from Wikimedia Commons.',
-            key: const ValueKey('lyrics-bg-note'),
-            style: muted,
-          ),
-          TextButton(
-            key: const ValueKey('lyrics-photo-credits'),
-            onPressed: () => showLyricPhotoCredits(context),
-            child: const Text('Photo credits'),
-          ),
-        ],
-      ),
-      const SizedBox(height: 12),
-      _label('Dim'),
-      Row(
-        children: [
-          Expanded(
-            child: Slider(
-              key: const ValueKey('lyrics-dim'),
-              value: look.darkInk ? 0 : dim,
-              min: 0,
-              max: 90,
-              divisions: 18,
-              label: '${dim.round()}%',
-              onChanged: enabled && !look.darkInk
-                  ? (v) => setState(() => _dimming = v)
-                  : null,
-              onChangeEnd: enabled && !look.darkInk
-                  ? (v) {
-                      _dimming = null;
-                      _setLook(look.copyWith(dim: v.round()));
-                    }
-                  : null,
+                ],
+                _ => [
+                  for (final e in lyricDrawnBackgrounds.entries)
+                    tile(e.key, e.value),
+                ],
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 4,
+          children: [
+            Text(
+              custom
+                  ? 'Your picture shows on the second screen, full screen and web screens. Stage screens show Midnight instead.'
+                  : 'Photos are public domain or CC0, from Wikimedia Commons.',
+              key: const ValueKey('lyrics-bg-note'),
+              style: muted,
             ),
-          ),
-          SizedBox(
-            width: 48,
-            child: Text(
-              look.darkInk ? '—' : '${dim.round()}%',
-              textAlign: TextAlign.right,
+            TextButton(
+              key: const ValueKey('lyrics-photo-credits'),
+              onPressed: () => showLyricPhotoCredits(context),
+              child: const Text('Photo credits'),
             ),
-          ),
-        ],
-      ),
-      if (look.darkInk)
-        Text('Linen has dark words and is never dimmed.', style: muted),
-      const SizedBox(height: 12),
-      Wrap(
-        spacing: 16,
-        runSpacing: 12,
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// The Look row's controls: Dim, text size, alignment, motion and the
+  /// countdown in the corner, one to a line, the name on the left.
+  Widget _lookControls(TextStyle muted) {
+    final look = c.lyrics.look;
+    final dim = _dimming ?? look.dim.toDouble();
+    Widget option(String name, Widget control) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          _segments('size', 'Text', look.size, const {
+        spacing: 12,
+        runSpacing: 4,
+        children: [Text(name), control],
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Text('Dim'),
+            Expanded(
+              child: Slider(
+                key: const ValueKey('lyrics-dim'),
+                value: look.darkInk ? 0 : dim,
+                min: 0,
+                max: 90,
+                divisions: 18,
+                label: '${dim.round()}%',
+                semanticFormatterCallback: (v) => '${v.round()}%',
+                onChanged: enabled && !look.darkInk
+                    ? (v) => setState(() => _dimming = v)
+                    : null,
+                onChangeEnd: enabled && !look.darkInk
+                    ? (v) {
+                        _dimming = null;
+                        _setLook(look.copyWith(dim: v.round()));
+                      }
+                    : null,
+              ),
+            ),
+            SizedBox(
+              width: 48,
+              child: Text(
+                look.darkInk ? '—' : '${dim.round()}%',
+                textAlign: TextAlign.right,
+              ),
+            ),
+          ],
+        ),
+        if (look.darkInk)
+          Text('Linen has dark words and is never dimmed.', style: muted),
+        option(
+          'Text size',
+          _segments('size', look.size, const {
             's': 'S',
             'm': 'M',
             'l': 'L',
           }, (v) => look.copyWith(size: v)),
-          _segments('align', null, look.align, const {
+        ),
+        option(
+          'Align',
+          _segments('align', look.align, const {
             'center': 'Centre',
             'left': 'Left',
           }, (v) => look.copyWith(align: v)),
-          _segments('motion', 'Motion', look.motion, const {
+        ),
+        option(
+          'Motion',
+          _segments('motion', look.motion, const {
             'still': 'Still',
             'gentle': 'Gentle',
           }, (v) => look.copyWith(motion: v)),
-          FilterChip(
-            key: const ValueKey('lyrics-chip-toggle'),
-            label: const Text('Countdown in the corner'),
-            selected: look.chip,
-            onSelected: enabled
-                ? (v) => _setLook(look.copyWith(chip: v))
-                : null,
+        ),
+        MergeSemantics(
+          child: Row(
+            children: [
+              const Expanded(child: Text('Countdown in the corner')),
+              Switch(
+                key: const ValueKey('lyrics-chip-toggle'),
+                value: look.chip,
+                onChanged: enabled
+                    ? (v) => _setLook(look.copyWith(chip: v))
+                    : null,
+              ),
+            ],
           ),
-        ],
-      ),
-      if (look.chip)
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Text(
+        ),
+        if (look.chip)
+          Text(
             'A small countdown stays on the slide while a service runs.',
             style: muted,
           ),
-        ),
-    ];
+      ],
+    );
   }
 
   Widget _segments(
     String key,
-    String? name,
     String value,
     Map<String, String> options,
     LyricsLook Function(String v) change,
-  ) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      if (name != null) ...[
-        Text(name, style: TextStyle(color: appColors(context).muted)),
-        const SizedBox(width: 8),
-      ],
-      SegmentedButton<String>(
-        key: ValueKey('lyrics-$key'),
-        showSelectedIcon: false,
-        style: const ButtonStyle(visualDensity: VisualDensity.compact),
-        segments: [
-          for (final e in options.entries)
-            ButtonSegment(value: e.key, label: Text(e.value)),
-        ],
-        selected: {value},
-        onSelectionChanged: enabled ? (v) => _setLook(change(v.single)) : null,
-      ),
+  ) => SegmentedButton<String>(
+    key: ValueKey('lyrics-$key'),
+    showSelectedIcon: false,
+    style: const ButtonStyle(visualDensity: VisualDensity.compact),
+    segments: [
+      for (final e in options.entries)
+        ButtonSegment(value: e.key, label: Text(e.value)),
     ],
+    selected: {value},
+    onSelectionChanged: enabled ? (v) => _setLook(change(v.single)) : null,
   );
 
   Future<void> _pickPicture() async {
@@ -1543,7 +1733,7 @@ class LyricBackgroundTile extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                ExcludeSemantics(child: _thumb()),
+                ExcludeSemantics(child: thumb(id)),
                 Positioned(
                   left: 0,
                   right: 0,
@@ -1576,7 +1766,8 @@ class LyricBackgroundTile extends StatelessWidget {
     );
   }
 
-  Widget _thumb() {
+  /// A still copy of background [id], cut to whatever box holds it.
+  static Widget thumb(String id) {
     if (id.startsWith('photo:')) {
       final photo = lyricPhotoById(id.substring(6));
       if (photo != null) {
@@ -1596,17 +1787,4 @@ class LyricBackgroundTile extends StatelessWidget {
     }
     return CustomPaint(painter: LyricBackgroundPainter(id));
   }
-}
-
-class _ArrowHint extends StatelessWidget {
-  final IconData icon;
-  const _ArrowHint(this.icon);
-  @override
-  Widget build(BuildContext context) => ExcludeSemantics(
-    child: Icon(
-      icon,
-      size: 14,
-      color: DefaultTextStyle.of(context).style.color?.withValues(alpha: .62),
-    ),
-  );
 }
