@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_paint.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/domain/domain.dart'
     show
@@ -417,6 +418,17 @@ ThemeData appTheme(
     effectiveFinish(id, appearance.finish),
     appearance.finishStrength == 'full' ? 1 : .5,
   );
+  // Its photographs start loading now, so the first frame that shows the
+  // finish can draw them.
+  if (finish.active) FinishTextures.instance.loadFor(finish.id);
+  final finishShape = finish.active
+      ? RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            math.max(finishRadius(finish.id), 8),
+          ),
+          side: BorderSide(color: finish.border),
+        )
+      : null;
   final brightness = p.light ? Brightness.light : Brightness.dark;
   return ThemeData(
     useMaterial3: true,
@@ -459,13 +471,22 @@ ThemeData appTheme(
         side: BorderSide(color: p.border),
       ),
     ),
+    // Dialogs and sheets in the panel colour and shape of the finish.
     dialogTheme: DialogThemeData(
-      backgroundColor: p.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(color: p.border),
-      ),
+      backgroundColor: finish.active ? finish.panel : p.surface,
+      shape:
+          finishShape ??
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: p.border),
+          ),
     ),
+    bottomSheetTheme: finish.active
+        ? BottomSheetThemeData(
+            backgroundColor: finish.panel,
+            surfaceTintColor: Colors.transparent,
+          )
+        : null,
     colorScheme: ColorScheme.fromSeed(
       seedColor: p.accent,
       brightness: brightness,
@@ -495,7 +516,9 @@ ThemeData appTheme(
           : SystemUiOverlayStyle.light,
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: finish.panel,
+      // A finish lays the bar on a plate of its material.
+      backgroundColor: finish.active ? Colors.transparent : finish.panel,
+      elevation: finish.active ? 0 : null,
       indicatorColor: p.accent.withValues(alpha: .22),
     ),
     dividerColor: p.border,
