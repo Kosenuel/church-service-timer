@@ -120,7 +120,7 @@ void main() {
     await shot(
       t,
       'programs-denim-full-dark-1366',
-      const Rect.fromLTWH(100, 0, 1266, 380),
+      const Rect.fromLTWH(100, 0, 1266, 300),
     );
   });
 
@@ -139,7 +139,7 @@ void main() {
     await shot(
       t,
       'programs-oak-full-light-1366',
-      const Rect.fromLTWH(100, 0, 1266, 380),
+      const Rect.fromLTWH(100, 0, 1266, 300),
     );
   });
 
@@ -149,7 +149,7 @@ void main() {
     await shot(
       t,
       'reports-denim-full-dark-1366',
-      const Rect.fromLTWH(100, 0, 1266, 400),
+      const Rect.fromLTWH(100, 0, 1266, 330),
     );
   });
 
@@ -179,7 +179,7 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Commands'));
     await t.pumpAndSettle();
-    await shot(t, 'palette-leather', const Rect.fromLTWH(343, 56, 680, 560));
+    await shot(t, 'palette-leather', const Rect.fromLTWH(343, 56, 680, 340));
   });
 
   testWidgets('the update notice on Live, Denim', (t) async {
