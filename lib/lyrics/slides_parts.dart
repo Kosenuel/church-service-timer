@@ -104,52 +104,76 @@ class SlidesFold extends StatelessWidget {
             onTap: onToggle,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Row(
-                children: [
-                  Text(name.toUpperCase(), style: sectionLabelStyle(context)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      value,
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: valueColor ?? colors.muted,
-                      ),
+              child: LayoutBuilder(
+                builder: (context, space) {
+                  final label = Text(
+                    name.toUpperCase(),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: sectionLabelStyle(context),
+                  );
+                  // In a narrow card (a phone, large text) the value goes
+                  // under the name, the same for every row.
+                  final stacked =
+                      space.maxWidth <
+                      MediaQuery.textScalerOf(context).scale(380);
+                  final shown = Text(
+                    value,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: stacked ? TextAlign.left : TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: valueColor ?? colors.muted,
                     ),
-                  ),
-                  if (swatch != null) ...[
-                    const SizedBox(width: 8),
-                    ExcludeSemantics(child: swatch!),
-                  ],
-                  const SizedBox(width: 8),
-                  if (action != null)
-                    Text(
-                      open ? 'Done' : action!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: colors.accent,
-                      ),
-                    )
-                  else
-                    ExcludeSemantics(
-                      child: AnimatedRotation(
-                        turns: open ? .5 : 0,
-                        duration: reduceAppMotion(context)
-                            ? Duration.zero
-                            : const Duration(milliseconds: 150),
-                        child: Icon(
-                          Icons.expand_more,
-                          size: 20,
-                          color: colors.muted,
+                  );
+                  return Row(
+                    children: [
+                      if (stacked)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [label, const SizedBox(height: 2), shown],
+                          ),
+                        )
+                      else ...[
+                        label,
+                        const SizedBox(width: 12),
+                        Expanded(child: shown),
+                      ],
+                      if (swatch != null) ...[
+                        const SizedBox(width: 8),
+                        ExcludeSemantics(child: swatch!),
+                      ],
+                      const SizedBox(width: 8),
+                      if (action != null)
+                        Text(
+                          open ? 'Done' : action!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: colors.accent,
+                          ),
+                        )
+                      else
+                        ExcludeSemantics(
+                          child: AnimatedRotation(
+                            turns: open ? .5 : 0,
+                            duration: reduceAppMotion(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 150),
+                            child: Icon(
+                              Icons.expand_more,
+                              size: 20,
+                              color: colors.muted,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -411,28 +435,28 @@ class _KeyUnder extends StatelessWidget {
       child: SizedBox(
         height: MediaQuery.textScalerOf(context).scale(14),
         child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (arrow != null)
-            Icon(
-              arrow,
-              size: MediaQuery.textScalerOf(context).scale(12),
-              color: color,
-            ),
-          if (arrow != null && words != null) const SizedBox(width: 3),
-          if (words != null)
-            Text(
-              words!,
-              maxLines: 1,
-              softWrap: false,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (arrow != null)
+              Icon(
+                arrow,
+                size: MediaQuery.textScalerOf(context).scale(12),
                 color: color,
               ),
-            ),
-        ],
-      ),
+            if (arrow != null && words != null) const SizedBox(width: 3),
+            if (words != null)
+              Text(
+                words!,
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

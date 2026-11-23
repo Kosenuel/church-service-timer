@@ -724,4 +724,94 @@ void main() {
     expect(t.getSize(tip).height, lessThan(26));
     expect(find.byType(SlidesKeysLine), findsOneWidget);
   });
+
+  group('screenshots', () {
+    Future<AppController> page(
+      WidgetTester t, {
+      Size size = const Size(1366, 768),
+      bool desktop = true,
+      double scale = 1,
+      String theme = 'royal_navy',
+    }) async {
+      final c = await openLyrics(
+        t,
+        size: size,
+        desktop: desktop,
+        textScale: scale,
+        theme: theme,
+      );
+      c.lyrics.selectedId = 'amazing';
+      c.lyrics.show('amazing', 1);
+      await settle(t);
+      return c;
+    }
+
+    testWidgets('1366 with Background and Look open', (t) async {
+      await page(t);
+      // Tapped where they are: ensureVisible would also scroll the page.
+      await t.tap(find.byKey(k('lyrics-look-header')));
+      await settle(t);
+      await t.tap(find.byKey(k('lyrics-background-row-header')));
+      await settle(t);
+      await t.drag(
+        find.byKey(k('lyrics-column-screens')),
+        const Offset(0, -620),
+      );
+      await settle(t);
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/slides-rows-open-1366.png'),
+      );
+    });
+
+    testWidgets('a phone, the rows closed', (t) async {
+      await page(t, size: const Size(360, 780), desktop: false);
+      await t.scrollUntilVisible(
+        find.byKey(k('lyrics-look-header')),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byKey(k('lyrics-column-narrow')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await settle(t);
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/slides-rows-phone.png'),
+      );
+    });
+
+    testWidgets('a phone with large text', (t) async {
+      await page(t, size: const Size(360, 780), desktop: false, scale: 1.6);
+      await t.scrollUntilVisible(
+        find.byKey(k('lyrics-look-header')),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byKey(k('lyrics-column-narrow')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await settle(t);
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/slides-phone-large-text.png'),
+      );
+    });
+
+    testWidgets('a light theme at 1366', (t) async {
+      await page(t, theme: 'warm_ivory');
+      expect(t.takeException(), isNull);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('../goldens/slides-light-1366.png'),
+      );
+    });
+  });
 }
