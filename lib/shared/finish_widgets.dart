@@ -128,31 +128,28 @@ ButtonStyle? finishButtonStyle(FinishLook look, {required bool filled}) {
   final gloss = look.id == 'plastic' ? .12 : .08;
   return ButtonStyle(
     shape: shape,
+    // Only a light top edge and a shaded foot are laid over the button's own
+    // fill, so a button keeps whatever colour it was given (End service stays
+    // red) and the keycap look never replaces it.
     backgroundBuilder: (context, states, child) {
       final pressed = states.contains(WidgetState.pressed);
       final enabled = !states.contains(WidgetState.disabled);
-      final base = filled ? look.palette.accent : look.panel;
-      final top = Color.lerp(
-        base,
-        Colors.white,
-        pressed ? 0 : (filled ? gloss : (dark ? .05 : 0)),
-      )!;
-      final foot = Color.lerp(
-        base,
-        Colors.black,
-        pressed ? .02 : (filled ? .15 : (dark ? .14 : .07)),
-      )!;
+      if (!enabled && filled) return child!;
+      final top = Colors.white.withValues(
+        alpha: pressed ? 0 : (filled ? gloss : (dark ? .05 : 0)),
+      );
+      final foot = Colors.black.withValues(
+        alpha: pressed ? .02 : (filled ? .15 : (dark ? .14 : .07)),
+      );
       return DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(r),
-          gradient: enabled || !filled
-              ? LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [top, base, base, foot],
-                  stops: const [0, .14, .8, 1],
-                )
-              : null,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [top, Colors.transparent, Colors.transparent, foot],
+            stops: const [0, .14, .8, 1],
+          ),
         ),
         child: child,
       );

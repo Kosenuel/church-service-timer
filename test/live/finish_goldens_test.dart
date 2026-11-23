@@ -2,7 +2,9 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_port.dart';
@@ -37,6 +39,7 @@ void main() {
     bool live = true,
     double textScale = 1,
     String layout = 'mission_control',
+    Size? crop,
   }) async {
     setScreen(t, size);
     t.platformDispatcher.textScaleFactorTestValue = textScale;
@@ -65,7 +68,31 @@ void main() {
       port.at = after(at + 2);
       await c.tick();
     }
-    await t.pumpWidget(TimerApp(controller: c));
+    // A corner of the window, for goldens: texture does not compress, so the
+    // whole window would make a very large file.
+    await t.pumpWidget(
+      crop == null
+          ? TimerApp(controller: c)
+          : Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox.fromSize(
+                size: crop,
+                child: RepaintBoundary(
+                  key: const ValueKey('crop'),
+                  child: ClipRect(
+                    child: OverflowBox(
+                      alignment: Alignment.topLeft,
+                      minWidth: size.width,
+                      maxWidth: size.width,
+                      minHeight: size.height,
+                      maxHeight: size.height,
+                      child: TimerApp(controller: c),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+    );
     await t.pumpAndSettle();
     return c;
   }
@@ -75,7 +102,11 @@ void main() {
     final path = scratch.isEmpty
         ? '../goldens/finish/$name.png'
         : '$scratch/$name.png';
-    await expectLater(find.byType(TimerApp), matchesGoldenFile(path));
+    final crop = find.byKey(const ValueKey('crop'));
+    await expectLater(
+      crop.evaluate().isNotEmpty ? crop : find.byType(TimerApp),
+      matchesGoldenFile(path),
+    );
   }
 
   bool wanted(String finish) =>
@@ -86,10 +117,14 @@ void main() {
     if (!wanted(finish)) continue;
     for (final strength in finishStrengths) {
       for (final (theme, tone) in [(dark, 'dark'), (light, 'light')]) {
-        // Committed: every finish on a computer in the dark theme at Full and
-        // on a phone in the light theme at Subtle; the rest only to look at.
+        // Committed: a corner of Live on a computer in the dark theme at Full
+        // for every finish, and Live on a phone in the light theme at Subtle
+        // for three; the rest only to look at.
         final keepDesktop = tone == 'dark' && strength == 'full';
-        final keepPhone = tone == 'light' && strength == 'subtle';
+        final keepPhone =
+            tone == 'light' &&
+            strength == 'subtle' &&
+            const ['console', 'denim', 'marble'].contains(finish);
         testWidgets('$finish $strength $tone on a computer', (t) async {
           if (scratch.isEmpty && !keepDesktop) return;
           await start(
@@ -98,6 +133,7 @@ void main() {
             theme: theme,
             finish: finish,
             strength: strength,
+            crop: scratch.isEmpty ? const Size(560, 315) : null,
           );
           await shot(t, 'live-$finish-$strength-$tone-1366');
         });
@@ -120,7 +156,7 @@ void main() {
           ('reports', 2),
         ]) {
           testWidgets('$finish $strength $tone $name', (t) async {
-            if (scratch.isEmpty && !(name == 'settings' && keepPhone)) return;
+            if (scratch.isEmpty) return;
             await start(
               t,
               size: phone,
@@ -182,6 +218,42 @@ void main() {
         );
       }
     }
+  }
+
+  // A destructive button keeps its danger colour in every finish: the keycap
+  // and gloss of Console and Plastic only shade it.
+  for (final finish in finishes) {
+    testWidgets('End service is red in $finish', (t) async {
+      await start(
+        t,
+        size: desktop,
+        theme: dark,
+        finish: finish,
+        strength: 'full',
+      );
+      final button = find.byKey(const ValueKey('end-service'));
+      expect(button, findsOneWidget);
+      final rect = t.getRect(button);
+      final boundary = t.renderObject<RenderRepaintBoundary>(
+        find.byType(RepaintBoundary).first,
+      );
+      final pixel = await t.runAsync(() async {
+        final image = await boundary.toImage();
+        final data = (await image.toByteData())!;
+        final x = (rect.left + 5).round(), y = rect.center.dy.round();
+        final i = (y * image.width + x) * 4;
+        return [data.getUint8(i), data.getUint8(i + 1), data.getUint8(i + 2)];
+      });
+      final red = destructiveColor.toARGB32();
+      final want = [(red >> 16) & 255, (red >> 8) & 255, red & 255];
+      for (var k = 0; k < 3; k++) {
+        expect(
+          (pixel![k] - want[k]).abs(),
+          lessThanOrEqualTo(8),
+          reason: '$finish: channel $k is ${pixel[k]}, wanted ${want[k]}',
+        );
+      }
+    });
   }
 
   // The Finish section of Appearance, in the dark and the light theme, on a
