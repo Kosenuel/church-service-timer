@@ -51,7 +51,7 @@ extension OperatorSettings on HomeState {
         draft.stageCues.map((e) => e.toJson()).toString() == revision,
         'The cue list changed. Please open it again.',
       );
-      validateLayout(result);
+      validateLayout(result, signFit: c.signFitRequired);
       if (index == null) {
         require(
           draft.stageCues.length < 100,

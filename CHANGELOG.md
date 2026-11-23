@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built. From 0.35.0, version numbers follow [Semantic Versioning](https://semver.org) (MAJOR.MINOR.PATCH); see [Versioning](docs/BUILD.md#versioning) for how each release's number is chosen.
 
+## Unreleased
+
+- **Send message no longer insists on text that fits the LED sign when no sign is in use.** The LED sign is 32 pixels wide, so a message such as "Thank you" held still (**Static**) is too wide for it, and the **Continue** button stayed off until you changed the effect, even when the message was only going to stage screens. The width check now applies only when the display in use is an LED sign (or the Simulator standing in for one). With stage screens, the second screen or the Stage simulator, any width can be sent, the effect list says **Static** and **Flash then hold** without "(must fit)", and a short note says if the text would be too wide for a sign. If you later switch to a sign, a message or cue that is too wide is refused with the same explanation as before, and nothing already saved is rejected or changed. The same applies to the stage cue editor, the end screen and zero screen editors, warning cues, the program editor and importing a program. The message a new user starts with, "Thank you" with **Scroll long text**, already fits the sign and is unchanged. The LED sign itself is unchanged.
+
 ## 0.36.0, 22/November/2026
 
 - **The same text face on every PC.** The app carries the Roboto font, but its own text (buttons, headings, lists, dialogs) was drawn in Roboto only on Android. On Windows it used Segoe UI, whose letters are a different width, so a label that fitted in every test could wrap or be cut short on a PC, as **Custom** did in a narrow window. Every platform now draws the app's text in Roboto, as the stage screens, second screen and mini timer already did. Letters on a PC look a little different, and labels, headings and buttons now take the same room on a PC as on the Android screenshots the layouts are tested against. Nothing is saved or changed in programs, backups or settings.
