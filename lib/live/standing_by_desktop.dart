@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
@@ -30,7 +31,7 @@ extension StandingByDesktop on HomeState {
           children: [
             SizedBox(
               width: side,
-              child: ColoredBox(color: colors.surface, child: programsPane()),
+              child: FinishPane(flatSurface: true, child: programsPane()),
             ),
             line,
             Expanded(
@@ -62,8 +63,8 @@ extension StandingByDesktop on HomeState {
             line,
             SizedBox(
               width: stage,
-              child: ColoredBox(
-                color: colors.surface,
+              child: FinishPane(
+                flatSurface: true,
                 child: SingleChildScrollView(
                   key: const ValueKey('standing-by-stage-pane'),
                   primary: false,

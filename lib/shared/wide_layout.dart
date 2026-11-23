@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 
@@ -45,7 +46,7 @@ class SplitPage extends StatelessWidget {
         sideMin,
         sideMax,
       ),
-      child: ColoredBox(color: colors.surface, child: side),
+      child: FinishPane(flatSurface: true, child: side),
     );
     final content = Expanded(
       child: Align(

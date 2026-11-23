@@ -1,3 +1,5 @@
+import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'dart:math' as math;
 import 'dart:async';
 import 'package:church_service_timer/live/host_full_screen.dart';
@@ -95,39 +97,46 @@ extension LiveLayout on HomeState {
     final colors = appColors(context);
     return Row(
       children: [
-        SafeArea(
-          right: false,
-          child: NavigationRail(
-            key: const ValueKey('navigation-rail'),
-            backgroundColor: colors.surface,
-            selectedIndex: page,
-            labelType: NavigationRailLabelType.all,
-            // Clear of the top edge, in line with the header beside it.
-            leading: const SizedBox(height: 12),
-            onDestinationSelected: (v) {
-              if (!controlsLocked) goToPage(v);
-            },
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.radio_button_checked),
-                label: Text('Live'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.view_timeline_outlined),
-                label: Text('Programs'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.assessment_outlined),
-                label: Text('Reports'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.settings_outlined),
-                label: Text('Settings'),
-              ),
-            ],
+        FinishPane(
+          child: SafeArea(
+            right: false,
+            child: NavigationRail(
+              key: const ValueKey('navigation-rail'),
+              backgroundColor: finishLook(context).active
+                  ? Colors.transparent
+                  : colors.surface,
+              selectedIndex: page,
+              labelType: NavigationRailLabelType.all,
+              // Clear of the top edge, in line with the header beside it.
+              leading: const SizedBox(height: 12),
+              onDestinationSelected: (v) {
+                if (!controlsLocked) goToPage(v);
+              },
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.radio_button_checked),
+                  label: Text('Live'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.view_timeline_outlined),
+                  label: Text('Programs'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.assessment_outlined),
+                  label: Text('Reports'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  label: Text('Settings'),
+                ),
+              ],
+            ),
           ),
         ),
-        VerticalDivider(width: 1, thickness: 1, color: colors.border),
+        finishRule(
+          context,
+          VerticalDivider(width: 1, thickness: 1, color: colors.border),
+        ),
         Expanded(child: body),
       ],
     );

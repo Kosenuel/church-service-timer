@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -103,8 +104,8 @@ extension ReportsDesktop on HomeState {
         children: [
           SizedBox(
             width: (space.maxWidth * .2).clamp(300.0, 360.0),
-            child: ColoredBox(
-              color: colors.surface,
+            child: FinishPane(
+              flatSurface: true,
               child: FlatPanels(
                 child: SingleChildScrollView(
                   key: const ValueKey('reports-list-pane'),
@@ -417,8 +418,8 @@ class _ReportDesktopDetailState extends State<ReportDesktopDetail> {
             VerticalDivider(width: 1, thickness: 1, color: colors.border),
             SizedBox(
               width: asideWidth,
-              child: ColoredBox(
-                color: colors.surface,
+              child: FinishPane(
+                flatSurface: true,
                 child: SingleChildScrollView(
                   key: const ValueKey('report-aside-pane'),
                   primary: false,
