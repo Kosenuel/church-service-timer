@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built. From 0.35.0, version numbers follow [Semantic Versioning](https://semver.org) (MAJOR.MINOR.PATCH); see [Versioning](docs/BUILD.md#versioning) for how each release's number is chosen.
 
+## Unreleased
+
+- **Bible references are much more forgiving.** In **Add Bible verses**, type the reference the way you would say it or the way it comes to mind, and press **Find**. A misspelt book is put right (Jhon 3 16, Genisis 1:1, Isiah 53:5, Phillipians 4:13, Revelations 22:21, Psalms 23), and the line under the box says what was understood ("Showing John 3:16"). When a short or doubtful name could be several books (Jo 3:1 could be Job, Joel, John, Jonah or Joshua), nothing is guessed: **Did you mean:** shows each one as a button, and one tap finds it. Words work too: **John chapter three verse sixteen**, **first corinthians chapter thirteen verses four to seven**, **psalm one hundred and nineteen**, **romans eight twenty-eight**, **John 3 16 to 18**, **John 3:16 through 18**. Also accepted: **john3v9**, **John 3 vs 9**, **I Kings 3:9**, **1st Corinthians 13:4**, **First John 4:8**, a translation after the reference (**John 3:16 KJV**, **(KJV)**; the verses shown are always the King James Version), long dashes in a range and spare spaces or full stops. A name that already worked works exactly as before; **Is** and **Isa** now mean Isaiah. A chapter or verse that does not exist still says how many there are ("John 3 has 36 verses, so there is no verse 99.").
+
 ## 0.38.0, 23/November/2026
 
 - **Song words, Bible verses and announcements on the screens.** A new **Slides** page, after Programs in the navigation, and a **Slides** button on Live under the display preview, put words on the second screen, web screens and stage screens.
