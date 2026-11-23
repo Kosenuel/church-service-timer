@@ -221,6 +221,8 @@ void main() {
     final earlier = AppState.fresh(now)
       ..stageCues = [...legacyDefaultStageCues]
       ..defaults = DisplaySettings(
+        // An earlier version's backup: the stock end screen is not on it.
+        end: null,
         cues: legacyDefaultStageCues,
         warnings: legacyDefaultWarnings,
       );

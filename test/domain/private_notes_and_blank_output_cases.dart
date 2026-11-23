@@ -220,6 +220,7 @@ final revision10Cases = <String, void Function()>{
     equal(restored.templates.last.display.end!.text, 'Hallelujah');
     equal(restored.toJson()['version'], 17);
     equal(restored.templates.first.toJson()['schemaVersion'], 4);
-    equal(jsonDecode(exportBackup(state, epoch))['schemaVersion'], 7);
+    // 14: the default end screen is the stock one, held by choice.
+    equal(jsonDecode(exportBackup(state, epoch))['schemaVersion'], 14);
   },
 };
