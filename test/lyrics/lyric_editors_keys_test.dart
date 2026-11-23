@@ -46,24 +46,24 @@ Future<void> clearAndRetype(WidgetTester t, String key, String text) async {
   await chord(t, LogicalKeyboardKey.control, LogicalKeyboardKey.keyA);
   await press(t, LogicalKeyboardKey.backspace);
   expect(textOf(t, key), '', reason: '$key is empty after select all + delete');
-  await t.pump(const Duration(milliseconds: 300));
+  await t.pump(const Duration(milliseconds: 20));
   expect(textOf(t, key), '', reason: '$key stays empty');
   // Typing character by character, as the keyboard does.
   var typed = '';
   for (final ch in text.split('')) {
     typed += ch;
     await t.enterText(field(key), typed);
-    await t.pump(const Duration(milliseconds: 300));
+    await t.pump(const Duration(milliseconds: 20));
     expect(textOf(t, key), typed);
   }
   // Backspace to empty, one key at a time.
   for (var i = 0; i < text.length; i++) {
     await press(t, LogicalKeyboardKey.backspace);
-    await t.pump(const Duration(milliseconds: 300));
+    await t.pump(const Duration(milliseconds: 20));
   }
   expect(textOf(t, key), '', reason: '$key empty after backspacing');
   await t.enterText(field(key), 'last ${key.split('-').last}');
-  await t.pump(const Duration(milliseconds: 300));
+  await t.pump(const Duration(milliseconds: 20));
   expect(textOf(t, key), 'last ${key.split('-').last}');
 }
 

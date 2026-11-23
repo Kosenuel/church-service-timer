@@ -423,7 +423,10 @@ class _FlipDigitState extends State<FlipDigit>
                             ? widget.colors.text.withValues(alpha: .07)
                             : Colors.black.withValues(alpha: .35),
                         blurRadius: h * (widget.colors.light ? .22 : .12),
-                        offset: Offset(0, h * (widget.colors.light ? .02 : .03)),
+                        offset: Offset(
+                          0,
+                          h * (widget.colors.light ? .02 : .03),
+                        ),
                       ),
                     ],
                   ),

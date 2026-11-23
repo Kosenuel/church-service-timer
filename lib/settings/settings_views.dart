@@ -1051,7 +1051,7 @@ class _AppearancePageState extends State<AppearancePage> {
                 animation: tabs,
                 builder: (context, _) => Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: AnimatedSwitcher(
+                  child: FreshSwitcher(
                     duration: reduceAppMotion(context)
                         ? Duration.zero
                         : const Duration(milliseconds: 180),
