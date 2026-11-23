@@ -932,32 +932,35 @@ extension PairingViews on HomeState {
             key: const ValueKey('screens-devices-wide'),
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // On a panel of the finish, like the pane beside it.
               Expanded(
-                child: SingleChildScrollView(
-                  key: const ValueKey('screens-devices-main'),
-                  primary: false,
-                  padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: two ? 1200 : 640),
-                      child: two
-                          ? Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: devices),
-                                const SizedBox(width: 28),
-                                Expanded(child: own),
-                              ],
-                            )
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                devices,
-                                const SizedBox(height: 28),
-                                own,
-                              ],
-                            ),
+                child: FinishPane(
+                  child: SingleChildScrollView(
+                    key: const ValueKey('screens-devices-main'),
+                    primary: false,
+                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: two ? 1200 : 640),
+                        child: two
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: devices),
+                                  const SizedBox(width: 28),
+                                  Expanded(child: own),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  devices,
+                                  const SizedBox(height: 28),
+                                  own,
+                                ],
+                              ),
+                      ),
                     ),
                   ),
                 ),

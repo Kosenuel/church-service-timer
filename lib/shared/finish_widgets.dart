@@ -393,6 +393,10 @@ class FinishBarPlate extends StatelessWidget {
     if (!finishLook(context).active) {
       return Material(color: appColors(context).surface, child: child);
     }
+    // At the foot of a panel it is part of the panel, under its rule.
+    if (FinishOnPanel.of(context)) {
+      return Material(type: MaterialType.transparency, child: child);
+    }
     return FinishSurface(pane: true, seams: finishSeamAbove, child: child);
   }
 }

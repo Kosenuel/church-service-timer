@@ -814,23 +814,20 @@ class TemplateEditorState extends State<TemplateEditor> {
               main: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // The form on a panel of the finish, not the bare wall.
                   Expanded(
-                    child: FinishPane(
-                      child: LayoutBuilder(
-                        builder: (context, space) {
-                          final side = ((space.maxWidth - formWidth) / 2).clamp(
-                            24.0,
-                            double.infinity,
-                          );
-                          return ListView(
-                            key: const ValueKey('program-editor-form'),
-                            primary: false,
-                            padding: EdgeInsets.fromLTRB(side, 20, side, 28),
-                            children: fields,
-                          );
-                        },
-                      ),
+                    child: LayoutBuilder(
+                      builder: (context, space) {
+                        final side = ((space.maxWidth - formWidth) / 2).clamp(
+                          24.0,
+                          double.infinity,
+                        );
+                        return ListView(
+                          key: const ValueKey('program-editor-form'),
+                          primary: false,
+                          padding: EdgeInsets.fromLTRB(side, 20, side, 28),
+                          children: fields,
+                        );
+                      },
                     ),
                   ),
                   bar,

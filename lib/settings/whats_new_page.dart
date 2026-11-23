@@ -233,27 +233,35 @@ class _ReleaseNotesViewState extends State<ReleaseNotesView> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           for (final (i, release) in releases.indexed)
-            Card(
-              margin: const EdgeInsets.only(top: 12),
-              clipBehavior: Clip.antiAlias,
-              child: i < 2
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            release.heading,
-                            style: heading?.copyWith(
-                              color: i == 0 ? colors.accent : null,
+            // A card of the finish when there is one; Flutter's own card
+            // in Flat, as it was.
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: FinishCard(
+                flat: (child) => Card(
+                  margin: EdgeInsets.zero,
+                  clipBehavior: Clip.antiAlias,
+                  child: child,
+                ),
+                child: i < 2
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              release.heading,
+                              style: heading?.copyWith(
+                                color: i == 0 ? colors.accent : null,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          entries(release),
-                        ],
-                      ),
-                    )
-                  : folded(release),
+                            const SizedBox(height: 10),
+                            entries(release),
+                          ],
+                        ),
+                      )
+                    : folded(release),
+              ),
             ),
         ],
       );
