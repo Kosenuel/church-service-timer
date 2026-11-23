@@ -10,6 +10,13 @@ import 'package:church_service_timer/domain/domain.dart';
 /// The kinds of thing the library keeps.
 const lyricKinds = {'song', 'scripture', 'announcement'};
 
+/// The Library's tabs on the Slides page: one kind each, or all of them.
+const slidesTabs = {'song', 'scripture', 'announcement', 'all'};
+
+/// The Slides page's rows that fold open: the background picker and the
+/// look of the words.
+const slidesFoldRows = {'background', 'look'};
+
 /// The most items the library keeps, and the longest words one may have,
 /// so the saved state stays quick to save on every change.
 const lyricLibraryLimit = 300;
@@ -160,8 +167,8 @@ class LyricItem {
       if (title.trim().isNotEmpty || words.trim().isNotEmpty)
         LyricSlide(
           label: 'Announcement',
-          title: title.trim(),
-          text: cleanLyricText(words).trim(),
+          title: lyricShownLine(title.trim()),
+          text: lyricShownText(cleanLyricText(words)).trim(),
           detail: detail.trim(),
         ),
     ],
@@ -263,6 +270,30 @@ String cleanLyricText(String raw) => raw
     .map((l) => l.replaceAll(RegExp(' {2,}'), ' ').trim())
     .join('\n');
 
+/// Emphasis marks pasted with the words: `_(x2)_`, `*Chorus*`, `__all__`.
+/// Lyrics sites, chat apps and notes apps write italic and bold this way;
+/// the app has no emphasis of its own, so the marks were printed on every
+/// screen. A pair around words is taken off; a lone `_` or `*` is kept.
+final _emphasis = RegExp(
+  r'(?<![\p{L}\p{N}_*])([_*]{1,2})(?=\S)(.+?)(?<=\S)\1(?![\p{L}\p{N}_*])',
+  unicode: true,
+);
+
+/// [line] as a slide shows it: the words as written, without the
+/// emphasis marks around them (see [_emphasis]).
+String lyricShownLine(String line) {
+  var out = line;
+  // Twice, for marks inside marks: `*_(x2)_*`.
+  for (var i = 0; i < 2; i++) {
+    out = out.replaceAllMapped(_emphasis, (m) => m[2]!);
+  }
+  return out;
+}
+
+/// Every line of [text] as a slide shows it.
+String lyricShownText(String text) =>
+    text.split('\n').map(lyricShownLine).join('\n');
+
 final _heading = RegExp(
   r'^[\[(]?\s*(verse|chorus|refrain|bridge|pre-?\s?chorus|intro|outro|tag|ending)\b\s*(\d{0,2})\s*[\])]?\s*[:.]?$',
   caseSensitive: false,
@@ -304,7 +335,7 @@ List<LyricSlide> parseSongSlides(String words, {int linesPerSlide = 0}) {
     pending = null;
   }
 
-  for (final line in cleanLyricText(words).split('\n')) {
+  for (final line in cleanLyricText(words).split('\n').map(lyricShownLine)) {
     if (line.isEmpty) {
       flush();
       continue;
@@ -372,7 +403,9 @@ List<LyricSlide> scriptureSlides(LyricItem item) {
   if (item.verses.isEmpty) {
     // Pasted text, from any translation, with its own reference line.
     final parts = [
-      for (final para in cleanLyricText(item.words).split(RegExp(r'\n\s*\n')))
+      for (final para in lyricShownText(
+        cleanLyricText(item.words),
+      ).split(RegExp(r'\n\s*\n')))
         if (para.trim().isNotEmpty)
           ...splitLongText(
             para.trim().replaceAll('\n', ' '),
