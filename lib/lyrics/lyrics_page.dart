@@ -10,6 +10,7 @@ import 'package:church_service_timer/lyrics/lyric_photos.dart';
 import 'package:church_service_timer/lyrics/lyric_stage.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/screens/screens_entry.dart';
+import 'package:church_service_timer/screens/screens_panel.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
@@ -752,19 +753,92 @@ class _LyricsPanelState extends State<LyricsPanel> {
     );
   }
 
+  /// The groups showing slides, as words: "Room 1 and Stage".
   String _targets() {
-    final l = c.lyrics;
-    final names = [
-      if (l.look.toSecond) widget.desktop ? 'second screen' : 'full screen',
-      if (l.look.toWeb) 'web screens',
-      if (l.look.toStage) 'stage screens',
-    ];
-    return names.isEmpty
-        ? 'no screens: tick one under Send to'
-        : names.join(', ');
+    final names = [for (final g in c.screens.slideGroups) g.name];
+    if (names.isEmpty) return 'no screens';
+    if (names.length == 1) return names.single;
+    return '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
   }
 
-  String _sendToSummary() => 'Sends to ${_targets()}';
+  String _sendToSummary() => c.screens.slideGroups.isEmpty
+      ? 'No screens are showing slides'
+      : 'Showing slides: ${_targets()}';
+
+  /// Which groups show slides, in place of the old Send to boxes: what a
+  /// group shows is set in the Screens panel. With none, it says so and
+  /// offers one tap to fix it, or a slide would seem to do nothing.
+  List<Widget> _groupsLine() {
+    final colors = appColors(context);
+    final muted = TextStyle(fontSize: 12, color: colors.muted);
+    final groups = c.screens.slideGroups;
+    final fix = c.screens.setup.groupOf(thisScreenKey);
+    final cues = [
+      for (final g in groups)
+        if (g.cues) g.name,
+    ];
+    return [
+      if (groups.isEmpty) ...[
+        Text(
+          'No screens are showing slides.',
+          key: const ValueKey('lyrics-no-groups'),
+          style: TextStyle(color: colors.warning, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            FilledButton.tonal(
+              key: const ValueKey('lyrics-fix-groups'),
+              onPressed: enabled
+                  ? () => unawaited(c.screens.setShow(fix.id, 'slides'))
+                  : null,
+              child: Text('Show slides in ${fix.name}'),
+            ),
+            TextButton(
+              key: const ValueKey('lyrics-open-screens'),
+              onPressed: () => openScreensPanel(context, c),
+              child: const Text('Screens'),
+            ),
+          ],
+        ),
+      ] else
+        Wrap(
+          key: const ValueKey('lyrics-groups'),
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              [
+                for (final g in groups)
+                  '${g.name}${g.show == 'monitor' ? ' (with the timer)' : ''}',
+              ].join(' · '),
+              style: TextStyle(color: colors.text),
+            ),
+            TextButton(
+              key: const ValueKey('lyrics-open-screens'),
+              onPressed: () => openScreensPanel(context, c),
+              child: const Text('Screens'),
+            ),
+          ],
+        ),
+      const SizedBox(height: 4),
+      Text(
+        [
+          'What each group of screens shows is set in Screens.',
+          if (cues.isNotEmpty)
+            'Cues show over the slide on ${cues.join(', ')}.'
+          else if (groups.isNotEmpty)
+            'Cues never cover the slide: no group showing slides has Shows cues on.',
+          'The LED sign never shows slides.',
+        ].join(' '),
+        key: const ValueKey('lyrics-send-note'),
+        style: muted,
+      ),
+    ];
+  }
 
   Widget _status() {
     final l = c.lyrics, colors = appColors(context);
@@ -776,7 +850,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
         : c.state.session.active
         ? 'Showing the countdown'
         : 'No slide on the screens';
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
@@ -799,6 +873,47 @@ class _LyricsPanelState extends State<LyricsPanel> {
           ),
         ],
       ),
+    );
+    if (c.screens.slideGroups.isNotEmpty) return row;
+    // Where the operator looks while clicking slides: with no group
+    // showing slides a click would seem to do nothing, so say so here.
+    final fix = c.screens.setup.groupOf(thisScreenKey);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        row,
+        Container(
+          key: const ValueKey('lyrics-no-groups-top'),
+          padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+          decoration: BoxDecoration(
+            color: colors.warning.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colors.warning.withValues(alpha: .5)),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'No screens are showing slides.',
+                style: TextStyle(
+                  color: colors.text,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              TextButton(
+                key: const ValueKey('lyrics-fix-groups-top'),
+                onPressed: enabled
+                    ? () => unawaited(c.screens.setShow(fix.id, 'slides'))
+                    : null,
+                child: Text('Show slides in ${fix.name}'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+      ],
     );
   }
 
@@ -946,64 +1061,19 @@ class _LyricsPanelState extends State<LyricsPanel> {
   List<Widget> _look() {
     final l = c.lyrics, look = l.look, colors = appColors(context);
     final muted = TextStyle(fontSize: 12, color: colors.muted);
-    Widget tick(
-      String key,
-      String name,
-      bool on,
-      LyricsLook Function(bool v) change,
-    ) => FilterChip(
-      key: ValueKey('lyrics-send-$key'),
-      label: Text(name),
-      selected: on,
-      onSelected: enabled ? (v) => _setLook(change(v)) : null,
-    );
     final second = c.secondScreen;
+    // This computer's group shows slides, but its window is closed.
     final secondShut =
-        widget.desktop && second != null && look.toSecond && !second.host.open;
+        widget.desktop &&
+        second != null &&
+        showsSlides(c.screens.groupOf(thisScreenKey).show) &&
+        !second.host.open;
     final custom = look.background.startsWith('custom:');
     final dim = _dimming ?? look.dim.toDouble();
     return [
       const SizedBox(height: 16),
-      _label('Send to'),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          tick(
-            'second',
-            widget.desktop ? 'Second screen' : 'Full screen',
-            look.toSecond,
-            (v) => look.copyWith(toSecond: v),
-          ),
-          tick(
-            'web',
-            'Web screens',
-            look.toWeb,
-            (v) => look.copyWith(toWeb: v),
-          ),
-          tick(
-            'stage',
-            'Stage screens',
-            look.toStage,
-            (v) => look.copyWith(toStage: v),
-          ),
-        ],
-      ),
-      const SizedBox(height: 6),
-      Text(
-        [
-          look.toStage
-              ? 'Stage screens show the slide in place of the speaker’s countdown.'
-              : 'Stage screens keep the speaker’s countdown.',
-          if (look.toSecond)
-            widget.desktop
-                ? 'Full screen and the stage simulator follow the second screen.'
-                : 'Full screen and the stage simulator show the slide.',
-          'The LED sign never shows slides.',
-        ].join(' '),
-        key: const ValueKey('lyrics-send-note'),
-        style: muted,
-      ),
+      _label('Showing slides'),
+      ..._groupsLine(),
       if (secondShut)
         Padding(
           padding: const EdgeInsets.only(top: 6),

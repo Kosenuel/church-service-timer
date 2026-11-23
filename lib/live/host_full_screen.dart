@@ -1,4 +1,4 @@
-import 'package:church_service_timer/shared/stage_layout_tiles.dart';
+import 'package:church_service_timer/screens/screen_group_note.dart';
 import 'dart:async';
 
 import 'package:church_service_timer/app/platform.dart';
@@ -212,23 +212,20 @@ extension HostFullScreenMode on HomeState {
           const SizedBox(height: 4),
           Text(
             deviceText(
-              'During a service, Full screen on Live shows the stage on this phone’s own screen. Choose what it shows.',
+              'During a service, Full screen on Live shows the stage on this phone’s own screen, as its group in Screens shows it.',
             ),
             style: muted,
           ),
           const SizedBox(height: 8),
-          StageLayoutTiles(
-            keyPrefix: 'full-screen-layout',
-            value: c.state.fullScreenLayout,
-            onChanged: controlsLocked
-                ? null
-                : (layout) =>
-                      c.commit((draft, _) => draft.fullScreenLayout = layout),
+          ScreenGroupNote(
+            controller: c,
+            screen: thisScreenKey,
+            locked: controlsLocked,
           ),
           const SizedBox(height: 4),
           Text(
             deviceText(
-              'Only this phone. Paired stage screens keep their own choice.',
+              'This phone’s full screen and its stage simulator are one screen in the Screens panel.',
             ),
             style: muted,
           ),
