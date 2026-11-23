@@ -254,28 +254,7 @@ extension SettingsViews on HomeState {
                 'Connection, profile, end screens, fonts and LEDs',
                 () => openSettingsDetail('Display settings', displaySettings),
               ),
-              Padding(
-                padding: appLayout(context).tileInsets,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    screenAwakeSetting(),
-                    if (c.deviceSettingsError != null) ...[
-                      Text(
-                        c.deviceSettingsError!,
-                        style: TextStyle(color: appColors(context).warning),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          await c.syncDeviceSettings();
-                          settingsRefresh.value++;
-                        },
-                        child: const Text('Retry screen setting'),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+              screenAwakeSetting(),
             ]),
             group('Service tools', [
               entry(
@@ -1631,54 +1610,92 @@ class _CustomThemeEditorState extends State<CustomThemeEditor> {
 extension ScreenAwakeSetting on HomeState {
   /// The three ways to keep the screen on. The default keeps it on only
   /// while a service is running, so an idle phone can sleep and save power.
-  Widget screenAwakeSetting() => Column(
-    key: const ValueKey('screen-awake'),
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        children: [
-          Icon(
-            Icons.light_mode_outlined,
-            color: appColors(context).accent,
-            size: 22,
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Text(
-              'Keep screen awake',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 4),
-      Text(
-        'Keeps the screen on while a service is running. When nothing is running, the screen can sleep to save power.',
-        style: TextStyle(fontSize: 13, color: appColors(context).muted),
-      ),
-      RadioGroup<String>(
-        groupValue: c.state.screenAwake,
-        onChanged: (v) {
-          if (!c.busy && v != null) {
-            c.commit((draft, _) => draft.screenAwake = v);
-          }
-        },
-        child: Column(
-          children: [
+  /// One row like its neighbours: the current choice is the subtitle and
+  /// tapping the row opens the three choices, each with its note.
+  Widget screenAwakeSetting() {
+    final current = screenAwakeOptions.firstWhere(
+      (o) => o.$1 == c.state.screenAwake,
+      orElse: () => screenAwakeOptions.first,
+    );
+    return Column(
+      key: const ValueKey('screen-awake'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PopupMenuButton<String>(
+          key: const ValueKey('screen-awake-menu'),
+          tooltip: 'Choose when the screen stays awake',
+          enabled: !c.busy,
+          position: PopupMenuPosition.under,
+          onSelected: (v) {
+            if (!c.busy) c.commit((draft, _) => draft.screenAwake = v);
+          },
+          itemBuilder: (ctx) => [
             for (final (value, title, note) in screenAwakeOptions)
-              RadioListTile<String>(
+              CheckedPopupMenuItem<String>(
                 key: ValueKey('screen-awake-$value'),
-                contentPadding: EdgeInsets.zero,
                 value: value,
-                enabled: !c.busy,
-                title: Text(title),
-                subtitle: Text(note, style: const TextStyle(fontSize: 13)),
+                checked: value == c.state.screenAwake,
+                padding: appLayout(ctx).tileInsets,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title),
+                    Text(
+                      note,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: appColors(ctx).muted,
+                      ),
+                    ),
+                  ],
+                ),
               ),
           ],
+          child: Semantics(
+            button: true,
+            child: ListTile(
+              contentPadding: appLayout(context).tileInsets,
+              enabled: !c.busy,
+              leading: Icon(
+                Icons.light_mode_outlined,
+                color: appColors(context).accent,
+                size: 22,
+              ),
+              title: const Text(
+                'Keep screen awake',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
+              subtitle: Text(
+                current.$2,
+                style: TextStyle(fontSize: 13, color: appColors(context).muted),
+              ),
+              trailing: const Icon(Icons.arrow_drop_down, size: 24),
+            ),
+          ),
         ),
-      ),
-    ],
-  );
+        if (c.deviceSettingsError != null)
+          Padding(
+            padding: appLayout(context).tileInsets,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  c.deviceSettingsError!,
+                  style: TextStyle(color: appColors(context).warning),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await c.syncDeviceSettings();
+                    if (mounted) refreshHome(() {});
+                  },
+                  child: const Text('Retry screen setting'),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 const screenAwakeOptions = [
