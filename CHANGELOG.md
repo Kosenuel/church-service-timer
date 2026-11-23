@@ -13,6 +13,16 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
   - **Stitches stay stitches.** On **Denim** and **Leather** the seam is a frame inside each panel's edge, drawn as raised thread with a tiny shadow, and everything in the panel stays inside it: text and buttons that scroll toward the edge pass softly under the hem and are never drawn across the thread or cut in half by it. The header, the bottom bar and the side rail carry the seam too.
   - The header, the bar at the bottom, the side rail and the Slides page are plates of the material; dialogs and sheets take its panel colour and shape. **Texture credits**, under the Finish tiles, lists where each texture comes from ([docs/FINISH-TEXTURES.md](docs/FINISH-TEXTURES.md)).
 
+## 0.39.0-beta.1, 23/November/2026
+
+A test version. Please try these on the PC and phone before the real 0.39.0:
+
+- **Finishes.** In **Settings › Appearance › Finish**, choose each finish in turn and use the app as normal: start a service, scroll Settings and Programs, open the Slides page. It should feel as quick as **Flat**. Look at Marble, Carbon fibre, Plastic, Walnut, Oak, Leather and Bridge console at **Subtle** and **Full**, in a dark and a light theme, and at the Paper & Ink themes.
+- **Keep screen awake** in Settings is now one row that opens three choices.
+- **Add Bible verses** reads loosely typed references (john 3 9, Joh3: 9, Jhon 3 16).
+
+The full notes for these are under **Unreleased** above and move into 0.39.0.
+
 ## 0.38.0, 23/November/2026
 
 - **Song words, Bible verses and announcements on the screens.** A new **Slides** page, after Programs in the navigation, and a **Slides** button on Live under the display preview, put words on the second screen, web screens and stage screens.
