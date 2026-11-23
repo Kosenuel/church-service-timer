@@ -32,7 +32,7 @@ void main() {
   Future<void> right(WidgetTester t) => swipe(t, 300, fromX: 110);
 
   testWidgets(
-    'Swiping moves between Live, Programs, Lyrics and Reports in order',
+    'Swiping moves between Live, Programs, Slides and Reports in order',
     (t) async {
       await open(t);
       expect(home(t).page, 0);
@@ -41,7 +41,7 @@ void main() {
       await left(t);
       expect(home(t).page, 1);
       expect(find.byKey(const ValueKey('new-template')), findsOneWidget);
-      // Lyrics comes after Programs, as the bar shows it, then Reports.
+      // Slides comes after Programs, as the bar shows it, then Reports.
       await left(t);
       expect(home(t).page, lyricsPage);
       await left(t);
@@ -109,7 +109,7 @@ void main() {
     await t.pumpAndSettle();
     await left(t);
     expect(home(t).page, lyricsPage);
-    expect(scroll.offset, 0, reason: 'Lyrics opens at its own position');
+    expect(scroll.offset, 0, reason: 'Slides opens at its own position');
     await right(t);
     expect(home(t).page, 1);
     expect(scroll.offset, 240);

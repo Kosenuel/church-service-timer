@@ -1,6 +1,6 @@
 # Lyrics background photos
 
-The photos that come with the app for lyric slides (Lyrics › Background, under Nature and People). Every one is public domain or CC0, from Wikimedia Commons, at 1920 × 1080; none needs a credit on screen, and they are listed here, and in the app under **Photo credits**, with thanks. The list the app reads is `assets/lyrics/photos/credits.json`; a test checks that every bundled photo has an entry with one of those two licences. The picker shows 320 × 180 copies from `assets/lyrics/photos/thumbs/`.
+The photos that come with the app for lyric slides (Slides › Background, under Nature and People). Every one is public domain or CC0, from Wikimedia Commons, at 1920 × 1080; none needs a credit on screen, and they are listed here, and in the app under **Photo credits**, with thanks. The list the app reads is `assets/lyrics/photos/credits.json`; a test checks that every bundled photo has an entry with one of those two licences. The picker shows 320 × 180 copies from `assets/lyrics/photos/thumbs/`.
 
 | Photo | Group | Author | Licence | Source |
 |---|---|---|---|---|

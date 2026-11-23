@@ -1,5 +1,7 @@
 # Lyrics: design note
 
+The feature's user-facing name is **Slides** (the page, the Live button, Commands, **Clear slide**, and the library column, **Library**). Code, files, saved keys and this note keep the working name Lyrics.
+
 Song words, Bible verses and announcements on the second screen, web
 screens and stage screens. This note is the plan the feature is built
 to, and is kept up to date as it changes. The approved mockup is the

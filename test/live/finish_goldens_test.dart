@@ -151,9 +151,9 @@ void main() {
         // Settings and the lists behind the other tabs on a phone, and the
         // Appearance page with the Finish tiles themselves.
         for (final (name, tab) in [
-          ('settings', 3),
+          ('settings', 4),
           ('programs', 1),
-          ('reports', 2),
+          ('reports', 3),
         ]) {
           testWidgets('$finish $strength $tone $name', (t) async {
             if (scratch.isEmpty) return;
@@ -192,13 +192,13 @@ void main() {
       });
       for (final (name, tab) in [
         ('live', -1),
-        ('settings', 3),
+        ('settings', 4),
         ('programs', 1),
-        ('reports', 2),
+        ('reports', 3),
       ]) {
         testWidgets('Papery $theme $strength $name on a phone', (t) async {
           final keep =
-              (theme == 'paper_ink_blue' && strength == 'subtle' && tab == 3) ||
+              (theme == 'paper_ink_blue' && strength == 'subtle' && tab == 4) ||
               (theme == 'paper_ink' && strength == 'full' && tab == -1);
           if (scratch.isEmpty && !keep) return;
           await start(
@@ -226,7 +226,7 @@ void main() {
         strength: 'subtle',
         live: false,
       );
-      await t.tap(find.byType(NavigationDestination).at(3));
+      await t.tap(find.byType(NavigationDestination).at(4));
       await t.pumpAndSettle();
       await t.tap(find.text('Appearance'));
       await t.pumpAndSettle();
@@ -350,7 +350,7 @@ void main() {
           textScale: scale,
         );
         if (size.width < 840) {
-          await t.tap(find.byType(NavigationDestination).at(3));
+          await t.tap(find.byType(NavigationDestination).at(4));
         } else {
           await t.tap(
             find.descendant(

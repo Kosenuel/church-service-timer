@@ -136,9 +136,9 @@ Two rules hold for all of them: every timer action asks to confirm before anythi
 - **In a question.** Space or Enter presses the confirming button and Esc cancels, except for End service and the other destructive questions, which must be clicked.
 - **Key labels.** On a computer the buttons show their key; **Show keyboard keys on buttons** in Settings › Appearance turns that on or off.
 
-### Keyboard on the Lyrics page
+### Keyboard on the Slides page
 
-On the Lyrics page (see `docs/LYRICS-DESIGN.md`), while no text field has the keyboard and nothing is open on top: **Right arrow**, **Space** or **Page Down** shows the next slide, **Left arrow** or **Page Up** the one before, **Esc** clears the lyrics from the screens and **B** turns them black (again to bring the slide back). They work on that page only: on Live the same keys pause and move to the next segment, as above, and never change a slide. Ctrl+K, Ctrl+M, F11 and ? or F1 work there as on every page. The page itself lists its keys under the slides; the shortcuts sheet lists Live's.
+On the Slides page (see `docs/LYRICS-DESIGN.md`), while no text field has the keyboard and nothing is open on top: **Right arrow**, **Space** or **Page Down** shows the next slide, **Left arrow** or **Page Up** the one before, **Esc** clears the slide from the screens and **B** turns them black (again to bring the slide back). They work on that page only: on Live the same keys pause and move to the next segment, as above, and never change a slide. Ctrl+K, Ctrl+M, F11 and ? or F1 work there as on every page. The page itself lists its keys under the slides; the shortcuts sheet lists Live's.
 
 ### Shortcuts sheet
 
