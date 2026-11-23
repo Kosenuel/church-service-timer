@@ -726,6 +726,61 @@ void main() {
     expect(c.state.lyrics.byId('work')!.words, contains('_(x2)_'));
   });
 
+  testWidgets('slide cards in a row are the same height, with even gaps, '
+      'and the badge never covers the slide name', (t) async {
+    final c = await openLyrics(t, running: false);
+    await c.lyrics.save(
+      LyricItem(
+        id: 'work',
+        kind: 'song',
+        title: 'God Will Work It Out',
+        words: [
+          'Before I knew my name\nbefore I drew a breath\n'
+              'He was making ways for me\nNow and every day\nin every step',
+          'God will work it out',
+          'Oh, yes, He will',
+          'Pushing past the fear\nfighting to relief\nHe is making ways\n'
+              'And He won’t let me down\nnever ever leave\nstill making ways',
+          'One thing I know\nOne thing I’ve found',
+          'Oh',
+        ].join('\n\n'),
+      ),
+    );
+    await settle(t);
+    await t.tap(find.byKey(k('lyrics-item-work')));
+    await settle(t);
+    await t.tap(find.byKey(k('lyrics-slide-3')));
+    await settle(t);
+    final rects = [
+      for (var i = 0; i < 6; i++) t.getRect(find.byKey(k('lyrics-slide-$i'))),
+    ];
+    // Group the cards by row.
+    final rows = <double, List<Rect>>{};
+    for (final r in rects) {
+      rows.putIfAbsent(r.top, () => []).add(r);
+    }
+    expect(rows.length, greaterThan(1), reason: 'more than one row');
+    for (final row in rows.values) {
+      expect(
+        row.map((r) => r.height).toSet().length,
+        1,
+        reason: 'cards in one row share a height: $row',
+      );
+    }
+    final tops = rows.keys.toList()..sort();
+    for (var i = 1; i < tops.length; i++) {
+      final above = rows[tops[i - 1]]!.first;
+      expect(tops[i] - above.bottom, 8, reason: 'gap between rows');
+    }
+    // On the live card the name and the badge sit side by side.
+    final live = find.byKey(k('lyrics-slide-3'));
+    final badge = t.getRect(find.byKey(k('lyrics-on-screens-badge')));
+    final name = t.getRect(
+      find.descendant(of: live, matching: find.text('SLIDE 4')),
+    );
+    expect(name.right, lessThanOrEqualTo(badge.left));
+  });
+
   testWidgets('the keys are one quiet line under the slides', (t) async {
     await openLyrics(t);
     await t.tap(find.byKey(k('lyrics-item-amazing')));
