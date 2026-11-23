@@ -1,7 +1,7 @@
 name: church_service_timer
 description: Church service timer with a 32 by 16 simulator and W2 Wi-Fi display support.
 publish_to: none
-version: 0.37.0+42
+version: 0.38.0+43
 environment:
   sdk: '>=3.10.0 <4.0.0'
 dependencies:
