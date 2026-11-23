@@ -2,6 +2,10 @@
 
 Newest first. Each release links to its full guide in `docs/history/`. Dates are when the release was built. From 0.35.0, version numbers follow [Semantic Versioning](https://semver.org) (MAJOR.MINOR.PATCH); see [Versioning](docs/BUILD.md#versioning) for how each release's number is chosen.
 
+## Unreleased
+
+- **A new look for the Windows installer.** The setup window you click through is now dark and matches the app: a picture of the stage clock beside the Welcome page, a short plain explanation of what the app does, the app icon on the inner pages, and, while the files copy, a slideshow of six scenes (the countdown, the red over-time screen, the flip clock, song words and Bible verses, phones and web screens, and the looks) with a line under each. The last page says "Church Service Timer is ready" and points to the guide. What is installed, where, and how updates and removal work are unchanged, and a silent install shows none of it. **Not yet seen on a real PC**: the first test build on GitHub is the first time it is compiled. It needs Inno Setup 6.6 or newer; with an older one the installer looks as it did before.
+
 ## 0.38.0, 23/November/2026
 
 - **Song words, Bible verses and announcements on the screens.** A new **Slides** page, after Programs in the navigation, and a **Slides** button on Live under the display preview, put words on the second screen, web screens and stage screens.
