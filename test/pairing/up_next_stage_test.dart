@@ -350,9 +350,8 @@ void main() {
       }
     });
 
-    testWidgets('a banner cue leaves the band clear of its own band', (
-      t,
-    ) async {
+    testWidgets('a banner cue leaves the digits clear of the band, and covers '
+        'only the band on its own edge', (t) async {
       for (final size in const [
         Size(320, 568),
         Size(844, 390),
@@ -372,14 +371,21 @@ void main() {
           final reason = '$size $position';
           expect(t.takeException(), isNull, reason: reason);
           final band = t.getRect(find.byKey(const ValueKey('stage-banner')));
-          final rect = t.getRect(
-            find.byKey(const ValueKey('stage-band-up next')),
-          );
           final time = digits(t);
-          expect(lineText(t), 'Response');
-          expect(rect.overlaps(band), isFalse, reason: reason);
-          expect(rect.overlaps(time), isFalse, reason: reason);
           expect(time.overlaps(band), isFalse, reason: reason);
+          // The band for what is next shows unless the cue is over it.
+          final next = find.byKey(const ValueKey('stage-band-up next'));
+          final shown = t.widgetList<Opacity>(
+            find.ancestor(of: next, matching: find.byType(Opacity)),
+          );
+          expect(
+            shown.any((o) => o.opacity == 0),
+            position == 'bottom',
+            reason: reason,
+          );
+          if (position == 'top') {
+            expect(t.getRect(next).overlaps(band), isFalse, reason: reason);
+          }
           await t.pumpWidget(const SizedBox());
         }
       }

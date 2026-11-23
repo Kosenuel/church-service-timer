@@ -128,7 +128,7 @@ void main() {
       banner(
         'top',
         color: '#4ade80',
-        more: {'displayText': 'MIC IS LIVE', 'stageLayout': 'segment'},
+        more: {'displayText': 'MIC IS LIVE', 'stageLayout': 'current'},
       ),
       size: const Size(844, 390),
     );
@@ -144,7 +144,7 @@ void main() {
     t,
   ) async {
     Rect time() => t.getRect(find.byKey(const ValueKey('stage-time-width')));
-    for (final layout in ['timer', 'segment']) {
+    for (final layout in ['timer', 'current']) {
       final plain = {...countdown, 'stageLayout': layout};
       await stage(t, plain);
       final before = time();
@@ -338,7 +338,16 @@ void main() {
       expect(ink(t), Colors.white);
       await stage(t, banner('bottom', color: '#ff7979'));
       expect(rule, findsNothing);
-      expect(background(t), Colors.transparent);
+      // The countdown under the banner keeps its own ground, not the
+      // charcoal of a coloured full-screen cue.
+      expect(
+        t
+            .widget<ColoredBox>(
+              find.byKey(const ValueKey('stage-countdown-ground')),
+            )
+            .color,
+        Colors.black,
+      );
       expect(ink(t), const Color(0xffff7979));
     });
 
@@ -452,7 +461,7 @@ void main() {
         "'#1a1712'",
         "'#fff4dc'",
         "c.toLowerCase() === '#ffa833' ? '#fff4dc' : c",
-        "text.style.color = card ? cardInk(s.color)",
+        'card ? cardInk(s.color)',
         '#stage.fx-screenFlash.coloured .text',
         'id="stageRule"',
         'height:max(4px, 1.667vh)',

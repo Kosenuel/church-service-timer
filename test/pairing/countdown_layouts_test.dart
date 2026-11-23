@@ -7,7 +7,9 @@ import 'package:church_service_timer/web_stage/web_stage_server.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/pairing/stage_colors.dart';
+import 'package:church_service_timer/pairing/pairing.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/windows/second_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -153,11 +155,13 @@ void main() {
       expect(stageProgress({'overtime': true, 'progress': .4}), 1);
     });
 
-    test('an old paired screen shows Up next only as the segment name', () {
-      // The line an older version draws for a layout it does not know is
-      // the segment name (its saved choice would fall back to timer).
-      const older = 'Sermon';
-      expect(older, stageLayoutLine(countdown(), 'current'));
+    test('a paired screen can be set to Up next only, and old saved '
+        'choices still read', () {
+      expect(screenLayouts.containsKey('only'), isTrue);
+      expect(secondScreenLayouts.containsKey('only'), isTrue);
+      // A version that does not know it reads its saved choice as timer.
+      expect(stageLayoutValue('only-later'), 'timer');
+      expect(stageLayoutValue(null), 'timer');
     });
   });
 
@@ -498,7 +502,9 @@ void main() {
       expect(
         find.ancestor(
           of: find.byType(ClockText),
-          matching: find.byWidgetPredicate((w) => w is Opacity && w.opacity < .6),
+          matching: find.byWidgetPredicate(
+            (w) => w is Opacity && w.opacity < .6,
+          ),
         ),
         findsOneWidget,
       );

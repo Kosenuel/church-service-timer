@@ -12,6 +12,7 @@ import 'package:church_service_timer/shared/screen_orientation.dart';
 import 'package:church_service_timer/windows/atomic_store.dart';
 import 'package:church_service_timer/windows/mini_window.dart';
 import 'package:church_service_timer/windows/window_memory.dart';
+import 'package:church_service_timer/shared/stage_layout_tiles.dart';
 import 'package:flutter/gestures.dart';
 import 'package:church_service_timer/pairing/flip_clock.dart';
 import 'package:flutter/material.dart';
@@ -818,7 +819,7 @@ void main() {
       await t.pumpAndSettle();
       expect(c.state.fullScreenLayout, 'next');
       expect(
-        t.widget<ChoiceChip>(key('full-screen-layout-next')).selected,
+        t.widget<StageLayoutTile>(key('full-screen-layout-next')).selected,
         isTrue,
       );
       await done(t);

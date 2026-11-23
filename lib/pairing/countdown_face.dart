@@ -296,21 +296,14 @@ class _StageCountdownState extends State<StageCountdown>
           );
         }
 
-        Widget digits() => Column(
-          children: [
-            Expanded(
-              child: Opacity(
-                opacity: moment == 'paused' ? .45 : 1,
-                child: StageMessage(
-                  data: data,
-                  stale: widget.stale,
-                  fullscreen: true,
-                  ink: ink,
-                ),
-              ),
-            ),
-            tag(),
-          ],
+        Widget digits() => Opacity(
+          opacity: moment == 'paused' ? .45 : 1,
+          child: StageMessage(
+            data: data,
+            stale: widget.stale,
+            fullscreen: true,
+            ink: ink,
+          ),
         );
 
         Widget only0() {
@@ -378,17 +371,44 @@ class _StageCountdownState extends State<StageCountdown>
         final nowName = '${data['segment'] ?? ''}'.trim();
         final nowBy = '${data['speaker'] ?? ''}'.trim();
         final next = stageUpNext(data);
-        final children = <Widget>[
-          if (widget.layout == 'current' && nowName.isNotEmpty) ...[
-            band('Now', nowName, nowBy),
-            SizedBox(height: gap),
+        // A banner cue lays over the same picture: the digits give up only
+        // what the banner takes of their box, equally above and below, so
+        // the time stays centred and never jumps as a banner comes or goes.
+        final showNow = widget.layout == 'current' && nowName.isNotEmpty;
+        final showNext = widget.layout == 'next' && next != null;
+        // A band the banner would cover is not drawn, but keeps its place.
+        Widget covered(bool hide, Widget child) =>
+            hide ? Opacity(opacity: 0, child: child) : child;
+        final picture = CustomMultiChildLayout(
+          delegate: _CountdownLayout(
+            padding: pad + EdgeInsets.all(frame),
+            gap: gap,
+            tagHeight: tagHeight,
+            banner: widget.inset,
+            hasTop: showNow,
+            hasBottom: showNext,
+          ),
+          children: [
+            if (showNow)
+              LayoutId(
+                id: 'top',
+                child: covered(
+                  widget.inset.top > 0,
+                  band('Now', nowName, nowBy),
+                ),
+              ),
+            LayoutId(id: 'digits', child: digits()),
+            LayoutId(id: 'tag', child: tag()),
+            if (showNext)
+              LayoutId(
+                id: 'bottom',
+                child: covered(
+                  widget.inset.bottom > 0,
+                  band('Up next', next.name, next.detail),
+                ),
+              ),
           ],
-          Expanded(child: digits()),
-          if (widget.layout == 'next' && next != null) ...[
-            SizedBox(height: gap),
-            band('Up next', next.name, next.detail),
-          ],
-        ];
+        );
         return AnimatedBuilder(
           animation: pulse,
           builder: (context, _) {
@@ -408,16 +428,19 @@ class _StageCountdownState extends State<StageCountdown>
                   key: const ValueKey('stage-countdown-ground'),
                   color: base,
                 ),
-                Padding(
-                  padding: EdgeInsets.only(
-                    top: widget.inset.top,
-                    bottom: widget.inset.bottom,
-                  ),
-                  child: Padding(
-                    padding: pad + EdgeInsets.all(frame),
-                    child: only ? only0() : Column(children: children),
-                  ),
-                ),
+                if (only)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: widget.inset.top,
+                      bottom: widget.inset.bottom,
+                    ),
+                    child: Padding(
+                      padding: pad + EdgeInsets.all(frame),
+                      child: only0(),
+                    ),
+                  )
+                else
+                  picture,
                 if (frame > 0)
                   IgnorePointer(
                     child: DecoratedBox(
@@ -460,4 +483,79 @@ class _StageCountdownState extends State<StageCountdown>
       },
     );
   }
+}
+
+/// Lays out the countdown: a band at the top, one at the bottom, the
+/// digits between them and their tag under them. A banner cue takes
+/// [banner] of the screen's top or bottom; the digits give up only what
+/// the banner takes of their own box, equally above and below (see
+/// [StageBannerFrame.clearance]), so the time stays centred where it
+/// was and never jumps as a banner comes or goes.
+class _CountdownLayout extends MultiChildLayoutDelegate {
+  final EdgeInsets padding, banner;
+  final double gap, tagHeight;
+  final bool hasTop, hasBottom;
+  _CountdownLayout({
+    required this.padding,
+    required this.banner,
+    required this.gap,
+    required this.tagHeight,
+    required this.hasTop,
+    required this.hasBottom,
+  });
+
+  @override
+  void performLayout(Size size) {
+    final inner = Rect.fromLTRB(
+      padding.left,
+      padding.top,
+      math.max(padding.left, size.width - padding.right),
+      math.max(padding.top, size.height - padding.bottom),
+    );
+    var top = 0.0, bottom = 0.0;
+    BoxConstraints across() =>
+        BoxConstraints(minWidth: inner.width, maxWidth: inner.width);
+    // The bands sit at the edges and the digits between them, banner or
+    // not: a band on the banner's own edge is covered by it.
+    if (hasChild('top')) {
+      final band = layoutChild('top', across());
+      positionChild('top', inner.topLeft);
+      top = band.height + gap;
+    }
+    if (hasChild('bottom')) {
+      final band = layoutChild('bottom', across());
+      positionChild('bottom', Offset(inner.left, inner.bottom - band.height));
+      bottom = band.height + gap;
+    }
+    final room = Rect.fromLTRB(
+      inner.left,
+      inner.top + top,
+      inner.right,
+      math.max(inner.top + top, inner.bottom - bottom - tagHeight),
+    );
+    final clear = StageBannerFrame.clearance(
+      room.height,
+      above: math.max(0, banner.top - room.top),
+      below: math.max(0, banner.bottom - (size.height - room.bottom)),
+    );
+    final digits = layoutChild(
+      'digits',
+      BoxConstraints.tight(
+        Size(room.width, math.max(0, room.height - 2 * clear)),
+      ),
+    );
+    positionChild('digits', Offset(room.left, room.top + clear));
+    layoutChild('tag', BoxConstraints.tight(Size(room.width, tagHeight)));
+    positionChild('tag', Offset(room.left, room.bottom));
+    assert(digits.height >= 0);
+  }
+
+  @override
+  bool shouldRelayout(_CountdownLayout old) =>
+      old.padding != padding ||
+      old.banner != banner ||
+      old.gap != gap ||
+      old.tagHeight != tagHeight ||
+      old.hasTop != hasTop ||
+      old.hasBottom != hasBottom;
 }

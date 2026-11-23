@@ -8,7 +8,7 @@ import 'package:church_service_timer/shared/app_theme.dart';
 /// screen, paired stage screens, web screens, full screen and the stage
 /// simulator.
 ///
-/// The tiles share a row as far as they fit (never narrower than 150) and
+/// The tiles share a row as far as they fit (never narrower than 112) and
 /// wrap onto the next, so on a phone, or with large text, two or one to a
 /// row, and the tiles of a row are as tall as the tallest.
 class StageLayoutTiles extends StatelessWidget {
@@ -26,17 +26,20 @@ class StageLayoutTiles extends StatelessWidget {
     required this.keyPrefix,
   });
 
-  static const minTile = 150.0, gap = 10.0;
+  static const minTile = 112.0, gap = 10.0;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, space) {
       final width = space.maxWidth.isFinite ? space.maxWidth : 640.0;
       final layouts = stageLayouts.entries.toList();
-      final columns = ((width + gap) / (minTile + gap)).floor().clamp(
+      var columns = ((width + gap) / (minTile + gap)).floor().clamp(
         1,
         layouts.length,
       );
+      // Three and one would leave a tile alone on the last row: two and
+      // two is tidier.
+      if (columns == 3) columns = 2;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -117,7 +120,36 @@ class StageLayoutTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  StageLayoutMiniature(layout: layout),
+                  Stack(
+                    children: [
+                      StageLayoutMiniature(layout: layout),
+                      if (isNew)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: Container(
+                            key: const ValueKey('layout-new-badge'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.accent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'NEW',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: .6,
+                                color: readable(colors.accent),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,28 +165,6 @@ class StageLayoutTile extends StatelessWidget {
                           style: const TextStyle(fontSize: 14, height: 1.25),
                         ),
                       ),
-                      if (isNew) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.accent,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'NEW',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: .6,
-                              color: readable(colors.accent),
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ],
