@@ -98,12 +98,10 @@ final revision04Cases = <String, void Function()>{
           value: a.templates.first,
         );
         final migrated = AppState.fromJson(a.toJson()..['version'] = 3);
-        // The untouched stock default moves to the clock; programs keep theirs.
+        // The untouched stock end screen moves to the clock, in the default
+        // and in a program; a program's own end screen is kept.
         equal(migrated.defaults.end, null);
-        equal(
-          migrated.templates.first.display.end!.toJson(),
-          defaultEndScreen.toJson(),
-        );
+        equal(migrated.templates.first.display.end, null);
         equal(migrated.templates.last.display.end!.speed, 20);
         equal(
           migrated.session.timeline!.display.end!.toJson(),

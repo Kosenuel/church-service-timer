@@ -11,6 +11,9 @@ final revision06Cases = <String, void Function()>{
       t['schemaVersion'] = 2;
       t.remove('type');
     }
+    // A church's own end screen; the stock one would move to the clock.
+    ((old['templates'] as List).first['display'] as Map)['end'] =
+        const TextLayout('Go in peace', bold: true).toJson();
     final a = AppState.fromJson(old);
     equal(a.groupTemplates, true);
     equal(a.templates.first.type, 'service');
