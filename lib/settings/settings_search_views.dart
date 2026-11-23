@@ -50,7 +50,7 @@ extension SettingsSearchViews on HomeState {
         ),
       (
         'Appearance',
-        'theme density compact comfortable spacious dividers contrast motion picker feedback sound haptics',
+        'theme finish material texture glass brick wood walnut oak leather marble carbon denim plastic density compact comfortable spacious dividers contrast motion picker feedback sound haptics',
         Icons.palette_outlined,
         openAppearance,
       ),
@@ -90,6 +90,12 @@ extension SettingsSearchViews on HomeState {
         () => openDisplaySection('zero'),
       ),
       (
+        'Overtime alert',
+        'overtime red screen gentle strong strongest pulse stage over time',
+        Icons.notification_important_outlined,
+        () => openDisplaySection('overtime'),
+      ),
+      (
         'Default end screen',
         'end screen hallelujah clock finish',
         Icons.flag_outlined,
@@ -127,16 +133,7 @@ extension SettingsSearchViews on HomeState {
         'Keep screen awake',
         'sleep awake screen lock',
         Icons.wb_sunny_outlined,
-        () => openSettingsDetail(
-          'Keep screen awake',
-          () => SwitchListTile(
-            title: const Text('Keep screen awake'),
-            value: c.state.keepScreenAwake,
-            onChanged: c.busy
-                ? null
-                : (v) => c.commit((d, _) => d.keepScreenAwake = v),
-          ),
-        ),
+        () => openSettingsDetail('Keep screen awake', screenAwakeSetting),
       ),
       (
         'Feedback centre',

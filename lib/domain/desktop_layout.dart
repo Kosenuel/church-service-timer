@@ -67,6 +67,10 @@ const savedLookLimit = 8;
 class SavedLook {
   final String name, layout, themeId, density, keyHints;
   final bool highContrast;
+
+  /// The finish and its strength; a look saved before finishes existed is
+  /// Flat and Subtle.
+  final String finish, finishStrength;
   const SavedLook({
     required this.name,
     required this.layout,
@@ -74,6 +78,8 @@ class SavedLook {
     this.density = 'automatic',
     this.keyHints = 'automatic',
     this.highContrast = false,
+    this.finish = defaultFinish,
+    this.finishStrength = defaultFinishStrength,
   });
   factory SavedLook.fromJson(Json j) {
     keys(j, {
@@ -83,6 +89,8 @@ class SavedLook {
       'density',
       'keyHints',
       'highContrast',
+      'finish',
+      'finishStrength',
     }, 'Saved look');
     final look = SavedLook(
       name: savedLookName(j['name']),
@@ -91,6 +99,8 @@ class SavedLook {
       density: j['density'] is String ? j['density'] as String : '',
       keyHints: j['keyHints'] is String ? j['keyHints'] as String : '',
       highContrast: j['highContrast'] == true,
+      finish: finishValue(j['finish']),
+      finishStrength: finishStrengthValue(j['finishStrength']),
     );
     require(
       desktopLayoutIds.contains(look.layout) &&
@@ -113,6 +123,12 @@ class SavedLook {
     'density': density,
     'keyHints': keyHints,
     'highContrast': highContrast,
+    // Left out for a plain look, so a backup of one still opens in an
+    // earlier version, which rejects fields it does not know.
+    if (finish != defaultFinish || finishStrength != defaultFinishStrength) ...{
+      'finish': finish,
+      'finishStrength': finishStrength,
+    },
   };
 
   /// The look that [appearance] and [themeId] make now.
@@ -127,6 +143,8 @@ class SavedLook {
     density: appearance.density,
     keyHints: appearance.keyHints,
     highContrast: appearance.highContrast,
+    finish: appearance.finish,
+    finishStrength: appearance.finishStrength,
   );
 
   /// [appearance] with this look applied; the settings a look does not
@@ -137,6 +155,8 @@ class SavedLook {
         density: density,
         keyHints: keyHints,
         highContrast: highContrast,
+        finish: finish,
+        finishStrength: finishStrength,
       );
 }
 

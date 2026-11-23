@@ -55,7 +55,31 @@ class AppState {
   /// The church's square logo, shown at the top left of every page in
   /// place of the built-in mark; empty for the built-in mark.
   String churchLogo;
+
+  /// Whether the screen is kept awake while a service is running. Off is
+  /// "Never"; on is "While a service is running", or "Always" with
+  /// [keepScreenAlways]. Kept as a plain switch so older versions can
+  /// still read the saved data.
   bool keepScreenAwake;
+
+  /// Hold the screen awake whenever the app is open, running or not. Local
+  /// to this device; not part of portable backups.
+  bool keepScreenAlways;
+
+  /// The three choices as one value: 'never', 'service' or 'always'.
+  String get screenAwake => !keepScreenAwake
+      ? 'never'
+      : keepScreenAlways
+      ? 'always'
+      : 'service';
+  set screenAwake(String value) {
+    require(
+      screenAwakeChoices.contains(value),
+      'Choose a screen-awake option.',
+    );
+    keepScreenAwake = value != 'never';
+    keepScreenAlways = value == 'always';
+  }
 
   /// Show the service with Pause and Next on the lock-screen notification.
   /// Local to this phone; not part of portable backups.
@@ -76,6 +100,11 @@ class AppState {
   /// LED sign, or 'stage', a stage screen. Local to this phone; not part
   /// of backups.
   String simulatorKind;
+
+  /// How strongly stage screens show overtime: 'gentle', 'strong' or
+  /// 'strongest', as [overtimeAlerts] names them. Kept on this device
+  /// with the other stage display choices; not part of backups.
+  String overtimeAlert;
 
   /// What the Simulator shows under the time while it stands in for a
   /// stage screen: 'timer', 'current' or 'next'. Local to this phone; not
@@ -126,12 +155,14 @@ class AppState {
     this.themeId = 'midnight_lime',
     List<SavedLook>? savedLooks,
     this.keepScreenAwake = true,
+    this.keepScreenAlways = false,
     this.lockScreenControls = true,
     this.settingsLock,
     this.clickerControls = true,
     this.fullScreenLayout = 'timer',
     this.simulatorKind = 'led',
     this.simulatorLayout = 'timer',
+    this.overtimeAlert = 'strong',
     this.practisedWall,
     this.practicePrompt = true,
     this.stageRequests = false,
@@ -321,6 +352,7 @@ class AppState {
       themeId: themeIdValue(j['themeId'] ?? 'midnight_lime'),
       savedLooks: readSavedLooks(j['savedLooks']),
       keepScreenAwake: boolSetting(j['keepScreenAwake'] ?? true),
+      keepScreenAlways: boolSetting(j['keepScreenAlways'] ?? false),
       lockScreenControls: boolSetting(j['lockScreenControls'] ?? true),
       settingsLock: j['settingsLock'] == null
           ? null
@@ -329,6 +361,7 @@ class AppState {
       fullScreenLayout: stageLayoutValue(j['fullScreenLayout']),
       simulatorKind: simulatorKindValue(j['simulatorKind']),
       simulatorLayout: stageLayoutValue(j['simulatorLayout']),
+      overtimeAlert: overtimeAlertValue(j['overtimeAlert']),
       practisedWall: j['practisedWall'] is int
           ? j['practisedWall'] as int
           : null,
@@ -485,6 +518,7 @@ class AppState {
     'themeId': themeId,
     'savedLooks': [for (final l in savedLooks) l.toJson()],
     'keepScreenAwake': keepScreenAwake,
+    'keepScreenAlways': keepScreenAlways,
     'lockScreenControls': lockScreenControls,
     if (practisedWall != null) 'practisedWall': practisedWall,
     'practicePrompt': practicePrompt,
@@ -503,6 +537,7 @@ class AppState {
     'fullScreenLayout': fullScreenLayout,
     'simulatorKind': simulatorKind,
     'simulatorLayout': simulatorLayout,
+    'overtimeAlert': overtimeAlert,
   };
   AppState copy() => AppState.fromJson(toJson());
 

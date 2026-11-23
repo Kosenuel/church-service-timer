@@ -20,6 +20,7 @@ import 'package:church_service_timer/display/native_fonts.dart';
 import 'package:church_service_timer/hardware/display_connection.dart';
 import 'package:church_service_timer/hardware/hardware_display.dart';
 import 'package:church_service_timer/pairing/pairing.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
 import 'package:church_service_timer/app/appearance_preview.dart';
 import 'package:church_service_timer/app/edit_draft_queue.dart';
@@ -139,6 +140,13 @@ class AppController extends ChangeNotifier {
       : state.session.active
       ? 'End the current service before checking one.'
       : null;
+
+  /// Remembers how strongly stage screens show overtime.
+  Future<bool> setOvertimeAlert(String value) async {
+    if (!overtimeAlerts.containsKey(value)) return false;
+    if (state.overtimeAlert == value) return true;
+    return commit((draft, _) => draft.overtimeAlert = value);
+  }
 
   /// Remembers what the stage simulator shows under the time.
   Future<bool> setSimulatorLayout(String layout) async {
@@ -260,6 +268,7 @@ class AppController extends ChangeNotifier {
 
   void _stageWindowChanged() {
     _feedStageWindow();
+    unawaited(syncScreenAwake());
     if (!_disposed) notifyListeners();
   }
 
@@ -384,6 +393,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> syncActiveService() async {
+    await syncScreenAwake();
     final desired =
         pairing.hosting ||
         pairing.joined ||
@@ -448,6 +458,24 @@ class AppController extends ChangeNotifier {
     return null;
   }
 
+  /// The fields of a snapshot that describe [display]'s own text and look,
+  /// for the screen that stands in place of the next item (see
+  /// `stageForLayout`).
+  Json _displayFields(TextLayout display) => {
+    'displayText': display.text,
+    ...stageEffectFields(display),
+    'speed': display.speed,
+    'screenSpeed': ?display.screenSpeed,
+    if (display.screenColor != 'white')
+      'cueColor': stageColorHex(
+        screenCueColors[display.screenColor] ?? stageAccentRgb(state.themeId),
+      ),
+    if (display.screenWrap) 'screenWrap': true,
+    'screenWords': ?stageWordGroupsOf(display),
+    'bold': display.bold,
+    'italic': display.italic,
+  };
+
   /// What stage screens are sent. With [session] and [at], what they
   /// would show of that session instead, as "Check this service" draws
   /// it on the stage simulator; no message is added to it.
@@ -469,8 +497,30 @@ class AppController extends ChangeNotifier {
       'nextSegment': t != null && s.index + 1 < t.segments.length
           ? t.segments[s.index + 1].name
           : '',
+      'speaker': t?.segments[s.index].speaker ?? '',
       // Who and what comes next, for stage screens set to show it.
       'upNext': stageUpNextLine(t, s.index, quick: s.quickTimer),
+      // How the countdown looks: inside a warning's time, how far through
+      // the segment it is, and how strongly overtime is shown.
+      if (s.nearWarning(now)) 'warning': true,
+      if (s.active && s.allocatedMs > 0)
+        'progress': double.parse(
+          (1 - s.balance(now) / s.allocatedMs)
+              .clamp(0.0, 1.0)
+              .toStringAsFixed(4),
+        ),
+      'overtimeAlert': state.overtimeAlert,
+      // What 'Up next only' shows in place of the next item when there is
+      // none: the end screen set for the program, or the clock.
+      if (s.active &&
+          t != null &&
+          (s.quickTimer || s.index + 1 >= t.segments.length))
+        'afterEnd': {
+          'outputMode': t.display.end == null ? 'Clock' : 'End screen',
+          ..._displayFields(
+            t.display.end ?? clockLayout(now.wall, s.clockFormat),
+          ),
+        },
       'displayIsTimer':
           s.active &&
           !s.showClock &&
@@ -490,6 +540,15 @@ class AppController extends ChangeNotifier {
       if (quick != null) 'quickMessage': quick.toJson(),
       'displayText': s.outputBlank ? '' : display?.text ?? '',
       'outputMode': s.outputMode(now),
+      // The clock shown before a scheduled service starts is a clock too,
+      // though its output is the pre-service one.
+      if (s.outputMode(now) == 'Pre-service' &&
+          s.startsAtWall! - now.wall > preServiceCountdownMs)
+        'clockFace': true,
+      // The day and date under the clock, in the host's time, and the
+      // theme every stage screen draws it in. Older screens ignore both.
+      ...stageClockDateFields(now.wall),
+      'stageTheme': StageColors.fieldsOf(paletteFor(state.themeId)),
       'clockBlink': s.clockBlink,
       ...stageEffectFields(display, time: _cueTime(s, now)),
       // The LED sign's speed, which older paired screens keep following.
@@ -548,18 +607,51 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> syncDeviceSettings() async {
-    unawaited(refreshBatteryStatus());
-    appearancePreview.sync(state);
+  /// Whether the screen should be held awake right now. Only while the
+  /// device is doing the job: a service or quick timer is running (paused
+  /// included) or counting down to its start, this device is a stage
+  /// screen, or it is sharing to other screens. Idle on Live, Settings,
+  /// Programs or Reports, the screen may sleep. "Never" still keeps a
+  /// stage screen on, since nobody is there to touch it; "Always" keeps it
+  /// on whenever the app is open.
+  bool get wantsScreenAwake {
+    if (!ready) return false;
+    final stage =
+        pairing.mode == 'stage' || port.stageOutput?.connected == true;
+    if (stage) return true;
+    if (!state.keepScreenAwake) return false;
+    if (state.keepScreenAlways) return true;
+    final s = state.session;
+    final counting = s.phase == 'ready' && s.startsAtWall != null;
+    return s.active || counting || pairing.hosting || pairing.mode == 'viewer';
+  }
+
+  bool? _awakeApplied;
+
+  /// Tells the device to hold or release the screen when that changes; it
+  /// follows the service without the operator doing anything.
+  Future<void> syncScreenAwake() async {
+    if (_disposed) return;
+    final wanted = wantsScreenAwake;
+    if (wanted == _awakeApplied) return;
+    await _applyScreenAwake(wanted);
+  }
+
+  Future<void> _applyScreenAwake(bool wanted) async {
     try {
-      await port.setKeepScreenAwake(
-        state.keepScreenAwake || pairing.mode == 'stage',
-      );
+      await port.setKeepScreenAwake(wanted);
+      _awakeApplied = wanted;
       deviceSettingsError = null;
     } catch (e) {
       deviceSettingsError =
           'Screen-awake preference is saved but could not be applied: $e';
     }
+  }
+
+  Future<void> syncDeviceSettings() async {
+    unawaited(refreshBatteryStatus());
+    appearancePreview.sync(state);
+    await _applyScreenAwake(wantsScreenAwake);
   }
 
   Json get notificationState => phoneWarnings.status;
@@ -747,6 +839,7 @@ class AppController extends ChangeNotifier {
     await secondScreen?.load();
     await lyrics.loadPicture();
     ready = true;
+    await syncScreenAwake();
     // Create the order-of-service code and easy name once, so they stay the
     // same week after week (and slides stay valid).
     final web = webStageSettings;
@@ -887,7 +980,6 @@ class AppController extends ChangeNotifier {
       );
       final draft = state.copy();
       final previous = state.session;
-      final previousAwake = state.keepScreenAwake;
       mutation(draft, at);
       draft.clockFormat = readClockFormat(draft.clockFormat);
       draft.session.clockFormat = draft.clockFormat;
@@ -930,7 +1022,7 @@ class AppController extends ChangeNotifier {
       if (state.session.phase == 'idle' && state.session.id != previous.id)
         simulator.clear();
       appearancePreview.sync(state);
-      if (previousAwake != state.keepScreenAwake) await syncDeviceSettings();
+      await syncScreenAwake();
       await syncPhoneWarnings(previous: previous);
       error = null;
       retry = null;

@@ -1,4 +1,6 @@
+import 'package:church_service_timer/shared/stage_layout_tiles.dart';
 import 'package:flutter/material.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 
@@ -35,16 +37,19 @@ extension SimulatorChoice on HomeState {
       aspectRatio: 16 / 9,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: ColoredBox(
-          color: Colors.black,
-          child: ExcludeSemantics(
-            child: AnimatedBuilder(
-              animation: Listenable.merge([c, c.liveClock]),
-              builder: (context, _) => StageSurface(
-                data: c.stageSimulatorSnapshot(),
-                stale: c.state.session.held || c.state.session.disconnected,
-              ),
-            ),
+        child: ExcludeSemantics(
+          child: AnimatedBuilder(
+            animation: Listenable.merge([c, c.liveClock]),
+            builder: (context, _) {
+              final data = c.stageSimulatorSnapshot();
+              return ColoredBox(
+                color: stageBackdropOf(data),
+                child: StageSurface(
+                  data: data,
+                  stale: c.state.session.held || c.state.session.disconnected,
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -62,20 +67,12 @@ extension SimulatorChoice on HomeState {
         simulatorKindButtons(),
         if (c.state.simulatorKind == 'stage') ...[
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final layout in stageLayouts.entries)
-                ChoiceChip(
-                  key: ValueKey('simulator-layout-${layout.key}'),
-                  label: Text(layout.value),
-                  selected: c.state.simulatorLayout == layout.key,
-                  onSelected: canChooseSimulatorKind && !c.busy
-                      ? (_) => c.setSimulatorLayout(layout.key)
-                      : null,
-                ),
-            ],
+          StageLayoutTiles(
+            keyPrefix: 'simulator-layout',
+            value: c.state.simulatorLayout,
+            onChanged: canChooseSimulatorKind && !c.busy
+                ? c.setSimulatorLayout
+                : null,
           ),
         ],
       ],

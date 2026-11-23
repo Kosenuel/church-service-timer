@@ -1,6 +1,8 @@
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/choice_field.dart';
 import 'package:church_service_timer/domain/domain.dart';
 
@@ -110,87 +112,92 @@ class AppearanceSample extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = appColors(context), layout = appLayout(context);
+    final sample = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, compact ? 14 : 16, 16, 8),
+          child: Text(
+            'PREVIEW · ${densityName(layout.density).toUpperCase()}',
+            style: TextStyle(
+              color: colors.muted,
+              fontSize: compact ? 11 : 12,
+              letterSpacing: compact ? 1 : null,
+              fontWeight: compact ? FontWeight.w400 : FontWeight.bold,
+            ),
+          ),
+        ),
+        Padding(
+          padding: layout.rowInsets,
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Youth sunday',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '4 segments · 55 min',
+                      style: TextStyle(color: colors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+        if (!compact) ...[
+          const AppDivider(),
+          ListTile(
+            selected: true,
+            leading: Icon(Icons.play_arrow, color: colors.accent),
+            title: const Text(
+              'Praise & Worship',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: const Text('15 min · Now'),
+          ),
+        ],
+        const AppDivider(),
+        const ListTile(
+          leading: Icon(Icons.ios_share),
+          title: Text('Export program'),
+        ),
+        const AppDivider(essential: true),
+        ListTile(
+          leading: Icon(Icons.delete_outline, color: colors.error),
+          title: Text('Delete program', style: TextStyle(color: colors.error)),
+        ),
+      ],
+    );
+    // A finish draws the preview in its material; Flat keeps the plain card.
     return Semantics(
       label: 'Layout preview: sample program, active segment and action menu',
-      child: Card(
-        key: const ValueKey('appearance-sample'),
-        color: colors.surface,
-        surfaceTintColor: Colors.transparent,
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: colors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(16, compact ? 14 : 16, 16, 8),
-              child: Text(
-                'PREVIEW · ${densityName(layout.density).toUpperCase()}',
-                style: TextStyle(
-                  color: colors.muted,
-                  fontSize: compact ? 11 : 12,
-                  letterSpacing: compact ? 1 : null,
-                  fontWeight: compact ? FontWeight.w400 : FontWeight.bold,
-                ),
+      child: finishLook(context).active
+          ? FinishSurface(
+              key: const ValueKey('appearance-sample'),
+              radius: 18,
+              child: sample,
+            )
+          : Card(
+              key: const ValueKey('appearance-sample'),
+              color: colors.surface,
+              surfaceTintColor: Colors.transparent,
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: BorderSide(color: colors.border),
               ),
+              child: sample,
             ),
-            Padding(
-              padding: layout.rowInsets,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Youth sunday',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '4 segments · 55 min',
-                          style: TextStyle(color: colors.muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
-            ),
-            if (!compact) ...[
-              const AppDivider(),
-              ListTile(
-                selected: true,
-                leading: Icon(Icons.play_arrow, color: colors.accent),
-                title: const Text(
-                  'Praise & Worship',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                subtitle: const Text('15 min · Now'),
-              ),
-            ],
-            const AppDivider(),
-            const ListTile(
-              leading: Icon(Icons.ios_share),
-              title: Text('Export program'),
-            ),
-            const AppDivider(essential: true),
-            ListTile(
-              leading: Icon(Icons.delete_outline, color: colors.error),
-              title: Text(
-                'Delete program',
-                style: TextStyle(color: colors.error),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -223,14 +230,8 @@ class ThemePreviewCard extends StatelessWidget {
     );
     return Semantics(
       label: 'Preview of the selected theme',
-      child: Container(
-        key: const ValueKey('theme-preview'),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.border),
-        ),
+      child: _previewFrame(
+        context,
         child: ExcludeSemantics(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -286,6 +287,28 @@ class ThemePreviewCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  /// The card the preview sits in: plain, or in the finish's material.
+  Widget _previewFrame(BuildContext context, {required Widget child}) {
+    final colors = appColors(context);
+    if (finishLook(context).active) {
+      return FinishSurface(
+        key: const ValueKey('theme-preview'),
+        radius: 18,
+        child: Padding(padding: const EdgeInsets.all(14), child: child),
+      );
+    }
+    return Container(
+      key: const ValueKey('theme-preview'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.border),
+      ),
+      child: child,
     );
   }
 }

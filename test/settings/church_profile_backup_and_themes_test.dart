@@ -96,11 +96,14 @@ void main() {
     () async {
       final port = SettingsPort();
       final c = await setup(port);
-      expect(port.awakeCalls, [true]);
-      await c.commit((a, _) => a.keepScreenAwake = false);
-      expect(port.awakeCalls, [true, false]);
+      // Idle at start: the screen may sleep.
+      expect(port.awakeCalls, everyElement(false));
+      await c.commit((a, _) => a.screenAwake = 'always');
+      expect(port.awakeCalls.last, true);
+      await c.commit((a, _) => a.screenAwake = 'never');
+      expect(port.awakeCalls.last, false);
       port.failAwake = true;
-      expect(await c.commit((a, _) => a.keepScreenAwake = true), true);
+      expect(await c.commit((a, _) => a.screenAwake = 'always'), true);
       expect(c.deviceSettingsError, isNotNull);
       expect(c.error, isNull);
       port.failAwake = false;
@@ -108,7 +111,7 @@ void main() {
       expect(c.deviceSettingsError, isNull);
       c.dispose();
       final restart = await setup(port);
-      expect(restart.state.keepScreenAwake, true);
+      expect(restart.state.screenAwake, 'always');
       restart.dispose();
     },
   );

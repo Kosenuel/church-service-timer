@@ -65,7 +65,9 @@ class MainActivity : FlutterActivity() {
 /** Engine-owned bridge: no Activity is retained while the screen is closed. */
 class DeviceBridge(private val context: Context, engine: FlutterEngine) {
     private var host = WeakReference<MainActivity>(null)
-    private var keepAwake = true
+    // Off until the app says a service (or a stage screen) needs it, so an
+    // idle app lets the screen sleep.
+    private var keepAwake = false
     fun attach(activity: MainActivity) {
         host = WeakReference(activity)
         if (keepAwake) activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

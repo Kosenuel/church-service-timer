@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:church_service_timer/shared/app_pickers.dart';
@@ -50,15 +51,8 @@ String reportMode(ServiceReport r) => r.quickTimer
     ? 'Rehearsal ${r.rate}×'
     : 'Live';
 
-Widget reportSurface(BuildContext context, {required Widget child}) => Material(
-  color: appColors(context).surface,
-  shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(18),
-    side: BorderSide(color: appColors(context).border),
-  ),
-  clipBehavior: Clip.antiAlias,
-  child: child,
-);
+Widget reportSurface(BuildContext context, {required Widget child}) =>
+    FinishSurface(radius: 18, child: child);
 
 Widget reportMetric(
   BuildContext context,

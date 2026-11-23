@@ -654,6 +654,9 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
               ],
       };
     case WebRole.stage:
+      // On the last segment, in a Quick timer or with no program, 'Up next
+      // only' shows the end screen set for the program, or the clock.
+      s = stageForLayout(s, settings.stageLayout);
       // A banner cue: the page shows the countdown or clock as usual and
       // the cue in a band over it.
       final position = stageBannerPosition(s);
@@ -679,6 +682,11 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
         ...common,
         'sharing': s['stageSharing'] == true,
         'blank': s['blank'] == true,
+        // A flip clock, wherever the screen is filled with the time of
+        // day, in the host's theme (white on black from an older host).
+        if (shown['displayIsTimer'] != true)
+          'clock': ?_clockView(stageClockFace(shown)),
+        'theme': ?stageThemeOf(s),
         'displayText': shown['displayText'] ?? '',
         'bold': shown['bold'] == true,
         'italic': shown['italic'] == true,
@@ -705,10 +713,22 @@ Json viewFor(WebRole role, Json s, WebStageSettings settings) {
             'words': ?stageWordGroups(s),
             ...effectsOf(s),
           },
-        // The segment name or up next line under the time, if chosen.
-        'line': shown['displayIsTimer'] == true
-            ? stageLayoutLine(s, settings.stageLayout)
-            : '',
+        'layout': settings.stageLayout,
+        // The countdown's own look: how far through the segment it is and
+        // the moment it is in (see [stageMoment]), the bands for the
+        // segment now and what is next, and how strongly overtime shows.
+        if (shown['displayIsTimer'] == true)
+          'countdown': {
+            'moment': stageMoment(s),
+            'progress': stageProgress(s),
+            'alert': overtimeAlertValue(s['overtimeAlert']),
+            'now': {
+              'name': '${s['segment'] ?? ''}',
+              'by': '${s['speaker'] ?? ''}'.trim(),
+            },
+            if (stageUpNext(s) case final next?)
+              'next': {'name': next.name, 'detail': next.detail},
+          },
         'overtime': s['overtime'] == true,
         'paused': s['paused'] == true,
         // Whether the text is a countdown or clock, whose colon blinks.
@@ -799,3 +819,14 @@ Json webLyrics(Map l) {
     },
   };
 }
+
+/// The flip clock as the web page draws it, or null for no clock.
+Json? _clockView(StageClockFace? face) => face == null
+    ? null
+    : {
+        'hours': face.hours,
+        'minutes': face.minutes,
+        'pm': ?face.pm,
+        'weekday': face.weekday,
+        'date': face.date,
+      };

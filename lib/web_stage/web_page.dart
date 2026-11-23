@@ -76,9 +76,25 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
   #stage.fx-screenFlash, #stage .band.fx-screenFlash { box-shadow:inset 0 0 0 1.2vh var(--fx); }
 }
 #stage .rule { position:absolute; left:0; right:0; bottom:0; height:max(4px, 1.667vh); display:none; }
-#stage .line { position:absolute; left:4vw; right:4vw; bottom:6vh; display:none; color:#bbb; font-size:6vh; font-weight:600; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-#stage.stale .line { opacity:.35; }
 #stage .note { position:absolute; bottom:3vh; left:0; right:0; color:#777; font-size:2.2vh; }
+/* The countdown's bands, tag and progress line, in the theme's colours. */
+#cd { position:absolute; inset:0; display:none; pointer-events:none; font-family:Roboto, system-ui, "Segoe UI", sans-serif; }
+#stage.stale #cd { opacity:.35; }
+#cd .cdband { position:absolute; display:none; align-items:baseline; justify-content:center; gap:2vw; background:var(--c-band); border:1px solid var(--c-line); text-align:center; min-width:0; overflow:hidden; }
+#cd .cdband.up { flex-direction:column; align-items:center; gap:1.5vw; }
+#cd .cdeye { color:var(--c-eye); font-weight:700; text-transform:uppercase; white-space:nowrap; align-self:center; }
+#cd .cdnm { color:var(--c-name); font-weight:500; line-height:1.1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+#cd .cdsub { color:var(--c-sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+#cd .cdband.up .cdnm, #cd .cdband.up .cdsub { white-space:normal; overflow-wrap:anywhere; }
+#cd #cdOnly { position:absolute; display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+#cd #cdOnly .cdnm { white-space:normal; overflow-wrap:anywhere; line-height:1.02; max-width:100%; }
+#cd #cdTag { position:absolute; left:0; right:0; display:none; align-items:center; justify-content:center; }
+#cd #cdTag b { font-weight:700; text-transform:uppercase; border-radius:999px; white-space:nowrap; }
+#cd #cdProg { position:absolute; left:0; right:0; bottom:0; background:var(--c-track); }
+#cd #cdProg i { display:block; height:100%; width:0; background:var(--c-fill); transition:width 1s linear, background .3s; }
+#stage.cdpulse { animation:cdpulse 2s ease-in-out infinite; }
+@keyframes cdpulse { 0%, 100% { background:#e5333a; } 50% { background:#ff5b61; } }
+@media (prefers-reduced-motion: reduce) { #stage.cdpulse { animation:none; } #cd #cdProg i { transition:none; } }
 #stage .msg { width:100%; max-width:1280px; margin:0 auto; padding:0 4vw; box-sizing:border-box; }
 #stage .msg h2 { font-size:8vh; font-weight:700; line-height:1.15; margin:0 0 3vh; }
 #stage .msg p { font-size:6vh; line-height:1.2; margin:0; white-space:pre-wrap; word-break:break-word; }
@@ -124,11 +140,43 @@ body.stale #app { opacity:.6; }
 .role b { display:block; }
 .role.on { border-color: var(--accent); }
 .foot { text-align:center; color:#5f7068; font-size:12px; margin-top:28px; font-style:italic; }
+
+/* The flip clock: every size is a multiple of --H, the height of a card. */
+#flip { display:none; flex-direction:column; align-items:center; justify-content:center; font-family:Roboto, system-ui, "Segoe UI", sans-serif; text-align:center; }
+#flip .fmain { display:flex; align-items:center; justify-content:center; }
+#flip .fpair { display:flex; gap:calc(var(--H) * .05); }
+#flip .fcolon { display:grid; gap:calc(var(--H) * .2); width:calc(var(--H) * .2); justify-items:center; margin:0 calc(var(--H) * .06); }
+#flip .fcolon i { display:block; width:calc(var(--H) * .075); height:calc(var(--H) * .075); border-radius:50%; background:var(--f-accent); }
+#flip .fd { position:relative; width:calc(var(--H) * .72); height:var(--H); perspective:calc(var(--H) * 4); font-size:calc(var(--H) * .86); line-height:1; font-weight:500; color:var(--f-text); font-variant-numeric:tabular-nums; }
+#flip .fh, #flip .fl { position:absolute; left:0; width:100%; height:50%; overflow:hidden; backface-visibility:hidden; }
+#flip .fh span, #flip .fl span { position:absolute; left:0; width:100%; height:200%; display:grid; place-items:center; }
+#flip .ft { top:0; border-radius:calc(var(--H) * .07) calc(var(--H) * .07) 0 0; background:linear-gradient(var(--f-top), var(--f-mid)); }
+#flip .fb { bottom:0; border-radius:0 0 calc(var(--H) * .07) calc(var(--H) * .07); background:linear-gradient(var(--f-mid), var(--f-bottom)); }
+#flip .ft span { top:0; } #flip .fb span { top:-100%; }
+#flip .fl.ft { transform-origin:bottom; z-index:3; }
+#flip .fl.fb { transform-origin:top; transform:rotateX(90deg); z-index:3; }
+#flip .fd.flipping .fl.ft { animation:fliptop .32s ease-in forwards; }
+#flip .fd.flipping .fl.fb { animation:flipbottom .32s .32s ease-out forwards; }
+@keyframes fliptop { to { transform:rotateX(-90deg); } }
+@keyframes flipbottom { to { transform:rotateX(0deg); } }
+#flip .fd::after { content:""; position:absolute; left:0; right:0; top:calc(50% - 1px); height:2px; background:var(--f-hinge); z-index:5; }
+#flip .fd::before { content:""; position:absolute; inset:0; border-radius:calc(var(--H) * .07); box-shadow:0 calc(var(--H) * .04) calc(var(--H) * .1) rgba(0,0,0,.35); pointer-events:none; }
+#flip .ftiles { display:none; }
+#flip .ftiles.on { display:grid; }
+#flip .ftiles.side { gap:calc(var(--H) * .06); height:var(--H); width:calc(var(--H) * .62); margin-left:calc(var(--H) * .14); }
+#flip .ftiles.below { grid-auto-flow:column; gap:calc(var(--H) * .1); margin-top:calc(var(--H) * .22); height:calc(var(--H) * .27); }
+#flip .ftiles.below b { width:calc(var(--H) * .5); }
+#flip .ftiles b { display:grid; place-items:center; font-weight:700; font-size:calc(var(--H) * .17); letter-spacing:.06em; border-radius:calc(var(--H) * .05); color:var(--f-muted); background:var(--f-off); border:1px solid var(--f-line); }
+#flip .ftiles b.lit { color:var(--f-on); background:var(--f-accent); border-color:var(--f-accent); }
+#flip .fdate { margin-top:calc(var(--H) * .2); }
+#flip .fdow { font-size:calc(var(--H) * .13); letter-spacing:.32em; text-transform:uppercase; color:var(--f-accent); font-weight:500; line-height:1.25; white-space:nowrap; }
+#flip .fdmy { font-size:calc(var(--H) * .115); letter-spacing:.04em; color:var(--f-muted); font-weight:300; line-height:1.25; margin-top:calc(var(--H) * .05); white-space:nowrap; }
+@media (prefers-reduced-motion: reduce) { #flip .fd.flipping .fl.ft, #flip .fd.flipping .fl.fb { animation:none; } }
 </style>
 </head>
 <body>
 <div id="app" class="wrap"></div>
-<div id="stage"><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="rule" id="stageRule"></div><div class="line" id="stageLine"></div><div class="note" id="stageNote"></div></div>
+<div id="stage"><div id="flip"></div><div class="text" id="stageText"></div><div class="band" id="stageBand"></div><div class="cuebar" id="stageBar"><i></i></div><div class="rule" id="stageRule"></div><div id="cd"><div class="cdband" id="cdNow"></div><div class="cdband" id="cdNext"></div><div id="cdOnly"></div><div id="cdTag"></div><div id="cdProg"><i></i></div></div><div class="note" id="stageNote"></div></div>
 <div id="lyr"><div class="bgl" id="lyrBg"></div><div class="fx" id="lyrFx"></div><div class="dim" id="lyrDim"></div><div class="words" id="lyrWords"></div><div class="chip" id="lyrChip"></div></div>
 <div id="lost" role="alert"><span class="dot"></span><span id="lostText">Connection to the host device lost · reconnecting…</span></div>
 <div id="tools"></div>
@@ -288,14 +336,35 @@ function revealTools() {
 }
 document.addEventListener('pointerdown', () => { if (role === 'stage') revealTools(); });
 
+// Wake lock: held only while this page is a stage screen or a service is
+// running, and let go otherwise so an idle screen can sleep. A browser may
+// refuse or drop the lock, so failure is quiet and the next change retries.
 let wake = null;
-async function keepAwake() { try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (_) {} }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && role !== 'order') keepAwake(); });
+function wantAwake() {
+  if (document.visibilityState !== 'visible' || role === 'order') return false;
+  return role === 'stage' || (!!lastState && lastState.phase === 'active');
+}
+async function keepAwake() {
+  try {
+    if (!('wakeLock' in navigator) || wake) return;
+    const lock = await navigator.wakeLock.request('screen');
+    // The need may have ended while the browser was answering.
+    if (!wantAwake() || wake) { lock.release().catch(() => {}); return; }
+    wake = lock;
+    lock.addEventListener('release', () => { if (wake === lock) wake = null; });
+  } catch (_) {}
+}
+function letSleep() {
+  const lock = wake; wake = null;
+  try { if (lock) lock.release().catch(() => {}); } catch (_) {}
+}
+function syncAwake() { if (wantAwake()) keepAwake(); else letSleep(); }
+document.addEventListener('visibilitychange', syncAwake);
 
 function stop() { clearTimeout(timer); timer = null; }
 function start() {
   stop(); lastState = null; lastOk = Date.now(); misses = 0;
-  if (role !== 'order') keepAwake();
+  syncAwake();
   tools(role === 'stage');
   poll();
 }
@@ -352,6 +421,7 @@ function wrapSize(node, lines, height, least, most) {
 
 function render(s) {
   lastState = s;
+  syncAwake();
   showRequests(s);
   if (s.role === 'stage') return renderStage(s);
   renderLyrics(null); stopMotion(); renderBand(null);
@@ -665,28 +735,186 @@ setInterval(() => {
   document.querySelectorAll('#stage .colon').forEach((c) => c.classList.toggle('dim', !lit));
 }, 50);
 
+
+// The flip clock, wherever the screen is filled with the time of day.
+// Four cards (the hours' first is hidden on a 12 hour clock's single
+// digit) turn over when their digit changes; the colours are mixed from
+// the host's theme, and nothing is drawn from the host as HTML.
+const flipDigits = []; let flipCur = ['', '', '', ''];
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgbHex = (c) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+const mixHex = (a, b, t) => { const x = hexRgb(a), y = hexRgb(b); return rgbHex(x.map((v, i) => v + (y[i] - v) * t)); };
+const lumOf = (h) => { const [r, g, b] = hexRgb(h).map((v) => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r + .7152 * g + .0722 * b; };
+const ratioOf = (a, b) => { const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+const CLASSIC = { background: '#000000', surface: '#141414', accent: '#ffffff', muted: '#b3b3b3', text: '#ffffff' };
+function flipCard() {
+  const d = el('div', 'fd');
+  for (const cls of ['fh ft', 'fh fb', 'fl ft', 'fl fb']) { const half = el('div', cls); half.append(el('span')); d.append(half); }
+  return d;
+}
+const flipSet = (d, sel, t) => { d.querySelector(sel + ' span').textContent = t; };
+const flipShow = (d, v) => { ['.fh.ft', '.fh.fb', '.fl.ft', '.fl.fb'].forEach((q) => flipSet(d, q, v)); };
+function flipTurn(d, from, to) {
+  d.classList.remove('flipping'); void d.offsetWidth;
+  flipSet(d, '.fh.ft', to); flipSet(d, '.fh.fb', from); flipSet(d, '.fl.ft', from); flipSet(d, '.fl.fb', to);
+  d.classList.add('flipping');
+  const done = () => { d.removeEventListener('animationend', handler); flipShow(d, to); d.classList.remove('flipping'); };
+  const handler = (e) => { if (e.animationName === 'flipbottom') done(); };
+  d.addEventListener('animationend', handler);
+  setTimeout(() => { if (d.classList.contains('flipping')) done(); }, 900);
+}
+function renderFlip(s, w, h) {
+  const c = s.clock, root = $('flip');
+  if (!flipDigits.length) {
+    const pairs = [el('div', 'fpair'), el('div', 'fpair')];
+    const tiles = (cls) => { const t = el('div', 'ftiles ' + cls); t.append(el('b', '', 'AM'), el('b', '', 'PM')); return t; };
+    const colon = el('div', 'fcolon'); colon.append(el('i'), el('i'));
+    const main = el('div', 'fmain'); main.append(pairs[0], colon, pairs[1], tiles('side'));
+    const date = el('div', 'fdate'); date.append(el('div', 'fdow'), el('div', 'fdmy'));
+    root.append(main, tiles('below'), date);
+    for (let i = 0; i < 4; i++) { const d = flipCard(); flipShow(d, '0'); flipDigits.push(d); pairs[i < 2 ? 0 : 1].append(d); }
+  }
+  const t = Object.assign({}, CLASSIC, s.theme || {});
+  const light = lumOf(t.background) > .179;
+  const vars = {
+    '--f-text': t.text, '--f-accent': t.accent, '--f-muted': t.muted,
+    '--f-top': mixHex(t.surface, t.text, .06), '--f-bottom': mixHex(t.surface, t.background, .35),
+    '--f-mid': mixHex(mixHex(t.surface, t.text, .06), mixHex(t.surface, t.background, .35), .5),
+    '--f-hinge': light ? mixHex(t.background, t.text, .3) : mixHex(t.background, '#000000', .3),
+    '--f-off': mixHex(t.background, t.text, .06), '--f-line': mixHex(t.background, t.text, .14),
+    '--f-on': ratioOf('#10150a', t.accent) >= ratioOf('#ffffff', t.accent) ? '#10150a' : '#ffffff'
+  };
+  for (const k in vars) root.style.setProperty(k, vars[k]);
+  const twelve = typeof c.pm === 'boolean', upright = h > w;
+  // The largest card that fits, sized for two hour digits so the clock
+  // keeps its size as 9:59 becomes 10:00.
+  const m = Math.min(w, h) * .04;
+  const wf = 2 * (2 * .72 + .05) + .12 + .2 + .12 + (!upright && twelve ? .76 : 0);
+  const hf = 1 + (upright && twelve ? .49 : 0) + .2 + .13 * 1.25 + .05 + .115 * 1.25;
+  root.style.setProperty('--H', Math.max(10, Math.min((w - 2 * m) / wf, (h - 2 * m) / hf)) + 'px');
+  root.style.display = 'flex';
+  const hs = c.hours.length === 1 ? ' ' + c.hours : c.hours, next = [hs[0], hs[1], c.minutes[0], c.minutes[1]];
+  const calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const animate = !calm && !$('stage').classList.contains('stale');
+  flipDigits.forEach((d, i) => {
+    d.style.display = next[i] === ' ' ? 'none' : '';
+    if (flipCur[i] === next[i]) return;
+    if (animate && flipCur[i] !== '' && flipCur[i] !== ' ' && next[i] !== ' ') flipTurn(d, flipCur[i], next[i]);
+    else flipShow(d, next[i] === ' ' ? '0' : next[i]);
+    flipCur[i] = next[i];
+  });
+  root.querySelectorAll('.ftiles').forEach((box) => {
+    box.classList.toggle('on', twelve && box.classList.contains(upright ? 'below' : 'side'));
+    if (twelve) { box.children[0].classList.toggle('lit', !c.pm); box.children[1].classList.toggle('lit', c.pm); }
+  });
+  root.querySelector('.fdow').textContent = c.weekday || '';
+  root.querySelector('.fdmy').textContent = c.date || '';
+  return t;
+}
+
+// The countdown's chrome: the band for the segment now or what is next
+// (or the next item alone), the PAUSED and OVER TIME tag, and the progress
+// line, in the host's theme and the colour of the moment. It returns the
+// share of the screen's height left for the digits, and their colour. All
+// text is set with textContent.
+function renderCountdown(s, cd, w, h, high, low) {
+  const stage = $('stage'), root = $('cd');
+  const t = Object.assign({}, CLASSIC, s.theme || {});
+  const light = lumOf(t.background) > .179;
+  const upright = h > w;
+  const only = s.layout === 'only' && !!cd.next;
+  // 'Up next only' shows no time, so overtime does not change it.
+  const moment = only && cd.moment === 'overtime' ? 'normal' : cd.moment;
+  const over = moment === 'overtime', solid = over && cd.alert !== 'gentle';
+  const redInk = light ? '#ad2835' : '#ff6b6b', warn = light ? '#875100' : '#f3ba61', dark = '#1a0000';
+  const ink = over ? (solid ? dark : redInk) : moment === 'warning' ? warn : t.text;
+  stage.style.background = solid ? '#e5333a' : t.background;
+  stage.classList.toggle('cdpulse', solid && cd.alert === 'strongest');
+  if (over && !solid) stage.style.boxShadow = 'inset 0 0 0 ' + Math.max(6, Math.min(w, h) * 0.035) + 'px ' + redInk;
+  const vars = {
+    '--c-band': solid ? 'rgba(0,0,0,.12)' : mixHex(t.surface, t.text, .05),
+    '--c-line': solid ? 'rgba(0,0,0,.3)' : mixHex(t.surface, t.text, .16),
+    '--c-eye': solid ? dark : t.accent, '--c-name': solid ? dark : t.text, '--c-sub': solid ? 'rgba(26,0,0,.8)' : t.muted,
+    '--c-track': solid ? 'rgba(0,0,0,.22)' : mixHex(t.background, t.text, .12),
+    '--c-fill': over ? (solid ? dark : redInk) : moment === 'warning' ? warn : t.accent
+  };
+  for (const k in vars) root.style.setProperty(k, vars[k]);
+  root.style.display = 'block';
+  const topM = upright ? w * .08 : w * .03, botM = upright ? w * .10 : w * .044, side = upright ? w * .06 : w * .03, gap = upright ? w * .05 : w * .02;
+  const prog = $('cdProg'); prog.style.height = Math.max(4, upright ? w * .024 : w * .013) + 'px';
+  $('cdProg').firstChild.style.width = (Math.max(0, Math.min(1, cd.progress || 0)) * 100) + '%';
+  const bandTop = high ? h * .2 : 0, bandBottom = low ? h * .2 : 0;
+  const fs = (a, b) => (upright ? b : a) * w + 'px';
+  const fill = (node, label, name, detail) => {
+    clear(node);
+    const e = el('span', 'cdeye', label); e.style.fontSize = fs(.019, .042); e.style.letterSpacing = '.16em';
+    const n = el('span', 'cdnm', name); n.style.fontSize = fs(.044, .09);
+    node.append(e, n);
+    if (detail) { const d = el('span', 'cdsub', detail); d.style.fontSize = fs(.03, .054); node.append(d); }
+    node.classList.toggle('up', upright);
+    node.style.left = side + 'px'; node.style.right = side + 'px';
+    node.style.borderRadius = (upright ? w * .04 : w * .016) + 'px';
+    node.style.padding = upright ? (w * .05) + 'px ' + (w * .04) + 'px' : (w * .015) + 'px ' + (w * .03) + 'px';
+    node.style.display = 'flex'; node.style.maxHeight = h * (upright ? .34 : .3) + 'px';
+  };
+  const nowBand = $('cdNow'), nextBand = $('cdNext'), onlyBox = $('cdOnly'), tag = $('cdTag');
+  nowBand.style.display = nextBand.style.display = onlyBox.style.display = tag.style.display = 'none';
+  let padTop = bandTop + topM, padBottom = bandBottom + botM, nextH = 0;
+  if (only) {
+    clear(onlyBox);
+    const e = el('span', 'cdeye', 'UP NEXT'); e.style.fontSize = fs(.03, .054); e.style.letterSpacing = '.16em';
+    const n = el('span', 'cdnm', cd.next.name); n.style.fontSize = fs(.12, .17); n.style.marginTop = (upright ? w * .05 : w * .022) + 'px';
+    onlyBox.append(e, n);
+    if (cd.next.detail) { const d = el('span', 'cdsub', cd.next.detail); d.style.fontSize = fs(.046, .07); d.style.marginTop = (upright ? w * .05 : w * .022) + 'px'; d.style.whiteSpace = 'normal'; onlyBox.append(d); }
+    onlyBox.style.left = side + 'px'; onlyBox.style.right = side + 'px'; onlyBox.style.top = bandTop + 'px'; onlyBox.style.bottom = bandBottom + 'px';
+    onlyBox.style.display = 'flex';
+    return { only: true, room: 1, ink };
+  }
+  if (s.layout === 'current' && cd.now.name.trim()) {
+    fill(nowBand, 'Now', cd.now.name, cd.now.by);
+    nowBand.style.top = bandTop + topM + 'px';
+    padTop += nowBand.offsetHeight + gap;
+  }
+  if (s.layout === 'next' && cd.next) {
+    fill(nextBand, 'Up next', cd.next.name, cd.next.detail);
+    nextBand.style.bottom = bandBottom + botM + 'px';
+    nextH = nextBand.offsetHeight; padBottom += nextH + gap;
+  }
+  // The tag has its room always, so the digits keep their size.
+  const tagH = upright ? w * .085 : h * .075;
+  const paused = cd.moment === 'paused' || (cd.moment === 'overtime' && s.paused);
+  const words = paused ? (over ? 'PAUSED · OVER TIME' : 'PAUSED') : over ? 'OVER TIME' : '';
+  if (words) {
+    clear(tag);
+    const b = el('b', '', words);
+    const pill = over && !paused;
+    b.style.fontSize = tagH * .5 + 'px'; b.style.letterSpacing = '.18em'; b.style.padding = (tagH * .12) + 'px ' + (tagH * .5) + 'px';
+    b.style.background = pill ? (solid ? dark : redInk) : vars['--c-band'];
+    b.style.color = pill ? (solid ? '#e5333a' : t.background) : t.text;
+    b.style.border = pill ? '0' : '1px solid ' + vars['--c-line'];
+    tag.append(b); tag.style.display = 'flex';
+  }
+  tag.style.height = tagH + 'px'; tag.style.bottom = bandBottom + botM + (nextH ? nextH + gap : 0) + 'px';
+  padBottom += tagH;
+  stage.style.paddingTop = padTop + 'px'; stage.style.paddingBottom = padBottom + 'px';
+  return { only: false, room: Math.max(.2, (h - padTop - padBottom) / h), ink, dim: moment === 'paused' };
+}
+
 function renderStage(s) {
   $('app').style.display = 'none';
   // A slide covers the countdown, which keeps running underneath.
   renderLyrics(s);
+  $('flip').style.display = 'none'; $('stageText').style.display = '';
   const stage = $('stage'); stage.style.display = 'flex';
   const text = $('stageText'); const note = $('stageNote');
   renderBand(s);
   // With a banner, the countdown keeps to the middle of the screen and is
   // a little smaller at most, so its digits stay clear of the band.
-  // The segment name or up next line under the time, on one line that
-  // ends in an ellipsis; above a bottom banner while one shows.
-  const lineText = s.sharing && !s.message && !s.blank ? (s.line || '') : '';
-  const line = $('stageLine'); line.textContent = lineText;
-  line.style.display = lineText ? 'block' : 'none';
   const low = s.banner && s.banner.position !== 'top', high = s.banner && s.banner.position === 'top';
-  line.style.bottom = low ? '22vh' : '';
-  // With the line, the time keeps to the space between it and any band.
-  const above = lineText && high ? 20 : 0, below = lineText ? (low ? 30 : 14) : 0;
-  stage.style.paddingTop = above ? above + 'vh' : '';
-  stage.style.paddingBottom = below ? below + 'vh' : '';
-  const room = lineText ? 1 - (above + below) / 100 : s.banner ? 0.88 : 1;
-  note.style.bottom = low ? (lineText ? '30vh' : '23vh') : '';
+  stage.style.paddingTop = ''; stage.style.paddingBottom = '';
+  let room = s.banner ? 0.88 : 1;
+  note.style.bottom = low ? '23vh' : '';
+  $('cd').style.display = 'none'; stage.classList.remove('cdpulse'); stage.style.boxShadow = '';
   const value = s.displayText || '';
   const h = window.innerHeight, w = window.innerWidth;
   // "Wrap long text": wrapped onto up to 3 lines, as large as fits.
@@ -721,12 +949,31 @@ function renderStage(s) {
     renderMessage(stage, text, s.message); return;
   }
   if (s.blank) return;
+  // The time of day fills the screen as a flip clock in the host's theme;
+  // a banner keeps its band and the clock the room that is left.
+  if (s.clock && !s.message && !card) {
+    const bandH = s.banner ? 20 : 0;
+    stage.style.paddingTop = s.banner && s.banner.position === 'top' ? bandH + 'vh' : '';
+    stage.style.paddingBottom = s.banner && s.banner.position !== 'top' ? bandH + 'vh' : '';
+    const theme = renderFlip(s, w, h * (1 - bandH / 100));
+    stage.style.background = theme.background;
+    clear(text); note.textContent = ''; text.style.display = 'none';
+    return;
+  }
+  // The countdown in the theme's colours with its bands and progress line.
+  let cdLook = null;
+  if (s.countdown && !card) {
+    cdLook = renderCountdown(s, s.countdown, w, h, high, low);
+    if (cdLook.only) { clear(text); text.style.display = 'none'; return; }
+    room = cdLook.room;
+  }
   // A coloured full-screen cue in its colour, amber's in warm white, with
   // its colour in the rule too; otherwise white, or red in overtime.
-  text.style.color = card ? cardInk(s.color) : s.color || (s.overtime ? '#ff4d4d' : '#fff');
+  text.style.color = cdLook ? cdLook.ink : card ? cardInk(s.color) : s.color || (s.overtime ? '#ff4d4d' : '#fff');
+  if (cdLook && cdLook.dim) text.style.opacity = '.45';
   text.style.fontWeight = s.bold ? '800' : '500';
   text.style.fontStyle = s.italic ? 'italic' : 'normal';
-  if (s.paused) note.textContent = 'PAUSED';
+  if (s.paused && !cdLook) note.textContent = 'PAUSED';
   let effect = s.effect, wrapAt = 0;
   if (wrap) {
     text.textContent = value; text.classList.add('wrapped');

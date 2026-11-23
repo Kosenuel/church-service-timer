@@ -62,7 +62,9 @@ Rect digits(WidgetTester t) {
   );
 }
 
-final line = find.byKey(const ValueKey('stage-line'));
+// The name in the band for what is next (Timer and up next), and its words.
+final line = find.byKey(const ValueKey('stage-band-name'));
+final detail = find.byKey(const ValueKey('stage-band-detail'));
 String lineText(WidgetTester t) => t.widget<Text>(line).data!;
 
 void main() {
@@ -85,15 +87,17 @@ void main() {
       expect(stageUpNextLine(null, 0), '');
     });
 
-    test('every chooser offers the same three choices in the same words', () {
+    test('every chooser offers the same four choices in the same words', () {
       expect(stageLayouts, {
         'timer': 'Timer only',
         'current': 'Timer and segment name',
         'next': 'Timer and up next',
+        'only': 'Up next only',
       });
       expect(identical(screenLayouts, stageLayouts), isTrue);
       expect(identical(secondScreenLayouts, stageLayouts), isTrue);
       expect(stageLayoutValue('next'), 'next');
+      expect(stageLayoutValue('only'), 'only');
       expect(stageLayoutValue('nonsense'), 'timer');
       expect(stageLayoutValue(null), 'timer');
     });
@@ -162,7 +166,10 @@ void main() {
       // Web stage displays: a choice for all of them, saved with the
       // web screen options.
       final settings = c.webStageSettings;
-      expect(viewFor(WebRole.stage, c.web.snapshot(), settings)['line'], '');
+      expect(
+        viewFor(WebRole.stage, c.web.snapshot(), settings)['layout'],
+        'timer',
+      );
       expect(
         await c.setWebStageSettings(settings.copyWith(stageLayout: 'next')),
         isTrue,
@@ -175,33 +182,51 @@ void main() {
         ).stageLayout,
         'next',
       );
-      expect(
-        viewFor(WebRole.stage, c.web.snapshot(), c.webStageSettings)['line'],
-        next,
-      );
+      final view = viewFor(WebRole.stage, c.web.snapshot(), c.webStageSettings);
+      expect(view['layout'], 'next');
+      expect(view['countdown']['next'], {
+        'name': 'Sermon',
+        'detail': 'Pastor Ade · 40 min',
+      });
       expect(
         viewFor(
           WebRole.stage,
           c.web.snapshot(),
           c.webStageSettings.copyWith(stageLayout: 'current'),
-        )['line'],
-        'Welcome',
+        )['countdown']['now'],
+        {'name': 'Welcome', 'by': ''},
+      );
+      // Up next only is chosen and kept like the others.
+      expect(
+        await c.setWebStageSettings(settings.copyWith(stageLayout: 'only')),
+        isTrue,
+      );
+      expect(
+        WebStageSettings.fromJson(
+          c.webStageSettings.toJson(),
+          churchName: '',
+        ).stageLayout,
+        'only',
       );
     });
 
-    test('a web stage display shows no line over a cue or message', () {
+    test('a web stage display shows no countdown bands over a cue or '
+        'message', () {
       final settings = const WebStageSettings(
         orderCode: 'abcd',
         localName: 'church-timer',
         stageLayout: 'next',
       );
-      expect(viewFor(WebRole.stage, countdown, settings)['line'], isNotEmpty);
+      expect(
+        viewFor(WebRole.stage, countdown, settings)['countdown']['next'],
+        isNotNull,
+      );
       expect(
         viewFor(WebRole.stage, {
           ...countdown,
           'displayIsTimer': false,
-        }, settings)['line'],
-        '',
+        }, settings).containsKey('countdown'),
+        isFalse,
       );
     });
 
@@ -230,13 +255,14 @@ void main() {
   });
 
   group('the stage screen', () {
-    testWidgets('shows the line under the countdown on a big screen', (
-      t,
-    ) async {
+    testWidgets('shows what is next in a band under the countdown on a big '
+        'screen', (t) async {
       await stage(t, countdown);
       expect(t.takeException(), isNull);
-      expect(lineText(t), 'Next: Response · Worship team · 6 min 30 s');
-      final rect = t.getRect(line);
+      expect(lineText(t), 'Response');
+      expect(t.widget<Text>(detail).data, 'Worship team · 6 min 30 s');
+      expect(find.text('UP NEXT'), findsOneWidget);
+      final rect = t.getRect(find.byKey(const ValueKey('stage-band-up next')));
       expect(rect.top, greaterThan(digits(t).bottom));
       expect(rect.bottom, lessThanOrEqualTo(1080));
       await expectLater(
@@ -245,10 +271,13 @@ void main() {
       );
     });
 
-    testWidgets('shows the line on a phone on its side', (t) async {
+    testWidgets('shows the band on a phone on its side', (t) async {
       await stage(t, countdown, size: const Size(844, 390));
       expect(t.takeException(), isNull);
-      expect(t.getRect(line).top, greaterThan(digits(t).bottom));
+      expect(
+        t.getRect(find.byKey(const ValueKey('stage-band-up next'))).top,
+        greaterThan(digits(t).bottom),
+      );
       await expectLater(
         find.byType(StageSurface),
         matchesGoldenFile('../goldens/stage-up-next-phone.png'),
@@ -273,18 +302,17 @@ void main() {
       expect(t.takeException(), isNull);
     });
 
-    testWidgets('a long line stays on one line and ends in an ellipsis', (
-      t,
-    ) async {
+    testWidgets('a long name stays on one line and ends in an ellipsis on a '
+        'wide screen', (t) async {
       const long =
-          'Next: Testimony and thanksgiving for the harvest season · '
-          'Brother Emmanuel and the youth fellowship choir · 12 min 30 s';
-      for (final size in const [
-        Size(320, 568),
-        Size(844, 390),
-        Size(1920, 1080),
-      ]) {
-        await stage(t, {...countdown, 'upNext': long}, size: size);
+          'Testimony and thanksgiving for the harvest season with the '
+          'youth fellowship choir and friends';
+      for (final size in const [Size(844, 390), Size(1920, 1080)]) {
+        await stage(t, {
+          ...countdown,
+          'nextSegment': long,
+          'upNext': 'Next: $long · Brother Emmanuel · 12 min 30 s',
+        }, size: size);
         expect(t.takeException(), isNull, reason: '$size');
         final text = t.widget<Text>(line);
         expect(text.maxLines, 1);
@@ -294,8 +322,6 @@ void main() {
         expect(rect.left, greaterThanOrEqualTo(0));
         expect(rect.right, lessThanOrEqualTo(size.width));
         expect(rect.bottom, lessThanOrEqualTo(size.height));
-        // One line tall.
-        expect(rect.height, lessThan(size.height * .07 + 30));
         final paragraph = t.renderObject<RenderParagraph>(
           find.descendant(of: line, matching: find.byType(RichText)),
         );
@@ -314,7 +340,9 @@ void main() {
         await stage(t, countdown, size: size);
         expect(t.takeException(), isNull, reason: '$size');
         final time = digits(t);
-        final rect = t.getRect(line);
+        final rect = t.getRect(
+          find.byKey(const ValueKey('stage-band-up next')),
+        );
         expect(time.left, greaterThanOrEqualTo(0));
         expect(time.right, lessThanOrEqualTo(size.width));
         expect(rect.top, greaterThan(time.bottom), reason: '$size');
@@ -322,7 +350,8 @@ void main() {
       }
     });
 
-    testWidgets('a banner cue leaves the line clear of the band', (t) async {
+    testWidgets('a banner cue leaves the digits clear of the band, and covers '
+        'only the band on its own edge', (t) async {
       for (final size in const [
         Size(320, 568),
         Size(844, 390),
@@ -342,12 +371,21 @@ void main() {
           final reason = '$size $position';
           expect(t.takeException(), isNull, reason: reason);
           final band = t.getRect(find.byKey(const ValueKey('stage-banner')));
-          final rect = t.getRect(line);
           final time = digits(t);
-          expect(lineText(t), countdown['upNext']);
-          expect(rect.overlaps(band), isFalse, reason: reason);
-          expect(rect.overlaps(time), isFalse, reason: reason);
           expect(time.overlaps(band), isFalse, reason: reason);
+          // The band for what is next shows unless the cue is over it.
+          final next = find.byKey(const ValueKey('stage-band-up next'));
+          final shown = t.widgetList<Opacity>(
+            find.ancestor(of: next, matching: find.byType(Opacity)),
+          );
+          expect(
+            shown.any((o) => o.opacity == 0),
+            position == 'bottom',
+            reason: reason,
+          );
+          if (position == 'top') {
+            expect(t.getRect(next).overlaps(band), isFalse, reason: reason);
+          }
           await t.pumpWidget(const SizedBox());
         }
       }
@@ -375,6 +413,7 @@ void main() {
       expect(find.text(label), findsOneWidget);
     }
     final chip = find.byKey(const ValueKey('simulator-layout-next'));
+    expect(find.byKey(const ValueKey('simulator-layout-only')), findsOneWidget);
     await t.ensureVisible(chip);
     await t.runAsync(() async {
       await t.tap(chip);
@@ -387,7 +426,11 @@ void main() {
     await t.pumpAndSettle();
     expect(
       t.widget<Text>(find.descendant(of: preview, matching: line)).data,
-      'Next: Sermon · Pastor Ade · 40 min',
+      'Sermon',
+    );
+    expect(
+      t.widget<Text>(find.descendant(of: preview, matching: detail)).data,
+      'Pastor Ade · 40 min',
     );
     expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox());

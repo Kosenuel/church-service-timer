@@ -115,6 +115,14 @@ extension RefinedSettings on HomeState {
       sharedZeroSettings,
     ),
     DisplaySection(
+      'overtime',
+      'Content & preview',
+      Icons.notification_important_outlined,
+      'Overtime alert',
+      '${overtimeAlerts[c.state.overtimeAlert]} · on stage screens',
+      overtimeAlertSettings,
+    ),
+    DisplaySection(
       'end',
       'Content & preview',
       Icons.flag_outlined,

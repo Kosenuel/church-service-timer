@@ -91,23 +91,32 @@ void main() {
       t.widget<ClockText>(find.byType(ClockText)).style.fontFamily,
       'Roboto',
     );
-    // It is the same size as the countdown once the service starts.
+    // Once the service starts the countdown has its progress line and
+    // room for its tag, but is nearly as wide.
     final before = t.getRect(find.byType(ClockText));
     await surface(t, countdown('48:03'), const Size(1920, 1080));
-    expect(t.getRect(find.byType(ClockText)), before);
+    expect(
+      t.getRect(find.byType(ClockText)).width,
+      greaterThan(before.width * .8),
+    );
   });
 
   testWidgets('the clock holds still, on 24 and 12-hour clocks', (t) async {
-    await expectTimeHoldsStill(t, stage, [
-      '11:11',
-      '20:48',
-      '09:07',
-    ], (time) => surface(t, clock(time), const Size(1920, 1080)));
-    await expectTimeHoldsStill(t, stage, [
-      '11:11 AM',
-      '12:48 PM',
-      '10:07 AM',
-    ], (time) => surface(t, clock(time), const Size(1920, 1080)));
+    // The clock is a flip clock: its cards keep one size and place as the
+    // time changes, whatever the digits.
+    for (final times in [
+      ['11:11', '20:48', '09:07'],
+      ['11:11 AM', '12:48 PM', '10:07 AM'],
+    ]) {
+      Rect? first;
+      for (final time in times) {
+        await surface(t, clock(time), const Size(1920, 1080));
+        await t.pump(const Duration(seconds: 1));
+        final box = t.getRect(find.byKey(const ValueKey('flip-time')));
+        expect(box.size, (first ??= box).size, reason: time);
+        expect(box.center, first.center, reason: time);
+      }
+    }
     // And the clock before a scheduled service.
     await expectTimeHoldsStill(t, stage, [
       '11:11 AM',

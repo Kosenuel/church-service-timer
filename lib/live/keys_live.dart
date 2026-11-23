@@ -1,3 +1,4 @@
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/domain/domain.dart';
@@ -26,8 +27,14 @@ extension KeysLive on HomeState {
     required bool canJump,
   }) {
     final colors = appColors(context);
-    final line = VerticalDivider(width: 1, thickness: 1, color: colors.border);
-    final rule = Divider(height: 1, thickness: 1, color: colors.border);
+    final line = finishRule(
+      context,
+      VerticalDivider(width: 1, thickness: 1, color: colors.border),
+    );
+    final rule = finishRule(
+      context,
+      Divider(height: 1, thickness: 1, color: colors.border),
+    );
     return Column(
       key: const ValueKey('keys-live'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -40,8 +47,9 @@ extension KeysLive on HomeState {
               children: notices,
             ),
           ),
-        ColoredBox(
-          color: colors.surface,
+        FinishPane(
+          flatSurface: true,
+          strip: true,
           child: nowStrip(header: header, enabled: enabled, canJump: canJump),
         ),
         rule,
@@ -56,12 +64,18 @@ extension KeysLive on HomeState {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(child: rundownTable(enabled, endService)),
+                  Expanded(
+                    child: FinishPane(
+                      strip: true,
+                      child: rundownTable(enabled, endService),
+                    ),
+                  ),
                   line,
                   SizedBox(
                     width: stage,
-                    child: ColoredBox(
-                      color: colors.surface,
+                    child: FinishPane(
+                      flatSurface: true,
+                      strip: true,
                       child: SingleChildScrollView(
                         key: const ValueKey('live-stage-pane'),
                         // Page Down is Next segment here, not a scroll key.
@@ -98,8 +112,9 @@ extension KeysLive on HomeState {
                   line,
                   SizedBox(
                     width: cuePane,
-                    child: ColoredBox(
-                      color: colors.surface,
+                    child: FinishPane(
+                      flatSurface: true,
+                      strip: true,
                       child: SingleChildScrollView(
                         key: const ValueKey('live-cue-pane'),
                         primary: false,
