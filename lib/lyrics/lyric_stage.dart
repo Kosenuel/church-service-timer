@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:church_service_timer/domain/domain.dart';
@@ -153,7 +152,7 @@ class LyricFit {
   const LyricFit(this.size, this.widths);
 }
 
-final _fits = LinkedHashMap<String, LyricFit>();
+final _fits = <String, LyricFit>{};
 
 /// The largest size, up to [most], at which [blocks] fit [room]: every
 /// line fits across without a word broken, and all fit the height.

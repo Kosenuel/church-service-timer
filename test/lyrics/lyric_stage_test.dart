@@ -1,5 +1,4 @@
 import 'package:church_service_timer/domain/domain.dart';
-import 'package:church_service_timer/lyrics/lyric_stage.dart';
 import 'package:church_service_timer/pairing/stage_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
