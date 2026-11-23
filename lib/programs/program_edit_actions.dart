@@ -144,7 +144,7 @@ extension ProgramEditActions on HomeState {
       ]) {
         await NativeDisplayFonts.prepare(l);
       }
-      validateTimelinePixels(candidate);
+      validateTimelinePixels(candidate, signFit: c.signFitRequired);
       validateProgramDuration(candidate);
       if (!mounted) return;
       final name = TextEditingController(text: candidate.name);
