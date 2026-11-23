@@ -1,8 +1,8 @@
 import 'package:church_service_timer/app/controller.dart';
-import 'package:church_service_timer/display/clock_text.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/pairing/flip_clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -193,7 +193,7 @@ void main() {
     final preview = key('stage-simulator-preview');
     expect(preview, findsOneWidget);
     expect(
-      find.descendant(of: preview, matching: find.byType(ClockText)),
+      find.descendant(of: preview, matching: find.byType(FlipClock)),
       findsOneWidget,
     );
     expect(t.takeException(), isNull);
