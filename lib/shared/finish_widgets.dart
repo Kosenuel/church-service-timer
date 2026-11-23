@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/shared/finish_paint.dart';
+import 'package:church_service_timer/shared/finish_popups.dart';
+
+export 'package:church_service_timer/shared/finish_popups.dart'
+    show FinishPopups, FinishPopupFrame, finishPopupColor;
 
 /// Paints the finish's background behind [child] (a whole screen). Flat
 /// draws nothing, so [child] paints its own background as it always did.
@@ -29,7 +33,9 @@ class _FinishWallState extends State<FinishWall> {
           Positioned.fill(
             child: FinishPaint(key: _wall, look: look, part: FinishPart.wall),
           ),
-          widget.child,
+          // Every dialog, sheet and menu opened on this page takes the
+          // finish too.
+          FinishPopups(wallKey: _wall, child: widget.child),
         ],
       ),
     );

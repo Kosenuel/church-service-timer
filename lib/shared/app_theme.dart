@@ -466,15 +466,44 @@ ThemeData appTheme(
       selectedColor: p.text,
       selectedTileColor: p.accent.withValues(alpha: .16),
     ),
+    // Menus, dialogs and sheets in the panel colour and shape of the finish;
+    // opened on a page, they are laid on its material as well
+    // (FinishPopupFrame).
     popupMenuTheme: PopupMenuThemeData(
-      color: p.surface,
+      color: finish.active ? finish.panel : p.surface,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: p.border),
-      ),
+      shape:
+          finishShape ??
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: p.border),
+          ),
     ),
-    // Dialogs and sheets in the panel colour and shape of the finish.
+    // Snack bars and tooltips are too brief, and too small, for material:
+    // a finish gives them its panel colour, edge and corners, so they are
+    // not the plain theme's dark slips over it.
+    snackBarTheme: finish.active
+        ? SnackBarThemeData(
+            backgroundColor: finish.panel,
+            contentTextStyle: TextStyle(color: p.text, fontSize: 15),
+            actionTextColor: p.accent,
+            closeIconColor: p.muted,
+            elevation: 4,
+            shape: finishShape,
+          )
+        : null,
+    tooltipTheme: finish.active
+        ? TooltipThemeData(
+            decoration: BoxDecoration(
+              color: finish.panel,
+              borderRadius: BorderRadius.circular(
+                math.min(finishRadius(finish.id), 8),
+              ),
+              border: Border.all(color: finish.border),
+            ),
+            textStyle: TextStyle(color: p.text, fontSize: 13),
+          )
+        : null,
     dialogTheme: DialogThemeData(
       backgroundColor: finish.active ? finish.panel : p.surface,
       shape:

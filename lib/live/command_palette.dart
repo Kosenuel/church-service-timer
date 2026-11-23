@@ -8,6 +8,7 @@ import 'package:church_service_timer/live/quick_timer_sheet.dart';
 import 'package:church_service_timer/live/shortcuts.dart';
 import 'package:church_service_timer/live/shortcuts_sheet.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/windows/second_screen.dart';
 
 /// One thing the operator can do from the command palette. Running it
@@ -719,16 +720,20 @@ class _CommandPaletteDialogState extends State<CommandPaletteDialog> {
       );
     }
 
+    final finished = finishLook(context).active;
     return Dialog(
       key: const ValueKey('command-palette'),
       alignment: Alignment.topCenter,
       insetPadding: const EdgeInsets.fromLTRB(24, 72, 24, 24),
-      backgroundColor: colors.surface,
+      // A finish lays it on its material (FinishPopupFrame), in its shape.
+      backgroundColor: finished ? null : colors.surface,
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: colors.border),
-      ),
+      shape: finished
+          ? null
+          : RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(color: colors.border),
+            ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640, maxHeight: 520),
         child: Focus(
