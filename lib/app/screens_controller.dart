@@ -76,12 +76,12 @@ class ScreensController {
   /// The group [key] is in. A web screen's group is the one its browser
   /// named, or the default group.
   ScreenGroup groupOf(String key) {
-    if (key.startsWith('web:')) return setup.groupNamed(_web(key)?.group);
+    if (key.startsWith('web:')) return setup.groupForWeb(_web(key)?.group);
     return setup.groupOf(key);
   }
 
   /// The group the web screens join when their browser names none.
-  ScreenGroup get webDefault => setup.defaultOne;
+  ScreenGroup get webDefault => setup.groupForWeb(null);
 
   /// Every stage screen of this service: this device, saved paired phones
   /// and tablets (not operators), and web Stage displays that joined.

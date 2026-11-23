@@ -52,6 +52,10 @@ const screenGroupLimit = 12, screenSceneLimit = 24, screenNameLimit = 40;
 /// window on a PC, host Full screen and the stage simulator.
 const thisScreenKey = 'this';
 
+/// The key, in [ScreenSetup.members], of the group a browser joins when it
+/// names none (it opened the plain address, not a group's link).
+const newWebScreensKey = 'web';
+
 /// The screen key of a paired phone or tablet, by its saved identity.
 String pairedScreenKey(String id) => 'pair:$id';
 
@@ -242,6 +246,11 @@ class ScreenSetup {
   /// A group id named by a screen (a browser's remembered group), when it
   /// still exists; otherwise the default group.
   ScreenGroup groupNamed(String? id) => byId(id) ?? defaultOne;
+
+  /// The group of a browser that named [id]: that group, else the one set
+  /// for new web screens ([newWebScreensKey]), else the default group.
+  ScreenGroup groupForWeb(String? id) =>
+      byId(id) ?? byId(members[newWebScreensKey]) ?? defaultOne;
 
   ScreenSetup _with({
     List<ScreenGroup>? groups,
@@ -485,8 +494,8 @@ typedef OldScreenChoice = ({String layout, bool slides});
 /// - **Stage**: the paired phones and tablets, split into **Stage 2**,
 ///   **Stage 3** ... where they had different choices.
 ///
-/// The group holding the web screens is the default, because every
-/// browser joins as a new screen after the update.
+/// Stage is the default for screens paired for the first time; browsers
+/// that open the plain address join the group holding the web screens.
 ScreenSetup migrateScreens({
   required OldScreenChoice self,
   required OldScreenChoice web,
@@ -518,7 +527,12 @@ ScreenSetup migrateScreens({
     group('room', 'Room 1', selfChoice),
     if (!together) group('web', 'Web screens', webChoice),
   ];
-  final members = <String, String>{thisScreenKey: 'room'};
+  final members = <String, String>{
+    thisScreenKey: 'room',
+    // Every browser joins as a new screen after the update, so the plain
+    // address keeps them with the web screens' settings.
+    newWebScreensKey: together ? 'room' : 'web',
+  };
   // Paired screens by their choice, the most common first (ties: the one
   // seen first), each choice its own group.
   final order = <String>[];
@@ -551,7 +565,9 @@ ScreenSetup migrateScreens({
   }
   return ScreenSetup(
     groups: groups,
-    defaultGroup: together ? 'room' : 'web',
+    // A phone or tablet paired for the first time is a stage screen, as
+    // it always was: it joins Stage.
+    defaultGroup: 'stage',
     members: members,
   );
 }

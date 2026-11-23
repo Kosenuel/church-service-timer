@@ -240,6 +240,16 @@ void main() {
         group: 'choir',
         layout: 'next',
       );
+      // What each shows is its screen group's: Preacher and Choir.
+      for (final (i, name, show) in [
+        (0, 'Preacher', 'current'),
+        (1, 'Choir', 'next'),
+      ]) {
+        final g = (await host.screens.addGroup(name))!;
+        await host.screens.setShow(g, show);
+        await host.screens.setCues(g, true);
+        await host.screens.move(pairedScreenKey(ids[i]), g);
+      }
       expect(
         await host.sendQuickMessage(
           const QuickMessage(body: 'Choir only', requestSeen: true, seconds: 0),

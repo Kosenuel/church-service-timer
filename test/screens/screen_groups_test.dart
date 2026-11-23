@@ -24,8 +24,9 @@ void main() {
       expect(s.groupOf(thisScreenKey).show, 'slides');
       expect(s.groupOf(thisScreenKey).layout, 'timer');
       expect(s.byId('stage')!.show, 'timer');
-      // Browsers join as new screens: the default is where web screens are.
-      expect(s.defaultOne.name, 'Room 1');
+      // A new paired screen joins Stage; a browser with no link Room 1.
+      expect(s.defaultOne.name, 'Stage');
+      expect(s.groupForWeb(null).name, 'Room 1');
     });
 
     test('second screen and web screens that differ are split', () {
@@ -41,9 +42,10 @@ void main() {
       );
       expect(s.groupOf(thisScreenKey).show, 'slides');
       expect(s.groupOf(thisScreenKey).fallback, 'current');
-      // A browser naming no group joins the default: the web screens'.
-      expect(s.defaultOne.name, 'Web screens');
-      expect(s.defaultOne.show, 'next');
+      // A browser naming no group joins the web screens' group.
+      expect(s.groupForWeb(null).name, 'Web screens');
+      expect(s.groupForWeb(null).show, 'next');
+      expect(s.defaultOne.name, 'Stage');
     });
 
     test('only Send to differs: still split, as slides would change', () {
@@ -123,8 +125,8 @@ void main() {
             final room = s.groupOf(thisScreenKey);
             expect(room.layout, self);
             expect(room.show, slides ? 'slides' : self);
-            expect(s.defaultOne.layout, web);
-            expect(s.defaultOne.show, !slides ? 'slides' : web);
+            expect(s.groupForWeb(null).layout, web);
+            expect(s.groupForWeb(null).show, !slides ? 'slides' : web);
             final stage = s.groupOf(pairedScreenKey('p'));
             expect(stage.layout, web);
             expect(stage.show, slides ? 'slides' : web);

@@ -744,8 +744,55 @@ class ScreensPageState extends State<ScreensPage> {
                 ),
               ),
             ),
+          // Where a browser goes when it opens the plain address.
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Container(
+              key: const ValueKey('screen-row-new-web'),
+              padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: colors.border),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'New web screens',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        'Browsers that open the plain address, not a group’s link',
+                        style: TextStyle(color: colors.muted, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  _GroupChooser(
+                    key: const ValueKey('screen-group-new-web'),
+                    label: 'Group for new web screens',
+                    value: screens.webDefault,
+                    groups: setup.groups,
+                    onChanged: locked
+                        ? null
+                        : (g) => unawaited(
+                            run(
+                              () => screens.move(newWebScreensKey, g.id),
+                              'Web screens that join now go to ${g.name}.',
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           Text(
-            'A screen is in exactly one group. Move it by choosing another group here, even mid-service. A screen that connects for the first time joins ${setup.defaultOne.name}, the default group. Web screens join the group of the link they open; Web link for this group is on each group’s menu.',
+            'A screen is in exactly one group. Move it by choosing another group here, even mid-service. A phone or tablet that pairs for the first time joins ${setup.defaultOne.name}, the default group. A browser joins the group of the link it opens (Web link for this group is on each group’s menu), or the group for new web screens.',
             style: TextStyle(color: colors.muted, fontSize: 13, height: 1.4),
           ),
         ],

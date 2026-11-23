@@ -39,8 +39,8 @@ countdown in its fallback layout, so it is never blank.
   40 characters, unique without regard to case. Ids are short random
   strings kept for life (`g` + 8 letters), except the groups made by the
   migration (`room`, `web`, `stage`, `stage-2`, ...).
-- `defaultGroup`: the group a screen joins when it connects for the first
-  time, and where screens of a deleted group go.
+- `defaultGroup`: the group a phone or tablet joins when it pairs for the
+  first time, and where screens of a deleted group go.
 - `scenes`: `[{id, name, shows: {groupId: show}}]`, at most 24, names
   unique. A scene only lists the groups that existed when it was saved
   (or updated); applying it leaves other groups alone, and ignores ids
@@ -54,6 +54,9 @@ countdown in its fallback layout, so it is never blank.
   - `pair:<saved device id>`: a paired phone or tablet (role stage or
     viewer), by its saved pairing identity.
 
+  - `web`: the group of a browser that opens the plain address (no group
+    link, nothing remembered): "New web screens" in the panel.
+
   A key with no entry, or naming a group that no longer exists, is in the
   default group. A screen is therefore always in exactly one group.
 
@@ -61,7 +64,8 @@ Web browsers are not stored on the host (they get a new token each time
 they join). A browser remembers its group itself (`localStorage`) and
 sends it when it joins; a per-group link (`http://host:8080/?group=<id>`)
 does the same for a browser opened from it. A browser naming no group,
-or one that no longer exists, joins the default group. Moving a web
+or one that no longer exists, joins the group for new web screens
+(`members['web']`), else the default group. Moving a web
 screen in the panel changes its group at once, and the page saves the
 new one, so it stays there when it joins again.
 
@@ -92,9 +96,11 @@ was ticked, else its layout; the fallback is its layout either way.
 | all paired screens the same | **Stage** {all paired} |
 | paired screens differ | **Stage** {the most common choice; ties: the first saved}, then **Stage 2**, **Stage 3** ... for each other choice in the order first seen |
 
-The default group is the one holding the web screens, because every
-browser joins as a new screen after the update and must keep showing
-what web screens showed. A new install runs the same migration with the
+The default group is Stage: a phone or tablet paired for the first time
+is a speaker's screen, as it always was (Timer only, with cues). Every
+browser joins as a new screen after the update, so the group for new web
+screens is the one holding the web screens (Room 1, or Web screens),
+and they keep showing what web screens showed. A new install runs the same migration with the
 old defaults: Room 1 shows Slides (Send to Second and Web were on), Stage
 shows Timer only (Send to Stage was off).
 
@@ -258,8 +264,9 @@ screen in it shows Slides or Slides and timer.
 
 ## Decisions the owner may overrule
 
-- The default group is the one holding the web screens (Room 1), so a
-  new paired phone joins Room 1, not Stage.
+- The default group (new paired phones) is Stage; browsers that open the
+  plain address have their own setting, New web screens (Room 1 at
+  first).
 - The stage simulator's own old layout is not migrated; it follows This
   computer's group (and always shows cues).
 - The old quick-message audience groups (General, Preacher, Choir, Media

@@ -30,7 +30,7 @@ class ScreenGroupNote extends StatelessWidget {
     final colors = appColors(context);
     final screens = controller.screens;
     final group = screen == null
-        ? screens.setup.defaultOne
+        ? screens.webDefault
         : screens.groupOf(screen!);
     return Wrap(
       key: ValueKey('screen-group-note-${screen ?? 'new'}'),

@@ -172,7 +172,8 @@ void main() {
       final c = await boot(FakePort());
       expect(c.state.screens!.groups.map((g) => g.name), ['Room 1', 'Stage']);
       expect(c.screens.groupOf(thisScreenKey).show, 'slides');
-      expect(c.screens.setup.defaultOne.name, 'Room 1');
+      expect(c.screens.setup.defaultOne.name, 'Stage');
+      expect(c.screens.webDefault.name, 'Room 1');
     });
   });
 
@@ -329,9 +330,9 @@ void main() {
 
     test('a new screen joins the default group', () async {
       final c = await boot(FakePort());
-      expect(c.screens.groupOf('pair:new').name, 'Room 1');
-      await c.screens.setDefault('stage');
       expect(c.screens.groupOf('pair:new').name, 'Stage');
+      await c.screens.setDefault('room');
+      expect(c.screens.groupOf('pair:new').name, 'Room 1');
       expect(c.screens.groupOf(thisScreenKey).name, 'Room 1');
     });
 
