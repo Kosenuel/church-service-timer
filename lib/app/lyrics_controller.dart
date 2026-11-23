@@ -63,6 +63,11 @@ class LyricsController {
   /// Black.
   bool get showing => _black || slide != null;
 
+  /// Whether a slide or Black is on at least one screen: showing, and a
+  /// Send to box ticked. This is the job the screen is kept awake for.
+  bool get onScreens =>
+      showing && (look.toSecond || look.toWeb || look.toStage);
+
   bool sendsTo(LyricTarget target) => switch (target) {
     LyricTarget.second => look.toSecond,
     LyricTarget.web => look.toWeb,
@@ -80,6 +85,8 @@ class LyricsController {
   void _changed() {
     app.notifyChanged();
     unawaited(app.pairing.publish());
+    // Lyrics on a screen are the job the screen is held awake for.
+    unawaited(app.syncScreenAwake());
   }
 
   /// Puts slide [slideIndex] of [id] on the ticked screens.

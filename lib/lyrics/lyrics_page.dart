@@ -10,6 +10,8 @@ import 'package:church_service_timer/lyrics/lyric_photos.dart';
 import 'package:church_service_timer/lyrics/lyric_stage.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -85,7 +87,7 @@ extension LyricsPageViews on HomeState {
     key: const ValueKey('live-lyrics-button'),
     onPressed: controlsLocked ? null : () => goToPage(lyricsPage),
     icon: const Icon(Icons.lyrics_outlined, size: 20),
-    label: const Text('Lyrics'),
+    label: const Text('Slides'),
   );
 
   /// With [button] false the Lyrics button is placed by the caller, and
@@ -115,7 +117,7 @@ extension LyricsPageViews on HomeState {
             TextButton(
               key: const ValueKey('live-lyrics-clear'),
               onPressed: controlsLocked ? null : l.clear,
-              child: const Text('Clear lyrics'),
+              child: const Text('Clear slide'),
             ),
           ],
         ],
@@ -133,7 +135,7 @@ extension LyricsHeaderButton on HomeState {
     final on = l.showing;
     return IconButton(
       key: const ValueKey('live-lyrics-button'),
-      tooltip: on ? 'Lyrics · on the screens: ${l.statusLine}' : 'Lyrics',
+      tooltip: on ? 'Slides · on the screens: ${l.statusLine}' : 'Slides',
       isSelected: on,
       onPressed: controlsLocked ? null : () => goToPage(lyricsPage),
       icon: const Icon(Icons.lyrics_outlined),
@@ -172,7 +174,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
   /// Holds the keyboard on the page, so the arrow keys and Space change
   /// slides instead of moving between buttons or pressing one; the slides
   /// themselves change in [LyricsPageViews.lyricsKey].
-  final _focus = FocusNode(debugLabel: 'Lyrics panel');
+  final _focus = FocusNode(debugLabel: 'Slides panel');
 
   @override
   void dispose() {
@@ -241,7 +243,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
           builder: (context) => AlertDialog(
             title: Text('Delete “${item.title}”?'),
             content: Text(
-              'This removes $what from Stored songs. It cannot be undone.',
+              'This removes $what from the library. It cannot be undone.',
             ),
             actions: [
               TextButton(
@@ -295,7 +297,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
       children: [
         SizedBox(
           width: 280,
-          child: _column('stored', [_label('Stored songs'), ..._stored()]),
+          child: _column('stored', [_label('Library'), ..._stored()]),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -332,41 +334,59 @@ class _LyricsPanelState extends State<LyricsPanel> {
             key: const ValueKey('lyrics-column-narrow'),
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             children: [
-              Center(
-                child: ConstrainedBox(
-                  // Sideways on a phone, a preview the whole width would
-                  // push the slides off the screen.
-                  constraints: BoxConstraints(
-                    maxWidth: math.max(
-                      240,
-                      MediaQuery.sizeOf(context).height * .9,
+              // Cards in the finish's material, as Live and Settings have
+              // on a phone: words always sit on a panel.
+              AppPanel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: ConstrainedBox(
+                        // Sideways on a phone, a preview the whole width
+                        // would push the slides off the screen.
+                        constraints: BoxConstraints(
+                          maxWidth: math.max(
+                            240,
+                            MediaQuery.sizeOf(context).height * .9,
+                          ),
+                        ),
+                        child: _preview(),
+                      ),
                     ),
-                  ),
-                  child: _preview(),
+                    _status(),
+                  ],
                 ),
               ),
-              _status(),
-              const SizedBox(height: 4),
-              _picker(),
               const SizedBox(height: 12),
-              _slides(columns: columns),
-              _tip(),
-              const SizedBox(height: 8),
-              ExpansionTile(
-                key: const ValueKey('lyrics-look'),
-                tilePadding: EdgeInsets.zero,
-                childrenPadding: EdgeInsets.zero,
-                expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
-                title: Text(
-                  'Screens and look',
-                  style: Theme.of(context).textTheme.titleSmall,
+              AppPanel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _picker(),
+                    const SizedBox(height: 12),
+                    _slides(columns: columns),
+                    _tip(),
+                  ],
                 ),
-                subtitle: Text(
-                  _sendToSummary(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+              AppPanel(
+                child: ExpansionTile(
+                  key: const ValueKey('lyrics-look'),
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+                  title: Text(
+                    'Screens and look',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  subtitle: Text(
+                    _sendToSummary(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  children: _look(),
                 ),
-                children: _look(),
               ),
             ],
           ),
@@ -399,7 +419,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
         onChanged: (_) => setState(() {}),
         decoration: InputDecoration(
           isDense: true,
-          hintText: 'Search',
+          hintText: 'Search the library',
           prefixIcon: const Icon(Icons.search, size: 20),
           suffixIcon: _search.text.isEmpty
               ? null
@@ -459,11 +479,10 @@ class _LyricsPanelState extends State<LyricsPanel> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
+        // A tint over whatever the panel is made of, so it reads on a
+        // finish as on the plain card.
         color: chosen
-            ? Color.alphaBlend(
-                colors.accent.withValues(alpha: .14),
-                colors.surface,
-              )
+            ? colors.accent.withValues(alpha: .14)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
@@ -570,7 +589,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
                   shrinkWrap: true,
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   children: [
-                    _label('Stored songs'),
+                    _label('Library'),
                     ...(() {
                       // The sheet keeps its own search in step with the page.
                       return _stored(picked: () => Navigator.pop(sheet));
@@ -591,7 +610,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item?.title ?? 'Stored songs',
+                  item?.title ?? 'Library',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -602,7 +621,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
                 Text(
                   item == null
                       ? 'Choose a song, verses or an announcement'
-                      : 'Stored songs · change',
+                      : 'Library · change',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: colors.muted),
@@ -650,7 +669,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
         child: Text(
           c.lyrics.library.isEmpty
               ? 'Add a song to see its slides here.'
-              : 'Choose something from Stored songs to see its slides.',
+              : 'Choose something from the library to see its slides.',
           style: TextStyle(color: colors.muted),
         ),
       );
@@ -695,7 +714,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
     padding: const EdgeInsets.only(top: 10),
     child: Text(
       widget.desktop
-          ? 'Click a slide to show it. Right arrow or Space next, Left arrow previous, Esc clear lyrics, B black. The dashed slide is next.'
+          ? 'Click a slide to show it. Right arrow or Space next, Left arrow previous, Esc clear slide, B black. The dashed slide is next.'
           : 'Tap a slide to show it. The dashed slide is next.',
       key: const ValueKey('lyrics-tip'),
       style: TextStyle(fontSize: 12, color: appColors(context).muted),
@@ -755,7 +774,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
         ? '${l.statusLine} · on ${_targets()}'
         : c.state.session.active
         ? 'Showing the countdown'
-        : 'No lyrics on the screens';
+        : 'No slide on the screens';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -820,7 +839,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
         OutlinedButton(
           key: const ValueKey('lyrics-clear'),
           onPressed: enabled && l.showing ? l.clear : null,
-          child: _keyed('Clear lyrics', 'Esc'),
+          child: _keyed('Clear slide', 'Esc'),
         ),
         l.black
             ? FilledButton(
@@ -855,12 +874,15 @@ class _LyricsPanelState extends State<LyricsPanel> {
       overflow: TextOverflow.ellipsis,
       textAlign: TextAlign.center,
     );
-    return Material(
-      color: colors.surface,
+    final finish = finishLook(context).active;
+    final bar = Material(
+      color: finish ? Colors.transparent : colors.surface,
       child: Container(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: colors.border)),
-        ),
+        decoration: finish
+            ? null
+            : BoxDecoration(
+                border: Border(top: BorderSide(color: colors.border)),
+              ),
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
         child: Row(
           key: const ValueKey('lyrics-bar'),
@@ -912,6 +934,8 @@ class _LyricsPanelState extends State<LyricsPanel> {
         ),
       ),
     );
+    // On a finish the bar is a plate of the material across the window.
+    return finish ? FinishPane(strip: true, child: bar) : bar;
   }
 
   // ---- Send to and the look ------------------------------------------------------------
@@ -974,7 +998,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
             widget.desktop
                 ? 'Full screen and the stage simulator follow the second screen.'
                 : 'Full screen and the stage simulator show the slide.',
-          'The LED sign never shows lyrics.',
+          'The LED sign never shows slides.',
         ].join(' '),
         key: const ValueKey('lyrics-send-note'),
         style: muted,

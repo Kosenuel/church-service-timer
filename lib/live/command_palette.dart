@@ -418,7 +418,7 @@ extension CommandPalette on HomeState {
       if (c.lyrics.showing && !controlsLocked)
         PaletteCommand(
           id: 'clear-lyrics',
-          label: 'Clear lyrics',
+          label: 'Clear slide',
           detail: 'Every screen goes back to what it showed before',
           icon: Icons.lyrics_outlined,
           group: 'This window',

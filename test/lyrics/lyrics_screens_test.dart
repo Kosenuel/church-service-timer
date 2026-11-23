@@ -100,7 +100,7 @@ void main() {
       );
     });
 
-    test('Clear lyrics gives each screen back exactly what it had', () async {
+    test('Clear slide gives each screen back exactly what it had', () async {
       final c = await ready();
       final window = withoutLyrics(c.stageWindowSnapshot());
       final web = withoutLyrics(c.webStageSnapshot());

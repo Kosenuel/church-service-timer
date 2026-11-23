@@ -17,7 +17,7 @@ class HomePage {
 const homePageOrder = [
   HomePage(0, 'Live', Icons.radio_button_checked),
   HomePage(1, 'Programs', Icons.view_timeline_outlined),
-  HomePage(lyricsPage, 'Lyrics', Icons.lyrics_outlined),
+  HomePage(lyricsPage, 'Slides', Icons.lyrics_outlined),
   HomePage(2, 'Reports', Icons.assessment_outlined),
   HomePage(3, 'Settings', Icons.settings_outlined),
 ];

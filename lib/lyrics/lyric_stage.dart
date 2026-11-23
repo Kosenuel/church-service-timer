@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/lyrics/lyric_backgrounds.dart';
+import 'package:church_service_timer/pairing/stage_colors.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -353,7 +354,9 @@ class LyricStage extends StatelessWidget {
   Widget _chip(String text, bool over, double width) => DecoratedBox(
     key: const ValueKey('lyric-chip'),
     decoration: BoxDecoration(
-      color: const Color(0x8c000000),
+      // In overtime the chip turns the stage's red with dark ink, as the
+      // countdown's own screen does, so it is plain to see over any slide.
+      color: over ? StageColors.overtimeRed : const Color(0x8c000000),
       borderRadius: BorderRadius.circular(999),
     ),
     child: Padding(
@@ -368,9 +371,9 @@ class LyricStage extends StatelessWidget {
           inherit: false,
           letterSpacing: 0,
           fontFamily: lyricFontFamily,
-          color: over ? const Color(0xffff6b5e) : Colors.white,
+          color: over ? StageColors.overtimeInk : Colors.white,
           fontSize: math.max(10, width * .03),
-          fontWeight: FontWeight.w500,
+          fontWeight: over ? FontWeight.w700 : FontWeight.w500,
           fontFeatures: const [FontFeature.tabularFigures()],
           height: 1.2,
         ),

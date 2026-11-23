@@ -123,7 +123,7 @@ li .t { margin-left:auto; color: var(--muted); font-variant-numeric: tabular-num
 #lyr.left .words { align-items:flex-start; text-align:left; }
 #lyr.dark .words { color:#1b2420; text-shadow:none; }
 #lyr .chip { position:absolute; right:2.4cqw; top:2.4cqw; background:rgba(0,0,0,.55); color:#fff; border-radius:99px; padding:.7cqw 2cqw; font-size:3cqw; font-weight:500; font-variant-numeric:tabular-nums; display:none; z-index:2; }
-#lyr .chip.over { color:#ff6b5e; }
+#lyr .chip.over { background:#e5333a; color:#1a0000; font-weight:700; }
 #lyr.stale .words { opacity:.4; }
 #lost { position:fixed; left:0; right:0; top:0; z-index:8; display:none; align-items:center; justify-content:center; gap:10px; padding:12px 16px; background:#7a1f1f; color:#fff; font-weight:700; font-size:16px; text-align:center; }
 #lost .dot { width:10px; height:10px; border-radius:50%; background:#ffb3b3; animation: pulse 1.2s infinite; }

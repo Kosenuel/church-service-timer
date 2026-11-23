@@ -619,7 +619,7 @@ class LyricsLibrary {
     final at = items.indexWhere((i) => i.id == item.id);
     require(
       at >= 0 || items.length < lyricLibraryLimit,
-      'Stored songs can hold $lyricLibraryLimit items. Delete some first.',
+      'The library can hold $lyricLibraryLimit items. Delete some first.',
     );
     return _with(items: at < 0 ? [...items, item] : ([...items]..[at] = item));
   }

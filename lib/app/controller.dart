@@ -610,7 +610,8 @@ class AppController extends ChangeNotifier {
   /// Whether the screen should be held awake right now. Only while the
   /// device is doing the job: a service or quick timer is running (paused
   /// included) or counting down to its start, this device is a stage
-  /// screen, or it is sharing to other screens. Idle on Live, Settings,
+  /// screen, it is sharing to other screens, or a lyric slide (or Black)
+  /// is on a screen. Idle on Live, Settings,
   /// Programs or Reports, the screen may sleep. "Never" still keeps a
   /// stage screen on, since nobody is there to touch it; "Always" keeps it
   /// on whenever the app is open.
@@ -623,7 +624,11 @@ class AppController extends ChangeNotifier {
     if (state.keepScreenAlways) return true;
     final s = state.session;
     final counting = s.phase == 'ready' && s.startsAtWall != null;
-    return s.active || counting || pairing.hosting || pairing.mode == 'viewer';
+    return s.active ||
+        counting ||
+        pairing.hosting ||
+        pairing.mode == 'viewer' ||
+        lyrics.onScreens;
   }
 
   bool? _awakeApplied;

@@ -8,6 +8,7 @@ import 'package:church_service_timer/lyrics/lyric_photos.dart';
 import 'package:church_service_timer/lyrics/lyric_stage.dart';
 import 'package:church_service_timer/lyrics/lyrics_page.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/home_widgets.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:flutter/material.dart';
 
@@ -167,7 +168,7 @@ class _LyricEditorPageState extends State<LyricEditorPage> {
           builder: (context) => AlertDialog(
             title: Text('Delete “${item.title}”?'),
             content: Text(
-              'This removes the $_name from Stored songs. It cannot be undone.',
+              'This removes the $_name from the library. It cannot be undone.',
             ),
             actions: [
               TextButton(
@@ -219,8 +220,9 @@ class _LyricEditorPageState extends State<LyricEditorPage> {
         child: LayoutBuilder(
           builder: (context, space) {
             final wide = space.maxWidth >= 840;
-            final form = _form();
-            final preview = _preview();
+            // Words sit on cards, so the finish shows and they stay legible.
+            final form = AppPanel(child: _form());
+            final preview = AppPanel(child: _preview());
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               child: Center(

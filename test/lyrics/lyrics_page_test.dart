@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
+import 'package:church_service_timer/lyrics/lyric_editors.dart';
+import 'package:church_service_timer/shared/finish.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -64,6 +68,9 @@ Future<AppController> openLyrics(
   bool desktop = true,
   bool running = true,
   double textScale = 1,
+  String finish = 'flat',
+  String theme = 'royal_navy',
+  Size? crop,
 }) async {
   setScreen(t, size);
   final port = desktop ? DesktopPort() : FakePort();
@@ -89,17 +96,46 @@ Future<AppController> openLyrics(
     );
   }
   await c.lyrics.setLook(c.lyrics.look.copyWith(dim: 40));
+  if (finish != 'flat' || theme != 'royal_navy') {
+    await c.commit((draft, _) {
+      draft.themeId = theme;
+      draft.appearance = draft.appearance.copyWith(finish: finish);
+    });
+  }
   if (running) {
     await c.act('load', value: sunday());
     await c.act('start');
   }
+  final app = MediaQuery(
+    data: MediaQueryData.fromView(
+      t.view,
+    ).copyWith(textScaler: TextScaler.linear(textScale)),
+    child: TimerApp(controller: c),
+  );
   await t.pumpWidget(
-    MediaQuery(
-      data: MediaQueryData.fromView(
-        t.view,
-      ).copyWith(textScaler: TextScaler.linear(textScale)),
-      child: TimerApp(controller: c),
-    ),
+    crop == null
+        ? app
+        // A corner of the window, for goldens of a finish: texture does not
+        // compress, so the whole window would make a very large file.
+        : Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox.fromSize(
+              size: crop,
+              child: RepaintBoundary(
+                key: const ValueKey('crop'),
+                child: ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.topLeft,
+                    minWidth: size.width,
+                    maxWidth: size.width,
+                    minHeight: size.height,
+                    maxHeight: size.height,
+                    child: app,
+                  ),
+                ),
+              ),
+            ),
+          ),
   );
   await t.pump();
   // Live is checked at these sizes by its own tests (a text scale it was
@@ -125,7 +161,7 @@ Future<void> settle(WidgetTester t) async {
 void main() {
   setUpAll(loadAppFonts);
 
-  testWidgets('Lyrics sits after Programs in the navigation', (t) async {
+  testWidgets('Slides sits after Programs in the navigation', (t) async {
     await openLyrics(
       t,
       size: const Size(390, 844),
@@ -135,7 +171,7 @@ void main() {
     final bar = t.widget<NavigationBar>(find.byType(NavigationBar));
     expect(
       [for (final d in bar.destinations) (d as NavigationDestination).label],
-      ['Live', 'Programs', 'Lyrics', 'Reports', 'Settings'],
+      ['Live', 'Programs', 'Slides', 'Reports', 'Settings'],
     );
     expect(bar.selectedIndex, 2);
     expect(home(t).page, lyricsPage);
@@ -297,7 +333,7 @@ void main() {
     expect(c.lyrics.showing, isFalse);
   });
 
-  testWidgets('the Lyrics button on Live opens the page and shows what is on', (
+  testWidgets('the Slides button on Live opens the page and shows what is on', (
     t,
   ) async {
     final c = await openLyrics(t, size: const Size(390, 844), desktop: false);
@@ -325,7 +361,7 @@ void main() {
     expect(home(t).page, lyricsPage);
   });
 
-  testWidgets('Live in a desktop layout has the Lyrics button in the header', (
+  testWidgets('Live in a desktop layout has the Slides button in the header', (
     t,
   ) async {
     final c = await openLyrics(t, size: const Size(1920, 1080));
@@ -339,7 +375,7 @@ void main() {
       find.byKey(const ValueKey('live-lyrics-button')),
     );
     expect(button.isSelected, isTrue);
-    expect(button.tooltip, 'Lyrics · on the screens: Amazing Grace · Verse 2');
+    expect(button.tooltip, 'Slides · on the screens: Amazing Grace · Verse 2');
     expect(t.takeException(), isNull);
     await expectLater(
       find.byType(MaterialApp),
@@ -490,5 +526,125 @@ void main() {
     expect(item.slides.single.title, 'Harvest lunch');
     expect(item.slides.single.detail, 'Sunday 30 November · 12:30');
     expect(jsonEncode(c.state.toJson()), contains('Harvest lunch'));
+  });
+
+  group('Slides in a finish', () {
+    final finishes = [...finishIds.where((f) => f != 'flat')];
+
+    Future<void> checkPage(WidgetTester t, {required int panels}) async {
+      expect(t.takeException(), isNull);
+      // Cards of the finish's material, not loose words on the wall.
+      expect(find.byType(FinishSurface), findsAtLeastNWidgets(panels));
+      expect(finishLook(t.element(find.byType(LyricsPanel))).active, isTrue);
+    }
+
+    for (final finish in finishes) {
+      testWidgets('$finish: three columns on a computer', (t) async {
+        await openLyrics(t, finish: finish, running: false);
+        await checkPage(t, panels: 3);
+        expect(find.text('LIBRARY'), findsOneWidget);
+      });
+    }
+
+    for (final (name, size, scale) in [
+      ('a phone upright', const Size(360, 780), 1.0),
+      ('a phone upright, large text', const Size(360, 780), 1.6),
+      ('a phone sideways', const Size(780, 360), 1.0),
+      ('a tablet', const Size(800, 1100), 1.0),
+    ]) {
+      for (final finish in ['glass', 'console', 'walnut', 'papery']) {
+        testWidgets('$finish: one column on $name', (t) async {
+          await openLyrics(
+            t,
+            size: size,
+            desktop: false,
+            textScale: scale,
+            finish: finish == 'papery' ? 'flat' : finish,
+            theme: finish == 'papery' ? 'paper_ink' : 'royal_navy',
+          );
+          // The rest of the cards are below the fold and built on scroll.
+          await checkPage(t, panels: 1);
+          // The controls along the bottom are a plate of the material too.
+          expect(find.byKey(const ValueKey('lyrics-bar')), findsOneWidget);
+          await t.scrollUntilVisible(
+            find.byKey(const ValueKey('lyrics-look')),
+            300,
+            scrollable: find
+                .descendant(
+                  of: find.byKey(const ValueKey('lyrics-column-narrow')),
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          );
+          await t.tap(find.byKey(const ValueKey('lyrics-look')));
+          await settle(t);
+          expect(t.takeException(), isNull);
+        });
+      }
+    }
+
+    for (final finish in ['brick', 'oak', 'papery']) {
+      testWidgets('$finish: the editors sit on cards and fit', (t) async {
+        for (final size in [const Size(1366, 768), const Size(360, 780)]) {
+          await openLyrics(
+            t,
+            size: size,
+            desktop: size.width > 800,
+            finish: finish == 'papery' ? 'flat' : finish,
+            theme: finish == 'papery' ? 'paper_ink' : 'royal_navy',
+            running: false,
+            textScale: size.width > 800 ? 1 : 1.6,
+          );
+          final c = t.widget<TimerApp>(find.byType(TimerApp)).controller;
+          unawaited(
+            Navigator.of(t.element(find.byType(LyricsPanel))).push(
+              MaterialPageRoute<void>(
+                builder: (_) => LyricEditorPage(controller: c),
+              ),
+            ),
+          );
+          await settle(t);
+          expect(t.takeException(), isNull);
+          expect(find.byType(FinishSurface), findsAtLeastNWidgets(2));
+          expect(
+            find.byKey(const ValueKey('lyrics-editor-save')),
+            findsOneWidget,
+          );
+          await t.pageBack();
+          await settle(t);
+        }
+      });
+    }
+
+    testWidgets('the slides themselves stay as they are in a finish', (
+      t,
+    ) async {
+      final c = await openLyrics(t, finish: 'walnut');
+      c.lyrics.show('amazing', 0);
+      await settle(t);
+      final stage = find.byKey(const ValueKey('lyric-stage'));
+      expect(stage, findsWidgets);
+      expect(
+        find.descendant(of: stage.first, matching: find.byType(FinishSurface)),
+        findsNothing,
+        reason: 'the slide is drawn as the screens show it',
+      );
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('the page in Walnut', (t) async {
+      final c = await openLyrics(
+        t,
+        finish: 'walnut',
+        running: false,
+        crop: const Size(1100, 620),
+      );
+      c.lyrics.show('amazing', 0);
+      await settle(t);
+      await expectLater(
+        find.byKey(const ValueKey('crop')),
+        matchesGoldenFile('../goldens/finish/lyrics-walnut-1366.png'),
+      );
+    });
   });
 }
