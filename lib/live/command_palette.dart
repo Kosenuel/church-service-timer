@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:church_service_timer/lyrics/scripture_search.dart';
 import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/live/quick_timer_sheet.dart';
@@ -415,6 +416,21 @@ extension CommandPalette on HomeState {
                   : 'open tab page',
               run: () => goToPage(p.page),
             ),
+      if (!controlsLocked)
+        PaletteCommand(
+          id: 'search-bible',
+          label: 'Search the Bible',
+          detail: 'A reference or words from a verse, on Slides',
+          icon: Icons.menu_book_outlined,
+          group: 'Go to',
+          words:
+              'scripture verse find look up reference passage text slides ready',
+          run: () async {
+            final there = page == lyricsPage;
+            if (!there) await goToPage(lyricsPage);
+            ScriptureSearchFocus.request(pageShowing: there);
+          },
+        ),
       if (c.lyrics.showing && !controlsLocked)
         PaletteCommand(
           id: 'clear-lyrics',

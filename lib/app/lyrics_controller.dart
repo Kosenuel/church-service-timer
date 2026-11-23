@@ -37,6 +37,10 @@ class LyricsController {
   int? _index;
   bool _black = false;
 
+  /// A prepared passage on the screens that is not in the library: what
+  /// the Ready tray sends. Kept in memory with the rest of what is showing.
+  LyricItem? _transient;
+
   /// Your picture, once read, for the screens drawn in this app.
   Uint8List? pictureBytes;
 
@@ -47,7 +51,11 @@ class LyricsController {
   LyricsLook get look => library.look;
 
   /// The item whose slide is on the screens, if any.
-  LyricItem? get item => library.byId(_itemId);
+  LyricItem? get item => _find(_itemId);
+
+  LyricItem? _find(String? id) =>
+      library.byId(id) ??
+      (id != null && _transient?.id == id ? _transient : null);
 
   /// The slide on the screens, if any (also while Black hides it).
   int? get index {
@@ -89,9 +97,16 @@ class LyricsController {
     unawaited(app.syncScreenAwake());
   }
 
+  /// Puts slide [slideIndex] of a passage that is not in the library on
+  /// the ticked screens, exactly as [show] does for a library item.
+  void showTransient(LyricItem passage, [int slideIndex = 0]) {
+    _transient = passage;
+    show(passage.id, slideIndex);
+  }
+
   /// Puts slide [slideIndex] of [id] on the ticked screens.
   void show(String id, int slideIndex) {
-    final i = library.byId(id);
+    final i = _find(id);
     if (i == null || slideIndex < 0 || slideIndex >= i.slides.length) return;
     final fresh = id != _itemId;
     _itemId = id;
@@ -99,7 +114,7 @@ class LyricsController {
     _black = false;
     _changed();
     // Stored songs lists the most recently used first.
-    if (fresh) {
+    if (fresh && library.byId(id) != null) {
       unawaited(
         _commit((draft, at) {
           draft.lyrics = draft.lyrics.usedAt(id, at.wall);
@@ -116,7 +131,7 @@ class LyricsController {
   void _step(int by, String? selected) {
     final current = index;
     final id = current == null ? selected : _itemId;
-    final i = library.byId(id);
+    final i = _find(id);
     if (i == null || i.slides.isEmpty) {
       if (_black) {
         _black = false;
