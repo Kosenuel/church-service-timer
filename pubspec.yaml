@@ -1,7 +1,7 @@
 name: church_service_timer
 description: Church service timer with a 32 by 16 simulator and W2 Wi-Fi display support.
 publish_to: none
-version: 0.38.0+43
+version: 0.39.0-beta.1+44
 environment:
   sdk: '>=3.10.0 <4.0.0'
 dependencies:
@@ -39,6 +39,7 @@ flutter:
     - assets/bible/kjv.txt.gz
     - assets/lyrics/photos/
     - assets/lyrics/photos/thumbs/
+    - assets/finish/
     - CHANGELOG.md
   fonts:
     - family: Roboto

@@ -1,4 +1,5 @@
 import 'package:church_service_timer/domain/domain.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -17,7 +18,10 @@ extension ProgramHistoryViews on HomeState {
         final versions = c.state.versionsOf(program.id);
         final colors = appColors(pageContext);
         return Scaffold(
-          appBar: AppBar(title: const Text('Version history')),
+          appBar: AppBar(
+            flexibleSpace: finishBar(context),
+            title: const Text('Version history'),
+          ),
           body: current == null
               ? const Center(child: Text('This program was removed.'))
               : ListView(

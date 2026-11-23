@@ -136,6 +136,12 @@ class AppState {
   /// device; not part of backups.
   String? seenVersion;
 
+  /// The Slides page as this device left it: the Library tab ([slidesTabs])
+  /// and which of its folding rows are open ('background', 'look'). Local
+  /// to this device; not part of backups.
+  String slidesTab;
+  Set<String> slidesOpen;
+
   /// Stored songs, Bible verses and announcements, and how their slides
   /// look and where they go. In backups (except Your picture).
   LyricsLibrary lyrics;
@@ -177,6 +183,8 @@ class AppState {
     List<QuickTimerChoice>? recentQuickTimers,
     AutoUpdateSettings? autoUpdate,
     this.seenVersion,
+    this.slidesTab = 'all',
+    Set<String>? slidesOpen,
     this.lyrics = const LyricsLibrary(),
     this.screens,
     this.outputDestination,
@@ -196,6 +204,7 @@ class AppState {
   }) : webStage = webStage ?? {},
        autoUpdate = autoUpdate ?? AutoUpdateSettings(),
        dismissedHints = dismissedHints ?? {},
+       slidesOpen = slidesOpen ?? {},
        savedLooks = savedLooks ?? [],
        recentQuickTimers = recentQuickTimers ?? [],
        importMappings = importMappings ?? {},
@@ -385,6 +394,13 @@ class AppState {
       ].take(quickTimerRecentLimit).toList(),
       autoUpdate: AutoUpdateSettings.fromJson(j['autoUpdate']),
       seenVersion: readSeenVersion(j['seenVersion']),
+      slidesTab: slidesTabs.contains(j['slidesTab'])
+          ? j['slidesTab'] as String
+          : 'all',
+      slidesOpen: {
+        for (final r in (j['slidesOpen'] as List? ?? const []))
+          if (slidesFoldRows.contains(r)) r as String,
+      },
       // Missing in saved data from before lyrics: an empty library.
       lyrics: LyricsLibrary.fromJson(j['lyrics']),
       // Missing in saved data from before groups: migrated at start.
@@ -537,6 +553,8 @@ class AppState {
     'recentQuickTimers': [for (final r in recentQuickTimers) r.toJson()],
     'autoUpdate': autoUpdate.toJson(),
     if (seenVersion != null) 'seenVersion': seenVersion,
+    if (slidesTab != 'all') 'slidesTab': slidesTab,
+    if (slidesOpen.isNotEmpty) 'slidesOpen': [...slidesOpen],
     if (!lyrics.isEmpty ||
         lyrics.lastUsed.isNotEmpty ||
         jsonEncode(lyrics.look.toJson()) !=

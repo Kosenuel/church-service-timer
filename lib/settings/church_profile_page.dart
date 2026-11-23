@@ -1,4 +1,5 @@
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 import 'dart:convert';
@@ -161,6 +162,7 @@ class _ChurchProfilePageState extends State<ChurchProfilePage> {
         : name.text.trim();
     final wide = isWideWindow(context);
     final appBar = AppBar(
+      flexibleSpace: finishBar(context),
       title: const Text('Church profile'),
       bottom: c.liveSession.active
           ? RunningServiceBar.forContext(context, controller: c)

@@ -7,6 +7,7 @@ import 'package:church_service_timer/app/controller.dart';
 import 'package:church_service_timer/domain/domain.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/settings/whats_new_page.dart';
+import 'package:church_service_timer/shared/finish_paint.dart';
 import '../domain/feature_cases.dart' show epoch, at;
 import 'church_profile_and_backup_cases.dart';
 import '../support/fake_port.dart';
@@ -40,6 +41,8 @@ void main() {
     test(e.key, e.value);
   }
   setUpAll(loadAppFonts);
+  // Paper & Ink and the Finish tiles draw the finish photographs.
+  setUpAll(FinishTextures.instance.loadAll);
   void size(WidgetTester t, [Size value = const Size(430, 1100)]) =>
       setScreen(t, value);
 
@@ -60,7 +63,7 @@ void main() {
     () {
       // pubspec "X+N" and appVersion "X (N)" must agree; no edit per release.
       final pubspec = RegExp(
-        r'^version: (\d+\.\d+\.\d+)\+(\d+)$',
+        r'^version: (\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\+(\d+)$',
         multiLine: true,
       ).firstMatch(File('pubspec.yaml').readAsStringSync())!;
       expect(appVersion, '${pubspec.group(1)} (${pubspec.group(2)})');

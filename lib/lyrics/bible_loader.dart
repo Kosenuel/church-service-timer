@@ -19,6 +19,11 @@ class BibleLibrary {
   static Future<Bible> load([String code = 'KJV']) =>
       _loaded[code] ??= _read(code);
 
+  /// Keeps an already parsed [bible] as the translation of its code, so
+  /// the search index's copy is the one lookups read.
+  static void adopt(Bible bible) =>
+      _loaded[bible.code] = Future<Bible>.value(bible);
+
   static Future<Bible> _read(String code) async {
     final asset = bundled[code];
     if (asset == null) throw RuleError('The $code is not on this device.');

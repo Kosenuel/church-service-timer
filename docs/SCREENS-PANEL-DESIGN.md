@@ -254,7 +254,7 @@ are not cues and apply as before.
 | Web screens: "Stage displays show" tiles | "Web screens join Room 1 ..." and **Screens**, with per-group links |
 | Full screen's layout tiles (phone) | the group line and **Screens** |
 | Simulator's layout tiles in Choose display | the group line and **Screens** |
-| Slides page Send to boxes | the groups showing slides and **Screens**; with none, "No screens are showing slides." and **Show slides in Room 1**, both in the look section and beside what is on the screens |
+| Slides page Send to (the Screens row's chips behind Change) | the Screens row shows the groups showing slides ("Room 1 · Stage"); opened, what that means for cues and an **Open Screens** button. With none: "No screens are showing slides" in the row, and **Show slides in Room 1** under the row and under the status line. Passages sent from Ready follow the groups exactly as Library slides do |
 
 ## Screen awake
 

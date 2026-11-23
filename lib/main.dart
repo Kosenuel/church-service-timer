@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'package:church_service_timer/shared/app_theme.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/shared/ui_tools.dart';
 import 'package:church_service_timer/live/running_service_bar.dart';
 import 'package:church_service_timer/app/controller.dart';
@@ -997,40 +998,60 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                 ? BorderSide(color: appColors(context).border)
                                 : BorderSide.none,
                           ),
-                          flexibleSpace: ClipRRect(
-                            borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(squareHeader ? 0 : 26),
-                            ),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      Color.alphaBlend(
-                                        appColors(
-                                          context,
-                                        ).accent.withValues(alpha: .04),
-                                        appColors(context).surface,
-                                      ).withValues(
-                                        alpha: appColors(context).highContrast
-                                            ? 1
-                                            : .84,
-                                      ),
-                                      appColors(context).surface.withValues(
-                                        alpha: appColors(context).highContrast
-                                            ? 1
-                                            : .92,
-                                      ),
-                                    ],
+                          // A finish makes the header a plate of its
+                          // material (with no backdrop blur, which would
+                          // cost a pass every frame); Flat keeps the
+                          // frosted bar it always had.
+                          flexibleSpace:
+                              finishBar(
+                                context,
+                                corners: BorderRadius.vertical(
+                                  bottom: Radius.circular(
+                                    squareHeader ? 0 : 26,
                                   ),
                                 ),
-                                child: const SizedBox.expand(),
+                              ) ??
+                              ClipRRect(
+                                borderRadius: BorderRadius.vertical(
+                                  bottom: Radius.circular(
+                                    squareHeader ? 0 : 26,
+                                  ),
+                                ),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 8,
+                                    sigmaY: 8,
+                                  ),
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Color.alphaBlend(
+                                            appColors(
+                                              context,
+                                            ).accent.withValues(alpha: .04),
+                                            appColors(context).surface,
+                                          ).withValues(
+                                            alpha:
+                                                appColors(context).highContrast
+                                                ? 1
+                                                : .84,
+                                          ),
+                                          appColors(context).surface.withValues(
+                                            alpha:
+                                                appColors(context).highContrast
+                                                ? 1
+                                                : .92,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    child: const SizedBox.expand(),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
                           actions: [
                             if (c.ready)
                               UnavailableAction(
@@ -1319,18 +1340,21 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                     )
                   : useNavigationRail || useTopTabs
                   ? null
-                  : NavigationBar(
-                      selectedIndex: homePageSlot(page),
-                      onDestinationSelected: (v) {
-                        if (!controlsLocked) goToPage(homePageOrder[v].page);
-                      },
-                      destinations: [
-                        for (final p in homePageOrder)
-                          NavigationDestination(
-                            icon: Icon(p.icon),
-                            label: p.name,
-                          ),
-                      ],
+                  : finishNavigationBar(
+                      context,
+                      NavigationBar(
+                        selectedIndex: homePageSlot(page),
+                        onDestinationSelected: (v) {
+                          if (!controlsLocked) goToPage(homePageOrder[v].page);
+                        },
+                        destinations: [
+                          for (final p in homePageOrder)
+                            NavigationDestination(
+                              icon: Icon(p.icon),
+                              label: p.name,
+                            ),
+                        ],
+                      ),
                     ),
             ),
           ),

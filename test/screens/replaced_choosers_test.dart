@@ -46,6 +46,15 @@ void main() {
       c.lyrics.show('amazing', 0);
       await settle(t);
       expect(find.byKey(const ValueKey('lyrics-send-second')), findsNothing);
+      // The Screens row says which groups; opened, it leads to Screens.
+      final header = find.byKey(const ValueKey('lyrics-screens-row-header'));
+      expect(
+        find.descendant(of: header, matching: find.text('Room 1')),
+        findsOneWidget,
+      );
+      await t.ensureVisible(header);
+      await t.tap(header);
+      await settle(t);
       expect(find.byKey(const ValueKey('lyrics-groups')), findsOneWidget);
       expect(find.text('Room 1'), findsWidgets);
       final line = find.byKey(const ValueKey('lyrics-groups'));
