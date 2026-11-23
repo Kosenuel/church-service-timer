@@ -1166,7 +1166,9 @@ class _LyricsPanelState extends State<LyricsPanel>
       ),
     );
     // On a finish the bar is a plate of the material across the window.
-    return finish ? FinishPane(strip: true, child: bar) : bar;
+    return finish
+        ? FinishPane(strip: true, seams: finishSeamAbove, child: bar)
+        : bar;
   }
 
   // ---- Send to and the look ------------------------------------------------------------

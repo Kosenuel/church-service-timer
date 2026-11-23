@@ -1,4 +1,5 @@
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -612,6 +613,7 @@ class _PairedScreenState extends State<PairedScreen> {
       appBar: stage
           ? null
           : AppBar(
+              flexibleSpace: finishBar(context),
               title: Text(
                 hub.mode == 'operator' ? 'Paired operator' : 'Service viewer',
               ),

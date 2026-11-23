@@ -1,4 +1,5 @@
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/shared/wide_layout.dart';
 import 'package:flutter/material.dart';
@@ -341,6 +342,7 @@ class _FeedbackCenterPageState extends State<FeedbackCenterPage> {
       label: const Text('Copy feedback'),
     );
     final appBar = AppBar(
+      flexibleSpace: finishBar(context),
       bottom: widget.controller.liveSession.active
           ? RunningServiceBar.forContext(context, controller: widget.controller)
           : null,

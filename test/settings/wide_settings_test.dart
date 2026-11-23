@@ -10,6 +10,7 @@ import 'package:church_service_timer/settings/settings_wide.dart';
 import 'package:church_service_timer/settings/whats_new_page.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/shared/finish_paint.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -22,6 +23,8 @@ import '../support/widget_setup.dart';
 /// phone column in the middle.
 void main() {
   setUpAll(loadAppFonts);
+  // Paper & Ink and the Finish tiles draw the finish photographs.
+  setUpAll(FinishTextures.instance.loadAll);
   setUp(() {
     desktopWording = true;
     // Fixed notes, so About's screenshot does not change with each release.
