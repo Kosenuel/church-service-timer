@@ -3,6 +3,7 @@
 /// references such as "John 3:16-18", "Psalm 23" or "1 Cor 13:4-7".
 library;
 
+import 'package:church_service_timer/domain/bible_speech.dart';
 import 'package:church_service_timer/domain/domain.dart';
 
 /// One translation, read from a `CSTBIBLE 1` file: a header line
@@ -100,7 +101,7 @@ class Bible {
     final title = r.verse == null && r.endChapter == null
         ? '${singularBook(r.book)} ${r.chapter}'
         : verseRange(singularBook(r.book), verses);
-    return BibleReading(title, code, verses);
+    return BibleReading(title, code, verses, corrected: r.corrected);
   }
 }
 
@@ -109,7 +110,15 @@ class Bible {
 class BibleReading {
   final String reference, version;
   final List<LyricVerse> verses;
-  const BibleReading(this.reference, this.version, this.verses);
+
+  /// True when the book name was a misspelling that was put right.
+  final bool corrected;
+  const BibleReading(
+    this.reference,
+    this.version,
+    this.verses, {
+    this.corrected = false,
+  });
 }
 
 /// "Psalm 23", not "Psalms 23", for one psalm.
@@ -120,12 +129,18 @@ class BibleReference {
   final String book;
   final int chapter;
   final int? verse, endChapter, endVerse;
+
+  /// True when the book was not typed as a known name or abbreviation but
+  /// worked out from a misspelling or a short start, so the screen can
+  /// show what it understood.
+  final bool corrected;
   const BibleReference(
     this.book,
     this.chapter, {
     this.verse,
     this.endChapter,
     this.endVerse,
+    this.corrected = false,
   });
 }
 
@@ -202,7 +217,7 @@ const bibleBooks = [
 /// Other names and common abbreviations, without spaces or full stops,
 /// in lower case. A number before a book ("1", "i", "first") is read
 /// separately.
-const _bookNames = <String, String>{
+const bibleBookAbbreviations = <String, String>{
   'gen': 'Genesis',
   'ge': 'Genesis',
   'gn': 'Genesis',
@@ -371,93 +386,262 @@ const _numbered = {
   'John',
 };
 
-/// The book [words] names ("1 cor", "First Corinthians", "jn", "psalm"),
-/// or null.
-String? bibleBookOf(String words) {
-  var w = words.toLowerCase().replaceAll('.', ' ').trim();
-  int? part;
-  // A Roman numeral needs a space after it ("I Cor", "II Kings"): without
-  // one the I of Isaiah ("Isaiah", "Isa") is not a number.
-  final prefix = RegExp(
-    r'^(?:(1|2|3|first|second|third|1st|2nd|3rd)\s*|(i{1,3})\s+)',
-  ).firstMatch(w);
-  if (prefix != null) {
-    part = switch (prefix.group(1) ?? prefix.group(2)) {
-      '1' || 'i' || 'first' || '1st' => 1,
-      '2' || 'ii' || 'second' || '2nd' => 2,
-      _ => 3,
-    };
-    final rest = w.substring(prefix.end).trim();
-    // "Is" (Isaiah) and "I" alone are not numbers.
-    if (rest.isEmpty) part = null;
-    if (part != null) w = rest;
-  }
-  final key = w.replaceAll(RegExp(r'\s+'), '').replaceAll('of', 'of');
-  String? base;
+String _baseName(String book) => book.replaceFirst(RegExp(r'^\d '), '');
+String _squash(String s) => s.toLowerCase().replaceAll(RegExp(r'[\s.]+'), '');
+
+/// A book written out in full or by an abbreviation, without its number,
+/// or null. "Psalm", "song of songs", "jn".
+String? _exactBase(String key) {
   for (final b in bibleBooks) {
-    final name = b.replaceFirst(RegExp(r'^\d '), '');
-    if (name.toLowerCase().replaceAll(' ', '') == key) base = name;
+    final name = _baseName(b);
+    if (_squash(name) == key) return name;
   }
-  base ??= _bookNames[key];
-  if (base == null && key.length >= 3) {
-    // A clear start of a name: "deuter", "philip", "revel".
-    final starts = {
-      for (final b in bibleBooks)
-        if (b
-            .replaceFirst(RegExp(r'^\d '), '')
-            .toLowerCase()
-            .replaceAll(' ', '')
-            .startsWith(key))
-          b.replaceFirst(RegExp(r'^\d '), ''),
-    };
-    if (starts.length == 1) base = starts.single;
-  }
-  if (base == null) return null;
+  return bibleBookAbbreviations[key];
+}
+
+final _partPrefix = RegExp(
+  r'^(1st|2nd|3rd|first|second|third|1|2|3|iii|ii|i)(\s*)',
+);
+
+/// A leading "1", "II" or "first" and what follows it, or (null, all).
+(int?, String) _splitPart(String w) {
+  final prefix = _partPrefix.firstMatch(w);
+  if (prefix == null) return (null, w);
+  final rest = w.substring(prefix.end).trim();
+  // "Is" (Isaiah) and "I" alone are not numbers.
+  if (rest.isEmpty) return (null, w);
+  final word = prefix.group(1)!;
+  // "isa" and "iss" are not "I sa": a Roman numeral run straight into
+  // letters counts only when what is left is not a book by itself.
+  final glued = prefix.group(2)!.isEmpty && word.startsWith('i');
+  if (glued && _exactBase(_squash(w)) != null) return (null, w);
+  final part = switch (word) {
+    '1' || 'i' || 'first' || '1st' => 1,
+    '2' || 'ii' || 'second' || '2nd' => 2,
+    _ => 3,
+  };
+  return (part, rest);
+}
+
+/// The full name of [base] as part [part] (null: not given), or null when
+/// there is no such book. A bare numbered book is its first part, as it
+/// always was ("Cor 13" is 1 Corinthians); bare John is the gospel.
+String? _withPart(String base, int? part) {
   if (_numbered.contains(base)) {
-    // John alone is the gospel; 1, 2 and 3 John are the letters.
     if (base == 'John' && part == null) return 'John';
-    final n = part ?? 1;
-    final name = '$n $base';
+    final name = '${part ?? 1} $base';
     return bibleBooks.contains(name) ? name : null;
   }
   return part == null ? base : null;
 }
 
+/// The book [words] names ("1 cor", "First Corinthians", "jn", "psalm"),
+/// or null.
+String? bibleBookOf(String words) {
+  final w = words.toLowerCase().replaceAll('.', ' ').trim();
+  final (part, rest) = _splitPart(w);
+  final key = _squash(rest);
+  var base = _exactBase(key);
+  if (base == null && key.length >= 3) {
+    // A clear start of a name: "deuter", "philip", "revel".
+    final starts = {
+      for (final b in bibleBooks)
+        if (_squash(_baseName(b)).startsWith(key)) _baseName(b),
+    };
+    if (starts.length == 1) base = starts.single;
+  }
+  return base == null ? null : _withPart(base, part);
+}
+
+/// The books a misspelt or cut-short name could mean: one, when it is
+/// clear, or several for the screen to offer. Empty when nothing is close.
+/// Only the 66 names and the known abbreviations are compared, a number
+/// before the name is respected ("1 jhon" is never the gospel of John) and
+/// short names are never guessed at beyond a transposed pair of letters.
+List<String> bibleBookGuesses(String words) {
+  final w = words.toLowerCase().replaceAll('.', ' ').trim();
+  final (part, rest) = _splitPart(w);
+  var found = _guess(_squash(rest), part);
+  if (found.isEmpty && part != null) {
+    // "Isiah" is not "I siah".
+    found = _guess(_squash(w), null);
+  }
+  return found;
+}
+
+List<String> _guess(String key, int? part) {
+  if (key.length < 2) return const [];
+  bool wanted(String base) => _withPart(base, part) != null;
+  // A start shared by several books: "jo", "phi", "ma".
+  final starts = <String>[
+    for (final b in bibleBooks)
+      if (_squash(_baseName(b)).startsWith(key) && wanted(_baseName(b)))
+        _baseName(b),
+  ];
+  if (starts.isNotEmpty) {
+    return _inOrder({for (final b in starts) _withPart(b, part)!});
+  }
+  if (key.length < 3) return const [];
+  final limit = _allowed(key.length);
+  var best = double.infinity;
+  final byBase = <String, double>{};
+  void consider(String base, String name, double extra) {
+    if (!wanted(base)) return;
+    var d = _distance(key, name);
+    // A typed start of a long name: "phillip" for "philippians".
+    if (key.length >= 5 && name.length > key.length) {
+      final cut = _distance(key, name.substring(0, key.length));
+      if (cut < d) d = cut;
+    }
+    d += extra;
+    if (key.length == 3 && (name.length != 3 || d > 0.5 + extra)) return;
+    if (d - extra > limit) return;
+    if (d < (byBase[base] ?? double.infinity)) byBase[base] = d;
+    if (d < best) best = d;
+  }
+
+  for (final b in bibleBooks) {
+    final base = _baseName(b);
+    if (b != base && !b.startsWith('1 ')) continue;
+    consider(base, _squash(base), 0);
+  }
+  for (final e in bibleBookAbbreviations.entries) {
+    if (e.key.length >= 4 || key.length == 3) {
+      consider(e.value, e.key, 0.25);
+    }
+  }
+  if (byBase.isEmpty) return const [];
+  return _inOrder({
+    for (final e in byBase.entries)
+      if ((e.value - best).abs() < 0.01) _withPart(e.key, part)!,
+  });
+}
+
+List<String> _inOrder(Set<String> names) => [
+  for (final b in bibleBooks)
+    if (names.contains(b)) b,
+];
+
+/// How many letters may be wrong in a name of [length] letters. A
+/// transposed pair counts half, so "jhon" is nearer John than "jon" is.
+double _allowed(int length) => length <= 3
+    ? 0.5
+    : length <= 6
+    ? 1
+    : length <= 12
+    ? 2
+    : 3;
+
+/// Edit distance with swaps of neighbouring letters counted as half.
+double _distance(String a, String b) {
+  final d = List.generate(a.length + 1, (_) => List.filled(b.length + 1, 0.0));
+  for (var i = 0; i <= a.length; i++) {
+    d[i][0] = i.toDouble();
+  }
+  for (var j = 0; j <= b.length; j++) {
+    d[0][j] = j.toDouble();
+  }
+  for (var i = 1; i <= a.length; i++) {
+    for (var j = 1; j <= b.length; j++) {
+      final cost = a[i - 1] == b[j - 1] ? 0.0 : 1.0;
+      var v = [
+        d[i - 1][j] + 1,
+        d[i][j - 1] + 1,
+        d[i - 1][j - 1] + cost,
+      ].reduce((x, y) => x < y ? x : y);
+      if (i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1]) {
+        final t = d[i - 2][j - 2] + 0.5;
+        if (t < v) v = t;
+      }
+      d[i][j] = v;
+    }
+  }
+  return d[a.length][b.length];
+}
+
+/// A book name that could be one of several, so the screen can offer them.
+/// [rest] is what followed the book ("3:1"); with a chosen book put in
+/// front it is a reference again.
+class BibleBookChoice extends RuleError {
+  final List<String> books;
+  final String rest;
+  BibleBookChoice(this.books, this.rest)
+    : super('Which book? ${books.join(', ')}.');
+}
+
+/// Longest text taken for a reference; anything longer is not one.
+const bibleReferenceLimit = 120;
+
+final _translationTag = RegExp(
+  r'\s*(?:\([^)]{1,30}\)|\b(?:king james(?: version)?|kjv|nkjv|niv|esv|nlt|asv|nasb|amp|msg|csb|web|nrsv|rsv|cev|gnt|erv|ylt|nirv|hcsb|tlb|lsb|bsb|net|ncv|nab|ceb))\s*$',
+  caseSensitive: false,
+);
+
 /// Reads a reference such as "John 3:16", "John 3:16-18", "John 3:16–4:2",
-/// "Psalm 23", "1 Cor 13:4-7" or "Jn 3 16". Throws a [RuleError] with a
-/// helpful message for anything else.
+/// "Psalm 23", "1 Cor 13:4-7", "Jn 3 16", "john chapter three verse sixteen"
+/// or "Jhon 3 16". A trailing translation such as "KJV" is ignored. Throws a
+/// [BibleBookChoice] when the book could be several, and any other
+/// [RuleError] with a helpful message for anything else.
 BibleReference parseBibleReference(String input) {
-  final text = input
-      .trim()
-      .replaceAll(RegExp('[–—−]'), '-')
-      .replaceAll(RegExp(r'\s*-\s*'), '-')
-      .replaceAll(RegExp(r'(?<=\d)\s*[:.]\s*(?=\d)'), ':')
-      .replaceAll(RegExp(r'\s+'), ' ');
-  require(text.isNotEmpty, 'Type a reference, such as John 3:16 or Psalm 23.');
+  var raw = input.trim();
+  require(raw.isNotEmpty, 'Type a reference, such as John 3:16 or Psalm 23.');
+  require(
+    raw.length <= bibleReferenceLimit,
+    'That is too long for a Bible reference. Try a book, chapter and verses, such as John 3:16-18.',
+  );
+  for (var i = 0; i < 2; i++) {
+    final cut = raw.replaceFirst(_translationTag, '');
+    raw = cut.replaceFirst(RegExp(r'[\s.,;:!?]+$'), '');
+    if (raw.isEmpty) break;
+  }
+  require(raw.isNotEmpty, 'Type a reference, such as John 3:16 or Psalm 23.');
+  var text = normaliseSpokenReference(raw);
+  // "16 and 17" is the run 16-17; "16 and 19" is not one.
+  text = text.replaceAllMapped(RegExp(r'(\d+)&(\d+)'), (m) {
+    final a = int.parse(m[1]!), b = int.parse(m[2]!);
+    require(
+      b == a + 1,
+      'Type one run of verses, such as John 3:16-19, not separate ones.',
+    );
+    return '$a-$b';
+  });
   final m = RegExp(
-    r'^((?:[123]|i{1,3}|first|second|third|1st|2nd|3rd)?\s?[a-z][a-z .]*?)\s?(\d+)(?:[: ](\d+))?(?:-(\d+)(?::(\d+))?)?$',
+    r'^((?:[123]|i{1,3}|first|second|third)?\s?[a-z][a-z .]*?)\s?(\d+)(?::(\d+)|\s(\d+))?(?:-(\d+)(?::(\d+))?)?$',
     caseSensitive: false,
   ).firstMatch(text);
   require(
     m != null,
     'Try a book and chapter, such as John 3 or Psalm 23, or add verses: John 3:16-18.',
   );
-  final book = bibleBookOf(m!.group(1)!);
+  final found = m!;
+  final words = found.group(1)!;
+  var corrected = false;
+  var book = bibleBookOf(words);
+  if (book == null) {
+    final guesses = bibleBookGuesses(words);
+    if (guesses.length == 1) {
+      book = guesses.single;
+      corrected = true;
+    } else if (guesses.length > 1) {
+      throw BibleBookChoice(guesses, text.substring(words.length).trim());
+    }
+  }
   require(
     book != null,
-    '"${m.group(1)!.trim()}" is not a book of the Bible this app knows. Try the full name, such as 1 Corinthians.',
+    '"${words.trim()}" is not a book of the Bible this app knows. Try the full name, such as 1 Corinthians.',
   );
-  final chapter = int.parse(m.group(2)!);
-  final verse = m.group(3) == null ? null : int.parse(m.group(3)!);
+  final chapter = int.parse(found.group(2)!);
+  final verseText = found.group(3) ?? found.group(4);
+  final verse = verseText == null ? null : int.parse(verseText);
   int? endChapter, endVerse;
-  if (m.group(4) != null) {
-    if (m.group(5) != null) {
-      endChapter = int.parse(m.group(4)!);
-      endVerse = int.parse(m.group(5)!);
+  if (found.group(5) != null) {
+    if (found.group(6) != null) {
+      endChapter = int.parse(found.group(5)!);
+      endVerse = int.parse(found.group(6)!);
     } else if (verse == null) {
-      endChapter = int.parse(m.group(4)!);
+      endChapter = int.parse(found.group(5)!);
     } else {
-      endVerse = int.parse(m.group(4)!);
+      endVerse = int.parse(found.group(5)!);
     }
   }
   require(chapter > 0 && (verse ?? 1) > 0, 'Chapters and verses start at 1.');
@@ -483,7 +667,7 @@ BibleReference parseBibleReference(String input) {
         '3 John',
         'Jude',
       }.contains(book)) {
-    return BibleReference(book!, 1, verse: chapter);
+    return BibleReference(book!, 1, verse: chapter, corrected: corrected);
   }
   return BibleReference(
     book!,
@@ -491,5 +675,6 @@ BibleReference parseBibleReference(String input) {
     verse: verse,
     endChapter: endChapter,
     endVerse: endVerse,
+    corrected: corrected,
   );
 }
