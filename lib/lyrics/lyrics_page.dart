@@ -8,6 +8,9 @@ import 'package:church_service_timer/lyrics/lyric_backgrounds.dart';
 import 'package:church_service_timer/lyrics/lyric_editors.dart';
 import 'package:church_service_timer/lyrics/lyric_photos.dart';
 import 'package:church_service_timer/lyrics/lyric_stage.dart';
+import 'package:church_service_timer/lyrics/ready_tray.dart';
+import 'package:church_service_timer/lyrics/scripture_search.dart';
+import 'package:church_service_timer/lyrics/scripture_search_ui.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/finish.dart';
@@ -55,6 +58,17 @@ extension LyricsPageViews on HomeState {
   /// Nothing while a field has the keyboard, a window is open on top, or
   /// the controls are locked.
   bool lyricsKey(KeyEvent event) {
+    // `/` or Ctrl+F: the search box (Ctrl+F also from inside it).
+    if (!controlsLocked &&
+        isScriptureSearchKey(
+          event.logicalKey,
+          control: HardwareKeyboard.instance.isControlPressed,
+          typing: typingInField,
+        ) &&
+        ModalRoute.of(context)?.isCurrent == true) {
+      ScriptureSearchFocus.request();
+      return true;
+    }
     final action = lyricsKeyFor(
       event.logicalKey,
       control: HardwareKeyboard.instance.isControlPressed,
@@ -168,6 +182,9 @@ class _LyricsPanelState extends State<LyricsPanel> {
   AppController get c => widget.controller;
   final _search = TextEditingController();
 
+  /// The box also searches the Bible; see scripture_search.dart.
+  late final _bible = ScriptureSearchController(c);
+
   /// The Dim slider while it is being dragged, saved when let go.
   double? _dimming;
 
@@ -177,7 +194,14 @@ class _LyricsPanelState extends State<LyricsPanel> {
   final _focus = FocusNode(debugLabel: 'Slides panel');
 
   @override
+  void initState() {
+    super.initState();
+    _bible.prepare();
+  }
+
+  @override
   void dispose() {
+    _bible.dispose();
     _search.dispose();
     _focus.dispose();
     super.dispose();
@@ -269,7 +293,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
     autofocus: true,
     onKeyEvent: _keys,
     child: AnimatedBuilder(
-      animation: Listenable.merge([c, c.liveClock]),
+      animation: Listenable.merge([c, c.liveClock, ReadyTray.of(c)]),
       builder: (context, _) => LayoutBuilder(
         builder: (context, space) => space.maxWidth >= LyricsPanel.wideWidth
             ? _wide(space)
@@ -290,19 +314,27 @@ class _LyricsPanelState extends State<LyricsPanel> {
     ),
   );
 
-  Widget _wide(BoxConstraints space) => Padding(
+  Widget _wide(BoxConstraints space) {
+    _bible.openSheet = null;
+    return _wideLayout(space);
+  }
+
+  Widget _wideLayout(BoxConstraints space) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          width: 280,
+          // Wider while searching, so verses read on a few lines.
+          width: _bible.active ? 400 : 280,
           child: _column('stored', [_label('Library'), ..._stored()]),
         ),
         const SizedBox(width: 14),
         Expanded(
           flex: 100,
           child: _column('slides', [
+            ReadyTrayPanel(controller: c, enabled: enabled, bare: true),
+            const SizedBox(height: 20),
             _slidesHeader(),
             const SizedBox(height: 10),
             _slides(columns: null),
@@ -326,6 +358,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
 
   Widget _narrow(BoxConstraints space) {
     final columns = space.maxWidth >= 700 ? 3 : 2;
+    _bible.openSheet = _openSearch;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -334,6 +367,12 @@ class _LyricsPanelState extends State<LyricsPanel> {
             key: const ValueKey('lyrics-column-narrow'),
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             children: [
+              ScriptureSearchLauncher(query: _bible.query, onTap: _openSearch),
+              const SizedBox(height: 12),
+              if (!ReadyTray.of(c).isEmpty) ...[
+                ReadyTrayPanel(controller: c, enabled: enabled),
+                const SizedBox(height: 12),
+              ],
               // Cards in the finish's material, as Live and Settings have
               // on a phone: words always sit on a panel.
               AppPanel(
@@ -408,28 +447,100 @@ class _LyricsPanelState extends State<LyricsPanel> {
       if (i.matches(_search.text)) i,
   ];
 
+  List<LyricItem> _libraryFor(String q) => [
+    for (final i in c.lyrics.library.ordered)
+      if (i.matches(q)) i,
+  ];
+
+  /// Library or Bible line chosen in the search results.
+  void _chooseLibrary(LyricItem item, {required bool send}) {
+    _select(item);
+    if (send && enabled) c.lyrics.show(item.id, 0);
+  }
+
+  void _chooseBible(SearchHit hit, {required bool send}) {
+    _bible.addToReady(hit, send: send);
+    // After sending, the arrow keys and Esc work on the slides again.
+    if (send) _takeKeys();
+  }
+
+  void _chooseEntry(SearchEntry e, {required bool send}) => e.isBible
+      ? _chooseBible(e.hit!, send: send)
+      : _chooseLibrary(e.item!, send: send);
+
+  void _clearSearch() => setState(() {
+    _search.clear();
+    _bible.clear();
+  });
+
+  Future<void> _openSearch() => showScriptureSearchSheet(
+    context: context,
+    controller: _bible,
+    app: c,
+    library: _libraryFor,
+    onLibrary: _chooseLibrary,
+    enabled: enabled,
+  ).then((_) => mounted ? setState(() {}) : null);
+
   List<Widget> _stored({VoidCallback? picked}) {
     final colors = appColors(context);
     final found = _found;
     final current = selected;
-    return [
-      TextField(
+    // The wide column's box searches the Library and the Bible together;
+    // the phone's sheet picker keeps a Library-only box.
+    final both = picked == null;
+    final field = ScriptureSearchKeys(
+      key: const ValueKey('lyrics-search-keys'),
+      controller: _bible,
+      onClear: _clearSearch,
+      onRelease: _takeKeys,
+      onChoose: _chooseEntry,
+      child: TextField(
         key: const ValueKey('lyrics-search'),
         controller: _search,
-        onChanged: (_) => setState(() {}),
+        focusNode: both ? _bible.focus : null,
+        onChanged: (v) {
+          if (both) _bible.setQuery(v, _libraryFor(v));
+          setState(() {});
+        },
         decoration: InputDecoration(
           isDense: true,
-          hintText: 'Search the library',
+          hintText: both ? 'Search songs, Bible' : 'Search the library',
           prefixIcon: const Icon(Icons.search, size: 20),
           suffixIcon: _search.text.isEmpty
               ? null
               : IconButton(
                   tooltip: 'Clear the search',
                   icon: const Icon(Icons.close, size: 18),
-                  onPressed: () => setState(_search.clear),
+                  onPressed: _clearSearch,
                 ),
         ),
       ),
+    );
+    if (both && _search.text.trim().isNotEmpty) {
+      return [
+        field,
+        const SizedBox(height: 10),
+        ScriptureResults(
+          controller: _bible,
+          app: c,
+          enabled: enabled,
+          onLibrary: _chooseLibrary,
+          onBible: _chooseBible,
+          onBook: (b) {
+            _search.text = '$b ';
+            _search.selection = TextSelection.collapsed(
+              offset: _search.text.length,
+            );
+            _bible.setQuery(_search.text, _libraryFor(_search.text));
+            _bible.focus.requestFocus();
+            setState(() {});
+          },
+        ),
+      ];
+    }
+    return [
+      field,
       const SizedBox(height: 10),
       if (c.lyrics.library.isEmpty)
         Padding(
