@@ -102,25 +102,36 @@ extension LiveLayout on HomeState {
         FinishPane(
           child: SafeArea(
             right: false,
-            child: NavigationRail(
-              key: const ValueKey('navigation-rail'),
-              backgroundColor: finishLook(context).active
-                  ? Colors.transparent
-                  : colors.surface,
-              selectedIndex: homePageSlot(page),
-              labelType: NavigationRailLabelType.all,
-              // Clear of the top edge, in line with the header beside it.
-              leading: const SizedBox(height: 12),
-              onDestinationSelected: (v) {
-                if (!controlsLocked) goToPage(homePageOrder[v].page);
-              },
-              destinations: [
-                for (final p in homePageOrder)
-                  NavigationRailDestination(
-                    icon: Icon(p.icon),
-                    label: Text(p.name),
+            // Six destinations are taller than a sideways phone: the rail
+            // scrolls there and keeps its full height elsewhere.
+            child: LayoutBuilder(
+              builder: (context, box) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: box.maxHeight),
+                  child: IntrinsicHeight(
+                    child: NavigationRail(
+                      key: const ValueKey('navigation-rail'),
+                      backgroundColor: finishLook(context).active
+                          ? Colors.transparent
+                          : colors.surface,
+                      selectedIndex: homePageSlot(page),
+                      labelType: NavigationRailLabelType.all,
+                      // Clear of the top edge, in line with the header beside it.
+                      leading: const SizedBox(height: 12),
+                      onDestinationSelected: (v) {
+                        if (!controlsLocked) goToPage(homePageOrder[v].page);
+                      },
+                      destinations: [
+                        for (final p in homePageOrder)
+                          NavigationRailDestination(
+                            icon: Icon(p.icon),
+                            label: Text(p.name),
+                          ),
+                      ],
+                    ),
                   ),
-              ],
+                ),
+              ),
             ),
           ),
         ),

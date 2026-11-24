@@ -176,11 +176,13 @@ void main() {
     );
   });
 
-  testWidgets('Settings uses two columns in a wide window', (t) async {
+  testWidgets('Settings uses three columns in a full HD window', (t) async {
     await standingBy(t);
     await t.tap(find.byKey(const ValueKey('desktop-tab-3')));
     await t.pumpAndSettle();
-    expect(find.byKey(const ValueKey('settings-two-columns')), findsOneWidget);
+    expect(find.byKey(const ValueKey('settings-three-columns')),
+      findsOneWidget,
+    );
     expect(t.takeException(), isNull);
     await expectLater(
       find.byType(TimerApp),

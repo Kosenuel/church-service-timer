@@ -317,6 +317,18 @@ void main() {
         }
       });
     }
+    testWidgets('a sideways phone scrolls the rail instead of overflowing', (
+      t,
+    ) async {
+      await start(t, PcPort(), const Size(844, 390));
+      expect(find.byKey(const ValueKey('navigation-rail')), findsOneWidget);
+      expect(t.takeException(), isNull);
+      await t.ensureVisible(railLabel('Settings'));
+      await t.pumpAndSettle();
+      await t.tap(railLabel('Screens'), warnIfMissed: false);
+      expect(t.takeException(), isNull);
+    });
+
     testWidgets('golden: Screens selected on the rail', (t) async {
       await start(t, PcPort(), const Size(1366, 768));
       await t.tap(railLabel('Screens'));
