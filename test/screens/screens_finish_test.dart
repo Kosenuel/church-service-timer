@@ -100,7 +100,7 @@ void main() {
           of: find.byType(AppBar),
           matching: find.byType(FinishSurface),
         ),
-        findsOneWidget,
+        findsWidgets,
       );
     });
   }

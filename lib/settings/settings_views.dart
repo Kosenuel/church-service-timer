@@ -98,7 +98,8 @@ extension SettingsViews on HomeState {
   );
 
   /// The groups of settings: one column on a phone, two side by side
-  /// where there is room, so a wide window is not one long thin list.
+  /// where there is room, three in a very wide window, so a wide window is
+  /// not one long thin list.
   Widget settingsGroups(List<Widget> groups) => LayoutBuilder(
     builder: (context, space) {
       if (space.maxWidth < 900) {
@@ -107,24 +108,25 @@ extension SettingsViews on HomeState {
           children: groups,
         );
       }
-      final half = (groups.length / 2).ceil();
+      final columns = space.maxWidth >= 1500 && groups.length >= 3 ? 3 : 2;
+      // The first columns take the extra groups.
+      final base = groups.length ~/ columns, extra = groups.length % columns;
+      var at = 0;
       return Row(
-        key: const ValueKey('settings-two-columns'),
+        key: ValueKey(
+          columns == 2 ? 'settings-two-columns' : 'settings-three-columns',
+        ),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: groups.sublist(0, half),
+          for (var i = 0; i < columns; i++) ...[
+            if (i > 0) const SizedBox(width: 24),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: groups.sublist(at, at += base + (i < extra ? 1 : 0)),
+              ),
             ),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: groups.sublist(half),
-            ),
-          ),
+          ],
         ],
       );
     },

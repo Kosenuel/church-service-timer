@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/screens/screens_entry.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
@@ -93,6 +94,7 @@ extension LiveLayout on HomeState {
       MediaQuery.sizeOf(context).width >= 840;
 
   Widget navigationShell(Widget body) {
+    leaveScreensIfNoDestination();
     if (!useNavigationRail) return body;
     final colors = appColors(context);
     return Row(
@@ -100,25 +102,36 @@ extension LiveLayout on HomeState {
         FinishPane(
           child: SafeArea(
             right: false,
-            child: NavigationRail(
-              key: const ValueKey('navigation-rail'),
-              backgroundColor: finishLook(context).active
-                  ? Colors.transparent
-                  : colors.surface,
-              selectedIndex: homePageSlot(page),
-              labelType: NavigationRailLabelType.all,
-              // Clear of the top edge, in line with the header beside it.
-              leading: const SizedBox(height: 12),
-              onDestinationSelected: (v) {
-                if (!controlsLocked) goToPage(homePageOrder[v].page);
-              },
-              destinations: [
-                for (final p in homePageOrder)
-                  NavigationRailDestination(
-                    icon: Icon(p.icon),
-                    label: Text(p.name),
+            // Six destinations are taller than a sideways phone: the rail
+            // scrolls there and keeps its full height elsewhere.
+            child: LayoutBuilder(
+              builder: (context, box) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: box.maxHeight),
+                  child: IntrinsicHeight(
+                    child: NavigationRail(
+                      key: const ValueKey('navigation-rail'),
+                      backgroundColor: finishLook(context).active
+                          ? Colors.transparent
+                          : colors.surface,
+                      selectedIndex: homePageSlot(page),
+                      labelType: NavigationRailLabelType.all,
+                      // Clear of the top edge, in line with the header beside it.
+                      leading: const SizedBox(height: 12),
+                      onDestinationSelected: (v) {
+                        if (!controlsLocked) goToPage(homePageOrder[v].page);
+                      },
+                      destinations: [
+                        for (final p in homePageOrder)
+                          NavigationRailDestination(
+                            icon: Icon(p.icon),
+                            label: Text(p.name),
+                          ),
+                      ],
+                    ),
                   ),
-              ],
+                ),
+              ),
             ),
           ),
         ),

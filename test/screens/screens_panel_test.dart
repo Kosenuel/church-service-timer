@@ -57,9 +57,14 @@ class PhonePort extends FakePort {
 
 /// A service with three groups, three scenes (Worship showing), paired
 /// and web screens, and a slide up.
-Future<AppController> service(FakePort port) async {
+Future<AppController> service(FakePort port, {String? layout}) async {
   final c = AppController(port);
   await c.initialize(startTicker: false);
+  if (layout != null) {
+    await c.commit((draft, at) {
+      draft.appearance = draft.appearance.copyWith(desktopLayout: layout);
+    });
+  }
   await c.act(
     'load',
     value: Timeline('Sunday Service', const [
@@ -145,8 +150,11 @@ void main() {
 
   Future<void> golden(WidgetTester t, String name) async {
     expect(t.takeException(), isNull);
+    // On a computer the page is part of the home screen, so the picture
+    // is the whole window, with its background and the rail.
+    final embedded = t.widget<ScreensPage>(find.byType(ScreensPage)).embedded;
     await expectLater(
-      find.byType(ScreensPage),
+      embedded ? find.byType(Home) : find.byType(ScreensPage),
       matchesGoldenFile('../goldens/screens-$name.png'),
     );
   }

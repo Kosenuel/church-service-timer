@@ -13,12 +13,20 @@ import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/finish_widgets.dart';
 import 'package:flutter/services.dart';
 
-/// Opens the Screens panel as a page of its own: on a phone the whole
-/// screen, on a computer the window.
-Future<void> openScreensPanel(BuildContext context, AppController c) =>
-    Navigator.of(
-      context,
-    ).push<void>(MaterialPageRoute(builder: (_) => ScreensPage(controller: c)));
+/// Set by the home screen while it is shown: selects its Screens
+/// destination and returns true, or returns false when its navigation has
+/// none (a phone's bottom bar).
+bool Function()? showScreensDestination;
+
+/// Opens Screens. Where the navigation has a Screens destination (a rail
+/// or top tabs) that is selected, whichever page asked; otherwise the panel
+/// is pushed as a page of its own, the whole screen of a phone.
+Future<void> openScreensPanel(BuildContext context, AppController c) {
+  if (showScreensDestination?.call() == true) return Future.value();
+  return Navigator.of(
+    context,
+  ).push<void>(MaterialPageRoute(builder: (_) => ScreensPage(controller: c)));
+}
 
 /// This device's own screen as the panel names it.
 String thisScreenName(AppController c) =>
@@ -51,7 +59,15 @@ String screenName(AppController c, StageScreenInfo s) => switch (s.kind) {
 /// scene, so it is quick to use mid-service.
 class ScreensPage extends StatefulWidget {
   final AppController controller;
-  const ScreensPage({super.key, required this.controller});
+
+  /// Shown inside the home screen as one of its pages, with no Scaffold of
+  /// its own; otherwise the page that is pushed on a phone.
+  final bool embedded;
+  const ScreensPage({
+    super.key,
+    required this.controller,
+    this.embedded = false,
+  });
 
   @override
   State<ScreensPage> createState() => ScreensPageState();
@@ -261,7 +277,13 @@ class ScreensPageState extends State<ScreensPage> {
               ),
             )
           else
-            Wrap(spacing: 8, runSpacing: 8, children: buttons),
+            _FillRows(
+              key: const ValueKey('screens-scenes-grid'),
+              minWidth: 260,
+              gap: 8,
+              equalHeight: true,
+              children: [for (final b in buttons) (_) => b],
+            ),
           const SizedBox(height: 8),
           Text(
             setup.scenes.isEmpty
@@ -602,31 +624,21 @@ class ScreensPageState extends State<ScreensPage> {
     label: const Text('New group'),
   );
 
-  Widget board(double width) {
-    const gap = 14.0, least = 300.0;
-    final columns = ((width + gap) / (least + gap)).floor().clamp(1, 3);
+  /// The groups, the LED sign and New group, laid out to fill the width:
+  /// as many columns as fit at about [boardCardLeast] each, the cards of
+  /// a row sharing it equally, so no strip is left over on the right.
+  Widget board() {
     final groups = screens.setup.groups;
     final cells = [
       for (final g in groups) groupCard(g),
       if (hasLedSign(c)) ledCard(),
       newGroupButton(),
     ];
-    if (columns == 1) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (i, cell) in cells.indexed) ...[
-            if (i > 0) const SizedBox(height: gap),
-            cell,
-          ],
-        ],
-      );
-    }
-    final cell = (width - gap * (columns - 1)) / columns;
-    return Wrap(
-      spacing: gap,
-      runSpacing: gap,
-      children: [for (final w in cells) SizedBox(width: cell, child: w)],
+    return _FillRows(
+      key: const ValueKey('screens-board'),
+      minWidth: boardCardLeast,
+      gap: 14,
+      children: [for (final cell in cells) (_) => cell],
     );
   }
 
@@ -644,10 +656,137 @@ class ScreensPageState extends State<ScreensPage> {
     };
   }
 
+  /// One screen of the list: its name and state, and the group it is in.
+  /// [cell] is the width the row has, which decides whether the chooser
+  /// sits beside the name or under it.
+  Widget screenRow(StageScreenInfo s, double cell) {
+    final colors = appColors(context);
+    final setup = screens.setup;
+    final name = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          screenName(c, s),
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 5, right: 6),
+              child: _Dot(on: s.connected),
+            ),
+            Expanded(
+              child: Text(
+                screenDetail(s),
+                style: TextStyle(
+                  color: s.olderApp ? colors.warning : colors.muted,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+    final chooser = _GroupChooser(
+      key: ValueKey('screen-group-${s.key}'),
+      label: 'Group for ${screenName(c, s)}',
+      value: screens.groupOf(s.key),
+      groups: setup.groups,
+      onChanged: locked
+          ? null
+          : (g) => unawaited(
+              run(
+                () => screens.move(s.key, g.id),
+                '${screenName(c, s)} moved to ${g.name} and now shows ${showName(g.show)}.',
+              ),
+            ),
+    );
+    return Container(
+      key: ValueKey('screen-row-${s.key}'),
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: colors.input,
+        border: Border.all(color: colors.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: cell - 22 < 460
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                name,
+                const SizedBox(height: 8),
+                Align(alignment: Alignment.centerLeft, child: chooser),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: name),
+                const SizedBox(width: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: 160,
+                    maxWidth: 240,
+                  ),
+                  child: chooser,
+                ),
+              ],
+            ),
+    );
+  }
+
+  /// Where a browser goes when it opens the plain address.
+  Widget newWebRow() {
+    final colors = appColors(context);
+    return Container(
+      key: const ValueKey('screen-row-new-web'),
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'New web screens',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                'Browsers that open the plain address, not a group’s link',
+                style: TextStyle(color: colors.muted, fontSize: 13),
+              ),
+            ],
+          ),
+          _GroupChooser(
+            key: const ValueKey('screen-group-new-web'),
+            label: 'Group for new web screens',
+            value: screens.webDefault,
+            groups: screens.setup.groups,
+            onChanged: locked
+                ? null
+                : (g) => unawaited(
+                    run(
+                      () => screens.move(newWebScreensKey, g.id),
+                      'Web screens that join now go to ${g.name}.',
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget screensCard() {
     final colors = appColors(context);
     final setup = screens.setup;
-    final list = screens.screens;
     return AppPanel(
       key: const ValueKey('screens-list'),
       child: Column(
@@ -658,140 +797,19 @@ class ScreensPageState extends State<ScreensPage> {
             style: sectionLabelStyle(context),
           ),
           const SizedBox(height: 10),
-          for (final s in list)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Container(
-                key: ValueKey('screen-row-${s.key}'),
-                padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-                decoration: BoxDecoration(
-                  color: colors.input,
-                  border: Border.all(color: colors.border),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: LayoutBuilder(
-                  builder: (context, box) {
-                    final name = Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          screenName(c, s),
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 5, right: 6),
-                              child: _Dot(on: s.connected),
-                            ),
-                            Expanded(
-                              child: Text(
-                                screenDetail(s),
-                                style: TextStyle(
-                                  color: s.olderApp
-                                      ? colors.warning
-                                      : colors.muted,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    );
-                    final current = screens.groupOf(s.key);
-                    final chooser = _GroupChooser(
-                      key: ValueKey('screen-group-${s.key}'),
-                      label: 'Group for ${screenName(c, s)}',
-                      value: current,
-                      groups: setup.groups,
-                      onChanged: locked
-                          ? null
-                          : (g) => unawaited(
-                              run(
-                                () => screens.move(s.key, g.id),
-                                '${screenName(c, s)} moved to ${g.name} and now shows ${showName(g.show)}.',
-                              ),
-                            ),
-                    );
-                    if (box.maxWidth < 460) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          name,
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: chooser,
-                          ),
-                        ],
-                      );
-                    }
-                    return Row(
-                      children: [
-                        Expanded(child: name),
-                        const SizedBox(width: 12),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            minWidth: 160,
-                            maxWidth: 240,
-                          ),
-                          child: chooser,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
-          // Where a browser goes when it opens the plain address.
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Container(
-              key: const ValueKey('screen-row-new-web'),
-              padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-              decoration: BoxDecoration(
-                border: Border.all(color: colors.border),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'New web screens',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      Text(
-                        'Browsers that open the plain address, not a group’s link',
-                        style: TextStyle(color: colors.muted, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                  _GroupChooser(
-                    key: const ValueKey('screen-group-new-web'),
-                    label: 'Group for new web screens',
-                    value: screens.webDefault,
-                    groups: setup.groups,
-                    onChanged: locked
-                        ? null
-                        : (g) => unawaited(
-                            run(
-                              () => screens.move(newWebScreensKey, g.id),
-                              'Web screens that join now go to ${g.name}.',
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            ),
+          // On a wide window the rows sit in columns, so a long list does
+          // not run far down the page with its right half empty.
+          _FillRows(
+            key: const ValueKey('screens-list-grid'),
+            minWidth: 520,
+            gap: 8,
+            equalHeight: true,
+            children: [
+              for (final s in screens.screens) (w) => screenRow(s, w),
+              (_) => newWebRow(),
+            ],
           ),
+          const SizedBox(height: 6),
           Text(
             'A screen is in exactly one group. Move it by choosing another group here, even mid-service. A phone or tablet that pairs for the first time joins ${setup.defaultOne.name}, the default group. A browser joins the group of the link it opens (Web link for this group is on each group’s menu), or the group for new web screens.',
             style: TextStyle(color: colors.muted, fontSize: 13, height: 1.4),
@@ -801,10 +819,68 @@ class ScreensPageState extends State<ScreensPage> {
     );
   }
 
+  /// The page's content: a scrolling column that uses the whole width of
+  /// the window or pane it is in.
+  Widget content(BuildContext context) {
+    final colors = appColors(context);
+    return LayoutBuilder(
+      builder: (context, space) {
+        final narrow = space.maxWidth < 600;
+        final pad = narrow ? 16.0 : 24.0;
+        return FocusTraversalGroup(
+          child: SingleChildScrollView(
+            key: const ValueKey('screens-page'),
+            padding: EdgeInsets.fromLTRB(pad, 12, pad, 32),
+            // With a finish the page is one panel of it, its cards set
+            // into it, so the notes and the status line are not on the
+            // bare wall.
+            child: FinishPanelled(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'One tap sets what a whole group shows; a scene sets every group at once.',
+                    style: TextStyle(color: colors.muted),
+                  ),
+                  if (locked) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      c.uiLocked
+                          ? 'Controls are locked on Live.'
+                          : 'Take control on this device to change the screens.',
+                      key: const ValueKey('screens-locked'),
+                      style: TextStyle(color: colors.warning),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  scenesCard(narrow),
+                  const SizedBox(height: 14),
+                  board(),
+                  const SizedBox(height: 8),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      status,
+                      key: const ValueKey('screens-status'),
+                      style: TextStyle(color: colors.muted),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  screensCard(),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: c,
     builder: (context, _) {
+      if (widget.embedded) return content(context);
       final colors = appColors(context);
       return PopScope(
         canPop: !c.uiLocked,
@@ -820,66 +896,76 @@ class ScreensPageState extends State<ScreensPage> {
                 ),
             ],
           ),
-          body: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, space) {
-                final narrow = space.maxWidth < 600;
-                final pad = narrow ? 16.0 : 24.0;
-                final width = (space.maxWidth - pad * 2).clamp(0.0, 1180.0);
-                return FocusTraversalGroup(
-                  child: SingleChildScrollView(
-                    key: const ValueKey('screens-page'),
-                    padding: EdgeInsets.fromLTRB(pad, 12, pad, 32),
-                    child: Center(
-                      child: SizedBox(
-                        width: width,
-                        // With a finish the page is one panel of it, its
-                        // cards set into it, so the notes and the status
-                        // line are not on the bare wall.
-                        child: FinishPanelled(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'One tap sets what a whole group shows; a scene sets every group at once.',
-                                style: TextStyle(color: colors.muted),
-                              ),
-                              if (locked) ...[
-                                const SizedBox(height: 6),
-                                Text(
-                                  c.uiLocked
-                                      ? 'Controls are locked on Live.'
-                                      : 'Take control on this device to change the screens.',
-                                  key: const ValueKey('screens-locked'),
-                                  style: TextStyle(color: colors.warning),
-                                ),
-                              ],
-                              const SizedBox(height: 14),
-                              scenesCard(narrow),
-                              const SizedBox(height: 14),
-                              board(width),
-                              const SizedBox(height: 8),
-                              Semantics(
-                                liveRegion: true,
-                                child: Text(
-                                  status,
-                                  key: const ValueKey('screens-status'),
-                                  style: TextStyle(color: colors.muted),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              screensCard(),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+          body: SafeArea(child: content(context)),
         ),
+      );
+    },
+  );
+}
+
+/// The narrowest a card of the board may be, so its three tiles to a row
+/// and its names stay readable.
+const boardCardLeast = 340.0;
+
+/// Lays [children] out in rows that fill the width: as many columns as fit
+/// at [minWidth], the cells of a row sharing it equally, the cells spread
+/// evenly over the rows so the last row is not one lone stretched cell.
+/// Each child is given the width its cell has.
+class _FillRows extends StatelessWidget {
+  final List<Widget Function(double width)> children;
+  final double minWidth, gap;
+
+  /// Whether the cells of a row are made as tall as the tallest. Not for
+  /// cells that measure themselves (a LayoutBuilder cannot be measured by
+  /// its height).
+  final bool equalHeight;
+  const _FillRows({
+    super.key,
+    required this.children,
+    required this.minWidth,
+    required this.gap,
+    this.equalHeight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final n = children.length;
+      if (n == 0) return const SizedBox.shrink();
+      final fit = ((box.maxWidth + gap) / (minWidth + gap)).floor().clamp(1, n);
+      final rows = (n / fit).ceil();
+      final rowWidgets = <Widget>[];
+      var at = 0;
+      for (var r = 0; r < rows; r++) {
+        // The first rows take the extra cells.
+        final count = n ~/ rows + (r < n % rows ? 1 : 0);
+        final cell = (box.maxWidth - gap * (count - 1)) / count;
+        final cells = [
+          for (var k = at; k < at + count; k++)
+            Expanded(child: children[k](cell)),
+        ];
+        at += count;
+        final row = Row(
+          crossAxisAlignment: equalHeight
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.start,
+          children: [
+            for (final (i, cell) in cells.indexed) ...[
+              if (i > 0) SizedBox(width: gap),
+              cell,
+            ],
+          ],
+        );
+        rowWidgets.add(equalHeight ? IntrinsicHeight(child: row) : row);
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, row) in rowWidgets.indexed) ...[
+            if (i > 0) SizedBox(height: gap),
+            row,
+          ],
+        ],
       );
     },
   );
@@ -966,7 +1052,10 @@ class _SceneButton extends StatelessWidget {
       selected: selected,
       label: 'Scene $name',
       child: ConstrainedBox(
-        constraints: BoxConstraints(minWidth: 170, maxWidth: width ?? 340),
+        constraints: BoxConstraints(
+          minWidth: 170,
+          maxWidth: width ?? double.infinity,
+        ),
         child: SizedBox(width: width, child: body),
       ),
     );

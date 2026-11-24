@@ -38,18 +38,19 @@ void main() {
       expect(home(t).page, 0);
       await right(t);
       expect(home(t).page, 0, reason: 'nothing before Live');
+      // Slides comes right after Live, as the bar shows it, then Programs
+      // and Reports.
+      await left(t);
+      expect(home(t).page, lyricsPage);
       await left(t);
       expect(home(t).page, 1);
       expect(find.byKey(const ValueKey('new-template')), findsOneWidget);
-      // Slides comes after Programs, as the bar shows it, then Reports.
-      await left(t);
-      expect(home(t).page, lyricsPage);
       await left(t);
       expect(home(t).page, 2);
       await right(t);
-      expect(home(t).page, lyricsPage);
-      await right(t);
       expect(home(t).page, 1);
+      await right(t);
+      expect(home(t).page, lyricsPage);
       await right(t);
       expect(home(t).page, 0);
       expect(t.takeException(), isNull);
@@ -76,9 +77,9 @@ void main() {
     await left(t);
     expect(home(t).page, 0, reason: 'no swiping away from a loaded service');
     // The bar still leaves Live, and a swipe comes back to it.
-    await t.tap(find.text('Programs'));
+    await t.tap(find.widgetWithText(NavigationDestination, 'Slides'));
     await t.pumpAndSettle();
-    expect(home(t).page, 1);
+    expect(home(t).page, lyricsPage);
     await right(t);
     expect(home(t).page, 0);
     await c.act('start');
@@ -108,8 +109,8 @@ void main() {
     scroll.jumpTo(240);
     await t.pumpAndSettle();
     await left(t);
-    expect(home(t).page, lyricsPage);
-    expect(scroll.offset, 0, reason: 'Slides opens at its own position');
+    expect(home(t).page, 2);
+    expect(scroll.offset, 0, reason: 'Reports opens at its own position');
     await right(t);
     expect(home(t).page, 1);
     expect(scroll.offset, 240);

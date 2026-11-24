@@ -28,7 +28,7 @@ void main() {
   }
 
   Future<void> templates(WidgetTester t) async {
-    await t.tap(find.byType(NavigationDestination).at(1));
+    await t.tap(find.widgetWithText(NavigationDestination, 'Programs'));
     await t.pumpAndSettle();
   }
 

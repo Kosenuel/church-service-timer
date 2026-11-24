@@ -370,7 +370,7 @@ void main() {
           matchesGoldenFile('../goldens/theme-${p.id}.png'),
         );
         expect(appColors(t.element(find.byType(SegmentGauge))).id, p.id);
-        await t.tap(find.byType(NavigationDestination).at(1));
+        await t.tap(find.widgetWithText(NavigationDestination, 'Programs'));
         await t.pumpAndSettle();
         expect(t.takeException(), isNull);
         port.at = at(60);

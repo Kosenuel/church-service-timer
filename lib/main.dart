@@ -53,6 +53,7 @@ import 'package:church_service_timer/reports/report_library_views.dart';
 import 'package:church_service_timer/reports/reports_desktop.dart';
 import 'package:church_service_timer/lyrics/lyrics_page.dart';
 import 'package:church_service_timer/screens/screens_entry.dart';
+import 'package:church_service_timer/screens/screens_panel.dart';
 import 'package:church_service_timer/shared/home_pages.dart';
 
 export 'package:church_service_timer/settings/appearance_views.dart';
@@ -374,7 +375,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
         liveFillsWindow ||
             programsFillWindow ||
             reportsFillWindow ||
-            lyricsFillsWindow
+            lyricsFillsWindow ||
+            screensFillsWindow
         ? 0.0
         : tabScrollOffsets[value] ?? 0;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -390,7 +392,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   /// (-1) one. Live keeps a loaded or running service in view, so swiping
   /// away from it waits until the service is over; the bar still works.
   bool canSwipeTab(int direction) {
-    final target = homePageAt(homePageSlot(page) + direction);
+    final order = navigationPages;
+    final target = homePageAt(homePageSlot(page, order) + direction, order);
     return target != null &&
         c.ready &&
         !c.corrupt &&
@@ -402,12 +405,16 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
         !(page == 0 && !liveStandingBy);
   }
 
-  void swipeTab(int direction) => unawaited(
-    goToPage(
-      homePageAt(homePageSlot(page) + direction) ?? page,
-      slide: direction,
-    ),
-  );
+  void swipeTab(int direction) {
+    final order = navigationPages;
+    unawaited(
+      goToPage(
+        homePageAt(homePageSlot(page, order) + direction, order) ?? page,
+        slide: direction,
+      ),
+    );
+  }
+
   DateTime? _clickerNextArmed;
 
   /// How long a key can be held before its repeats count as one press.
@@ -636,6 +643,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     return true;
   }
 
+  late final bool Function() _screensOpener = showScreensPage;
+
   @override
   void initState() {
     super.initState();
@@ -645,6 +654,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     c.addListener(_followMiniTimer);
     _serviceWasActive = c.ready && c.liveSession.active;
     c.liveNavigation.addListener(returnToLive);
+    showScreensDestination = _screensOpener;
     HardwareKeyboard.instance.addHandler(onClickerKey);
     c.port.setIncomingFileHandler(receiveIncomingFile);
     c.port.setFileDropHandler(receiveDroppedFiles);
@@ -743,6 +753,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     c.removeListener(_followServiceCompletion);
     c.removeListener(_followMiniTimer);
     c.liveNavigation.removeListener(returnToLive);
+    if (showScreensDestination == _screensOpener) showScreensDestination = null;
     homeScroll.dispose();
     settingsRefresh.dispose();
     c.dispose();
@@ -973,7 +984,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                           liveFillsWindow ||
                               programsFillWindow ||
                               reportsFillWindow ||
-                              lyricsFillsWindow
+                              lyricsFillsWindow ||
+                              screensFillsWindow
                           ? const NeverScrollableScrollPhysics()
                           : null,
                       slivers: [
@@ -1199,7 +1211,8 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                         else if (liveFillsWindow ||
                             programsFillWindow ||
                             reportsFillWindow ||
-                            lyricsFillsWindow)
+                            lyricsFillsWindow ||
+                            screensFillsWindow)
                           SliverFillRemaining(
                             child: SafeArea(
                               top: false,
@@ -1230,6 +1243,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                           ? reportsDesktop()
                                           : page == lyricsPage
                                           ? lyricsPanel()
+                                          : page == screensPage
+                                          ? ScreensPage(
+                                              controller: c,
+                                              embedded: true,
+                                            )
                                           : live(),
                                     ),
                                   ),
@@ -1260,9 +1278,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                                 child: Center(
                                   child: ConstrainedBox(
                                     constraints: BoxConstraints(
+                                      // Lists and cards use the window; Live keeps
+                                      // its own width.
                                       maxWidth: page == 0
                                           ? classicLiveWidth
-                                          : 1200,
+                                          : 2000,
                                     ),
                                     child: Column(
                                       crossAxisAlignment:
@@ -1359,12 +1379,14 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                   : finishNavigationBar(
                       context,
                       NavigationBar(
-                        selectedIndex: homePageSlot(page),
+                        selectedIndex: homePageSlot(page, navigationPages),
                         onDestinationSelected: (v) {
-                          if (!controlsLocked) goToPage(homePageOrder[v].page);
+                          if (!controlsLocked) {
+                            goToPage(navigationPages[v].page);
+                          }
                         },
                         destinations: [
-                          for (final p in homePageOrder)
+                          for (final p in navigationPages)
                             NavigationDestination(
                               icon: Icon(p.icon),
                               label: p.name,
