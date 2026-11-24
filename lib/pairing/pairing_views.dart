@@ -969,8 +969,15 @@ extension PairingViews on HomeState {
     return FillsWideWindow(
       child: LayoutBuilder(
         builder: (context, space) {
-          final pane = (space.maxWidth * .4).clamp(480.0, 760.0);
-          final two = space.maxWidth - pane >= 1040;
+          // Before sharing, the web pane holds a few lines and a button, so
+          // it is narrow and the cards on the left get the room; sharing
+          // fills it with the address, QR code and options.
+          final pane = hub.hosting
+              ? (space.maxWidth * .4).clamp(480.0, 760.0)
+              : (space.maxWidth * .27).clamp(340.0, 440.0);
+          // The cards fill the pane; with room for two columns of a
+          // comfortable width they sit side by side.
+          final two = space.maxWidth - pane >= 940;
           return Row(
             key: const ValueKey('screens-devices-wide'),
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -982,29 +989,23 @@ extension PairingViews on HomeState {
                     key: const ValueKey('screens-devices-main'),
                     primary: false,
                     padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: two ? 1200 : 640),
-                        child: two
-                            ? Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(child: devices),
-                                  const SizedBox(width: 28),
-                                  Expanded(child: own),
-                                ],
-                              )
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  devices,
-                                  const SizedBox(height: 28),
-                                  own,
-                                ],
-                              ),
-                      ),
-                    ),
+                    child: two
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: devices),
+                              const SizedBox(width: 28),
+                              Expanded(child: own),
+                            ],
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              devices,
+                              const SizedBox(height: 28),
+                              own,
+                            ],
+                          ),
                   ),
                 ),
               ),

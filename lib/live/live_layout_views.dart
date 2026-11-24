@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'package:church_service_timer/live/host_full_screen.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'package:church_service_timer/screens/screens_entry.dart';
 import 'package:flutter/material.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/app_menu.dart';
@@ -93,6 +94,7 @@ extension LiveLayout on HomeState {
       MediaQuery.sizeOf(context).width >= 840;
 
   Widget navigationShell(Widget body) {
+    leaveScreensIfNoDestination();
     if (!useNavigationRail) return body;
     final colors = appColors(context);
     return Row(

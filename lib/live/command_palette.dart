@@ -407,7 +407,8 @@ extension CommandPalette on HomeState {
       // Go to.
       if (!focused)
         for (final p in homePageOrder)
-          if (p.page != page)
+          // Screens has its own command below.
+          if (p.page != page && p.page != screensPage)
             PaletteCommand(
               id: 'go-${p.page}',
               label: 'Go to ${p.name}',

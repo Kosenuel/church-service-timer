@@ -234,6 +234,32 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
+  /// The left pane's columns use its whole width (less its padding), and
+  /// before sharing the web pane is the narrower of the two.
+  void expectCardsFillPane(WidgetTester t, {bool sharing = false}) {
+    final main = t.getRect(find.byKey(const ValueKey('screens-devices-main')));
+    final devices = t.getRect(
+      find.byKey(const ValueKey('screens-devices-column')),
+    );
+    final own = t.getRect(find.byKey(const ValueKey('screens-own-column')));
+    expect(devices.left, closeTo(main.left + 28, 1));
+    final right = own.top == devices.top ? own.right : devices.right;
+    expect(
+      right,
+      closeTo(main.right - 28, 1),
+      reason: 'no strip of bare panel beside the cards',
+    );
+    if (own.top != devices.top) {
+      expect(own.width, closeTo(devices.width, 1));
+    }
+    final web = t.getRect(
+      find.byKey(ValueKey(sharing ? 'web-screens-pane' : 'web-screens-idle')),
+    );
+    if (!sharing) {
+      expect(web.width, lessThan(main.width / 2));
+    }
+  }
+
   testWidgets('Screens & devices before sharing: columns, not one long list', (
     t,
   ) async {
@@ -250,14 +276,30 @@ void main() {
       t.getTopLeft(find.byKey(const ValueKey('screens-devices-column'))).dy,
       t.getTopLeft(find.byKey(const ValueKey('screens-own-column'))).dy,
     );
-    expect(
-      t.getSize(find.byKey(const ValueKey('screens-devices-column'))).width,
-      lessThan(640),
-    );
+    expectCardsFillPane(t);
     expect(t.takeException(), isNull);
     await expectLater(
       find.byType(TimerApp),
       matchesGoldenFile('../goldens/desktop-screens-devices.png'),
+    );
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Screens & devices at 1366 × 768: the cards fill their pane', (
+    t,
+  ) async {
+    await open(t, size: const Size(1366, 768));
+    await openScreens(t);
+    expectCardsFillPane(t);
+    // Two columns of the cards, level at the top, not one narrow one.
+    expect(
+      t.getTopLeft(find.byKey(const ValueKey('screens-devices-column'))).dy,
+      t.getTopLeft(find.byKey(const ValueKey('screens-own-column'))).dy,
+    );
+    expect(t.takeException(), isNull);
+    await expectLater(
+      find.byType(TimerApp),
+      matchesGoldenFile('../goldens/desktop-screens-devices-1366.png'),
     );
     await t.pumpWidget(const SizedBox());
   });
@@ -324,6 +366,25 @@ void main() {
     await expectLater(
       find.byType(TimerApp),
       matchesGoldenFile('../goldens/desktop-screens-devices-sharing.png'),
+    );
+    await t.runAsync(() => c.pairing.stop());
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Screens & devices at 1366 × 768 while sharing', (t) async {
+    final c = await open(t, size: const Size(1366, 768));
+    await share(t, c);
+    await openScreens(t);
+    final main = t.getRect(find.byKey(const ValueKey('screens-devices-main')));
+    final devices = t.getRect(
+      find.byKey(const ValueKey('screens-devices-column')),
+    );
+    expect(devices.left, closeTo(main.left + 28, 1));
+    expect(devices.right, closeTo(main.right - 28, 1));
+    expect(t.takeException(), isNull);
+    await expectLater(
+      find.byType(TimerApp),
+      matchesGoldenFile('../goldens/desktop-screens-devices-sharing-1366.png'),
     );
     await t.runAsync(() => c.pairing.stop());
     await t.pumpWidget(const SizedBox());
