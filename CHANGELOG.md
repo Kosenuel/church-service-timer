@@ -4,6 +4,8 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
 
 ## Unreleased
 
+## 0.39.0, 24/November/2026
+
 - **Screens is one click away on a computer or tablet, and pages use the whole window.** **Screens** is now a page in the side bar (or the tabs along the top in a desktop layout), like the others, so you no longer go through Live to reach it. **The order of the pages changed:** Live, Slides, Screens, Programs, Reports, Settings, so what you use during a service comes first. **Programs** has moved to after Screens (after Slides on a phone, whose bottom bar is now Live, Slides, Programs, Reports, Settings). The Screens buttons on Live, in Slides and in Settings, and **Screens** in Commands (Ctrl+K), all take you to that same page. On a phone the bottom bar keeps its five places and Screens stays a button on Live. The Screens page used to leave the right third of a wide window empty. Its groups now sit in as many columns as fit (a group never narrower than about 340), the cards of a row share the width, and the scenes and the list of screens use the full width too, so 1366 and 1920 pixel windows are full. **Screens & devices** in Settings fills its panes the same way: the cards fill the left pane, and before you share, the web screens pane is narrow so the cards get the room. The Settings page itself now runs across a wide window, in three columns when there is room, instead of stopping at 1200 pixels.
 - **Finishes are smoother, tidier and their cards are made of the material.** Three things changed with a finish on (every finish except Flat, which is exactly as it was):
   - **Less work for the computer on every frame.** With a finish, each panel used to be drawn three to five times over on every frame while you scrolled or moved between pages (its shadow, its material, its edge, and on Plastic its shine twice more), which could make a computer with built-in graphics lag. Now each panel's material is drawn once and its shadow and edge only along its border, with no rounded cut-outs, and the textures use far less memory on high-resolution screens. It looks the same.
@@ -50,7 +52,7 @@ A third test version. Please try these on the PC and phone before the real 0.39.
 - **Screens in the side bar.** On the PC, **Screens** is in the side bar between **Slides** and **Programs**. The order is now Live, Slides, Screens, Programs, Reports, Settings (on a phone: Live, Slides, Programs, Reports, Settings, with Screens still a button on Live).
 - **Pages that fill the window.** Screens, Screens & devices and Settings should use the whole window, with no empty strip at the right.
 
-The full notes for these are under **Unreleased** above and move into 0.39.0.
+The full notes for these are under **0.39.0** above.
 
 ## 0.39.0-beta.2, 24/November/2026
 
@@ -64,7 +66,7 @@ A second test version. Please try these on the PC and phone before the real 0.39
 - **Tap a notification** on the phone (the warning pop-up and the running-service card) and the warning pop-up on Windows: the app should come to the front on Live with the service still running.
 - **Services end on the clock.** After updating, end a service made from a program you already had, and from a new one: stage screens should show the flip clock, not Hallelujah. A program whose end screen you had changed should still show yours.
 
-The full notes for these are under **Unreleased** above and move into 0.39.0.
+The full notes for these are under **0.39.0** above.
 
 ## 0.39.0-beta.1, 23/November/2026
 
@@ -75,7 +77,7 @@ A test version. Please try these on the PC and phone before the real 0.39.0:
 - **Add Bible verses** reads loosely typed references (john 3 9, Joh3: 9, Jhon 3 16).
 - **The Windows installer** has its new dark look. Install this test version over the one you have and check it finishes and the app opens.
 
-The full notes for these are under **Unreleased** above and move into 0.39.0.
+The full notes for these are under **0.39.0** above.
 
 ## 0.38.0, 23/November/2026
 
