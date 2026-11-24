@@ -40,6 +40,18 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
   - **Ready.** Press **Enter** (or tap a result) to put a passage in **Ready**, a short list on the Slides page, then press **Send** to show it on the screens exactly like a slide from the Library (same background, Dim, **Send to** and **Clear slide**). **Ctrl+Enter**, a second tap or the play button on a result sends it at once. In Ready, **+ next verse** and **Whole chapter** take in more, and **Save to Library** keeps it as Bible verses. Ready is kept while the app is open and starts empty after a restart.
   - **Keys.** **/** or **Ctrl+F** goes to the box from anywhere on the Slides page, **Up** and **Down** move between results, **Esc** clears the box. **Search the Bible** is also in Commands (Ctrl+K). On a phone, the search field at the top of Slides opens a full-height list of results.
 
+## 0.39.0-beta.3, 24/November/2026
+
+A third test version. Please try these on the PC and phone before the real 0.39.0:
+
+- **Speed with a finish on.** Choose each finish in turn, **Plastic**, **Glass** and **Bridge console** above all, then scroll Settings, Programs and Reports and move from page to page. It should feel much closer to **Flat** than before, on the PC that lagged most of all. Say which finishes, if any, still drag.
+- **Edges.** With a finish other than Denim or Leather, scroll a long list (Reports, Programs) and look at the slide preview on the Slides page: nothing should run over the edge of its panel or poke out of a corner.
+- **Cards made of the finish.** In Settings the groups of rows are now the finish's own material with its edge, the lines between rows are grooves, and a row sinks a little when you point at it. Check the words are still easy to read in your theme.
+- **Screens in the side bar.** On the PC, **Screens** is in the side bar between **Slides** and **Programs**. The order is now Live, Slides, Screens, Programs, Reports, Settings (on a phone: Live, Slides, Programs, Reports, Settings, with Screens still a button on Live).
+- **Pages that fill the window.** Screens, Screens & devices and Settings should use the whole window, with no empty strip at the right.
+
+The full notes for these are under **Unreleased** above and move into 0.39.0.
+
 ## 0.39.0-beta.2, 24/November/2026
 
 A second test version. Please try these on the PC and phone before the real 0.39.0:
