@@ -45,3 +45,13 @@ python3 tool/finish_textures/prep.py Plastic004_1K-JPG_NormalGL.jpg assets/finis
 ```
 
 To add a texture: a grey tile made as above, at most 1024 px and 700 KB, at `assets/finish/<name>.jpg`, an entry in `credits.json` and in the table above, and its name in `finishMaterials` in `lib/shared/finish_paint.dart`. Only CC0.
+
+## How a surface is drawn
+
+Everything a finish draws is made once as an image (a tinted tile, the shadow and edge of each corner size, a screw head, a stitch, a gradient as a strip of pixels) and kept; each surface records a few draws of those images into its own layer, once. The GPU still draws every layer on every frame (a scroll, a page sliding in; Impeller keeps no raster cache), so a surface covers as little as it can:
+
+- **Under the content** a panel draws its shadow and its material. The shadow is a nine-patch drawn as its border only (its middle is under the panel), and the material covers the panel once; only brushed steel's sheen and a glass pane's frost lie over the whole of it again. Plastic's gloss covers only the band along its top and its shade the band along its foot.
+- **Over the content** it draws the content's edge fading into the panel's own material over 6 px, the corners of the content's cut covered by that material, and then the edge itself (the wood lip, the marble chamfer, the plastic rim, the steel bevel and screws, the seam and its stitches), as a nine-patch border with no middle. The content is cut off along a plain rectangle a little inside the edge (`finishEdgeInset`), the cheapest clip there is, so nothing it draws is ever across the edge or past it.
+- Tiles are made at the size they are shown, but never larger than the photograph they come from, so a phone or a 4K monitor does not hold four times the memory for the same detail.
+
+`test/shared/finish_performance_test.dart` holds that nothing is drawn again on a tick or a scroll; `test/shared/finish_cost_test.dart` holds what each frame covers and how much memory the images take, and prints what each page costs with `FINISH_COST=1`.

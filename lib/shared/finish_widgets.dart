@@ -50,11 +50,12 @@ class _FinishWallState extends State<FinishWall> {
 /// area edge to edge (a bar or a column), so it has no shadow; for a
 /// stitched finish its seam runs along [seams] only.
 ///
-/// In a stitched finish (Denim, Leather) the seam is a frame inside the
-/// panel's edge, and the content is kept inside it: it is inset clear of
-/// the thread and clipped there, with a soft hem, so text or buttons
-/// scrolled toward the edge pass under the hem and nothing is ever drawn
-/// across the stitches or cut in half by them.
+/// Every finish keeps the content inside the panel's edge (see
+/// [finishEdgeInset]): it is cut off there, what scrolls toward the edge
+/// fades under the panel's material, and the edge (a wood lip, a chamfer, a
+/// rim, a bevel and screws, a seam) is drawn over it, so nothing is ever
+/// drawn across the edge or sticks out past it. In a stitched finish
+/// (Denim, Leather) the content box itself also starts a little inside.
 class FinishSurface extends StatelessWidget {
   final Widget child;
   final double radius;
@@ -95,7 +96,6 @@ class FinishSurface extends StatelessWidget {
         (pane
             ? BorderRadius.zero
             : BorderRadius.circular(finishRadius(look.id)));
-    final stitched = stitchedFinishes.contains(look.id);
     final content = FinishOnPanel(
       child: Material(type: MaterialType.transparency, child: child),
     );
@@ -109,45 +109,38 @@ class FinishSurface extends StatelessWidget {
       ),
     );
     if (pane) {
-      // A bar: its seam runs along the edges that face the page, clear of
-      // what is on the bar, which does not scroll.
+      // A bar: its edge is drawn under what is on it, which does not scroll
+      // and keeps clear of it.
       return Stack(
         fit: StackFit.passthrough,
         clipBehavior: Clip.none,
         children: [
           material,
-          ClipRRect(borderRadius: shape, child: content),
+          shape == BorderRadius.zero
+              ? ClipRect(child: content)
+              : ClipRRect(borderRadius: shape, child: content),
         ],
       );
     }
-    if (!stitched) {
-      return Stack(
-        fit: StackFit.passthrough,
-        clipBehavior: Clip.none,
-        children: [
-          material,
-          ClipRRect(borderRadius: shape, child: content),
-        ],
-      );
-    }
+    final pad = finishContentPadding(look.id);
     return Stack(
       fit: StackFit.passthrough,
       clipBehavior: Clip.none,
       children: [
         material,
-        // The content starts just inside the edge, so it keeps nearly all
-        // its room, and is cut off inside the seam: what reaches the seam
-        // is only the content's own margin, and what scrolls there goes
-        // under the hem.
+        // The content is cut off inside the panel's edge along a plain
+        // rectangle (the cheapest clip there is); the corners it lets
+        // through are covered by the panel's material drawn over them.
         Padding(
-          padding: const EdgeInsets.all(finishContentInset),
-          child: ClipRRect(
+          padding: EdgeInsets.all(pad),
+          child: ClipRect(
             key: const ValueKey('finish-seam-clip'),
-            clipper: _InsideSeam(finishInnerCorners(shape)),
+            clipper: _InsideEdge(finishEdgeInset(look.id) - pad),
             child: content,
           ),
         ),
-        // Over the content, so it can never cover a stitch.
+        // Over the content, so it can never cover the edge: what reaches
+        // the edge fades under the material, and the edge is drawn on top.
         Positioned.fill(
           child: IgnorePointer(
             child: FinishPaint(
@@ -162,15 +155,13 @@ class FinishSurface extends StatelessWidget {
   }
 }
 
-class _InsideSeam extends CustomClipper<RRect> {
-  final BorderRadius corners;
-  const _InsideSeam(this.corners);
+class _InsideEdge extends CustomClipper<Rect> {
+  final double inset;
+  const _InsideEdge(this.inset);
   @override
-  RRect getClip(Size size) => corners.toRRect(
-    (Offset.zero & size).deflate(finishSeamInset - finishContentInset),
-  );
+  Rect getClip(Size size) => (Offset.zero & size).deflate(inset);
   @override
-  bool shouldReclip(_InsideSeam old) => old.corners != corners;
+  bool shouldReclip(_InsideEdge old) => old.inset != inset;
 }
 
 const noEdges = (top: false, bottom: false, left: false, right: false);

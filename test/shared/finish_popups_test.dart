@@ -109,7 +109,7 @@ void main() {
       await t.pumpAndSettle();
       expect(find.text('Keyboard shortcuts'), findsOneWidget);
       expect(framed(t), hasLength(1));
-      expect(framed(t).single.stitches.look.id, 'denim');
+      expect(framed(t).single.edge.look.id, 'denim');
     });
 
     testWidgets('the Commands palette', (t) async {
@@ -267,7 +267,7 @@ void main() {
         expect(FinishPaintCount.total, before, reason: 'a surface drew again');
         // And what it draws is images only.
         for (final box in [
-          for (final f in framed(t)) ...[f.panel, f.stitches],
+          for (final f in framed(t)) ...[f.panel, f.edge],
         ]) {
           if (!box.hasSize) continue;
           final canvas = TestRecordingCanvas();
