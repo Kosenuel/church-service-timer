@@ -57,9 +57,14 @@ class PhonePort extends FakePort {
 
 /// A service with three groups, three scenes (Worship showing), paired
 /// and web screens, and a slide up.
-Future<AppController> service(FakePort port) async {
+Future<AppController> service(FakePort port, {String? layout}) async {
   final c = AppController(port);
   await c.initialize(startTicker: false);
+  if (layout != null) {
+    await c.commit((draft, at) {
+      draft.appearance = draft.appearance.copyWith(desktopLayout: layout);
+    });
+  }
   await c.act(
     'load',
     value: Timeline('Sunday Service', const [
