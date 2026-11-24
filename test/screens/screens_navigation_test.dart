@@ -3,8 +3,13 @@ import 'package:church_service_timer/live/command_palette.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/screens/screens_entry.dart';
 import 'package:church_service_timer/screens/screens_panel.dart';
+import 'package:church_service_timer/shared/app_theme.dart';
 import 'package:church_service_timer/shared/device_words.dart';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_port.dart';
@@ -21,6 +26,7 @@ void main() {
     Size size, {
     String? layout,
     double text = 1,
+    String? theme,
   }) async {
     setScreen(t, size);
     t.platformDispatcher.textScaleFactorTestValue = text;
@@ -28,6 +34,9 @@ void main() {
     desktopWording = port.isDesktop;
     late AppController c;
     await t.runAsync(() async => c = await service(port, layout: layout));
+    if (theme != null) {
+      await t.runAsync(() => c.commit((d, at) => d.themeId = theme));
+    }
     await t.pumpWidget(TimerApp(controller: c));
     await t.pumpAndSettle();
     t.takeException();
@@ -363,6 +372,56 @@ void main() {
         expect(t.getSize(find.byKey(ValueKey(key))).width, greaterThan(least));
         expect(t.takeException(), isNull);
       });
+    }
+  });
+
+  group('the embedded page has the theme background', () {
+    for (final layout in [
+      'classic',
+      'three_panes',
+      'mission_control',
+      'dial',
+      'keys',
+    ]) {
+      for (final theme in ['midnight_lime', 'morning_sky']) {
+        testWidgets('$layout, $theme', (t) async {
+          await start(
+            t,
+            PcPort(),
+            const Size(1920, 1080),
+            layout: layout,
+            theme: theme,
+          );
+          await home(t).goToPage(screensPage);
+          await t.pumpAndSettle();
+          expect(find.byType(ScreensPage), findsOneWidget);
+          final want = appColors(
+            t.element(find.byType(ScreensPage)),
+          ).background;
+          // A spot of bare page: the right margin, beside the cards.
+          final page = t.getRect(find.byKey(const ValueKey('screens-page')));
+          final at = Offset(page.right - 8, page.top + 300);
+          late ui.Image image;
+          await t.runAsync(() async {
+            final boundary = t.renderObject<RenderRepaintBoundary>(
+              find.byType(RepaintBoundary).first,
+            );
+            image = await boundary.toImage();
+          });
+          late ByteData data;
+          await t.runAsync(() async {
+            data = (await image.toByteData())!;
+          });
+          final i = ((at.dy.round() * image.width) + at.dx.round()) * 4;
+          final got = Color.fromARGB(
+            data.getUint8(i + 3),
+            data.getUint8(i),
+            data.getUint8(i + 1),
+            data.getUint8(i + 2),
+          );
+          expect(got.toARGB32(), want.toARGB32(), reason: 'at $at');
+        });
+      }
     }
   });
 }
