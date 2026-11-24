@@ -252,6 +252,9 @@ class FinishLook extends ThemeExtension<FinishLook> {
   /// Every colour a pixel of the wall or a panel can have: the base and the
   /// base pushed to each end of its budget. Text must read on all of them.
   final List<Color> wallSamples, panelSamples;
+
+  /// Whether this is the look of a small card set into a panel ([card]).
+  final bool isCard;
   const FinishLook._({
     required this.id,
     required this.strength,
@@ -271,6 +274,7 @@ class FinishLook extends ThemeExtension<FinishLook> {
     required this.panelAlpha,
     required this.wallSamples,
     required this.panelSamples,
+    this.isCard = false,
   });
 
   bool get active => id != 'flat';
@@ -399,6 +403,64 @@ class FinishLook extends ThemeExtension<FinishLook> {
       ],
       panelSamples: panelSamples,
     );
+  }
+
+  static final _cards = Expando<FinishLook>();
+
+  /// A small card set into a panel (a hint, a group of settings): the same
+  /// material as the panel, a step darker and calmer, so it reads as a
+  /// separate piece set into the panel and not as a second sheet on it. As
+  /// dark and as textured as it can be, up to that step, while the theme's
+  /// text, muted text and accent still read on every colour it can have,
+  /// as on a panel. Glass's card is a solid frosted plate: a pane in a pane
+  /// would show the wall twice. Flat and a card are their own card.
+  FinishLook get card {
+    if (!active || isCard) return this;
+    return _cards[this] ??= () {
+      Color toward(Color c, Color to, double t) => Color.lerp(c, to, t)!;
+      // Darker on a dark theme; on a pale one darker is toward the ink, so
+      // only a little.
+      final steps = light
+          ? const [.06, .04, .02, 0.0]
+          : const [.16, .12, .08, .04, 0.0];
+      // Glass's panel colour is its pane over the wall, as a solid.
+      final base = panel;
+      FinishLook? last;
+      for (final k in steps) {
+        for (final share in const [.6, .45, .3, 0.0]) {
+          final c = toward(base, Colors.black, k);
+          final pl = panelLight * share, pd = panelDark * share;
+          final look = FinishLook._(
+            id: id,
+            strength: strength,
+            wallScale: wallScale,
+            panelScale: panelScale * share,
+            palette: palette,
+            wall: wall,
+            panel: c,
+            wallMaterial: wallMaterial,
+            panelMaterial: panelMaterial,
+            thread: thread,
+            wallFields: wallFields,
+            wallLight: wallLight,
+            wallDark: wallDark,
+            panelLight: pl,
+            panelDark: pd,
+            panelAlpha: 1,
+            wallSamples: wallSamples,
+            panelSamples: [
+              c,
+              toward(c, Colors.white, pl),
+              toward(c, Colors.black, pd),
+            ],
+            isCard: true,
+          );
+          last = look;
+          if (look._panelLegible()) return look;
+        }
+      }
+      return last!;
+    }();
   }
 
   bool _panelLegible() {

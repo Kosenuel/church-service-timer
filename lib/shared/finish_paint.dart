@@ -1081,6 +1081,10 @@ enum FinishPart {
   /// Over a popup's content: the edge alone, as a popup's own content comes
   /// nearer its edge than a panel's and is kept in by the popup itself.
   edge,
+
+  /// Under a row pressed into the material (hovered, focused, selected): a
+  /// shade inside its top and a lit lip along its foot.
+  press,
 }
 
 /// Which edges of a strip (a bar across the window) carry a seam.
@@ -1278,6 +1282,9 @@ class RenderFinishPaint extends RenderBox {
       case FinishPart.edge:
         FinishPaintCount.seams++;
         _paintEdge(c, _corners.toRRect(Offset.zero & size));
+      case FinishPart.press:
+        FinishPaintCount.seams++;
+        _paintPress(c);
     }
     c.restore();
   }
@@ -1338,6 +1345,9 @@ class RenderFinishPaint extends RenderBox {
     final l = _look, art = _art, area = rr.outerRect;
     final plain = Paint()..color = l.panel;
     switch (l.id) {
+      case 'glass' when l.isCard:
+        // A frosted plate, solid: see FinishLook.card.
+        return [(plain, rr), if (art.panelFill case final frost?) (frost, rr)];
       case 'glass':
         final (at, wall) = _onWall();
         final (_, pane) = art.glass(wall);
@@ -1433,14 +1443,16 @@ class RenderFinishPaint extends RenderBox {
   void _paintPanel(Canvas c) {
     final l = _look, art = _art, area = Offset.zero & size;
     final rr = _corners.toRRect(area);
-    if (!_strip) {
+    // A card is set into its panel, not standing on it: no shadow, and a
+    // wooden one has its lip (in its edge) but no frame of the desk's wood.
+    if (!_strip && !l.isCard) {
       final sh = art.shadow(_corners);
       _drawNine(c, sh.image, sh.centre, area.inflate(sh.reach), 1);
     }
     for (final (paint, shape) in _fills(rr)) {
       c.drawRRect(shape, paint);
     }
-    if ((l.id == 'walnut' || l.id == 'oak') && !_strip) {
+    if ((l.id == 'walnut' || l.id == 'oak') && !_strip && !l.isCard) {
       c.drawDRRect(
         rr,
         rr.deflate(_frameWidth),
@@ -1496,6 +1508,28 @@ class RenderFinishPaint extends RenderBox {
       null,
       null,
       Paint()..filterQuality = FilterQuality.medium,
+    );
+  }
+
+  void _paintPress(Canvas c) {
+    final area = Offset.zero & size, l = _look;
+    // The row sinks (its ink darkens it): shade inside its top edge, and
+    // its lower lip catches the light.
+    final top = math.min(6.0, area.height / 3);
+    c.drawRect(
+      Rect.fromLTWH(0, 0, area.width, top),
+      _along(
+        _art.strip('press', [
+          Colors.black.withValues(alpha: l.light ? .14 : .4),
+          Colors.black.withValues(alpha: 0),
+        ]),
+        Offset.zero,
+        Offset(0, top),
+      ),
+    );
+    c.drawRect(
+      Rect.fromLTWH(0, area.height - 1, area.width, 1),
+      Paint()..color = Colors.white.withValues(alpha: l.light ? .5 : .08),
     );
   }
 

@@ -69,6 +69,10 @@ class FinishSurface extends StatelessWidget {
 
   /// Flat only: the plain card's outline.
   final bool outlined;
+
+  /// A small card set into a panel ([FinishLook.card]), with corners no
+  /// rounder than [radius].
+  final bool card;
   const FinishSurface({
     super.key,
     required this.child,
@@ -77,10 +81,12 @@ class FinishSurface extends StatelessWidget {
     this.corners,
     this.seams = noEdges,
     this.outlined = true,
+    this.card = false,
   });
   @override
   Widget build(BuildContext context) {
-    final look = finishLook(context), colors = appColors(context);
+    final colors = appColors(context);
+    final page = finishLook(context), look = card ? page.card : page;
     if (!look.active) {
       if (pane) return ColoredBox(color: colors.surface, child: child);
       return Material(
@@ -97,7 +103,11 @@ class FinishSurface extends StatelessWidget {
         corners ??
         (pane
             ? BorderRadius.zero
-            : BorderRadius.circular(finishRadius(look.id)));
+            : BorderRadius.circular(
+                card
+                    ? math.min(radius, finishRadius(look.id))
+                    : finishRadius(look.id),
+              ));
     final content = FinishOnPanel(
       child: Material(type: MaterialType.transparency, child: child),
     );
@@ -340,9 +350,10 @@ class FinishOnPanel extends InheritedWidget {
 /// A small card: a hint, a notice, a banner or a status strip. In Flat it is
 /// exactly the card it always was ([flat], built round [child]). With a
 /// finish it takes the material: on the bare wall it is a panel of its own,
-/// raised like the others; inside a panel it is set into it, a well of the
-/// theme's plain surface with the finish's edge and corners, so the two
-/// never read as one sheet, and its words keep the theme's own contrast.
+/// raised like the others; inside a panel it is a material card set into
+/// it ([FinishLook.card]): the panel's own material a step darker and
+/// calmer, with the finish's own edge (a seam, an inlaid lip, a chamfer, a
+/// moulded rim, a bevel and screws), so the two never read as one sheet.
 class FinishCard extends StatelessWidget {
   final Widget child;
 
@@ -373,17 +384,7 @@ class FinishCard extends StatelessWidget {
             : Padding(padding: EdgeInsets.all(more), child: child),
       );
     }
-    return Material(
-      color: look.palette.surface,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          math.min(radius, finishRadius(look.id)),
-        ),
-        side: BorderSide(color: look.border),
-      ),
-      child: child,
-    );
+    return FinishSurface(card: true, radius: radius, child: child);
   }
 }
 
@@ -477,4 +478,86 @@ class FinishColumn extends StatelessWidget {
   Widget build(BuildContext context) => finishLook(context).active
       ? FinishPane(child: child)
       : Material(color: appColors(context).surface, child: child);
+}
+
+/// A divider in a finish: a groove cut into the material, a dark line with
+/// its lower lip catching the light, instead of a drawn grey line. Two
+/// plain lines, drawn with the row they are in.
+class FinishGroove extends StatelessWidget {
+  final double indent, endIndent;
+  const FinishGroove({super.key, this.indent = 16, this.endIndent = 16});
+  @override
+  Widget build(BuildContext context) {
+    final look = finishLook(context);
+    return Padding(
+      padding: EdgeInsetsDirectional.only(start: indent, end: endIndent),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 1,
+            child: ColoredBox(
+              color: Colors.black.withValues(alpha: look.light ? .16 : .42),
+            ),
+          ),
+          SizedBox(
+            height: 1,
+            child: ColoredBox(
+              color: Colors.white.withValues(alpha: look.light ? .55 : .09),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A row that looks pressed into the material while it is hovered,
+/// focused or [selected]: a soft shade inside its top and a lit lower lip,
+/// under the row's own ink and words. In Flat it is [child] as it was.
+class FinishPressable extends StatefulWidget {
+  final Widget child;
+  final bool selected;
+  const FinishPressable({
+    super.key,
+    required this.child,
+    this.selected = false,
+  });
+  @override
+  State<FinishPressable> createState() => _FinishPressableState();
+}
+
+class _FinishPressableState extends State<FinishPressable> {
+  bool _hover = false, _focus = false;
+  @override
+  Widget build(BuildContext context) {
+    final look = finishLook(context);
+    if (!look.active) return widget.child;
+    final on = _hover || _focus || widget.selected;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onFocusChange: (f) => setState(() => _focus = f),
+        child: Stack(
+          children: [
+            if (on)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: FinishPaint(
+                    key: const ValueKey('finish-pressed'),
+                    look: look,
+                    part: FinishPart.press,
+                  ),
+                ),
+              ),
+            widget.child,
+          ],
+        ),
+      ),
+    );
+  }
 }
