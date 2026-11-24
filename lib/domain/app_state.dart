@@ -518,16 +518,22 @@ class AppState {
     }
     if ((j['version'] as int) < 16) a.upgradeDefaultCues();
     // New installs end on the clock. Saved data cannot say whether the stock
-    // end screen was chosen or never changed, so only the app-wide default
-    // that is still exactly the stock one moves to the clock, for the
-    // programs made from now on. Programs already saved, a customised
-    // default and the running service keep what they hold. Runs once: later
-    // versions hold the church's own choice, stock or not.
-    if ((j['version'] as int) < 17 &&
-        a.defaults.end != null &&
-        jsonEncode(a.defaults.end!.toJson()) ==
-            jsonEncode(defaultEndScreen.toJson())) {
-      a.defaults = a.defaults.withEnd(null);
+    // end screen was chosen or never changed, so an end screen that is still
+    // exactly the stock one moves to the clock: the app-wide default, for the
+    // programs made from now on, and every saved program. A customised end
+    // screen, earlier versions of a program and the running service keep
+    // what they hold. Runs once: later versions hold the church's own
+    // choice, stock or not.
+    if ((j['version'] as int) < 17) {
+      final stock = jsonEncode(defaultEndScreen.toJson());
+      DisplaySettings toClock(DisplaySettings d) =>
+          d.end != null && jsonEncode(d.end!.toJson()) == stock
+          ? d.withEnd(null)
+          : d;
+      a.defaults = toClock(a.defaults);
+      a.templates = [
+        for (final t in a.templates) t.withDisplay(toClock(t.display)),
+      ];
     }
     a.session.clockFormat = a.clockFormat;
     a.session.clockBlink = a.clockBlink;

@@ -5,7 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/fake_port.dart';
 
 void main() {
-  AppState withProgram() => AppState.fresh(start)..saveTemplate(timeline());
+  // Ends on the clock, as a program made in the app does: the stock end
+  // screen would make every backup a version 14 one.
+  AppState withProgram() => AppState.fresh(start)
+    ..saveTemplate(timeline().withDisplay(timeline().display.withEnd(null)));
   Timeline edit(Timeline t, String extra) => Timeline(
     t.name,
     [...t.segments, Segment(extra, 3)],
