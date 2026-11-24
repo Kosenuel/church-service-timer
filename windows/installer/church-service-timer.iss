@@ -1,7 +1,7 @@
 ; Inno Setup script for the Church Service Timer installer.
 ; Built by scripts/Package-Windows.ps1, which passes the version and the
 ; folder that `flutter build windows --release` produced:
-;   iscc /DAppVersion=0.39.0-beta.3 /DVersionInfo=0.35.0.0 /DSourceDir=C:\...\Release church-service-timer.iss
+;   iscc /DAppVersion=0.39.0 /DVersionInfo=0.35.0.0 /DSourceDir=C:\...\Release church-service-timer.iss
 ; AppVersion is text and may carry a pre-release part (0.36.0-beta.1);
 ; VersionInfo must be four numbers (0.36.0.0), the same without that part.
 ;
