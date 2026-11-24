@@ -137,19 +137,21 @@ extension SettingsViews on HomeState {
       String title,
       String subtitle,
       VoidCallback action,
-    ) => ListTile(
-      contentPadding: appLayout(context).tileInsets,
-      leading: Icon(icon, color: appColors(context).accent, size: 22),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+    ) => FinishPressable(
+      child: ListTile(
+        contentPadding: appLayout(context).tileInsets,
+        leading: Icon(icon, color: appColors(context).accent, size: 22),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(fontSize: 13, color: appColors(context).muted),
+        ),
+        trailing: const Icon(Icons.chevron_right, size: 22),
+        onTap: c.busy ? null : action,
       ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(fontSize: 13, color: appColors(context).muted),
-      ),
-      trailing: const Icon(Icons.chevron_right, size: 22),
-      onTap: c.busy ? null : action,
     );
     Widget group(String name, List<Widget> rows) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

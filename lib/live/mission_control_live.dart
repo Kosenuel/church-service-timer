@@ -53,6 +53,11 @@ extension MissionControlLive on HomeState {
     // A finish floats each pane with a gap round it, which the timer's
     // size must leave out.
     final floating = finishLook(context).active;
+    // On a finish the timer is kept clear of its panel's edge.
+    final edge = floating ? finishEdgeInset(finishLook(context).id) : 0.0;
+    final side = floating
+        ? math.max(20 - finishGapX, finishClear(finishLook(context).id))
+        : 20.0;
     // A large window has height to spare for a fuller timeline.
     final richTimeline =
         (s.active || s.phase == 'ready') &&
@@ -116,10 +121,10 @@ extension MissionControlLive on HomeState {
                         // less inside and the timer keeps the size it has in
                         // Flat.
                         padding: EdgeInsets.fromLTRB(
-                          floating ? 20 - finishGapX : 20,
-                          floating ? 2 : 8,
-                          floating ? 20 - finishGapX : 20,
-                          floating ? 2 : 8,
+                          side,
+                          floating ? 2 + edge : 8,
+                          side,
+                          floating ? 2 + edge : 8,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -130,10 +135,15 @@ extension MissionControlLive on HomeState {
                                   header: header,
                                   enabled: enabled,
                                   canJump: canJump,
-                                  width: timerWidth - 40,
+                                  width:
+                                      timerWidth -
+                                      2 * side -
+                                      (floating ? 2 * finishGapX : 0),
                                   height:
                                       height -
-                                      (floating ? 2 * finishGapY + 4 : 16),
+                                      (floating
+                                          ? 2 * finishGapY + 4 + 2 * edge
+                                          : 16),
                                   fill: fill,
                                 ),
                           ],

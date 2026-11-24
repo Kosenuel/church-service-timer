@@ -60,7 +60,12 @@ void main() {
               final text = bar(contrast(p.text, p.surface), 4.5);
               final muted = bar(contrast(p.muted, p.surface), 4.5);
               final accent = bar(contrast(p.accent, p.surface), 4.5);
-              for (final c in look.panelSamples) {
+              // A panel, and a material card set into it.
+              expect(look.card.isCard, isTrue);
+              for (final c in [
+                ...look.panelSamples,
+                ...look.card.panelSamples,
+              ]) {
                 expect(
                   contrast(p.text, c),
                   greaterThanOrEqualTo(text),
@@ -284,6 +289,37 @@ void main() {
               greaterThanOrEqualTo(accent - .01),
               reason: 'accent on the panel',
             );
+            // A material card set into the panel.
+            final cardPx = await pixels(
+              t,
+              themed(
+                Container(
+                  color: p.background,
+                  padding: const EdgeInsets.all(10),
+                  child: FinishSurface(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: FinishCard(
+                        flat: (child) => child,
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              panel,
+            );
+            for (final (color, least, what) in [
+              (p.text, text, 'text'),
+              (p.muted, muted, 'muted'),
+              (p.accent, accent, 'accent'),
+            ]) {
+              expect(
+                worst(cardPx, panel, 50, color),
+                greaterThanOrEqualTo(least - .01),
+                reason: '$what on a card',
+              );
+            }
             final wallPx = await pixels(
               t,
               themed(const FinishWall(child: SizedBox.expand())),
