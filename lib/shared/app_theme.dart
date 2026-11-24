@@ -106,6 +106,10 @@ class AppDivider extends StatelessWidget {
     final settings = appLayout(context).preferences;
     if (settings.dividers == 'hidden' && !essential)
       return const SizedBox(height: 8);
+    final look = finishLook(context);
+    if (look.active && settings.dividers != 'strong') {
+      return FinishGroove(indent: indent, endIndent: endIndent);
+    }
     return Divider(
       height: 1,
       thickness: settings.dividers == 'strong' || settings.highContrast
@@ -464,8 +468,23 @@ ThemeData appTheme(
       minTileHeight: layout.controlHeight,
       minVerticalPadding: layout.tilePadding + 4,
       selectedColor: p.text,
-      selectedTileColor: p.accent.withValues(alpha: .16),
+      // In a finish a chosen row is pressed into the material, a little
+      // darker with a hint of the accent, not painted over.
+      selectedTileColor: finish.active
+          ? Color.alphaBlend(
+              p.accent.withValues(alpha: .08),
+              Colors.black.withValues(alpha: p.light ? .06 : .2),
+            )
+          : p.accent.withValues(alpha: .16),
     ),
+    // And a row under the pointer or the keyboard sinks a little, instead
+    // of taking a grey wash.
+    hoverColor: finish.active
+        ? Colors.black.withValues(alpha: p.light ? .04 : .12)
+        : null,
+    focusColor: finish.active
+        ? Colors.black.withValues(alpha: p.light ? .06 : .16)
+        : null,
     // Menus, dialogs and sheets in the panel colour and shape of the finish;
     // opened on a page, they are laid on its material as well
     // (FinishPopupFrame).

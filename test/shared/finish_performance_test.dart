@@ -165,7 +165,7 @@ void main() {
       final boxes = <RenderFinishPaint>{
         ...t.renderObjectList<RenderFinishPaint>(find.byType(FinishPaint)),
         for (final f in t.allRenderObjects.whereType<RenderFinishPopupFrame>())
-          if (f.sheet != null) ...[f.panel, f.stitches],
+          if (f.sheet != null) ...[f.panel, f.edge],
       };
       expect(boxes, isNotEmpty, reason: what);
       for (final box in boxes) {
@@ -357,7 +357,7 @@ void main() {
       final px = await shot(t, list());
       expect(redNearEdge(px, finishSeamInset), 0);
       // The clip is inside the seam, and the seam is drawn over it.
-      final clip = t.renderObject<RenderClipRRect>(
+      final clip = t.renderObject<RenderClipRect>(
         find.byKey(const ValueKey('finish-seam-clip')),
       );
       expect(clip.clipper, isNotNull);

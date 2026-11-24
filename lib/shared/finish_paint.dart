@@ -96,8 +96,7 @@ final finishTextureNames = {
   for (final m in finishMaterials.values) ...[?m.wall, ?m.panel],
 };
 
-/// The finishes whose panels are stitched: their content is kept inside the
-/// seam (see [finishSeamInset]).
+/// The finishes whose panels are stitched: a running stitch inside the edge.
 const stitchedFinishes = {'denim', 'leather'};
 
 /// How far inside a stitched panel's edge its content starts: clear of the
@@ -110,11 +109,57 @@ const _seamAt = 5.5;
 /// empty, may reach under the seam, but nothing it draws is shown there.
 const finishContentInset = 4.0;
 
+/// How far inside a panel's edge its content is cut off: clear of the
+/// finish's edge detail (a wood lip, a marble chamfer, a plastic rim, a
+/// steel bevel, a seam), which is drawn over the content, so a row or a
+/// picture never runs across it. Content that scrolls toward it fades out
+/// under the edge over [finishFade] instead of being sliced. Each is far
+/// enough in that the corner of the cut (a plain rectangle, the cheapest
+/// clip there is) is still on the panel: the rounded part of the corner is
+/// covered by the panel's own material, drawn over the content.
+double finishEdgeInset(String id) => switch (id) {
+  'denim' || 'leather' => finishSeamInset,
+  'plastic' => 8,
+  'cashmere' => 7,
+  'glass' || 'walnut' || 'oak' => 6,
+  'marble' || 'console' || 'brick' => 4,
+  'papery' || 'carbon' => 3,
+  _ => 0,
+};
+
+/// Where a panel's content box starts, inside its edge: only a stitched
+/// panel's content is moved in (see [finishContentInset]); every other
+/// panel keeps the room it always had and is only cut off at its edge.
+double finishContentPadding(String id) =>
+    stitchedFinishes.contains(id) ? finishContentInset : 0;
+
+/// How far content fades out under a panel's edge.
+const finishFade = 6.0;
+
+/// How far inside a panel's content box what rests there (a heading, a
+/// button, a card) must start to be clear of the edge: inside the cut and
+/// clear of all but the faintest part of the fade. Only what scrolls goes
+/// nearer, and under the edge.
+double finishClear(String id) => id == 'flat'
+    ? 0
+    : finishEdgeInset(id) + finishFade / 2 - finishContentPadding(id);
+
 /// How many times the material has been drawn, for tests: once per surface
 /// when it first shows, and never again for a tick of the clock or a scroll.
 class FinishPaintCount {
   static int walls = 0, panels = 0, seams = 0;
   static int get total => walls + panels + seams;
+
+  /// How many images the finish has made (tinted tiles, edges, shadows),
+  /// and their size in bytes: each is recorded and rasterised when it is
+  /// first needed, which is work a frame pays for.
+  static int images = 0, imageBytes = 0;
+}
+
+ui.Image _made(ui.Image image) {
+  FinishPaintCount.images++;
+  FinishPaintCount.imageBytes += image.width * image.height * 4;
+  return image;
 }
 
 /// The photographs, decoded once and kept. A finish draws its plain colours
@@ -193,9 +238,7 @@ ui.Image _tint(
   );
   final dst = Rect.fromLTWH(0, 0, w, h);
   // A colour matrix works on 0..255; alpha is k × (grey − 128), clamped at
-  // nothing, so only one of the two layers marks any pixel. The tile is made
-  // at the size it is shown on this screen, so a frame samples it one to
-  // one, with no scaling.
+  // nothing, so only one of the two layers marks any pixel.
   // A little inside the budget, for the rounding of 8-bit colour.
   final kl = light * .97 * 255 / 127, kd = dark * .97 * 255 / 127;
   if (light > 0) {
@@ -228,13 +271,15 @@ ui.Image _tint(
         ]),
     );
   }
-  return recorder.endRecording().toImageSync(width, height);
+  return _made(recorder.endRecording().toImageSync(width, height));
 }
 
 ui.Image _record(int w, int h, void Function(Canvas c) draw) {
   final recorder = ui.PictureRecorder();
   draw(Canvas(recorder, Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble())));
-  return recorder.endRecording().toImageSync(math.max(1, w), math.max(1, h));
+  return _made(
+    recorder.endRecording().toImageSync(math.max(1, w), math.max(1, h)),
+  );
 }
 
 Color _toward(Color c, Color to, double t) => Color.lerp(c, to, t.clamp(0, 1))!;
@@ -279,7 +324,12 @@ class _Art {
     if (name == null) return null;
     final grey = FinishTextures.instance.image(name);
     if (grey == null) return null;
-    final px = (tile * dpr).round().clamp(16, 2048);
+    // At the size it is shown, so a frame samples it one to one, but never
+    // larger than the photograph: on a high-density screen (a phone, a 4K
+    // monitor at 200%) a bigger tile would only be the same detail spread
+    // out, at four times the memory; the GPU stretches it as it draws,
+    // which costs it nothing.
+    final px = (tile * dpr).round().clamp(16, math.max(16, grey.width)).toInt();
     final image = _tint(grey, base, l, d, px);
     final scale = tile / px;
     return Paint()
@@ -810,43 +860,54 @@ class _Art {
     },
   );
 
-  final _hems = <String, ui.Image>{};
-
-  /// Inside a stitched panel's seam: the panel's colour fading in over the
-  /// first few pixels, so content scrolled toward the seam passes softly
-  /// under the hem instead of being cut.
-  ({ui.Image image, Rect centre, double border}) hem(BorderRadius corners) {
-    final r = _maxRadius(corners);
-    final border = math.max(r, _hemFade) + 2;
-    final logical = border * 2 + 4;
-    final px = (logical * dpr).ceil();
-    final image = _hems['$corners'] ??= _record(px, px, (c) {
-      c.scale(dpr);
-      final rr = corners.toRRect(Rect.fromLTWH(0, 0, logical, logical));
-      c.clipRRect(rr);
-      for (var i = 0; i < _hemFade; i++) {
-        c.drawRRect(
-          rr.deflate(i + .5),
+  /// A gradient as a strip of pixels, made once: laid along a line with
+  /// [_along], it draws what a gradient shader would, but as an image, which
+  /// the fade under a panel's edge can draw (see [_fade]).
+  ui.Image strip(String key, List<Color> colors, [List<double>? stops]) =>
+      _nines[key] ??= _record(
+        _stripLength,
+        1,
+        (c) => c.drawRect(
+          const Rect.fromLTWH(0, 0, _stripLength + 0.0, 1),
           Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1
-            ..color = look.panel.withValues(
-              alpha: math.pow(1 - i / _hemFade, 1.6).toDouble(),
+            ..shader = ui.Gradient.linear(
+              Offset.zero,
+              const Offset(_stripLength + 0.0, 0),
+              colors,
+              stops,
             ),
-        );
-      }
-    });
-    return (
-      image: image,
-      centre: Rect.fromLTWH(border * dpr, border * dpr, 4 * dpr, 4 * dpr),
-      border: border,
+        ),
+      );
+}
+
+const _stripLength = 256;
+
+/// [strip] laid from [from] to [to]: across that line it runs through its
+/// colours, and beyond either end it keeps the colour at that end.
+Paint _along(ui.Image strip, Offset from, Offset to) {
+  final d = to - from;
+  final n = Offset(-d.dy, d.dx) / math.max(d.distance, 1e-6);
+  final m = Matrix4.zero()
+    ..setEntry(0, 0, d.dx / strip.width)
+    ..setEntry(1, 0, d.dy / strip.width)
+    ..setEntry(0, 1, n.dx)
+    ..setEntry(1, 1, n.dy)
+    ..setEntry(2, 2, 1)
+    ..setEntry(0, 3, from.dx)
+    ..setEntry(1, 3, from.dy)
+    ..setEntry(3, 3, 1);
+  return Paint()
+    ..shader = ImageShader(
+      strip,
+      TileMode.clamp,
+      TileMode.clamp,
+      m.storage,
+      filterQuality: FilterQuality.low,
     );
-  }
 }
 
 const _screwSize = 9.0;
 const _stitchLength = 4.6, _stitchWidth = 2.0, _stitchGap = 3.2;
-const _hemFade = 6.0;
 const _frameWidth = 4.0;
 
 double _maxRadius(BorderRadius b) => [
@@ -856,30 +917,151 @@ double _maxRadius(BorderRadius b) => [
   b.bottomRight.x,
 ].reduce(math.max);
 
-/// Draws a nine-patch made at [dpr] so its corners stay the right size.
-void _drawNine(
-  Canvas c,
-  ui.Image image,
-  Rect centre,
-  Rect dst,
-  double dpr, [
-  Paint? paint,
-]) {
-  c.save();
-  c.scale(1 / dpr);
-  c.drawImageNine(
-    image,
-    centre,
-    Rect.fromLTRB(
-      dst.left * dpr,
-      dst.top * dpr,
-      dst.right * dpr,
-      dst.bottom * dpr,
+/// Draws the border of a nine-patch made at [scale] pixels per logical
+/// pixel: its corners at their own size and its edges stretched along
+/// [dst], as one batch of triangles. Its middle is not drawn at all: a
+/// shadow's middle is under the panel, and an edge's is clear, and drawing
+/// either would cost a pass over the whole panel on every frame.
+void _drawNine(Canvas c, ui.Image image, Rect centre, Rect dst, double scale) {
+  final w = image.width.toDouble(), h = image.height.toDouble();
+  var l = centre.left / scale, r = (w - centre.right) / scale;
+  var t = centre.top / scale, b = (h - centre.bottom) / scale;
+  // Smaller than its corners: the corners shrink to fit, as drawImageNine
+  // does.
+  if (l + r > dst.width) {
+    final k = dst.width / (l + r);
+    l *= k;
+    r *= k;
+  }
+  if (t + b > dst.height) {
+    final k = dst.height / (t + b);
+    t *= k;
+    b *= k;
+  }
+  final xs = [dst.left, dst.left + l, dst.right - r, dst.right];
+  final ys = [dst.top, dst.top + t, dst.bottom - b, dst.bottom];
+  final us = [0.0, centre.left, centre.right, w];
+  final vs = [0.0, centre.top, centre.bottom, h];
+  final positions = <Offset>[], texture = <Offset>[];
+  for (var j = 0; j < 4; j++) {
+    for (var i = 0; i < 4; i++) {
+      positions.add(Offset(xs[i], ys[j]));
+      texture.add(Offset(us[i], vs[j]));
+    }
+  }
+  final indices = <int>[];
+  for (var j = 0; j < 3; j++) {
+    for (var i = 0; i < 3; i++) {
+      if (i == 1 && j == 1) continue;
+      final o = j * 4 + i;
+      indices.addAll([o, o + 1, o + 4, o + 1, o + 5, o + 4]);
+    }
+  }
+  c.drawVertices(
+    ui.Vertices(
+      VertexMode.triangles,
+      positions,
+      textureCoordinates: texture,
+      indices: indices,
     ),
-    paint ?? Paint()
-      ..filterQuality = FilterQuality.low,
+    BlendMode.srcOver,
+    Paint()
+      ..shader = ImageShader(
+        image,
+        TileMode.clamp,
+        TileMode.clamp,
+        Matrix4.identity().storage,
+        filterQuality: FilterQuality.low,
+      ),
   );
-  c.restore();
+}
+
+/// The points round [r], [_arc] + 1 on each corner, clockwise from the top
+/// left; two rounded rectangles give points that pair up.
+List<Offset> _contour(RRect r) {
+  final points = <Offset>[];
+  void arc(double cx, double cy, double rx, double ry, double from) {
+    for (var i = 0; i <= _arc; i++) {
+      final a = from + math.pi / 2 * i / _arc;
+      points.add(Offset(cx + rx * math.cos(a), cy + ry * math.sin(a)));
+    }
+  }
+
+  arc(
+    r.left + r.tlRadiusX,
+    r.top + r.tlRadiusY,
+    r.tlRadiusX,
+    r.tlRadiusY,
+    math.pi,
+  );
+  arc(
+    r.right - r.trRadiusX,
+    r.top + r.trRadiusY,
+    r.trRadiusX,
+    r.trRadiusY,
+    -math.pi / 2,
+  );
+  arc(
+    r.right - r.brRadiusX,
+    r.bottom - r.brRadiusY,
+    r.brRadiusX,
+    r.brRadiusY,
+    0,
+  );
+  arc(
+    r.left + r.blRadiusX,
+    r.bottom - r.blRadiusY,
+    r.blRadiusX,
+    r.blRadiusY,
+    math.pi / 2,
+  );
+  return points;
+}
+
+const _arc = 6;
+
+/// The triangles laid over the edge of a panel's content, which is cut off
+/// along the plain rectangle [cut]: the corners of [cut] outside [inner]
+/// (the panel's own rounded corner, there) solid, and a band inside
+/// [inner] fading from solid to clear over [finishFade]. Drawn in the
+/// panel's own material, it hides what the rectangle let through at the
+/// corners and lets content scrolled toward the edge fade under it.
+@visibleForTesting
+ui.Vertices finishFadeVertices(Rect cut, RRect inner) {
+  final rings = [
+    (_contour(inner), 1.0),
+    (_contour(inner.deflate(finishFade * .35)), .5),
+    (_contour(inner.deflate(finishFade)), 0.0),
+  ];
+  final positions = <Offset>[], colors = <Color>[], indices = <int>[];
+  for (final (points, alpha) in rings) {
+    positions.addAll(points);
+    colors.addAll(List.filled(points.length, Color.fromRGBO(0, 0, 0, alpha)));
+  }
+  final n = rings.first.$1.length;
+  for (var ring = 0; ring < rings.length - 1; ring++) {
+    final o = ring * n;
+    for (var i = 0; i < n; i++) {
+      final a = o + i, b = o + (i + 1) % n;
+      indices.addAll([a, b, a + n, b, b + n, a + n]);
+    }
+  }
+  // The corners of the cut that the rounded edge leaves out.
+  final corners = [cut.topLeft, cut.topRight, cut.bottomRight, cut.bottomLeft];
+  for (var k = 0; k < 4; k++) {
+    final at = positions.length;
+    positions.add(corners[k]);
+    colors.add(const Color(0xff000000));
+    for (var i = 0; i < _arc; i++) {
+      indices.addAll([at, k * (_arc + 1) + i, k * (_arc + 1) + i + 1]);
+    }
+  }
+  return ui.Vertices(
+    VertexMode.triangles,
+    positions,
+    colors: colors,
+    indices: indices,
+  );
 }
 
 /// Which part of a finish a [FinishPaint] draws.
@@ -887,15 +1069,22 @@ enum FinishPart {
   /// The background of a route.
   wall,
 
-  /// A panel's shadow, material and edge.
+  /// Under a panel's content: its shadow and material. A strip (a bar) has
+  /// no content over it that scrolls, so it draws its edge here too.
   panel,
 
-  /// Over a stitched panel's content: the hem and the stitches.
+  /// Over a panel's content: the content's edge fading under the panel's
+  /// material, then the panel's edge (its rim, screws or stitches), so
+  /// nothing the content draws is ever across the edge.
   seam,
 
-  /// Over a popup's content: the stitches alone, as a popup's own content
-  /// comes nearer its edge than a panel's.
-  stitches,
+  /// Over a popup's content: the edge alone, as a popup's own content comes
+  /// nearer its edge than a panel's and is kept in by the popup itself.
+  edge,
+
+  /// Under a row pressed into the material (hovered, focused, selected): a
+  /// shade inside its top and a lit lip along its foot.
+  press,
 }
 
 /// Which edges of a strip (a bar across the window) carry a seam.
@@ -906,6 +1095,10 @@ const allEdges = (top: true, bottom: true, left: true, right: true);
 /// repaint boundary of its own, so the clock ticking above it, a scroll or a
 /// button press never draws it again. It draws only pre-made images (see
 /// [_Art]): no layers, blurs or shaders are made while it paints.
+///
+/// What it draws is drawn again by the GPU on every frame (a scroll, a page
+/// sliding in), so it covers as little as it can: one pass over a panel's
+/// area for its material, and only thin bands for its shadow and edge.
 class FinishPaint extends LeafRenderObjectWidget {
   final FinishLook look;
   final FinishPart part;
@@ -997,6 +1190,7 @@ class RenderFinishPaint extends RenderBox {
     markNeedsPaint();
   }
 
+  FinishPart get part => _part;
   set part(FinishPart v) {
     if (v == _part) return;
     _part = v;
@@ -1085,9 +1279,12 @@ class RenderFinishPaint extends RenderBox {
       case FinishPart.seam:
         FinishPaintCount.seams++;
         _paintSeam(c);
-      case FinishPart.stitches:
+      case FinishPart.edge:
         FinishPaintCount.seams++;
-        _stitches(c, _corners.toRRect(Offset.zero & size));
+        _paintEdge(c, _corners.toRRect(Offset.zero & size));
+      case FinishPart.press:
+        FinishPaintCount.seams++;
+        _paintPress(c);
     }
     c.restore();
   }
@@ -1138,109 +1335,146 @@ class RenderFinishPaint extends RenderBox {
     c.drawRect(area, _art.wallFill ?? (Paint()..color = l.wall));
   }
 
+  /// The layers of a panel's material, bottom first, each with the part of
+  /// the panel it covers: the panel's own texture over all of it, and the
+  /// light laid over that (Plastic's gloss along its top and shade along its
+  /// foot, the sheen of brushed steel, a pane's frost). Each is an image,
+  /// so the fade over the content's edge can draw them again (see
+  /// [finishFadeVertices]).
+  List<(Paint, RRect)> _fills(RRect rr) {
+    final l = _look, art = _art, area = rr.outerRect;
+    final plain = Paint()..color = l.panel;
+    switch (l.id) {
+      case 'glass' when l.isCard:
+        // A frosted plate, solid: see FinishLook.card.
+        return [(plain, rr), if (art.panelFill case final frost?) (frost, rr)];
+      case 'glass':
+        final (at, wall) = _onWall();
+        final (_, pane) = art.glass(wall);
+        final s = _Art._glassScale;
+        return [
+          (
+            Paint()
+              ..shader = ImageShader(
+                pane,
+                TileMode.clamp,
+                TileMode.clamp,
+                (Matrix4.translationValues(
+                  -at.dx,
+                  -at.dy,
+                  0,
+                )..scaleByDouble(s, s, 1, 1)).storage,
+                filterQuality: FilterQuality.low,
+              ),
+            rr,
+          ),
+          if (art.panelFill case final frost?) (frost, rr),
+        ];
+      case 'plastic':
+        // The moulded surface, then the gloss of the shell over it: a wash of
+        // light over its top, and its shade along the foot.
+        final pl = l.panelLight, pd = l.panelDark;
+        final top = math.min(area.height * .5, 90.0);
+        final foot = math.min(area.height * .2, 30.0);
+        return [
+          (art.panelFill ?? plain, rr),
+          (
+            _along(
+              art.strip('gloss', [
+                Colors.white.withValues(alpha: pl * .6),
+                Colors.white.withValues(alpha: 0),
+              ]),
+              area.topCenter,
+              area.topCenter.translate(0, top),
+            ),
+            _band(
+              rr,
+              Rect.fromLTRB(area.left, area.top, area.right, area.top + top),
+            ),
+          ),
+          (
+            _along(
+              art.strip('shade', [
+                Colors.black.withValues(alpha: pd * .6),
+                Colors.black.withValues(alpha: 0),
+              ]),
+              area.bottomCenter,
+              area.bottomCenter.translate(0, -foot),
+            ),
+            _band(
+              rr,
+              Rect.fromLTRB(
+                area.left,
+                area.bottom - foot,
+                area.right,
+                area.bottom,
+              ),
+            ),
+          ),
+        ];
+      case 'console':
+        // Brushed steel catches the light in a broad soft band across it.
+        return [
+          (art.panelFill ?? plain, rr),
+          (
+            _along(
+              art.strip(
+                'sheen',
+                [
+                  Colors.white.withValues(alpha: 0),
+                  Colors.white.withValues(alpha: l.panelLight * .45),
+                  Colors.white.withValues(alpha: 0),
+                  Colors.white.withValues(alpha: l.panelLight * .25),
+                  Colors.white.withValues(alpha: 0),
+                ],
+                const [.05, .3, .55, .78, 1],
+              ),
+              area.topLeft,
+              Offset(area.left + math.min(area.width, 700), area.bottom),
+            ),
+            rr,
+          ),
+        ];
+      default:
+        return [(art.panelFill ?? plain, rr)];
+    }
+  }
+
   void _paintPanel(Canvas c) {
     final l = _look, art = _art, area = Offset.zero & size;
     final rr = _corners.toRRect(area);
-    if (!_strip) {
+    // A card is set into its panel, not standing on it: no shadow, and a
+    // wooden one has its lip (in its edge) but no frame of the desk's wood.
+    if (!_strip && !l.isCard) {
       final sh = art.shadow(_corners);
       _drawNine(c, sh.image, sh.centre, area.inflate(sh.reach), 1);
     }
-    switch (l.id) {
-      case 'glass':
-        final (_, pane) = art.glass(_onWall().$2);
-        final (at, _) = _onWall();
-        final s = _Art._glassScale;
-        c.drawRRect(
-          rr,
-          Paint()
-            ..filterQuality = FilterQuality.medium
-            ..shader = ImageShader(
-              pane,
-              TileMode.clamp,
-              TileMode.clamp,
-              (Matrix4.translationValues(
-                -at.dx,
-                -at.dy,
-                0,
-              )..scaleByDouble(s, s, 1, 1)).storage,
-              filterQuality: FilterQuality.medium,
-            ),
-        );
-        final frost = art.panelFill;
-        if (frost != null) c.drawRRect(rr, frost);
-      case 'plastic':
-        // The moulded surface, then the gloss of the shell over it.
-        c.drawRRect(rr, art.panelFill ?? (Paint()..color = l.panel));
-        // Gloss: a wash of light over the top of the shell, and its shade.
-        final pl = l.panelLight, pd = l.panelDark;
-        c.drawRRect(
-          rr,
-          Paint()
-            ..shader = ui.Gradient.linear(
-              area.topCenter,
-              Offset(area.center.dx, area.top + math.min(area.height * .5, 90)),
-              [
-                Colors.white.withValues(alpha: pl * .6),
-                Colors.white.withValues(alpha: 0),
-              ],
-            ),
-        );
-        c.drawRRect(
-          rr,
-          Paint()
-            ..shader = ui.Gradient.linear(
-              area.bottomCenter,
-              Offset(
-                area.center.dx,
-                area.bottom - math.min(area.height * .2, 30),
-              ),
-              [
-                Colors.black.withValues(alpha: pd * .6),
-                Colors.black.withValues(alpha: 0),
-              ],
-            ),
-        );
-      case 'console':
-        c.drawRRect(rr, art.panelFill ?? (Paint()..color = l.panel));
-        // Brushed steel catches the light in a broad soft band across it.
-        c.drawRRect(
-          rr,
-          Paint()
-            ..shader = ui.Gradient.linear(
-              area.topLeft,
-              Offset(area.left + math.min(area.width, 700), area.bottom),
-              [
-                Colors.white.withValues(alpha: 0),
-                Colors.white.withValues(alpha: l.panelLight * .45),
-                Colors.white.withValues(alpha: 0),
-                Colors.white.withValues(alpha: l.panelLight * .25),
-                Colors.white.withValues(alpha: 0),
-              ],
-              const [.05, .3, .55, .78, 1],
-              TileMode.clamp,
-            ),
-        );
-      case 'walnut' || 'oak':
-        c.drawRRect(rr, art.panelFill ?? (Paint()..color = l.panel));
-        if (!_strip) {
-          c.drawDRRect(
-            rr,
-            rr.deflate(_frameWidth),
-            art.frameFill ?? (Paint()..color = l.wall),
-          );
-        }
-      default:
-        c.drawRRect(rr, art.panelFill ?? (Paint()..color = l.panel));
+    for (final (paint, shape) in _fills(rr)) {
+      c.drawRRect(shape, paint);
     }
-    final rim = art.rim(_corners, strip: _strip);
-    _drawNine(c, rim.image, rim.centre, area, _dpr);
-    if (l.id == 'console') _screws(c, rr);
-    // A strip has no content inside a seam: its stitches are drawn here.
-    if (_strip && stitchedFinishes.contains(l.id)) _stitches(c, rr);
+    if ((l.id == 'walnut' || l.id == 'oak') && !_strip && !l.isCard) {
+      c.drawDRRect(
+        rr,
+        rr.deflate(_frameWidth),
+        art.frameFill ?? (Paint()..color = l.wall),
+      );
+    }
+    // A bar has no content inside its edge that scrolls: its edge is drawn
+    // here, under what is on it.
+    if (_strip) _paintEdge(c, rr);
+  }
+
+  /// The edge of a panel: its rim, and a console's screws or a stitched
+  /// finish's stitches.
+  void _paintEdge(Canvas c, RRect rr) {
+    final rim = _art.rim(_corners, strip: _strip);
+    _drawNine(c, rim.image, rim.centre, rr.outerRect, _dpr);
+    if (_look.id == 'console') _screws(c, rr);
+    if (stitchedFinishes.contains(_look.id)) _stitches(c, rr);
   }
 
   void _screws(Canvas c, RRect rr) {
-    final art = _art, image = art.screw;
+    final image = _art.screw;
     final src = Rect.fromLTWH(
       0,
       0,
@@ -1251,31 +1485,71 @@ class RenderFinishPaint extends RenderBox {
     double inset(double radius) => 4 + radius * .32 + _screwSize / 2;
     final a = rr.outerRect;
     if (a.width < 40 || a.height < 26) return;
-    for (final o in [
-      Offset(a.left + inset(rr.tlRadiusX), a.top + inset(rr.tlRadiusY)),
-      Offset(a.right - inset(rr.trRadiusX), a.top + inset(rr.trRadiusY)),
-      Offset(a.left + inset(rr.blRadiusX), a.bottom - inset(rr.blRadiusY)),
-      Offset(a.right - inset(rr.brRadiusX), a.bottom - inset(rr.brRadiusY)),
-    ]) {
-      c.drawImageRect(
-        image,
-        src,
-        Rect.fromCenter(center: o, width: _screwSize, height: _screwSize),
-        Paint()..filterQuality = FilterQuality.medium,
-      );
-    }
+    c.drawAtlas(
+      image,
+      [
+        for (final o in [
+          Offset(a.left + inset(rr.tlRadiusX), a.top + inset(rr.tlRadiusY)),
+          Offset(a.right - inset(rr.trRadiusX), a.top + inset(rr.trRadiusY)),
+          Offset(a.left + inset(rr.blRadiusX), a.bottom - inset(rr.blRadiusY)),
+          Offset(a.right - inset(rr.brRadiusX), a.bottom - inset(rr.brRadiusY)),
+        ])
+          RSTransform.fromComponents(
+            rotation: 0,
+            scale: _screwSize / image.width,
+            anchorX: image.width / 2,
+            anchorY: image.height / 2,
+            translateX: o.dx,
+            translateY: o.dy,
+          ),
+      ],
+      List.filled(4, src),
+      null,
+      null,
+      null,
+      Paint()..filterQuality = FilterQuality.medium,
+    );
   }
 
+  void _paintPress(Canvas c) {
+    final area = Offset.zero & size, l = _look;
+    // The row sinks (its ink darkens it): shade inside its top edge, and
+    // its lower lip catches the light.
+    final top = math.min(6.0, area.height / 3);
+    c.drawRect(
+      Rect.fromLTWH(0, 0, area.width, top),
+      _along(
+        _art.strip('press', [
+          Colors.black.withValues(alpha: l.light ? .14 : .4),
+          Colors.black.withValues(alpha: 0),
+        ]),
+        Offset.zero,
+        Offset(0, top),
+      ),
+    );
+    c.drawRect(
+      Rect.fromLTWH(0, area.height - 1, area.width, 1),
+      Paint()..color = Colors.white.withValues(alpha: l.light ? .5 : .08),
+    );
+  }
+
+  /// Over a panel's content: the content's edge fading under the panel's
+  /// material, then the panel's edge.
   void _paintSeam(Canvas c) {
     final area = Offset.zero & size;
     final rr = _corners.toRRect(area);
-    // The hem: over the edge of the content, inside the stitches.
-    final hemRect = area.deflate(finishSeamInset);
-    if (!hemRect.isEmpty) {
-      final hem = _art.hem(_inner(_corners, finishSeamInset));
-      _drawNine(c, hem.image, hem.centre, hemRect, _dpr);
+    final inset = finishEdgeInset(_look.id);
+    final cut = area.deflate(inset);
+    if (cut.width > finishFade * 2 && cut.height > finishFade * 2) {
+      final fade = finishFadeVertices(
+        cut,
+        _inner(_corners, inset).toRRect(cut),
+      );
+      for (final (paint, _) in _fills(rr)) {
+        c.drawVertices(fade, BlendMode.srcIn, paint);
+      }
     }
-    _stitches(c, rr);
+    _paintEdge(c, rr);
   }
 
   /// A running stitch [_seamAt] inside [rr], laid as one batch of images.
@@ -1342,6 +1616,22 @@ class RenderFinishPaint extends RenderBox {
   }
 }
 
+/// The part of [rr] inside [band], with [rr]'s corners where [band]
+/// reaches them.
+RRect _band(RRect rr, Rect band) {
+  final a = rr.outerRect;
+  bool at(double x, double y) =>
+      (x == a.left ? band.left == a.left : band.right == a.right) &&
+      (y == a.top ? band.top == a.top : band.bottom == a.bottom);
+  return RRect.fromRectAndCorners(
+    band,
+    topLeft: at(a.left, a.top) ? rr.tlRadius : Radius.zero,
+    topRight: at(a.right, a.top) ? rr.trRadius : Radius.zero,
+    bottomLeft: at(a.left, a.bottom) ? rr.blRadius : Radius.zero,
+    bottomRight: at(a.right, a.bottom) ? rr.brRadius : Radius.zero,
+  );
+}
+
 BorderRadius _inner(BorderRadius b, double by) => BorderRadius.only(
   topLeft: Radius.circular(math.max(0, b.topLeft.x - by)),
   topRight: Radius.circular(math.max(0, b.topRight.x - by)),
@@ -1349,5 +1639,6 @@ BorderRadius _inner(BorderRadius b, double by) => BorderRadius.only(
   bottomRight: Radius.circular(math.max(0, b.bottomRight.x - by)),
 );
 
-/// The corners of a stitched panel's content, inside its seam.
-BorderRadius finishInnerCorners(BorderRadius b) => _inner(b, finishSeamInset);
+/// The corners of a panel's content where it is cut off, [by] inside the
+/// panel's edge.
+BorderRadius finishInnerCorners(BorderRadius b, double by) => _inner(b, by);

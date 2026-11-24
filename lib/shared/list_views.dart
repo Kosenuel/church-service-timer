@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+import 'package:church_service_timer/shared/finish.dart';
 import 'package:church_service_timer/shared/device_words.dart';
 import 'package:church_service_timer/main.dart';
 import 'package:church_service_timer/shared/app_theme.dart';
@@ -39,6 +41,9 @@ extension ListViews on HomeState {
   Widget listHint(String id, String text) {
     if (c.state.dismissedHints.contains(id)) return const SizedBox.shrink();
     final colors = appColors(context);
+    // In a finish the words keep clear of the card's edge.
+    final look = finishLook(context);
+    final v = look.active ? math.max(4.0, finishClear(look.id) - 1) : 4.0;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: FinishCard(
@@ -49,7 +54,7 @@ extension ListViews on HomeState {
           child: child,
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+          padding: EdgeInsets.fromLTRB(12, v, 4, v),
           child: Row(
             children: [
               Icon(Icons.info_outline, size: 18, color: colors.muted),

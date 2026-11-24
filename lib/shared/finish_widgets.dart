@@ -7,6 +7,8 @@ import 'package:church_service_timer/shared/finish_popups.dart';
 
 export 'package:church_service_timer/shared/finish_popups.dart'
     show FinishPopups, FinishPopupFrame, finishPopupColor;
+export 'package:church_service_timer/shared/finish_paint.dart'
+    show finishEdgeInset, finishFade, finishClear;
 
 /// Paints the finish's background behind [child] (a whole screen). Flat
 /// draws nothing, so [child] paints its own background as it always did.
@@ -50,11 +52,12 @@ class _FinishWallState extends State<FinishWall> {
 /// area edge to edge (a bar or a column), so it has no shadow; for a
 /// stitched finish its seam runs along [seams] only.
 ///
-/// In a stitched finish (Denim, Leather) the seam is a frame inside the
-/// panel's edge, and the content is kept inside it: it is inset clear of
-/// the thread and clipped there, with a soft hem, so text or buttons
-/// scrolled toward the edge pass under the hem and nothing is ever drawn
-/// across the stitches or cut in half by them.
+/// Every finish keeps the content inside the panel's edge (see
+/// [finishEdgeInset]): it is cut off there, what scrolls toward the edge
+/// fades under the panel's material, and the edge (a wood lip, a chamfer, a
+/// rim, a bevel and screws, a seam) is drawn over it, so nothing is ever
+/// drawn across the edge or sticks out past it. In a stitched finish
+/// (Denim, Leather) the content box itself also starts a little inside.
 class FinishSurface extends StatelessWidget {
   final Widget child;
   final double radius;
@@ -66,6 +69,10 @@ class FinishSurface extends StatelessWidget {
 
   /// Flat only: the plain card's outline.
   final bool outlined;
+
+  /// A small card set into a panel ([FinishLook.card]), with corners no
+  /// rounder than [radius].
+  final bool card;
   const FinishSurface({
     super.key,
     required this.child,
@@ -74,10 +81,12 @@ class FinishSurface extends StatelessWidget {
     this.corners,
     this.seams = noEdges,
     this.outlined = true,
+    this.card = false,
   });
   @override
   Widget build(BuildContext context) {
-    final look = finishLook(context), colors = appColors(context);
+    final colors = appColors(context);
+    final page = finishLook(context), look = card ? page.card : page;
     if (!look.active) {
       if (pane) return ColoredBox(color: colors.surface, child: child);
       return Material(
@@ -94,8 +103,11 @@ class FinishSurface extends StatelessWidget {
         corners ??
         (pane
             ? BorderRadius.zero
-            : BorderRadius.circular(finishRadius(look.id)));
-    final stitched = stitchedFinishes.contains(look.id);
+            : BorderRadius.circular(
+                card
+                    ? math.min(radius, finishRadius(look.id))
+                    : finishRadius(look.id),
+              ));
     final content = FinishOnPanel(
       child: Material(type: MaterialType.transparency, child: child),
     );
@@ -109,45 +121,38 @@ class FinishSurface extends StatelessWidget {
       ),
     );
     if (pane) {
-      // A bar: its seam runs along the edges that face the page, clear of
-      // what is on the bar, which does not scroll.
+      // A bar: its edge is drawn under what is on it, which does not scroll
+      // and keeps clear of it.
       return Stack(
         fit: StackFit.passthrough,
         clipBehavior: Clip.none,
         children: [
           material,
-          ClipRRect(borderRadius: shape, child: content),
+          shape == BorderRadius.zero
+              ? ClipRect(child: content)
+              : ClipRRect(borderRadius: shape, child: content),
         ],
       );
     }
-    if (!stitched) {
-      return Stack(
-        fit: StackFit.passthrough,
-        clipBehavior: Clip.none,
-        children: [
-          material,
-          ClipRRect(borderRadius: shape, child: content),
-        ],
-      );
-    }
+    final pad = finishContentPadding(look.id);
     return Stack(
       fit: StackFit.passthrough,
       clipBehavior: Clip.none,
       children: [
         material,
-        // The content starts just inside the edge, so it keeps nearly all
-        // its room, and is cut off inside the seam: what reaches the seam
-        // is only the content's own margin, and what scrolls there goes
-        // under the hem.
+        // The content is cut off inside the panel's edge along a plain
+        // rectangle (the cheapest clip there is); the corners it lets
+        // through are covered by the panel's material drawn over them.
         Padding(
-          padding: const EdgeInsets.all(finishContentInset),
-          child: ClipRRect(
+          padding: EdgeInsets.all(pad),
+          child: ClipRect(
             key: const ValueKey('finish-seam-clip'),
-            clipper: _InsideSeam(finishInnerCorners(shape)),
+            clipper: FinishEdgeClipper(finishEdgeInset(look.id) - pad),
             child: content,
           ),
         ),
-        // Over the content, so it can never cover a stitch.
+        // Over the content, so it can never cover the edge: what reaches
+        // the edge fades under the material, and the edge is drawn on top.
         Positioned.fill(
           child: IgnorePointer(
             child: FinishPaint(
@@ -162,15 +167,17 @@ class FinishSurface extends StatelessWidget {
   }
 }
 
-class _InsideSeam extends CustomClipper<RRect> {
-  final BorderRadius corners;
-  const _InsideSeam(this.corners);
+/// Where a panel's content is cut off: [inset] inside the content box.
+class FinishEdgeClipper extends CustomClipper<Rect> {
+  final double inset;
+  const FinishEdgeClipper(this.inset);
   @override
-  RRect getClip(Size size) => corners.toRRect(
-    (Offset.zero & size).deflate(finishSeamInset - finishContentInset),
-  );
+  Rect getClip(Size size) => (Offset.zero & size).deflate(inset);
+  // What shows, for scrolling a field into view and for screen readers.
   @override
-  bool shouldReclip(_InsideSeam old) => old.corners != corners;
+  Rect getApproximateClipRect(Size size) => getClip(size);
+  @override
+  bool shouldReclip(FinishEdgeClipper old) => old.inset != inset;
 }
 
 const noEdges = (top: false, bottom: false, left: false, right: false);
@@ -343,9 +350,10 @@ class FinishOnPanel extends InheritedWidget {
 /// A small card: a hint, a notice, a banner or a status strip. In Flat it is
 /// exactly the card it always was ([flat], built round [child]). With a
 /// finish it takes the material: on the bare wall it is a panel of its own,
-/// raised like the others; inside a panel it is set into it, a well of the
-/// theme's plain surface with the finish's edge and corners, so the two
-/// never read as one sheet, and its words keep the theme's own contrast.
+/// raised like the others; inside a panel it is a material card set into
+/// it ([FinishLook.card]): the panel's own material a step darker and
+/// calmer, with the finish's own edge (a seam, an inlaid lip, a chamfer, a
+/// moulded rim, a bevel and screws), so the two never read as one sheet.
 class FinishCard extends StatelessWidget {
   final Widget child;
 
@@ -366,19 +374,17 @@ class FinishCard extends StatelessWidget {
     final look = finishLook(context);
     if (!look.active) return flat(child);
     if (!FinishOnPanel.of(context)) {
-      return FinishSurface(radius: radius, child: child);
+      // A card keeps at least 10 of its own room inside its edge; a finish
+      // with a deeper edge (Plastic's rim) adds what that needs.
+      final more = math.max(0.0, finishClear(look.id) - 10);
+      return FinishSurface(
+        radius: radius,
+        child: more == 0
+            ? child
+            : Padding(padding: EdgeInsets.all(more), child: child),
+      );
     }
-    return Material(
-      color: look.palette.surface,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          math.min(radius, finishRadius(look.id)),
-        ),
-        side: BorderSide(color: look.border),
-      ),
-      child: child,
-    );
+    return FinishSurface(card: true, radius: radius, child: child);
   }
 }
 
@@ -420,10 +426,21 @@ class FinishPanelled extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    if (!finishLook(context).active) return child;
+    final look = finishLook(context);
+    if (!look.active) return child;
+    // Never nearer the edge than its edge detail allows.
+    final clear = finishClear(look.id);
     return FinishSurface(
       radius: radius,
-      child: Padding(padding: padding, child: child),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          math.max(padding.left, clear),
+          math.max(padding.top, clear),
+          math.max(padding.right, clear),
+          math.max(padding.bottom, clear),
+        ),
+        child: child,
+      ),
     );
   }
 }
@@ -461,4 +478,86 @@ class FinishColumn extends StatelessWidget {
   Widget build(BuildContext context) => finishLook(context).active
       ? FinishPane(child: child)
       : Material(color: appColors(context).surface, child: child);
+}
+
+/// A divider in a finish: a groove cut into the material, a dark line with
+/// its lower lip catching the light, instead of a drawn grey line. Two
+/// plain lines, drawn with the row they are in.
+class FinishGroove extends StatelessWidget {
+  final double indent, endIndent;
+  const FinishGroove({super.key, this.indent = 16, this.endIndent = 16});
+  @override
+  Widget build(BuildContext context) {
+    final look = finishLook(context);
+    return Padding(
+      padding: EdgeInsetsDirectional.only(start: indent, end: endIndent),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 1,
+            child: ColoredBox(
+              color: Colors.black.withValues(alpha: look.light ? .16 : .42),
+            ),
+          ),
+          SizedBox(
+            height: 1,
+            child: ColoredBox(
+              color: Colors.white.withValues(alpha: look.light ? .55 : .09),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A row that looks pressed into the material while it is hovered,
+/// focused or [selected]: a soft shade inside its top and a lit lower lip,
+/// under the row's own ink and words. In Flat it is [child] as it was.
+class FinishPressable extends StatefulWidget {
+  final Widget child;
+  final bool selected;
+  const FinishPressable({
+    super.key,
+    required this.child,
+    this.selected = false,
+  });
+  @override
+  State<FinishPressable> createState() => _FinishPressableState();
+}
+
+class _FinishPressableState extends State<FinishPressable> {
+  bool _hover = false, _focus = false;
+  @override
+  Widget build(BuildContext context) {
+    final look = finishLook(context);
+    if (!look.active) return widget.child;
+    final on = _hover || _focus || widget.selected;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onFocusChange: (f) => setState(() => _focus = f),
+        child: Stack(
+          children: [
+            if (on)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: FinishPaint(
+                    key: const ValueKey('finish-pressed'),
+                    look: look,
+                    part: FinishPart.press,
+                  ),
+                ),
+              ),
+            widget.child,
+          ],
+        ),
+      ),
+    );
+  }
 }

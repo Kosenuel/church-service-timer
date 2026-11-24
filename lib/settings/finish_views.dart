@@ -372,10 +372,10 @@ class _FinishSwatchState extends State<FinishSwatch> {
                                   finishRadius(id) * .6,
                                 ),
                               ),
-                        if (!flat && stitchedFinishes.contains(id))
+                        if (!flat)
                           FinishPaint(
                             look: look,
-                            part: FinishPart.seam,
+                            part: FinishPart.edge,
                             corners: BorderRadius.circular(
                               finishRadius(id) * .6,
                             ),

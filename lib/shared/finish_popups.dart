@@ -38,8 +38,8 @@ class FinishPopups extends InheritedTheme {
 
 /// A popup in the finish's material: its sheet is made clear (in
 /// [finishPopupColor], with no shadow), and the frame draws the panel
-/// material, edge and shadow behind it at the place and size the sheet has,
-/// and a stitched finish's stitches over it. The material is the same cached
+/// material and shadow behind it at the place and size the sheet has, and
+/// its edge over it. The material is the same cached
 /// images a panel draws (see [RenderFinishPaint]), each in a layer of its
 /// own, so a popup sliding in or a caret blinking in it never draws them
 /// again.
@@ -130,12 +130,12 @@ class _PopupFrame extends SingleChildRenderObjectWidget {
 }
 
 /// Lays out the popup, finds its sheet (the first [RenderPhysicalShape] in
-/// [finishPopupColor]) and draws the material behind it and the stitches
+/// [finishPopupColor]) and draws the material behind it and the edge
 /// over it. The sheet may move or grow inside the popup without this
 /// laying out again (a bottom sheet slides up, a menu opens out), so where
 /// it is is read again each time this paints; a sheet that has changed
 /// size has a plain plate of the panel colour for that one frame, and the
-/// material is fitted to it on the next.
+/// material is fitted to it on the next. The edge is drawn over the sheet.
 class RenderFinishPopupFrame extends RenderBox
     with RenderObjectWithChildMixin<RenderBox> {
   RenderFinishPopupFrame({
@@ -152,9 +152,9 @@ class RenderFinishPopupFrame extends RenderBox
          dpr: dpr,
          wall: wall,
        ),
-       stitches = RenderFinishPaint(
+       edge = RenderFinishPaint(
          look: look,
-         part: FinishPart.stitches,
+         part: FinishPart.edge,
          corners: BorderRadius.zero,
          strip: false,
          edges: allEdges,
@@ -162,14 +162,14 @@ class RenderFinishPopupFrame extends RenderBox
          wall: wall,
        ) {
     adoptChild(panel);
-    adoptChild(stitches);
+    adoptChild(edge);
   }
 
   FinishLook _look;
 
-  /// The material behind the sheet, and a stitched finish's stitches over
-  /// it.
-  final RenderFinishPaint panel, stitches;
+  /// The material behind the sheet, and its edge (a rim, screws or a
+  /// stitched finish's stitches) over it.
+  final RenderFinishPaint panel, edge;
 
   RenderPhysicalShape? _sheet;
   bool _refit = false;
@@ -178,11 +178,9 @@ class RenderFinishPopupFrame extends RenderBox
   /// The sheet this frame drew behind when it last laid out, for tests.
   RenderBox? get sheet => _sheet;
 
-  bool get _stitched => stitchedFinishes.contains(_look.id);
-
   void update(FinishLook look, GlobalKey? wall, double dpr) {
     _look = look;
-    for (final p in [panel, stitches]) {
+    for (final p in [panel, edge]) {
       p
         ..look = look
         ..wall = wall
@@ -195,28 +193,28 @@ class RenderFinishPopupFrame extends RenderBox
   void attach(PipelineOwner owner) {
     super.attach(owner);
     panel.attach(owner);
-    stitches.attach(owner);
+    edge.attach(owner);
   }
 
   @override
   void detach() {
     super.detach();
     panel.detach();
-    stitches.detach();
+    edge.detach();
   }
 
   @override
   void redepthChildren() {
     redepthChild(panel);
     super.redepthChildren();
-    redepthChild(stitches);
+    redepthChild(edge);
   }
 
   @override
   void visitChildren(RenderObjectVisitor visitor) {
     visitor(panel);
     super.visitChildren(visitor);
-    visitor(stitches);
+    visitor(edge);
   }
 
   // The material says nothing to a screen reader.
@@ -247,7 +245,7 @@ class RenderFinishPopupFrame extends RenderBox
     late final Size sheetSize;
     invokeLayoutCallback<BoxConstraints>((_) => sheetSize = sheet.size);
     final corners = _cornersOf(sheet);
-    for (final p in [panel, stitches]) {
+    for (final p in [panel, edge]) {
       p
         ..corners = corners
         ..layout(BoxConstraints.tight(sheetSize));
@@ -349,7 +347,7 @@ class RenderFinishPopupFrame extends RenderBox
 
     if (fits) layer(panel);
     context.paintChild(popup, offset);
-    if (fits && _stitched) layer(stitches);
+    if (fits) layer(edge);
     // Glass shows the part of the wall behind it: moved, it draws once more
     // when it comes to rest.
     if (_look.id == 'glass' && _paintedAt != at) {
