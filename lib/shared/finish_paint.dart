@@ -136,6 +136,14 @@ double finishContentPadding(String id) =>
 /// How far content fades out under a panel's edge.
 const finishFade = 6.0;
 
+/// How far inside a panel's content box what rests there (a heading, a
+/// button, a card) must start to be clear of the edge: inside the cut and
+/// clear of all but the faintest part of the fade. Only what scrolls goes
+/// nearer, and under the edge.
+double finishClear(String id) => id == 'flat'
+    ? 0
+    : finishEdgeInset(id) + finishFade / 2 - finishContentPadding(id);
+
 /// How many times the material has been drawn, for tests: once per surface
 /// when it first shows, and never again for a tick of the clock or a scroll.
 class FinishPaintCount {

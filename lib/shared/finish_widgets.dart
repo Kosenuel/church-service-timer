@@ -7,6 +7,8 @@ import 'package:church_service_timer/shared/finish_popups.dart';
 
 export 'package:church_service_timer/shared/finish_popups.dart'
     show FinishPopups, FinishPopupFrame, finishPopupColor;
+export 'package:church_service_timer/shared/finish_paint.dart'
+    show finishEdgeInset, finishFade, finishClear;
 
 /// Paints the finish's background behind [child] (a whole screen). Flat
 /// draws nothing, so [child] paints its own background as it always did.
@@ -135,7 +137,7 @@ class FinishSurface extends StatelessWidget {
           padding: EdgeInsets.all(pad),
           child: ClipRect(
             key: const ValueKey('finish-seam-clip'),
-            clipper: _InsideEdge(finishEdgeInset(look.id) - pad),
+            clipper: FinishEdgeClipper(finishEdgeInset(look.id) - pad),
             child: content,
           ),
         ),
@@ -155,13 +157,17 @@ class FinishSurface extends StatelessWidget {
   }
 }
 
-class _InsideEdge extends CustomClipper<Rect> {
+/// Where a panel's content is cut off: [inset] inside the content box.
+class FinishEdgeClipper extends CustomClipper<Rect> {
   final double inset;
-  const _InsideEdge(this.inset);
+  const FinishEdgeClipper(this.inset);
   @override
   Rect getClip(Size size) => (Offset.zero & size).deflate(inset);
+  // What shows, for scrolling a field into view and for screen readers.
   @override
-  bool shouldReclip(_InsideEdge old) => old.inset != inset;
+  Rect getApproximateClipRect(Size size) => getClip(size);
+  @override
+  bool shouldReclip(FinishEdgeClipper old) => old.inset != inset;
 }
 
 const noEdges = (top: false, bottom: false, left: false, right: false);
@@ -357,7 +363,15 @@ class FinishCard extends StatelessWidget {
     final look = finishLook(context);
     if (!look.active) return flat(child);
     if (!FinishOnPanel.of(context)) {
-      return FinishSurface(radius: radius, child: child);
+      // A card keeps at least 10 of its own room inside its edge; a finish
+      // with a deeper edge (Plastic's rim) adds what that needs.
+      final more = math.max(0.0, finishClear(look.id) - 10);
+      return FinishSurface(
+        radius: radius,
+        child: more == 0
+            ? child
+            : Padding(padding: EdgeInsets.all(more), child: child),
+      );
     }
     return Material(
       color: look.palette.surface,
@@ -411,10 +425,21 @@ class FinishPanelled extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    if (!finishLook(context).active) return child;
+    final look = finishLook(context);
+    if (!look.active) return child;
+    // Never nearer the edge than its edge detail allows.
+    final clear = finishClear(look.id);
     return FinishSurface(
       radius: radius,
-      child: Padding(padding: padding, child: child),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          math.max(padding.left, clear),
+          math.max(padding.top, clear),
+          math.max(padding.right, clear),
+          math.max(padding.bottom, clear),
+        ),
+        child: child,
+      ),
     );
   }
 }
