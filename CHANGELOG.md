@@ -35,6 +35,20 @@ Newest first. Each release links to its full guide in `docs/history/`. Dates are
   - **Ready.** Press **Enter** (or tap a result) to put a passage in **Ready**, a short list on the Slides page, then press **Send** to show it on the screens exactly like a slide from the Library (same background, Dim, **Send to** and **Clear slide**). **Ctrl+Enter**, a second tap or the play button on a result sends it at once. In Ready, **+ next verse** and **Whole chapter** take in more, and **Save to Library** keeps it as Bible verses. Ready is kept while the app is open and starts empty after a restart.
   - **Keys.** **/** or **Ctrl+F** goes to the box from anywhere on the Slides page, **Up** and **Down** move between results, **Esc** clears the box. **Search the Bible** is also in Commands (Ctrl+K). On a phone, the search field at the top of Slides opens a full-height list of results.
 
+## 0.39.0-beta.2, 24/November/2026
+
+A second test version. Please try these on the PC and phone before the real 0.39.0:
+
+- **Finishes everywhere.** With a finish such as **Denim** or **Walnut** chosen, look at Programs, Reports, Settings, the program editor, dialogs, menus and **Commands** (Ctrl+K): each should be made of the finish, and the app should feel as quick as **Flat**, above all on the PC that lagged. A finish now starts at **Full** (Walnut, Oak and Carbon fibre at **Subtle**), and the tiles are in a new order.
+- **Screens.** Open **Screens** from Live and set what each group shows, with a real second screen, a paired phone, a web screen and the LED sign connected if you can. Move a screen between groups, try **Slides and timer**, save a scene, and check that **Church Auditorium** shows no cues until you turn **Shows cues** on.
+- **Search the Bible** from the box at the top of the Slides page's Library: a reference, a few words from a verse, then **Enter** to put it in **Ready** and **Send** to show it.
+- **The Slides page** is tidier: one row of buttons, the **Screens**, **Background** and **Look** rows, the Library tabs, and slide cards of even height.
+- **Typing in the Slides editors.** In Add Bible verses and Add an announcement, clear a box, quickly type the same words again, then press **Tab**. Typing and Tab should keep working.
+- **Tap a notification** on the phone (the warning pop-up and the running-service card) and the warning pop-up on Windows: the app should come to the front on Live with the service still running.
+- **Services end on the clock.** After updating, end a service made from a program you already had, and from a new one: stage screens should show the flip clock, not Hallelujah. A program whose end screen you had changed should still show yours.
+
+The full notes for these are under **Unreleased** above and move into 0.39.0.
+
 ## 0.39.0-beta.1, 23/November/2026
 
 A test version. Please try these on the PC and phone before the real 0.39.0:
