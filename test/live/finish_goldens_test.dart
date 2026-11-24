@@ -156,7 +156,7 @@ void main() {
         // Appearance page with the Finish tiles themselves.
         for (final (name, tab) in [
           ('settings', 4),
-          ('programs', 1),
+          ('programs', 2),
           ('reports', 3),
         ]) {
           testWidgets('$finish $strength $tone $name', (t) async {
@@ -197,7 +197,7 @@ void main() {
       for (final (name, tab) in [
         ('live', -1),
         ('settings', 4),
-        ('programs', 1),
+        ('programs', 2),
         ('reports', 3),
       ]) {
         testWidgets('Papery $theme $strength $name on a phone', (t) async {

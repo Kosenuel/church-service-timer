@@ -135,11 +135,11 @@ void main() {
   });
 
   group('Screens is a destination', () {
-    testWidgets('on the rail, after Slides, selected on its page', (t) async {
+    testWidgets('on the rail, after Slides and before Programs, selected on its page', (t) async {
       await start(t, PcPort(), const Size(1366, 768));
       expect(
         [for (final p in homePageOrder) p.name],
-        ['Live', 'Programs', 'Slides', 'Screens', 'Reports', 'Settings'],
+        ['Live', 'Slides', 'Screens', 'Programs', 'Reports', 'Settings'],
       );
       final rail = t.widget<NavigationRail>(
         find.byKey(const ValueKey('navigation-rail')),
@@ -155,7 +155,7 @@ void main() {
               find.byKey(const ValueKey('navigation-rail')),
             )
             .selectedIndex,
-        3,
+        2,
       );
       expect(t.takeException(), isNull);
     });

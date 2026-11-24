@@ -240,7 +240,7 @@ void main() {
       final c = await setup(FakePort());
       await t.pumpWidget(TimerApp(controller: c));
       await t.pumpAndSettle();
-      await t.tap(find.byType(NavigationDestination).at(1));
+      await t.tap(find.widgetWithText(NavigationDestination, 'Programs'));
       await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('template-row:Quick rehearsal')));
       await t.pumpAndSettle();

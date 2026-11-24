@@ -171,7 +171,7 @@ void main() {
   // The finish photographs, decoded before any shot draws them.
   setUpAll(FinishTextures.instance.loadAll);
 
-  testWidgets('Slides sits after Programs in the navigation', (t) async {
+  testWidgets('Slides sits right after Live in the navigation', (t) async {
     await openLyrics(
       t,
       size: const Size(390, 844),
@@ -181,9 +181,9 @@ void main() {
     final bar = t.widget<NavigationBar>(find.byType(NavigationBar));
     expect(
       [for (final d in bar.destinations) (d as NavigationDestination).label],
-      ['Live', 'Programs', 'Slides', 'Reports', 'Settings'],
+      ['Live', 'Slides', 'Programs', 'Reports', 'Settings'],
     );
-    expect(bar.selectedIndex, 2);
+    expect(bar.selectedIndex, 1);
     expect(home(t).page, lyricsPage);
   });
 

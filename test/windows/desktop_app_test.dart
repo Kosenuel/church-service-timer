@@ -417,7 +417,7 @@ void main() {
     expect(home.page, 0);
     await t.dragFrom(const Offset(900, 400), const Offset(-500, 0));
     await t.pumpAndSettle();
-    expect(home.page, 1);
+    expect(home.page, lyricsPage);
     await t.pumpWidget(const SizedBox());
   });
 

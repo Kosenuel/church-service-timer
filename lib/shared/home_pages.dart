@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// The Lyrics page's number. Live, Programs, Reports and Settings keep 0
 /// to 3, as every key, test and saved place names them; Lyrics is shown
-/// third, after Programs, by [homePageOrder].
+/// second, after Live, by [homePageOrder].
 const lyricsPage = 4;
 
 /// The Screens page's number, after Lyrics. It is a destination only of a
@@ -18,12 +18,14 @@ class HomePage {
   const HomePage(this.page, this.name, this.icon);
 }
 
-/// The pages in the order the navigation shows them.
+/// The pages in the order the navigation shows them: what is used during
+/// a service first (Live, Slides, Screens), then preparing it (Programs),
+/// looking back (Reports) and Settings.
 const homePageOrder = [
   HomePage(0, 'Live', Icons.radio_button_checked),
-  HomePage(1, 'Programs', Icons.view_timeline_outlined),
   HomePage(lyricsPage, 'Slides', Icons.lyrics_outlined),
   HomePage(screensPage, 'Screens', Icons.dashboard_customize_outlined),
+  HomePage(1, 'Programs', Icons.view_timeline_outlined),
   HomePage(2, 'Reports', Icons.assessment_outlined),
   HomePage(3, 'Settings', Icons.settings_outlined),
 ];
